@@ -635,15 +635,15 @@ body {
 .auth-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 26px;
+  justify-content: center;
+  margin-bottom: 30px;
 }
-.auth-brand .brand-mark {
-  background: var(--content-bg);
-  border: 1px solid var(--border);
+.auth-logo {
+  width: 100%;
+  max-width: 130px;
+  height: auto;
+  display: block;
 }
-.auth-brand .brand-name { color: var(--text); font-size: 15px; font-weight: 600; }
-.auth-brand .brand-name strong { font-weight: 800; }
 
 .auth-title { font-size: 21px; font-weight: 700; margin: 0 0 6px; }
 .auth-subtitle { font-size: 13.5px; color: var(--text-muted); margin: 0 0 22px; }
