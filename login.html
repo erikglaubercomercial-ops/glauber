@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar — CRM de Vendas</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body class="auth-body">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="brand-mark">
+        <img src="assets/logo.png" alt="Logo">
+      </span>
+      <span class="brand-name">Vendas<strong>CRM</strong></span>
+    </div>
+
+    <h1 class="auth-title">Bem-vindo de volta</h1>
+    <p class="auth-subtitle">Entre com sua conta para acessar o CRM.</p>
+
+    <form id="login-form" class="auth-form">
+      <label>E-mail
+        <input type="email" id="login-email" required placeholder="voce@empresa.com" autocomplete="username">
+      </label>
+      <label>Senha
+        <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+      </label>
+
+      <div class="auth-error" id="login-error" style="display:none;"></div>
+
+      <button type="submit" class="btn btn-primary auth-submit">Entrar</button>
+    </form>
+  </div>
+
+  <script src="config.js?v=1790028144"></script>
+  <script src="auth.js"></script>
+  <script src="login.js"></script>
+</body>
+</html>

@@ -5,39 +5,369 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM de Vendas</title>
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-dot"></span>
-      <h1>CRM de Vendas</h1>
-    </div>
-    <button id="btn-new" class="btn btn-primary">+ Novo negócio</button>
-  </header>
+<body style="visibility:hidden;">
+  <div class="app-shell">
 
-  <section class="dashboard" id="dashboard">
-    <div class="stat-card">
-      <span class="stat-label">Negócios abertos</span>
-      <span class="stat-value" id="stat-open">0</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-label">Valor em pipeline</span>
-      <span class="stat-value" id="stat-pipeline-value">R$ 0</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-label">Ganhos (mês)</span>
-      <span class="stat-value stat-good" id="stat-won">R$ 0</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-label">Taxa de conversão</span>
-      <span class="stat-value" id="stat-conversion">0%</span>
-    </div>
-  </section>
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-group">
+          <span class="brand-mark">
+            <img src="assets/logo.png" alt="Logo Peregrino" width="28" height="28">
+          </span>
+          <span class="brand-name">Vendas<strong>CRM</strong></span>
+        </div>
+        <button type="button" class="sidebar-toggle" id="sidebar-toggle" title="Recolher menu">
+          <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      </div>
 
-  <main class="board" id="board">
-    <!-- columns injected by JS -->
-  </main>
+      <nav class="sidebar-nav">
+        <div class="nav-label">GERAL</div>
 
+        <button class="nav-item active" data-view="leads">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Leads</span>
+        </button>
+
+        <button class="nav-item" data-view="pipeline">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg>
+          <span>Pipeline</span>
+        </button>
+
+        <button class="nav-item" data-view="cotacao">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>
+          <span>Cotação</span>
+        </button>
+
+        <button class="nav-item" data-view="produtos">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>
+          <span>Produtos</span>
+        </button>
+
+        <div class="nav-label" id="nav-label-admin" style="display:none;">ADMINISTRAÇÃO</div>
+
+        <button class="nav-item" data-view="usuarios" id="nav-usuarios" style="display:none;">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0-8-8"/><circle cx="12" cy="10" r="3"/><path d="M12 13c-2.5 0-4.5 1.5-4.9 3.5"/><path d="m19 8 1.5 1.5L23 7"/></svg>
+          <span>Usuários</span>
+        </button>
+      </nav>
+
+      <button class="sidebar-signout" id="btn-signout">
+        <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Sair</span>
+      </button>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="content">
+      <header class="content-topbar">
+        <h1 id="view-title">Leads</h1>
+        <div class="topbar-right">
+          <label class="search-box">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="global-search" placeholder="Buscar...">
+          </label>
+          <button class="icon-btn" title="Notificações">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <div class="user-chip">
+            <div class="avatar" id="session-avatar">--</div>
+            <div class="user-meta">
+              <span class="user-name" id="session-name">—</span>
+              <span class="user-email" id="session-email">—</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- LEADS VIEW -->
+      <section class="view active" id="view-leads">
+        <div class="stat-row">
+          <div class="stat-card">
+            <span class="stat-label">Total de leads</span>
+            <span class="stat-value" id="leads-stat-total">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Novos (7 dias)</span>
+            <span class="stat-value" id="leads-stat-new">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Qualificados</span>
+            <span class="stat-value stat-good" id="leads-stat-qualified">0</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Lista de Leads</h2>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-sources">Gerenciar origens</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-import-leads">Importar CSV</button>
+              <input type="file" id="import-file-input" accept=".csv,text/csv" style="display:none;">
+              <button class="btn btn-primary" id="btn-new-lead">+ Novo lead</button>
+            </div>
+          </div>
+
+          <div class="filter-bar">
+            <select id="filter-category"><option value="">Categoria (todas)</option></select>
+            <select id="filter-source"><option value="">Origem (todas)</option></select>
+            <select id="filter-consultor"><option value="">Consultor (todos)</option></select>
+            <input type="date" id="filter-date-from" title="Data inicial">
+            <span class="filter-sep">até</span>
+            <input type="date" id="filter-date-to" title="Data final">
+            <label class="filter-check"><input type="checkbox" id="filter-show-inactive"> Mostrar inativos</label>
+            <button type="button" class="btn btn-ghost btn-sm" id="filter-clear">Limpar filtros</button>
+          </div>
+
+          <div class="bulk-bar" id="leads-bulk-bar" style="display:none;">
+            <span id="leads-bulk-count">0 selecionado(s)</span>
+            <div class="spacer"></div>
+            <button type="button" class="btn btn-ghost btn-sm" id="leads-bulk-assign">Atribuir consultor</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="leads-bulk-deactivate">Desativar</button>
+            <button type="button" class="btn btn-danger btn-sm" id="leads-bulk-delete">Excluir</button>
+            <button type="button" class="btn-icon" id="leads-bulk-clear" title="Limpar seleção">&times;</button>
+          </div>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="cell-check"><input type="checkbox" id="leads-select-all"></th>
+                  <th>Nome</th>
+                  <th>Categoria</th>
+                  <th>Origem</th>
+                  <th>Consultor</th>
+                  <th>Temperatura</th>
+                  <th>Status</th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="leads-tbody"></tbody>
+            </table>
+          </div>
+          <div class="empty-hint" id="leads-empty" style="display:none;">Nenhum lead cadastrado ainda.</div>
+        </div>
+      </section>
+
+      <!-- PIPELINE VIEW -->
+      <section class="view" id="view-pipeline">
+        <div class="stat-row">
+          <div class="stat-card">
+            <span class="stat-label">Negócios abertos</span>
+            <span class="stat-value" id="stat-open">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Valor em pipeline</span>
+            <span class="stat-value" id="stat-pipeline-value">€ 0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Ganhos (mês)</span>
+            <span class="stat-value stat-good" id="stat-won">€ 0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Taxa de conversão</span>
+            <span class="stat-value" id="stat-conversion">0%</span>
+          </div>
+        </div>
+
+        <div class="panel-header board-header">
+          <h2>Funil de Negócios</h2>
+          <button class="btn btn-primary" id="btn-new">+ Novo negócio</button>
+        </div>
+        <div class="board" id="board"></div>
+      </section>
+
+      <!-- COTACAO VIEW -->
+      <section class="view" id="view-cotacao">
+        <div class="stat-row">
+          <div class="stat-card">
+            <span class="stat-label">Cotações abertas</span>
+            <span class="stat-value" id="quotes-stat-open">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Valor cotado</span>
+            <span class="stat-value" id="quotes-stat-value">€ 0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Aprovadas</span>
+            <span class="stat-value stat-good" id="quotes-stat-approved">0</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Cotações</h2>
+            <a href="https://claude.ai/artifact/TP2symvqqkocx5MCh2Peqa" target="_blank" rel="noopener" class="btn btn-primary" id="btn-new-quote">+ Nova cotação ↗</a>
+          </div>
+          <div class="filter-chip-row" id="quotes-filter-chip-row" style="display:none;">
+            <span>Mostrando cotações de: <strong id="quotes-filter-chip-label"></strong></span>
+            <button type="button" class="btn-icon" id="quotes-filter-chip-clear" title="Limpar filtro">&times;</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Cliente</th><th>Itens</th><th>Validade</th><th>Status</th><th>Valor</th><th></th></tr>
+            </thead>
+            <tbody id="quotes-tbody"></tbody>
+          </table>
+          <div class="empty-hint" id="quotes-empty" style="display:none;">Nenhuma cotação cadastrada ainda.</div>
+        </div>
+      </section>
+
+      <!-- PRODUTOS VIEW -->
+      <section class="view" id="view-produtos">
+        <div class="stat-row">
+          <div class="stat-card">
+            <span class="stat-label">Produtos no catálogo</span>
+            <span class="stat-value" id="products-stat-total">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Visíveis para consultores</span>
+            <span class="stat-value stat-good" id="products-stat-active">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Destinos cadastrados</span>
+            <span class="stat-value" id="products-stat-destinos">0</span>
+          </div>
+        </div>
+
+        <div class="subtabs" id="produtos-subtabs">
+          <button type="button" class="subtab active" data-subtab="catalogo">Catálogo</button>
+          <button type="button" class="subtab" data-subtab="cotacao">Nova Cotação</button>
+        </div>
+
+        <!-- CATÁLOGO (ADM) -->
+        <div class="subview active" id="subview-catalogo">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Catálogo de Produtos</h2>
+              <div style="display:flex; gap:8px;">
+                <a href="https://claude.ai/artifact/TP2symvqqkocx5MCh2Peqa" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Cotações Peregrinos ↗</a>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-new-catalog-item">+ Novo produto</button>
+              </div>
+            </div>
+            <div id="catalog-list" class="catalog-admin-list"></div>
+          </div>
+        </div>
+
+        <!-- NOVA COTAÇÃO (builder) -->
+        <div class="subview" id="subview-cotacao-builder">
+          <div class="panel" style="margin-bottom:16px;">
+            <div class="panel-header"><h2>Dados do estudante</h2></div>
+            <div class="quote-form-body">
+              <div class="grid-2">
+                <label class="f"><span>Nome do estudante *</span><input type="text" id="q-nome" placeholder="Mariah Luísa"></label>
+                <label class="f"><span>E-mail do estudante *</span><input type="email" id="q-email" placeholder="nome@email.com"></label>
+                <label class="f"><span>Status</span>
+                  <select id="q-status">
+                    <option>Enviada</option>
+                    <option>Em negociação</option>
+                    <option>Aprovada</option>
+                    <option>Recusada</option>
+                  </select>
+                </label>
+                <label class="f"><span>Destino</span><select id="q-destino"></select></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-bottom:16px;">
+            <div class="panel-header"><h2>Consultor</h2></div>
+            <div class="quote-form-body">
+              <div class="grid-2">
+                <label class="f"><span>Nome do consultor *</span><input type="text" id="q-consultor" placeholder="Erik"></label>
+                <label class="f"><span>E-mail do consultor *</span><input type="email" id="q-consultor-email" placeholder="nome@peregrinosintercambio.com"></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-bottom:16px;">
+            <div class="panel-header"><h2>Serviços</h2></div>
+            <div class="quote-form-body">
+              <label class="f"><span>Buscar serviço</span><input type="text" id="q-busca" placeholder="Ex.: renewal, acomodação, Mon to Friday"></label>
+              <div id="quote-catalog"><p class="muted-note">Carregando catálogo…</p></div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-bottom:16px;">
+            <div class="panel-header"><h2>Validade e observações</h2></div>
+            <div class="quote-form-body">
+              <div class="grid-2">
+                <label class="f"><span>Emitida em</span><input type="date" id="q-emissao"></label>
+                <label class="f"><span>Válida até</span><input type="date" id="q-validade"></label>
+              </div>
+              <label class="f" style="margin-top:14px;"><span>Observações (opcional)</span><textarea id="q-obs" rows="3" placeholder="Ex.: valores sujeitos a alteração de câmbio; pagamento em 3 parcelas."></textarea></label>
+            </div>
+          </div>
+
+          <div class="quote-summary-bar">
+            <div class="sum">Total da cotação<b id="quote-preview-total">€0,00</b></div>
+            <button type="button" class="btn btn-ghost" id="q-btn-limpar">Limpar</button>
+            <button type="button" class="btn btn-primary" id="q-btn-gerar">Gerar cotação</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- USUÁRIOS VIEW (somente ADM) -->
+      <section class="view" id="view-usuarios">
+        <div class="stat-row">
+          <div class="stat-card">
+            <span class="stat-label">Total de usuários</span>
+            <span class="stat-value" id="users-stat-total">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Ativos</span>
+            <span class="stat-value stat-good" id="users-stat-active">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Administradores</span>
+            <span class="stat-value" id="users-stat-adm">0</span>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-header">
+            <h2>Usuários do CRM</h2>
+            <button class="btn btn-primary" id="btn-new-user">+ Novo usuário ↗</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Nome</th><th>E-mail</th><th>Função</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+          <div class="empty-hint" id="users-empty" style="display:none;">Nenhum usuário cadastrado ainda.</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Permissões por Função</h2>
+          </div>
+          <div class="perm-hint">Marque os módulos que cada função pode acessar. O ADM sempre tem acesso total.</div>
+          <div class="table-scroll">
+            <table class="data-table perm-table">
+              <thead>
+                <tr>
+                  <th>Função</th>
+                  <th>Leads</th>
+                  <th>Pipeline</th>
+                  <th>Cotação</th>
+                  <th>Produtos</th>
+                </tr>
+              </thead>
+              <tbody id="permissions-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL: NEGÓCIO (Pipeline) -->
   <div class="modal-backdrop" id="modal-backdrop">
     <div class="modal">
       <div class="modal-header">
@@ -55,7 +385,7 @@
         <label>Telefone / E-mail
           <input type="text" id="field-info" placeholder="Ex: (11) 99999-0000">
         </label>
-        <label>Valor estimado (R$)
+        <label>Valor estimado (€)
           <input type="number" id="field-value" min="0" step="0.01" placeholder="0,00">
         </label>
         <label>Estágio
@@ -74,6 +404,327 @@
     </div>
   </div>
 
+  <!-- MODAL: LEAD -->
+  <div class="modal-backdrop" id="lead-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="lead-modal-title">Novo lead</h2>
+        <button class="btn-icon" id="lead-modal-close">&times;</button>
+      </div>
+      <form id="lead-form">
+        <input type="hidden" id="lead-id">
+        <label>Nome
+          <input type="text" id="lead-field-name" required placeholder="Ex: João Pereira">
+        </label>
+        <label>Empresa
+          <input type="text" id="lead-field-company" placeholder="Ex: Mercado Central">
+        </label>
+        <label>Telefone (WhatsApp)
+          <input type="text" id="lead-field-phone" placeholder="Ex: (11) 99999-0000">
+        </label>
+        <label>E-mail
+          <input type="email" id="lead-field-email" placeholder="Ex: joao@empresa.com">
+        </label>
+        <label>Categoria
+          <select id="lead-field-category"></select>
+        </label>
+        <label>Origem
+          <select id="lead-field-source"></select>
+        </label>
+        <label>Temperatura
+          <select id="lead-field-temperature"></select>
+        </label>
+        <label>Status
+          <select id="lead-field-status">
+            <option value="Novo">Novo</option>
+            <option value="Em contato">Em contato</option>
+            <option value="Qualificado">Qualificado</option>
+            <option value="Descartado">Descartado</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="lead-field-active" checked>
+          <span>Lead ativo</span>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="lead-btn-delete" style="display:none;">Excluir</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="lead-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: IMPORTAR LEADS (CSV) -->
+  <div class="modal-backdrop" id="import-modal-backdrop">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2>Importar leads via CSV</h2>
+        <button class="btn-icon" id="import-modal-close">&times;</button>
+      </div>
+      <div class="import-body">
+        <p class="muted-note" id="import-summary"></p>
+        <p class="muted-note">Escolha, para cada coluna do seu arquivo, qual campo do CRM ela representa. Colunas sem mapeamento não serão importadas.</p>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>Coluna do CSV</th><th>Exemplo</th><th>Campo no CRM</th></tr></thead>
+            <tbody id="import-mapping-tbody"></tbody>
+          </table>
+        </div>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="import-btn-cancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="import-btn-confirm">Importar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GERENCIAR ORIGENS -->
+  <div class="modal-backdrop" id="sources-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Gerenciar origens de leads</h2>
+        <button class="btn-icon" id="sources-modal-close">&times;</button>
+      </div>
+      <div class="sources-body">
+        <p class="muted-note">Essas são as opções que aparecem no campo "Origem" ao cadastrar um lead. Renomear uma origem atualiza os leads que já a usam.</p>
+        <div id="sources-list"></div>
+        <div class="sources-add-row">
+          <input type="text" id="sources-new-input" placeholder="Nova origem">
+          <button type="button" class="btn btn-primary btn-sm" id="sources-add-btn">+ Adicionar</button>
+        </div>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-primary" id="sources-btn-done">Concluído</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ATRIBUIR CONSULTOR -->
+  <div class="modal-backdrop" id="assign-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="assign-modal-title">Atribuir consultor</h2>
+        <button class="btn-icon" id="assign-modal-close">&times;</button>
+      </div>
+      <form id="assign-form">
+        <label>Consultor
+          <select id="assign-field-consultor"></select>
+        </label>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="assign-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: COTAÇÃO -->
+  <div class="modal-backdrop" id="quote-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="quote-modal-title">Nova cotação</h2>
+        <button class="btn-icon" id="quote-modal-close">&times;</button>
+      </div>
+      <form id="quote-form">
+        <input type="hidden" id="quote-id">
+        <label>Cliente
+          <input type="text" id="quote-field-client" required placeholder="Ex: Padaria Bom Pão">
+        </label>
+        <label>Itens / Descrição
+          <input type="text" id="quote-field-items" placeholder="Ex: 3x Forno Industrial">
+        </label>
+        <label>Valor (€)
+          <input type="number" id="quote-field-value" min="0" step="0.01" placeholder="0,00">
+        </label>
+        <label>Validade
+          <input type="date" id="quote-field-validade">
+        </label>
+        <label>Status
+          <select id="quote-field-status">
+            <option value="Aberta">Aberta</option>
+            <option value="Enviada">Enviada</option>
+            <option value="Aprovada">Aprovada</option>
+            <option value="Recusada">Recusada</option>
+          </select>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="quote-btn-delete" style="display:none;">Excluir</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="quote-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: PRODUTO DO CATÁLOGO -->
+  <div class="modal-backdrop" id="product-modal-backdrop">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="product-modal-title">Novo produto</h2>
+        <button class="btn-icon" id="product-modal-close">&times;</button>
+      </div>
+      <form id="product-form">
+        <input type="hidden" id="product-id">
+        <label>Nome do item *
+          <input type="text" id="product-field-name" required placeholder="Ex: International — Full Payment">
+        </label>
+        <div class="grid-2">
+          <label>Categoria (nível 1)
+            <input type="text" id="product-field-categoria" list="list-categorias" placeholder="Ex: Irlanda">
+          </label>
+          <label>Destino / Cidade (nível 2)
+            <input type="text" id="product-field-destino" list="list-destinos" placeholder="Ex: Dublin — ou Todos">
+          </label>
+          <label>Escola / fornecedor (nível 3)
+            <input type="text" id="product-field-subgrupo" list="list-subgrupos" placeholder="Ex: Academic Bridge (opcional)">
+          </label>
+          <label>Turno (nível 4)
+            <input type="text" id="product-field-turno" list="list-turnos" placeholder="Ex: AM · Segunda a Sexta (opcional)">
+          </label>
+          <label>Unidade
+            <input type="text" id="product-field-unidade" placeholder="Ex: pacote, semana, mês">
+          </label>
+          <label>Preço unitário (€) *
+            <input type="number" id="product-field-preco" min="0" step="0.01" placeholder="0,00">
+          </label>
+          <label>Ordem na lista
+            <input type="number" id="product-field-ordem" step="1" value="100">
+          </label>
+          <label>Quantidade sugerida
+            <input type="number" id="product-field-qtdpadrao" min="1" step="1" value="1">
+          </label>
+        </div>
+        <datalist id="list-categorias"></datalist>
+        <datalist id="list-destinos"></datalist>
+        <datalist id="list-subgrupos"></datalist>
+        <datalist id="list-turnos"></datalist>
+        <label>Descrição curta
+          <textarea id="product-field-detalhe" rows="2" placeholder="Ex: Aulas de manhã, de segunda a sexta. Pagamento à vista."></textarea>
+        </label>
+        <div class="grid-2">
+          <label class="checkbox-label">
+            <input type="checkbox" id="product-field-qtdfixa" checked>
+            <span>Quantidade fixa em 1 (consultor não escolhe)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="product-field-ativo" checked>
+            <span>Visível para os consultores</span>
+          </label>
+        </div>
+        <div class="subs-editor">
+          <span class="subs-label">Subitens (o que está incluso)</span>
+          <div id="product-subs-list"></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-add-sub">+ Subitem</button>
+          <p class="muted-note">Os subitens aparecem detalhados abaixo do produto na cotação. Eles não somam no total — o total é preço × quantidade.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="product-btn-delete" style="display:none;">Excluir</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="product-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: USUÁRIO -->
+  <div class="modal-backdrop" id="user-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="user-modal-title">Editar usuário</h2>
+        <button class="btn-icon" id="user-modal-close">&times;</button>
+      </div>
+      <form id="user-form">
+        <input type="hidden" id="user-id">
+        <label>Nome
+          <input type="text" id="user-field-name" required placeholder="Ex: Maria Souza">
+        </label>
+        <label>E-mail <span class="field-hint">(login — alterado pelo Supabase Dashboard)</span>
+          <input type="email" id="user-field-email" disabled>
+        </label>
+        <label>Função
+          <select id="user-field-role"></select>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="user-field-active" checked>
+          <span>Usuário ativo</span>
+        </label>
+        <p class="muted-note" id="user-adm-hint" style="display:none;">Este é o único ADM ativo — a função e o status não podem ser alterados por aqui até existir outro ADM.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="user-btn-delete" style="display:none;">Desativar</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="user-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DOCUMENTO DE COTAÇÃO (impressão A4) -->
+  <div class="quote-doc-overlay" id="quote-doc-overlay" hidden>
+    <div class="doc-actions noprint">
+      <button type="button" class="btn btn-ghost" id="quote-doc-back">← Voltar e editar</button>
+      <button type="button" class="btn btn-primary" id="quote-doc-print">Salvar em PDF / Imprimir</button>
+      <span class="note">Use a opção "Salvar como PDF" na janela de impressão do navegador.</span>
+    </div>
+
+    <div class="sheet" id="quote-sheet">
+      <div class="sheet-inner">
+        <div class="doc-head">
+          <div class="rule"></div>
+          <img src="assets/peregrinos-logo.png" alt="Peregrinos Intercâmbio">
+          <div class="title-row">
+            <h2>COTAÇÃO</h2>
+            <div class="dates">
+              Emitida em: <b id="d-emissao">—</b><br>
+              Válida até: <b id="d-validade">—</b>
+            </div>
+          </div>
+          <div class="infobox">
+            <div><div class="lbl">Estudante</div><div class="val" id="d-nome"></div></div>
+            <div><div class="lbl">E-mail</div><div class="val" id="d-email"></div></div>
+            <div><div class="lbl">Cotação</div><div class="val" id="d-titulo"></div></div>
+            <div><div class="lbl">Status</div><div class="val" id="d-status"></div></div>
+            <div><div class="lbl">Consultor</div><div class="val" id="d-consultor"></div></div>
+            <div><div class="lbl">E-mail do consultor</div><div class="val" id="d-consultor-email"></div></div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Serviço</th>
+              <th class="c">Qtd.</th>
+              <th class="r">Unitário</th>
+              <th class="t">Total</th>
+            </tr>
+          </thead>
+          <tbody id="d-itens"></tbody>
+        </table>
+
+        <div class="totals">
+          <div class="line"><span>Subtotal</span><span id="d-subtotal">€0,00</span></div>
+          <div class="line grand"><span>Total</span><span id="d-total">€0,00</span></div>
+        </div>
+
+        <div class="obs" id="d-obs" hidden><div class="lbl">Observações</div><span id="d-obs-txt"></span></div>
+
+        <div class="doc-foot">
+          <div class="slogan">O caminho transforma.</div>
+          <div class="rule"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js?v=1790028144"></script>
+  <script src="auth.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

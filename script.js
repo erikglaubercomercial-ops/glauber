@@ -1,5 +1,105 @@
-const STORAGE_KEY = "crm-vendas-deals";
+/* ============================================================
+   SESSÃO / PERMISSÕES DE NAVEGAÇÃO
+   ============================================================ */
+let session = null;
 
+function canAccessView(view) {
+  if (!session) return false;
+  if (view === "usuarios") return session.role === "ADM";
+  return hasModuleAccess(session.role, view);
+}
+
+function renderSessionChip() {
+  if (!session) return;
+  document.getElementById("session-avatar").textContent = initials(session.name) || "?";
+  document.getElementById("session-name").textContent = session.name;
+  document.getElementById("session-email").textContent = session.email;
+}
+
+document.getElementById("btn-signout").addEventListener("click", async () => {
+  await signOut();
+  window.location.href = "login.html";
+});
+
+/* ============================================================
+   SIDEBAR: recolher/expandir
+   ============================================================ */
+const SIDEBAR_COLLAPSED_KEY = "crm-vendas-sidebar-collapsed";
+
+function initSidebarToggle() {
+  const sidebar = document.getElementById("sidebar");
+  const toggle = document.getElementById("sidebar-toggle");
+  const collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  sidebar.classList.toggle("collapsed", collapsed);
+  toggle.title = collapsed ? "Expandir menu" : "Recolher menu";
+
+  toggle.addEventListener("click", () => {
+    const isCollapsed = sidebar.classList.toggle("collapsed");
+    toggle.title = isCollapsed ? "Expandir menu" : "Recolher menu";
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, isCollapsed ? "1" : "0");
+  });
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+const VIEW_TITLES = {
+  leads: "Leads",
+  pipeline: "Pipeline",
+  cotacao: "Cotação",
+  produtos: "Produtos",
+  usuarios: "Usuários",
+};
+
+function initNavigation() {
+  const navItems = document.querySelectorAll(".nav-item[data-view]");
+  navItems.forEach(item => {
+    const view = item.dataset.view;
+    if (!canAccessView(view)) {
+      item.style.display = "none";
+      return;
+    }
+    item.style.display = "";
+    item.addEventListener("click", () => switchView(view));
+  });
+
+  if (session && session.role === "ADM") {
+    document.getElementById("nav-label-admin").style.display = "";
+  }
+
+  const firstAccessible = ["leads", "pipeline", "cotacao", "produtos", "usuarios"].find(canAccessView);
+  switchView(firstAccessible || "leads");
+}
+
+function switchView(view) {
+  if (!canAccessView(view)) return;
+  closeRowMenu();
+  document.querySelectorAll(".nav-item[data-view]").forEach(item => {
+    item.classList.toggle("active", item.dataset.view === view);
+  });
+  document.querySelectorAll(".view").forEach(section => {
+    section.classList.toggle("active", section.id === `view-${view}`);
+  });
+  document.getElementById("view-title").textContent = VIEW_TITLES[view] || "";
+}
+
+function currency(v) {
+  return (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "EUR" });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
+function uid() {
+  return crypto.randomUUID();
+}
+
+/* ============================================================
+   PIPELINE (kanban) — negócios
+   ============================================================ */
 const STAGES = [
   { id: "lead", label: "Lead" },
   { id: "contato", label: "Contato Feito" },
@@ -8,43 +108,46 @@ const STAGES = [
   { id: "ganho", label: "Ganho" },
   { id: "perdido", label: "Perdido" },
 ];
-
 const CLOSED_WON = "ganho";
 const CLOSED_LOST = "perdido";
 
-function loadDeals() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : seedDeals();
-  } catch {
-    return seedDeals();
-  }
+function dealFromDb(r) {
+  return {
+    id: r.id, name: r.name, contact: r.contact || "", info: r.info || "",
+    value: Number(r.value) || 0, stage: r.stage, notes: r.notes || "",
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+    closedAt: r.closed_at ? new Date(r.closed_at).getTime() : null,
+  };
+}
+function dealToDb(d) {
+  return {
+    id: d.id, name: d.name, contact: d.contact, info: d.info, value: d.value, stage: d.stage, notes: d.notes,
+    created_at: new Date(d.createdAt).toISOString(),
+    closed_at: d.closedAt ? new Date(d.closedAt).toISOString() : null,
+  };
 }
 
-function seedDeals() {
-  const now = Date.now();
-  return [
-    { id: crypto.randomUUID(), name: "Padaria Bom Pão", contact: "Maria Silva", info: "(11) 99999-0001", value: 3200, stage: "lead", notes: "Interessada em pacote mensal.", createdAt: now, closedAt: null },
-    { id: crypto.randomUUID(), name: "Auto Peças União", contact: "Carlos Souza", info: "carlos@autopecasuniao.com", value: 8500, stage: "proposta", notes: "Aguardando aprovação do orçamento.", createdAt: now, closedAt: null },
-    { id: crypto.randomUUID(), name: "Studio Fit Academia", contact: "Ana Costa", info: "(21) 98888-4321", value: 1500, stage: "ganho", notes: "Fechado! Início dia 1º.", createdAt: now, closedAt: now },
-  ];
+async function loadDeals() {
+  const { data, error } = await supabase.from("deals").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar pipeline:", error); return []; }
+  return data.map(dealFromDb);
+}
+async function saveDeals() {
+  const { error } = await supabase.from("deals").upsert(deals.map(dealToDb));
+  if (error) console.error("Erro ao salvar pipeline:", error);
+}
+async function deleteDealRemote(id) {
+  const { error } = await supabase.from("deals").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir negócio:", error);
 }
 
-function saveDeals() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(deals));
-}
-
-let deals = loadDeals();
+let deals = [];
 
 const boardEl = document.getElementById("board");
 const modalBackdrop = document.getElementById("modal-backdrop");
-const form = document.getElementById("deal-form");
+const dealForm = document.getElementById("deal-form");
 const fieldStage = document.getElementById("field-stage");
 const btnDelete = document.getElementById("btn-delete");
-
-function currency(v) {
-  return (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function renderStageOptions() {
   fieldStage.innerHTML = STAGES.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
@@ -59,7 +162,6 @@ function renderBoard() {
     const column = document.createElement("div");
     column.className = "column";
     column.dataset.stage = stage.id;
-
     column.innerHTML = `
       <div class="column-header">
         <span>${stage.label}</span>
@@ -70,29 +172,24 @@ function renderBoard() {
     `;
 
     const cardsEl = column.querySelector(".column-cards");
-
     if (stageDeals.length === 0) {
       cardsEl.innerHTML = `<div class="empty-hint">Arraste um negócio aqui</div>`;
     } else {
       stageDeals.forEach(deal => cardsEl.appendChild(renderCard(deal)));
     }
 
-    cardsEl.addEventListener("dragover", e => {
-      e.preventDefault();
-      cardsEl.classList.add("drag-over");
-    });
+    cardsEl.addEventListener("dragover", e => { e.preventDefault(); cardsEl.classList.add("drag-over"); });
     cardsEl.addEventListener("dragleave", () => cardsEl.classList.remove("drag-over"));
     cardsEl.addEventListener("drop", e => {
       e.preventDefault();
       cardsEl.classList.remove("drag-over");
-      const id = e.dataTransfer.getData("text/plain");
-      moveDeal(id, stage.id);
+      moveDeal(e.dataTransfer.getData("text/plain"), stage.id);
     });
 
     boardEl.appendChild(column);
   });
 
-  renderDashboard();
+  renderPipelineDashboard();
 }
 
 function renderCard(deal) {
@@ -100,20 +197,17 @@ function renderCard(deal) {
   card.className = "card";
   card.draggable = true;
   card.dataset.id = deal.id;
-
   card.innerHTML = `
     <div class="card-name">${escapeHtml(deal.name)}</div>
     <div class="card-contact">${escapeHtml(deal.contact || "Sem contato")}</div>
     <div class="card-value">${currency(deal.value)}</div>
   `;
-
   card.addEventListener("dragstart", e => {
     e.dataTransfer.setData("text/plain", deal.id);
     requestAnimationFrame(() => card.classList.add("dragging"));
   });
   card.addEventListener("dragend", () => card.classList.remove("dragging"));
-  card.addEventListener("click", () => openModal(deal.id));
-
+  card.addEventListener("click", () => openDealModal(deal.id));
   return card;
 }
 
@@ -126,7 +220,7 @@ function moveDeal(id, newStage) {
   renderBoard();
 }
 
-function renderDashboard() {
+function renderPipelineDashboard() {
   const open = deals.filter(d => d.stage !== CLOSED_WON && d.stage !== CLOSED_LOST);
   const pipelineValue = open.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
@@ -147,16 +241,9 @@ function renderDashboard() {
   document.getElementById("stat-conversion").textContent = `${conversion}%`;
 }
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str || "";
-  return div.innerHTML;
-}
-
-function openModal(id) {
-  form.reset();
+function openDealModal(id) {
+  dealForm.reset();
   renderStageOptions();
-
   if (id) {
     const deal = deals.find(d => d.id === id);
     document.getElementById("modal-title").textContent = "Editar negócio";
@@ -174,30 +261,21 @@ function openModal(id) {
     document.getElementById("field-stage").value = "lead";
     btnDelete.style.display = "none";
   }
-
   modalBackdrop.classList.add("open");
   document.getElementById("field-name").focus();
 }
 
-function closeModal() {
-  modalBackdrop.classList.remove("open");
-}
+function closeDealModal() { modalBackdrop.classList.remove("open"); }
 
-document.getElementById("btn-new").addEventListener("click", () => openModal(null));
-document.getElementById("modal-close").addEventListener("click", closeModal);
-document.getElementById("btn-cancel").addEventListener("click", closeModal);
-modalBackdrop.addEventListener("click", e => {
-  if (e.target === modalBackdrop) closeModal();
-});
-document.addEventListener("keydown", e => {
-  if (e.key === "Escape" && modalBackdrop.classList.contains("open")) closeModal();
-});
+document.getElementById("btn-new").addEventListener("click", () => openDealModal(null));
+document.getElementById("modal-close").addEventListener("click", closeDealModal);
+document.getElementById("btn-cancel").addEventListener("click", closeDealModal);
+modalBackdrop.addEventListener("click", e => { if (e.target === modalBackdrop) closeDealModal(); });
 
-form.addEventListener("submit", e => {
+dealForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("deal-id").value;
   const stage = document.getElementById("field-stage").value;
-
   const data = {
     name: document.getElementById("field-name").value.trim(),
     contact: document.getElementById("field-contact").value.trim(),
@@ -215,28 +293,1756 @@ form.addEventListener("submit", e => {
     if (isClosed && !wasClosed) deal.closedAt = Date.now();
     if (!isClosed) deal.closedAt = null;
   } else {
-    deals.push({
-      id: crypto.randomUUID(),
-      ...data,
-      createdAt: Date.now(),
-      closedAt: (stage === CLOSED_WON || stage === CLOSED_LOST) ? Date.now() : null,
-    });
+    deals.push({ id: uid(), ...data, createdAt: Date.now(), closedAt: (stage === CLOSED_WON || stage === CLOSED_LOST) ? Date.now() : null });
   }
 
-  saveDeals();
   renderBoard();
-  closeModal();
+  closeDealModal();
+  await saveDeals();
 });
 
-btnDelete.addEventListener("click", () => {
+btnDelete.addEventListener("click", async () => {
   const id = document.getElementById("deal-id").value;
   if (!id) return;
   if (!confirm("Excluir este negócio? Essa ação não pode ser desfeita.")) return;
   deals = deals.filter(d => d.id !== id);
-  saveDeals();
   renderBoard();
-  closeModal();
+  closeDealModal();
+  await deleteDealRemote(id);
 });
 
-renderStageOptions();
-renderBoard();
+/* ============================================================
+   LEADS
+   ============================================================ */
+const CATEGORIES = ["Intercâmbio de Idiomas", "High School", "Au Pair", "Work and Travel", "Graduação/Pós no Exterior", "Vistos e Documentação", "Outro"];
+const TEMPERATURES = ["Quente", "Morno", "Frio"];
+
+async function loadSources() {
+  const { data, error } = await supabase.from("lead_sources").select("name").order("ordem");
+  if (error || !data || !data.length) return ["Indicação", "Site", "Redes Sociais", "Anúncio", "Evento", "Outro"];
+  return data.map(r => r.name);
+}
+async function addSourceRemote(name) {
+  const { error } = await supabase.from("lead_sources").insert({ name, ordem: SOURCES.length + 1 });
+  if (error) console.error("Erro ao adicionar origem:", error);
+}
+async function renameSourceRemote(oldName, newName) {
+  const { error } = await supabase.from("lead_sources").update({ name: newName }).eq("name", oldName);
+  if (error) console.error("Erro ao renomear origem:", error);
+}
+async function deleteSourceRemote(name) {
+  const { error } = await supabase.from("lead_sources").delete().eq("name", name);
+  if (error) console.error("Erro ao excluir origem:", error);
+}
+
+let SOURCES = [];
+
+const LEAD_STATUS_BADGE = {
+  "Novo": "badge-neutral",
+  "Em contato": "badge-warn",
+  "Qualificado": "badge-good",
+  "Descartado": "badge-danger",
+};
+const TEMPERATURE_BADGE = {
+  "Quente": "badge-danger",
+  "Morno": "badge-warn",
+  "Frio": "badge-cold",
+};
+const WPP_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
+
+function leadFromDb(r) {
+  return {
+    id: r.id, name: r.name, company: r.company || "", phone: r.phone || "", email: r.email || "",
+    source: r.source, category: r.category, status: r.status, temperature: r.temperature,
+    consultorId: r.consultor_id, active: r.active,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function leadToDb(l) {
+  return {
+    id: l.id, name: l.name, company: l.company, phone: l.phone, email: l.email,
+    source: l.source, category: l.category, status: l.status, temperature: l.temperature,
+    consultor_id: l.consultorId || null, active: l.active,
+    created_at: new Date(l.createdAt).toISOString(),
+  };
+}
+
+async function loadLeads() {
+  const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar leads:", error); return []; }
+  return data.map(leadFromDb);
+}
+async function saveLeads() {
+  const { error } = await supabase.from("leads").upsert(leads.map(leadToDb));
+  if (error) console.error("Erro ao salvar leads:", error);
+}
+async function deleteLeadsRemote(ids) {
+  const { error } = await supabase.from("leads").delete().in("id", ids);
+  if (error) console.error("Erro ao excluir lead(s):", error);
+}
+
+let leads = [];
+let selectedLeadIds = new Set();
+let quotesClientFilter = null;
+let openRowMenuEl = null;
+
+const leadModalBackdrop = document.getElementById("lead-modal-backdrop");
+const leadForm = document.getElementById("lead-form");
+const leadBtnDelete = document.getElementById("lead-btn-delete");
+const leadsTbody = document.getElementById("leads-tbody");
+const leadsEmpty = document.getElementById("leads-empty");
+
+function extractPhoneDigits(phone) {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 8 ? digits : null;
+}
+
+function buildWhatsAppLink(digits) {
+  const withCountry = digits.startsWith("55") ? digits : `55${digits}`;
+  return `https://web.whatsapp.com/send?phone=${withCountry}`;
+}
+
+function renderLeadFormOptions(currentSource) {
+  document.getElementById("lead-field-category").innerHTML = CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join("");
+  const sourceOptions = SOURCES.slice();
+  if (currentSource && !sourceOptions.includes(currentSource)) sourceOptions.push(currentSource);
+  document.getElementById("lead-field-source").innerHTML = sourceOptions.map(s => `<option value="${s}">${s}</option>`).join("");
+  document.getElementById("lead-field-temperature").innerHTML = TEMPERATURES.map(t => `<option value="${t}">${t}</option>`).join("");
+}
+
+function isOwnLeadsOnly() {
+  return !!(session && session.role === "Consultor");
+}
+
+function renderLeadFilterOptions() {
+  const categorySel = document.getElementById("filter-category");
+  const sourceSel = document.getElementById("filter-source");
+  const consultorSel = document.getElementById("filter-consultor");
+
+  categorySel.innerHTML = `<option value="">Categoria (todas)</option>` + CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join("");
+  sourceSel.innerHTML = `<option value="">Origem (todas)</option>` + SOURCES.map(s => `<option value="${s}">${s}</option>`).join("");
+
+  if (isOwnLeadsOnly()) {
+    consultorSel.style.display = "none";
+  } else {
+    const consultants = users.filter(u => u.role === "Consultor");
+    consultorSel.innerHTML = `<option value="">Consultor (todos)</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  }
+
+  [categorySel, sourceSel, consultorSel].forEach(sel => sel.addEventListener("change", renderLeads));
+  document.getElementById("filter-date-from").addEventListener("change", renderLeads);
+  document.getElementById("filter-date-to").addEventListener("change", renderLeads);
+  document.getElementById("filter-show-inactive").addEventListener("change", renderLeads);
+}
+
+document.getElementById("filter-clear").addEventListener("click", () => {
+  document.getElementById("filter-category").value = "";
+  document.getElementById("filter-source").value = "";
+  document.getElementById("filter-consultor").value = "";
+  document.getElementById("filter-date-from").value = "";
+  document.getElementById("filter-date-to").value = "";
+  document.getElementById("filter-show-inactive").checked = false;
+  renderLeads();
+});
+
+function getFilteredLeads() {
+  const category = document.getElementById("filter-category").value;
+  const source = document.getElementById("filter-source").value;
+  const consultorId = document.getElementById("filter-consultor").value;
+  const dateFrom = document.getElementById("filter-date-from").value;
+  const dateTo = document.getElementById("filter-date-to").value;
+  const showInactive = document.getElementById("filter-show-inactive").checked;
+  const ownOnly = isOwnLeadsOnly();
+
+  return leads.filter(l => {
+    if (ownOnly && l.consultorId !== session.id) return false;
+    if (!showInactive && l.active === false) return false;
+    if (category && l.category !== category) return false;
+    if (source && l.source !== source) return false;
+    if (consultorId && l.consultorId !== consultorId) return false;
+    if (dateFrom && l.createdAt < new Date(`${dateFrom}T00:00:00`).getTime()) return false;
+    if (dateTo && l.createdAt > new Date(`${dateTo}T23:59:59`).getTime()) return false;
+    return true;
+  });
+}
+
+function renderLeads() {
+  const filtered = getFilteredLeads();
+  leadsTbody.innerHTML = "";
+  leadsEmpty.style.display = filtered.length === 0 ? "block" : "none";
+
+  filtered.slice().sort((a, b) => b.createdAt - a.createdAt).forEach(lead => {
+    const tr = document.createElement("tr");
+    if (lead.active === false) tr.className = "row-inactive";
+    const phoneDigits = extractPhoneDigits(lead.phone);
+    const consultant = users.find(u => u.id === lead.consultorId);
+
+    tr.innerHTML = `
+      <td class="cell-check"><input type="checkbox" class="row-checkbox" data-id="${lead.id}" ${selectedLeadIds.has(lead.id) ? "checked" : ""}></td>
+      <td class="cell-primary">${escapeHtml(lead.name)}${lead.active === false ? ' <span class="badge badge-neutral">Inativo</span>' : ""}${lead.company ? `<div class="cell-sub">${escapeHtml(lead.company)}</div>` : ""}</td>
+      <td class="cell-muted">${escapeHtml(lead.category || "—")}</td>
+      <td class="cell-muted">${escapeHtml(lead.source || "—")}</td>
+      <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : "—"}</td>
+      <td><span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span></td>
+      <td><span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(lead.status)}</span></td>
+      <td class="cell-nowrap">${phoneDigits
+        ? `<a class="wpp-btn" href="${buildWhatsAppLink(phoneDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp Web">${WPP_ICON_SVG}</a>`
+        : `<span class="wpp-btn disabled" title="Sem telefone válido">${WPP_ICON_SVG}</span>`}</td>
+      <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
+    `;
+
+    const checkbox = tr.querySelector(".row-checkbox");
+    checkbox.addEventListener("click", e => e.stopPropagation());
+    checkbox.addEventListener("change", e => {
+      if (e.target.checked) selectedLeadIds.add(lead.id);
+      else selectedLeadIds.delete(lead.id);
+      updateBulkBar();
+      updateSelectAllState(filtered);
+    });
+
+    tr.querySelector(".row-menu-trigger").addEventListener("click", e => {
+      e.stopPropagation();
+      toggleRowMenu(lead, e.currentTarget);
+    });
+
+    tr.addEventListener("click", e => {
+      if (e.target.closest(".wpp-btn")) return;
+      openLeadModal(lead.id);
+    });
+    leadsTbody.appendChild(tr);
+  });
+
+  updateSelectAllState(filtered);
+  updateBulkBar();
+  renderLeadsDashboard();
+}
+
+function renderLeadsDashboard() {
+  const now = Date.now();
+  const sevenDaysAgo = now - 7 * 86400000;
+  const ownOnly = isOwnLeadsOnly();
+  const activeLeads = leads.filter(l => l.active !== false && (!ownOnly || l.consultorId === session.id));
+  document.getElementById("leads-stat-total").textContent = activeLeads.length;
+  document.getElementById("leads-stat-new").textContent = activeLeads.filter(l => l.createdAt >= sevenDaysAgo).length;
+  document.getElementById("leads-stat-qualified").textContent = activeLeads.filter(l => l.status === "Qualificado").length;
+}
+
+/* ---- seleção em massa ---- */
+function updateSelectAllState(filteredLeads) {
+  const cb = document.getElementById("leads-select-all");
+  if (filteredLeads.length === 0) { cb.checked = false; cb.indeterminate = false; return; }
+  const selectedCount = filteredLeads.filter(l => selectedLeadIds.has(l.id)).length;
+  cb.checked = selectedCount === filteredLeads.length;
+  cb.indeterminate = selectedCount > 0 && selectedCount < filteredLeads.length;
+}
+
+document.getElementById("leads-select-all").addEventListener("change", e => {
+  const filtered = getFilteredLeads();
+  if (e.target.checked) filtered.forEach(l => selectedLeadIds.add(l.id));
+  else filtered.forEach(l => selectedLeadIds.delete(l.id));
+  renderLeads();
+});
+
+function updateBulkBar() {
+  const bar = document.getElementById("leads-bulk-bar");
+  const count = selectedLeadIds.size;
+  document.getElementById("leads-bulk-count").textContent = `${count} selecionado(s)`;
+  bar.style.display = count > 0 ? "flex" : "none";
+}
+
+document.getElementById("leads-bulk-clear").addEventListener("click", () => {
+  selectedLeadIds.clear();
+  renderLeads();
+});
+
+document.getElementById("leads-bulk-assign").addEventListener("click", () => {
+  if (selectedLeadIds.size === 0) return;
+  openAssignModal(Array.from(selectedLeadIds));
+});
+
+document.getElementById("leads-bulk-deactivate").addEventListener("click", async () => {
+  if (selectedLeadIds.size === 0) return;
+  leads.forEach(l => { if (selectedLeadIds.has(l.id)) l.active = false; });
+  selectedLeadIds.clear();
+  renderLeads();
+  await saveLeads();
+});
+
+document.getElementById("leads-bulk-delete").addEventListener("click", async () => {
+  if (selectedLeadIds.size === 0) return;
+  if (!confirm(`Excluir ${selectedLeadIds.size} lead(s) selecionado(s)? Essa ação não pode ser desfeita.`)) return;
+  const ids = Array.from(selectedLeadIds);
+  leads = leads.filter(l => !selectedLeadIds.has(l.id));
+  selectedLeadIds.clear();
+  renderLeads();
+  await deleteLeadsRemote(ids);
+});
+
+async function toggleLeadActive(lead) {
+  lead.active = lead.active === false ? true : false;
+  renderLeads();
+  await saveLeads();
+}
+
+async function removeLead(id) {
+  if (!confirm("Excluir este lead? Essa ação não pode ser desfeita.")) return false;
+  leads = leads.filter(l => l.id !== id);
+  selectedLeadIds.delete(id);
+  renderLeads();
+  await deleteLeadsRemote([id]);
+  return true;
+}
+
+/* ---- menu de 3 pontinhos (flutuante, fora do overflow do painel) ---- */
+function closeRowMenu() {
+  if (openRowMenuEl) {
+    openRowMenuEl.remove();
+    openRowMenuEl = null;
+  }
+}
+
+function toggleRowMenu(lead, triggerEl) {
+  if (openRowMenuEl && openRowMenuEl.dataset.leadId === lead.id) {
+    closeRowMenu();
+    return;
+  }
+  closeRowMenu();
+
+  const rect = triggerEl.getBoundingClientRect();
+  const menu = document.createElement("div");
+  menu.className = "floating-menu";
+  menu.dataset.leadId = lead.id;
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.left = `${Math.max(8, rect.right - 190)}px`;
+  const isInactive = lead.active === false;
+  menu.innerHTML = `
+    <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
+    <button type="button" class="row-menu-item" data-action="email" ${lead.email ? "" : "disabled"}>Enviar e-mail</button>
+    <button type="button" class="row-menu-item" data-action="quote">Ver cotação</button>
+    <div class="row-menu-divider"></div>
+    <button type="button" class="row-menu-item" data-action="toggle-active">${isInactive ? "Reativar lead" : "Desativar lead"}</button>
+    <button type="button" class="row-menu-item row-menu-item-danger" data-action="delete">Excluir lead</button>
+  `;
+  document.body.appendChild(menu);
+  openRowMenuEl = menu;
+
+  menu.querySelector('[data-action="assign"]').addEventListener("click", () => {
+    closeRowMenu();
+    openAssignModal([lead.id]);
+  });
+  menu.querySelector('[data-action="email"]').addEventListener("click", () => {
+    closeRowMenu();
+    sendLeadEmail(lead);
+  });
+  menu.querySelector('[data-action="toggle-active"]').addEventListener("click", () => {
+    closeRowMenu();
+    toggleLeadActive(lead);
+  });
+  menu.querySelector('[data-action="delete"]').addEventListener("click", () => {
+    closeRowMenu();
+    removeLead(lead.id);
+  });
+  menu.querySelector('[data-action="quote"]').addEventListener("click", () => {
+    closeRowMenu();
+    viewLeadQuotes(lead);
+  });
+}
+
+document.addEventListener("click", e => {
+  if (!openRowMenuEl) return;
+  if (e.target.closest(".floating-menu") || e.target.closest(".row-menu-trigger")) return;
+  closeRowMenu();
+});
+
+function sendLeadEmail(lead) {
+  if (!lead.email) {
+    alert("Este lead não tem e-mail cadastrado.");
+    return;
+  }
+  window.location.href = `mailto:${lead.email}`;
+}
+
+function viewLeadQuotes(lead) {
+  quotesClientFilter = lead.company || lead.name;
+  switchView("cotacao");
+  renderQuotes();
+}
+
+/* ---- atribuir consultor (individual ou em massa) ---- */
+const assignModalBackdrop = document.getElementById("assign-modal-backdrop");
+const assignForm = document.getElementById("assign-form");
+const assignFieldConsultor = document.getElementById("assign-field-consultor");
+let assigningLeadIds = [];
+
+function openAssignModal(leadIds) {
+  assigningLeadIds = leadIds;
+  const consultants = users.filter(u => u.role === "Consultor");
+  assignFieldConsultor.innerHTML = `<option value="">Sem consultor</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+
+  if (leadIds.length === 1) {
+    const lead = leads.find(l => l.id === leadIds[0]);
+    assignFieldConsultor.value = (lead && lead.consultorId) || "";
+    document.getElementById("assign-modal-title").textContent = "Atribuir consultor";
+  } else {
+    assignFieldConsultor.value = "";
+    document.getElementById("assign-modal-title").textContent = `Atribuir consultor (${leadIds.length} leads)`;
+  }
+
+  assignModalBackdrop.classList.add("open");
+}
+
+function closeAssignModal() { assignModalBackdrop.classList.remove("open"); }
+
+document.getElementById("assign-modal-close").addEventListener("click", closeAssignModal);
+document.getElementById("assign-btn-cancel").addEventListener("click", closeAssignModal);
+assignModalBackdrop.addEventListener("click", e => { if (e.target === assignModalBackdrop) closeAssignModal(); });
+
+assignForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const consultorId = assignFieldConsultor.value || null;
+  assigningLeadIds.forEach(id => {
+    const lead = leads.find(l => l.id === id);
+    if (lead) lead.consultorId = consultorId;
+  });
+  renderLeads();
+  closeAssignModal();
+  await saveLeads();
+});
+
+/* ---- modal de lead (criar/editar) ---- */
+function openLeadModal(id) {
+  leadForm.reset();
+  const existingLead = id ? leads.find(l => l.id === id) : null;
+  renderLeadFormOptions(existingLead ? existingLead.source : null);
+  if (id) {
+    const lead = existingLead;
+    document.getElementById("lead-modal-title").textContent = "Editar lead";
+    document.getElementById("lead-id").value = lead.id;
+    document.getElementById("lead-field-name").value = lead.name;
+    document.getElementById("lead-field-company").value = lead.company || "";
+    document.getElementById("lead-field-phone").value = lead.phone || "";
+    document.getElementById("lead-field-email").value = lead.email || "";
+    document.getElementById("lead-field-category").value = lead.category || "Outro";
+    document.getElementById("lead-field-source").value = lead.source || "Indicação";
+    document.getElementById("lead-field-temperature").value = lead.temperature || "Morno";
+    document.getElementById("lead-field-status").value = lead.status || "Novo";
+    document.getElementById("lead-field-active").checked = lead.active !== false;
+    leadBtnDelete.style.display = "inline-block";
+  } else {
+    document.getElementById("lead-modal-title").textContent = "Novo lead";
+    document.getElementById("lead-id").value = "";
+    document.getElementById("lead-field-category").value = "Outro";
+    document.getElementById("lead-field-source").value = "Indicação";
+    document.getElementById("lead-field-temperature").value = "Morno";
+    document.getElementById("lead-field-active").checked = true;
+    leadBtnDelete.style.display = "none";
+  }
+  leadModalBackdrop.classList.add("open");
+  document.getElementById("lead-field-name").focus();
+}
+
+function closeLeadModal() { leadModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-lead").addEventListener("click", () => openLeadModal(null));
+document.getElementById("lead-modal-close").addEventListener("click", closeLeadModal);
+document.getElementById("lead-btn-cancel").addEventListener("click", closeLeadModal);
+leadModalBackdrop.addEventListener("click", e => { if (e.target === leadModalBackdrop) closeLeadModal(); });
+
+leadForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("lead-id").value;
+  const data = {
+    name: document.getElementById("lead-field-name").value.trim(),
+    company: document.getElementById("lead-field-company").value.trim(),
+    phone: document.getElementById("lead-field-phone").value.trim(),
+    email: document.getElementById("lead-field-email").value.trim(),
+    category: document.getElementById("lead-field-category").value,
+    source: document.getElementById("lead-field-source").value,
+    temperature: document.getElementById("lead-field-temperature").value,
+    status: document.getElementById("lead-field-status").value,
+    active: document.getElementById("lead-field-active").checked,
+  };
+  if (id) {
+    Object.assign(leads.find(l => l.id === id), data);
+  } else {
+    const consultorId = isOwnLeadsOnly() ? session.id : null;
+    leads.push({ id: uid(), ...data, consultorId, createdAt: Date.now() });
+  }
+  renderLeads();
+  closeLeadModal();
+  await saveLeads();
+});
+
+leadBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("lead-id").value;
+  if (id && await removeLead(id)) closeLeadModal();
+});
+
+/* ============================================================
+   IMPORTAR LEADS VIA CSV
+   ============================================================ */
+const IMPORT_FIELDS = [
+  { key: "name", label: "Nome" },
+  { key: "company", label: "Empresa" },
+  { key: "phone", label: "Telefone" },
+  { key: "email", label: "E-mail" },
+  { key: "category", label: "Categoria" },
+  { key: "source", label: "Origem" },
+  { key: "temperature", label: "Temperatura" },
+  { key: "status", label: "Status" },
+  { key: "consultor", label: "Consultor" },
+];
+
+const IMPORT_FIELD_GUESSES = {
+  name: ["nome", "name", "cliente", "aluno", "estudante"],
+  company: ["empresa", "company", "escola atual", "instituicao"],
+  phone: ["telefone", "phone", "celular", "whatsapp", "fone", "contato"],
+  email: ["email", "e-mail", "mail"],
+  category: ["categoria", "category", "programa", "interesse"],
+  source: ["origem", "source", "canal"],
+  temperature: ["temperatura", "temperature"],
+  status: ["status", "etapa", "estagio"],
+  consultor: ["consultor", "responsavel", "vendedor", "owner"],
+};
+
+function normalizeImportStr(s) {
+  return (s == null ? "" : String(s)).trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+function guessImportField(header) {
+  const h = normalizeImportStr(header);
+  return Object.keys(IMPORT_FIELD_GUESSES).find(key => IMPORT_FIELD_GUESSES[key].some(k => h.includes(k))) || "";
+}
+
+function parseCSV(text) {
+  const firstLine = text.slice(0, text.search(/\r?\n/) > -1 ? text.search(/\r?\n/) : text.length);
+  const delimiter = (firstLine.split(";").length > firstLine.split(",").length) ? ";" : ",";
+
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === delimiter) {
+      row.push(field); field = "";
+    } else if (c === "\n") {
+      row.push(field); rows.push(row); row = []; field = "";
+    } else if (c === "\r") {
+      /* ignora — \r\n tratado pelo \n */
+    } else {
+      field += c;
+    }
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows
+    .map(r => r.map(f => f.trim()))
+    .filter(r => r.some(f => f !== ""));
+}
+
+function matchEnum(value, options, fallback) {
+  const v = normalizeImportStr(value);
+  if (!v) return fallback;
+  const exact = options.find(o => normalizeImportStr(o) === v);
+  if (exact) return exact;
+  const partial = options.find(o => normalizeImportStr(o).includes(v) || v.includes(normalizeImportStr(o)));
+  return partial || fallback;
+}
+
+let importHeaders = [];
+let importRows = [];
+
+const importModalBackdrop = document.getElementById("import-modal-backdrop");
+const importFileInput = document.getElementById("import-file-input");
+const importMappingTbody = document.getElementById("import-mapping-tbody");
+
+document.getElementById("btn-import-leads").addEventListener("click", () => importFileInput.click());
+
+importFileInput.addEventListener("change", () => {
+  const file = importFileInput.files[0];
+  importFileInput.value = "";
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const parsed = parseCSV(String(reader.result || ""));
+    if (parsed.length < 2) {
+      alert("Não encontrei linhas de dados nesse CSV. Confira o arquivo e tente novamente.");
+      return;
+    }
+    importHeaders = parsed[0];
+    importRows = parsed.slice(1);
+    openImportModal();
+  };
+  reader.onerror = () => alert("Não consegui ler esse arquivo. Tente novamente.");
+  reader.readAsText(file, "UTF-8");
+});
+
+function openImportModal() {
+  document.getElementById("import-summary").textContent =
+    `${importRows.length} linha(s) encontrada(s) em ${importHeaders.length} coluna(s). Confira o mapeamento antes de importar.`;
+
+  importMappingTbody.innerHTML = importHeaders.map((h, i) => {
+    const sample = (importRows[0] && importRows[0][i]) || "";
+    const guess = guessImportField(h);
+    const options = `<option value="">Não importar</option>` +
+      IMPORT_FIELDS.map(f => `<option value="${f.key}"${f.key === guess ? " selected" : ""}>${f.label}</option>`).join("");
+    return `
+      <tr>
+        <td class="cell-primary">${escapeHtml(h || `Coluna ${i + 1}`)}</td>
+        <td class="cell-muted">${escapeHtml(sample)}</td>
+        <td><select data-col="${i}">${options}</select></td>
+      </tr>`;
+  }).join("");
+
+  importModalBackdrop.classList.add("open");
+}
+
+function closeImportModal() { importModalBackdrop.classList.remove("open"); }
+document.getElementById("import-modal-close").addEventListener("click", closeImportModal);
+document.getElementById("import-btn-cancel").addEventListener("click", closeImportModal);
+importModalBackdrop.addEventListener("click", e => { if (e.target === importModalBackdrop) closeImportModal(); });
+
+document.getElementById("import-btn-confirm").addEventListener("click", async () => {
+  const mapping = {};
+  importMappingTbody.querySelectorAll("select").forEach(sel => {
+    if (sel.value) mapping[sel.value] = parseInt(sel.dataset.col, 10);
+  });
+
+  if (mapping.name === undefined) {
+    alert('Mapeie ao menos a coluna "Nome" para importar.');
+    return;
+  }
+
+  const now = Date.now();
+  let imported = 0, skipped = 0;
+
+  importRows.forEach(row => {
+    const get = key => mapping[key] !== undefined ? (row[mapping[key]] || "").trim() : "";
+    const name = get("name");
+    if (!name) { skipped++; return; }
+
+    let consultorId = null;
+    const consultorRaw = get("consultor");
+    if (consultorRaw) {
+      const match = users.find(u => u.role === "Consultor" &&
+        (normalizeImportStr(u.name) === normalizeImportStr(consultorRaw) || normalizeImportStr(u.email) === normalizeImportStr(consultorRaw)));
+      if (match) consultorId = match.id;
+    }
+    if (!consultorId && isOwnLeadsOnly()) consultorId = session.id;
+
+    leads.push({
+      id: uid(),
+      name,
+      company: get("company"),
+      phone: get("phone"),
+      email: get("email"),
+      category: matchEnum(get("category"), CATEGORIES, "Outro"),
+      source: matchEnum(get("source"), SOURCES, "Outro"),
+      temperature: matchEnum(get("temperature"), TEMPERATURES, "Morno"),
+      status: matchEnum(get("status"), ["Novo", "Em contato", "Qualificado", "Descartado"], "Novo"),
+      consultorId,
+      active: true,
+      createdAt: now,
+    });
+    imported++;
+  });
+
+  renderLeads();
+  closeImportModal();
+  alert(`Importação concluída: ${imported} lead(s) importado(s)${skipped ? `, ${skipped} linha(s) ignorada(s) por falta de nome` : ""}.`);
+  await saveLeads();
+});
+
+/* ============================================================
+   GERENCIAR ORIGENS DE LEADS
+   ============================================================ */
+const sourcesModalBackdrop = document.getElementById("sources-modal-backdrop");
+const sourcesListEl = document.getElementById("sources-list");
+const sourcesNewInput = document.getElementById("sources-new-input");
+
+function sourceUsageCount(name) {
+  return leads.filter(l => l.source === name).length;
+}
+
+function renderSourcesList() {
+  sourcesListEl.innerHTML = SOURCES.map((s, i) => `
+    <div class="source-row">
+      <input type="text" value="${escapeHtml(s)}" data-index="${i}">
+      <span class="source-usage">${sourceUsageCount(s)} lead(s)</span>
+      <button type="button" class="btn btn-icon" data-act="del" data-index="${i}" title="Excluir origem">&times;</button>
+    </div>`).join("");
+}
+
+function openSourcesModal() {
+  renderSourcesList();
+  sourcesNewInput.value = "";
+  sourcesModalBackdrop.classList.add("open");
+}
+function closeSourcesModal() { sourcesModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-manage-sources").addEventListener("click", openSourcesModal);
+document.getElementById("sources-modal-close").addEventListener("click", closeSourcesModal);
+document.getElementById("sources-btn-done").addEventListener("click", closeSourcesModal);
+sourcesModalBackdrop.addEventListener("click", e => { if (e.target === sourcesModalBackdrop) closeSourcesModal(); });
+
+sourcesListEl.addEventListener("change", async e => {
+  const input = e.target.closest('input[type="text"]');
+  if (!input) return;
+  const index = parseInt(input.dataset.index, 10);
+  const oldName = SOURCES[index];
+  const newName = input.value.trim();
+
+  if (!newName) { input.value = oldName; return; }
+  const duplicate = SOURCES.some((s, i) => i !== index && s.toLowerCase() === newName.toLowerCase());
+  if (duplicate) {
+    alert("Já existe uma origem com esse nome.");
+    input.value = oldName;
+    return;
+  }
+  if (newName === oldName) return;
+
+  SOURCES[index] = newName;
+  leads.forEach(l => { if (l.source === oldName) l.source = newName; });
+  renderSourcesList();
+  renderLeadFilterOptions();
+  renderLeads();
+  await renameSourceRemote(oldName, newName);
+  await saveLeads();
+});
+
+sourcesListEl.addEventListener("click", async e => {
+  const btn = e.target.closest('button[data-act="del"]');
+  if (!btn) return;
+  const index = parseInt(btn.dataset.index, 10);
+  const name = SOURCES[index];
+  if (SOURCES.length === 1) {
+    alert("Mantenha ao menos uma origem cadastrada.");
+    return;
+  }
+  const count = sourceUsageCount(name);
+  const msg = count > 0
+    ? `Excluir a origem "${name}"? ${count} lead(s) já usam esse valor — eles manterão "${name}" no registro, mas essa opção deixará de existir para novos cadastros.`
+    : `Excluir a origem "${name}"?`;
+  if (!confirm(msg)) return;
+  SOURCES.splice(index, 1);
+  renderSourcesList();
+  renderLeadFilterOptions();
+  await deleteSourceRemote(name);
+});
+
+async function addNewSource() {
+  const name = sourcesNewInput.value.trim();
+  if (!name) return;
+  const duplicate = SOURCES.some(s => s.toLowerCase() === name.toLowerCase());
+  if (duplicate) {
+    alert("Já existe uma origem com esse nome.");
+    return;
+  }
+  SOURCES.push(name);
+  sourcesNewInput.value = "";
+  renderSourcesList();
+  renderLeadFilterOptions();
+  sourcesNewInput.focus();
+  await addSourceRemote(name);
+}
+document.getElementById("sources-add-btn").addEventListener("click", addNewSource);
+sourcesNewInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); addNewSource(); }
+});
+
+/* ============================================================
+   COTAÇÃO (quotes)
+   ============================================================ */
+function quoteRowFromDb(r) {
+  return {
+    id: r.id, client: r.client, items: r.items || "", value: Number(r.value) || 0,
+    validade: r.validade || "", status: r.status,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function quoteRowToDb(q) {
+  return {
+    id: q.id, client: q.client, items: q.items, value: q.value,
+    validade: q.validade || null, status: q.status,
+    created_at: new Date(q.createdAt).toISOString(),
+  };
+}
+
+async function loadQuotes() {
+  const { data, error } = await supabase.from("quotes").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar cotações:", error); return []; }
+  return data.map(quoteRowFromDb);
+}
+async function saveQuotes() {
+  const { error } = await supabase.from("quotes").upsert(quotes.map(quoteRowToDb));
+  if (error) console.error("Erro ao salvar cotações:", error);
+}
+async function deleteQuoteRemote(id) {
+  const { error } = await supabase.from("quotes").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir cotação:", error);
+}
+
+let quotes = [];
+
+const quoteModalBackdrop = document.getElementById("quote-modal-backdrop");
+const quoteForm = document.getElementById("quote-form");
+const quoteBtnDelete = document.getElementById("quote-btn-delete");
+const quotesTbody = document.getElementById("quotes-tbody");
+const quotesEmpty = document.getElementById("quotes-empty");
+
+const QUOTE_STATUS_BADGE = {
+  "Aberta": "badge-neutral",
+  "Enviada": "badge-warn",
+  "Aprovada": "badge-good",
+  "Recusada": "badge-danger",
+};
+
+function formatDate(isoDate) {
+  if (!isoDate) return "—";
+  const [y, m, d] = isoDate.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function renderQuotes() {
+  const chipRow = document.getElementById("quotes-filter-chip-row");
+  const filtered = quotesClientFilter
+    ? quotes.filter(q => q.client.toLowerCase().includes(quotesClientFilter.toLowerCase()))
+    : quotes;
+
+  if (quotesClientFilter) {
+    chipRow.style.display = "flex";
+    document.getElementById("quotes-filter-chip-label").textContent = quotesClientFilter;
+  } else {
+    chipRow.style.display = "none";
+  }
+
+  quotesTbody.innerHTML = "";
+  quotesEmpty.style.display = filtered.length === 0 ? "block" : "none";
+
+  filtered.slice().sort((a, b) => b.createdAt - a.createdAt).forEach(q => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(q.client)}</td>
+      <td class="cell-muted">${escapeHtml(q.items || "—")}</td>
+      <td class="cell-muted">${formatDate(q.validade)}</td>
+      <td><span class="badge ${QUOTE_STATUS_BADGE[q.status] || "badge-neutral"}">${escapeHtml(q.status)}</span></td>
+      <td class="cell-primary">${currency(q.value)}</td>
+      <td class="cell-actions">›</td>
+    `;
+    tr.addEventListener("click", () => openQuoteModal(q.id));
+    quotesTbody.appendChild(tr);
+  });
+
+  renderQuotesDashboard();
+}
+
+document.getElementById("quotes-filter-chip-clear").addEventListener("click", () => {
+  quotesClientFilter = null;
+  renderQuotes();
+});
+
+function renderQuotesDashboard() {
+  const open = quotes.filter(q => q.status === "Aberta" || q.status === "Enviada");
+  document.getElementById("quotes-stat-open").textContent = open.length;
+  document.getElementById("quotes-stat-value").textContent = currency(quotes.reduce((s, q) => s + (Number(q.value) || 0), 0));
+  document.getElementById("quotes-stat-approved").textContent = quotes.filter(q => q.status === "Aprovada").length;
+}
+
+function openQuoteModal(id) {
+  quoteForm.reset();
+  if (id) {
+    const q = quotes.find(q => q.id === id);
+    document.getElementById("quote-modal-title").textContent = "Editar cotação";
+    document.getElementById("quote-id").value = q.id;
+    document.getElementById("quote-field-client").value = q.client;
+    document.getElementById("quote-field-items").value = q.items || "";
+    document.getElementById("quote-field-value").value = q.value || "";
+    document.getElementById("quote-field-validade").value = q.validade || "";
+    document.getElementById("quote-field-status").value = q.status || "Aberta";
+    quoteBtnDelete.style.display = "inline-block";
+  } else {
+    document.getElementById("quote-modal-title").textContent = "Nova cotação";
+    document.getElementById("quote-id").value = "";
+    quoteBtnDelete.style.display = "none";
+  }
+  quoteModalBackdrop.classList.add("open");
+  document.getElementById("quote-field-client").focus();
+}
+
+function closeQuoteModal() { quoteModalBackdrop.classList.remove("open"); }
+
+document.getElementById("quote-modal-close").addEventListener("click", closeQuoteModal);
+document.getElementById("quote-btn-cancel").addEventListener("click", closeQuoteModal);
+quoteModalBackdrop.addEventListener("click", e => { if (e.target === quoteModalBackdrop) closeQuoteModal(); });
+
+quoteForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("quote-id").value;
+  const data = {
+    client: document.getElementById("quote-field-client").value.trim(),
+    items: document.getElementById("quote-field-items").value.trim(),
+    value: parseFloat(document.getElementById("quote-field-value").value) || 0,
+    validade: document.getElementById("quote-field-validade").value,
+    status: document.getElementById("quote-field-status").value,
+  };
+  if (id) {
+    Object.assign(quotes.find(q => q.id === id), data);
+  } else {
+    quotes.push({ id: uid(), ...data, createdAt: Date.now() });
+  }
+  renderQuotes();
+  closeQuoteModal();
+  await saveQuotes();
+});
+
+quoteBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("quote-id").value;
+  if (!id || !confirm("Excluir esta cotação? Essa ação não pode ser desfeita.")) return;
+  quotes = quotes.filter(q => q.id !== id);
+  renderQuotes();
+  closeQuoteModal();
+  await deleteQuoteRemote(id);
+});
+
+/* ============================================================
+   PRODUTOS — catálogo (Cotações Peregrinos) + montador de cotação
+   Estrutura inspirada em https://claude.ai/artifact/TP2symvqqkocx5MCh2Peqa
+   Os dados agora vivem no Supabase (tabela catalog_items),
+   compartilhados entre todos os usuários — sem sincronização
+   automática com o artifact, que mantém seu próprio banco.
+   ============================================================ */
+function catalogFromDb(r) {
+  return {
+    id: r.id, nome: r.nome, categoria: r.categoria, destino: r.destino,
+    subgrupo: r.subgrupo || "", turno: r.turno || "", unidade: r.unidade,
+    preco: Number(r.preco) || 0, ordem: r.ordem, detalhe: r.detalhe || "",
+    qtdFixa: !!r.qtd_fixa, qtdPadrao: r.qtd_padrao || 1, ativo: r.ativo,
+    subs: Array.isArray(r.subs) ? r.subs : [],
+  };
+}
+function catalogToDb(p) {
+  return {
+    id: p.id, nome: p.nome, categoria: p.categoria, destino: p.destino,
+    subgrupo: p.subgrupo, turno: p.turno, unidade: p.unidade, preco: p.preco,
+    ordem: p.ordem, detalhe: p.detalhe, qtd_fixa: p.qtdFixa, qtd_padrao: p.qtdPadrao,
+    ativo: p.ativo, subs: p.subs,
+  };
+}
+
+async function loadCatalog() {
+  const { data, error } = await supabase.from("catalog_items").select("*");
+  if (error) { console.error("Erro ao carregar catálogo:", error); return []; }
+  return data.map(catalogFromDb);
+}
+async function saveCatalogItem(item) {
+  const { error } = await supabase.from("catalog_items").upsert(catalogToDb(item));
+  if (error) console.error("Erro ao salvar produto:", error);
+}
+async function deleteCatalogItemRemote(id) {
+  const { error } = await supabase.from("catalog_items").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir produto:", error);
+}
+
+let catalog = [];
+let catalogCatAbertos = {};
+let catalogDestAbertos = {};
+let catalogEscAbertos = {};
+
+/* ---- sub-abas Catálogo / Nova Cotação ---- */
+function initProdutosSubtabs() {
+  document.querySelectorAll(".subtab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b === btn));
+      const target = btn.dataset.subtab;
+      document.getElementById("subview-catalogo").classList.toggle("active", target === "catalogo");
+      document.getElementById("subview-cotacao-builder").classList.toggle("active", target === "cotacao");
+    });
+  });
+}
+
+/* ---- estatísticas ---- */
+function renderProductsDashboard() {
+  document.getElementById("products-stat-total").textContent = catalog.length;
+  document.getElementById("products-stat-active").textContent = catalog.filter(p => p.ativo).length;
+  const destinos = new Set(catalog.filter(p => p.destino && p.destino !== "Todos").map(p => p.destino));
+  document.getElementById("products-stat-destinos").textContent = destinos.size;
+}
+
+/* ---- árvore hierárquica compartilhada: Categoria > Destino > Escola > Turno > Itens ---- */
+function buildCatalogTree(lista) {
+  const categorias = [];
+  const acha = (arr, nome) => arr.find(x => x.nome === nome) || null;
+  lista.forEach(p => {
+    const cn = p.categoria || "Outros", dn = p.destino || "Todos", en = p.subgrupo || "", tn = p.turno || "";
+    let c = acha(categorias, cn);
+    if (!c) { c = { nome: cn, destinos: [] }; categorias.push(c); }
+    let d = acha(c.destinos, dn);
+    if (!d) { d = { nome: dn, escolas: [] }; c.destinos.push(d); }
+    let e = acha(d.escolas, en);
+    if (!e) { e = { nome: en, turnos: [] }; d.escolas.push(e); }
+    let t = acha(e.turnos, tn);
+    if (!t) { t = { nome: tn, itens: [] }; e.turnos.push(t); }
+    t.itens.push(p);
+  });
+  return categorias;
+}
+
+/* ---- lista administrativa do catálogo (mesma árvore de 4 níveis) ---- */
+const catalogListEl = document.getElementById("catalog-list");
+
+function adminTurnosHtml(turnos, isAdmin) {
+  return turnos.map(t => {
+    const itensHtml = t.itens.map(p => adminItemCardHtml(p, isAdmin)).join("");
+    if (!t.nome) return itensHtml;
+    return `<div class="q-turno"><div class="q-turno-h">${escapeHtml(t.nome)}</div>${itensHtml}</div>`;
+  }).join("");
+}
+
+function adminItemCardHtml(p, isAdmin) {
+  const subs = p.subs.length;
+  const actions = isAdmin ? `
+    <div class="acts">
+      <button type="button" class="btn btn-ghost btn-sm" data-act="edit" data-id="${p.id}">Editar</button>
+      <button type="button" class="btn btn-danger btn-sm" data-act="del" data-id="${p.id}">Excluir</button>
+    </div>` : "";
+  return `
+    <div class="prod-card${p.ativo ? "" : " off"}">
+      <div class="body">
+        <div class="nm">${escapeHtml(p.nome)}${p.ativo ? "" : '<span class="prod-tag">oculto</span>'}</div>
+        <div class="meta">por ${escapeHtml(p.unidade)}${subs ? ` · ${subs} subiten${subs > 1 ? "s" : ""}` : ""}${p.qtdFixa ? " · quantidade fixa" : ""}</div>
+      </div>
+      <div class="pr">${currency(p.preco)}</div>
+      ${actions}
+    </div>`;
+}
+
+function renderCatalogList() {
+  const isAdmin = !!(session && session.role === "ADM");
+  document.getElementById("btn-new-catalog-item").style.display = isAdmin ? "" : "none";
+
+  if (catalog.length === 0) {
+    catalogListEl.innerHTML = '<p class="muted-note">Nenhum produto no catálogo ainda. Use "+ Novo produto" para começar.</p>';
+    renderProductsDashboard();
+    return;
+  }
+
+  const ordenado = catalog.slice().sort((a, b) => a.ordem - b.ordem);
+  let html = "";
+  buildCatalogTree(ordenado).forEach(cat => {
+    const aberta = catalogCatAbertos[cat.nome] !== false;
+    html += `<div class="q-cat" data-catchave="${escapeHtml(cat.nome)}">
+      <button type="button" class="q-cat-h" data-role="toggle-cat" aria-expanded="${aberta}">
+        <span class="arrow">▶</span><span>${escapeHtml(cat.nome)}</span>
+      </button>
+      <div class="q-cat-body"${aberta ? "" : " hidden"}>`;
+    cat.destinos.forEach(dest => {
+      const destChave = `${cat.nome}|${dest.nome}`;
+      const destAberto = catalogDestAbertos[destChave] !== false;
+      html += `<div class="q-grp" data-destchave="${escapeHtml(destChave)}">
+        <button type="button" class="q-grp-h" data-role="toggle-dest" aria-expanded="${destAberto}">
+          <span class="arrow">▶</span><span>${escapeHtml(dest.nome)}</span>
+        </button>
+        <div class="q-grp-body"${destAberto ? "" : " hidden"}>`;
+      dest.escolas.forEach(esc => {
+        if (!esc.nome) {
+          html += adminTurnosHtml(esc.turnos, isAdmin);
+        } else {
+          const escChave = `${cat.nome}|${dest.nome}|${esc.nome}`;
+          const escAberta = catalogEscAbertos[escChave] !== false;
+          html += `
+            <div class="q-sub" data-eschave="${escapeHtml(escChave)}">
+              <button type="button" class="q-sub-h" data-role="toggle-esc" aria-expanded="${escAberta}">
+                <span class="arrow">▶</span><span>${escapeHtml(esc.nome)}</span>
+              </button>
+              <div class="q-sub-body"${escAberta ? "" : " hidden"}>${adminTurnosHtml(esc.turnos, isAdmin)}</div>
+            </div>`;
+        }
+      });
+      html += "</div></div>";
+    });
+    html += "</div></div>";
+  });
+  catalogListEl.innerHTML = html;
+  renderProductsDashboard();
+}
+
+catalogListEl.addEventListener("click", async e => {
+  const toggleDest = e.target.closest('button[data-role="toggle-dest"]');
+  if (toggleDest) {
+    const boxDest = toggleDest.closest(".q-grp");
+    const bodyDest = boxDest.querySelector(".q-grp-body");
+    const abrirDest = bodyDest.hidden;
+    bodyDest.hidden = !abrirDest;
+    toggleDest.setAttribute("aria-expanded", String(abrirDest));
+    catalogDestAbertos[boxDest.getAttribute("data-destchave")] = abrirDest;
+    return;
+  }
+  const toggleEsc = e.target.closest('button[data-role="toggle-esc"]');
+  if (toggleEsc) {
+    const boxEsc = toggleEsc.closest(".q-sub");
+    const bodyEsc = boxEsc.querySelector(".q-sub-body");
+    const abrirEsc = bodyEsc.hidden;
+    bodyEsc.hidden = !abrirEsc;
+    toggleEsc.setAttribute("aria-expanded", String(abrirEsc));
+    catalogEscAbertos[boxEsc.getAttribute("data-eschave")] = abrirEsc;
+    return;
+  }
+  const toggle = e.target.closest('button[data-role="toggle-cat"]');
+  if (toggle) {
+    const box = toggle.closest(".q-cat");
+    const body = box.querySelector(".q-cat-body");
+    const abrir = body.hidden;
+    body.hidden = !abrir;
+    toggle.setAttribute("aria-expanded", String(abrir));
+    catalogCatAbertos[box.getAttribute("data-catchave")] = abrir;
+    return;
+  }
+  if (!(session && session.role === "ADM")) return;
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  const p = catalog.find(p => p.id === btn.dataset.id);
+  if (!p) return;
+  if (btn.dataset.act === "edit") openProductModal(p.id);
+  if (btn.dataset.act === "del") {
+    if (!confirm(`Excluir "${p.nome}" do catálogo? Essa ação não pode ser desfeita.`)) return;
+    catalog = catalog.filter(x => x.id !== p.id);
+    renderCatalogList();
+    quoteMontaDestinos();
+    quoteMontaCatalogo();
+    await deleteCatalogItemRemote(p.id);
+  }
+});
+
+/* ---- modal de produto (com subitens dinâmicos) ---- */
+const productModalBackdrop = document.getElementById("product-modal-backdrop");
+const productForm = document.getElementById("product-form");
+const productBtnDelete = document.getElementById("product-btn-delete");
+const productSubsList = document.getElementById("product-subs-list");
+
+function subRowHtml(s) {
+  s = s || { nome: "", valor: 0 };
+  return `
+    <div class="sub-row" data-sub>
+      <input type="text" data-sf="nome" placeholder="Nome do subitem" value="${escapeHtml(s.nome)}">
+      <input type="number" step="0.01" min="0" data-sf="valor" placeholder="0,00" value="${Number(s.valor) || 0}">
+      <button type="button" class="btn btn-icon" data-act="delsub" title="Remover subitem">&times;</button>
+    </div>`;
+}
+
+function renderProductSubs(subs) {
+  productSubsList.innerHTML = (subs || []).map(subRowHtml).join("");
+}
+
+document.getElementById("btn-add-sub").addEventListener("click", () => {
+  productSubsList.insertAdjacentHTML("beforeend", subRowHtml());
+});
+productSubsList.addEventListener("click", e => {
+  const btn = e.target.closest('button[data-act="delsub"]');
+  if (btn) btn.closest("[data-sub]").remove();
+});
+
+function populateCatalogDatalists() {
+  const uniques = field => {
+    const seen = [];
+    catalog.forEach(p => { const v = (p[field] || "").trim(); if (v && !seen.includes(v)) seen.push(v); });
+    return seen;
+  };
+  const fill = (id, field) => {
+    document.getElementById(id).innerHTML = uniques(field).map(v => `<option value="${escapeHtml(v)}">`).join("");
+  };
+  fill("list-categorias", "categoria");
+  fill("list-destinos", "destino");
+  fill("list-subgrupos", "subgrupo");
+  fill("list-turnos", "turno");
+}
+
+function openProductModal(id) {
+  productForm.reset();
+  populateCatalogDatalists();
+  if (id) {
+    const p = catalog.find(p => p.id === id);
+    document.getElementById("product-modal-title").textContent = "Editar produto";
+    document.getElementById("product-id").value = p.id;
+    document.getElementById("product-field-name").value = p.nome;
+    document.getElementById("product-field-categoria").value = p.categoria;
+    document.getElementById("product-field-destino").value = p.destino;
+    document.getElementById("product-field-subgrupo").value = p.subgrupo;
+    document.getElementById("product-field-turno").value = p.turno;
+    document.getElementById("product-field-unidade").value = p.unidade;
+    document.getElementById("product-field-preco").value = p.preco;
+    document.getElementById("product-field-ordem").value = p.ordem;
+    document.getElementById("product-field-qtdpadrao").value = p.qtdPadrao;
+    document.getElementById("product-field-detalhe").value = p.detalhe;
+    document.getElementById("product-field-qtdfixa").checked = p.qtdFixa;
+    document.getElementById("product-field-ativo").checked = p.ativo;
+    renderProductSubs(p.subs);
+    productBtnDelete.style.display = "inline-block";
+  } else {
+    document.getElementById("product-modal-title").textContent = "Novo produto";
+    document.getElementById("product-id").value = "";
+    document.getElementById("product-field-ordem").value = 100;
+    document.getElementById("product-field-qtdpadrao").value = 1;
+    document.getElementById("product-field-qtdfixa").checked = true;
+    document.getElementById("product-field-ativo").checked = true;
+    renderProductSubs([]);
+    productBtnDelete.style.display = "none";
+  }
+  productModalBackdrop.classList.add("open");
+  document.getElementById("product-field-name").focus();
+}
+
+function closeProductModal() { productModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-catalog-item").addEventListener("click", () => openProductModal(null));
+document.getElementById("product-modal-close").addEventListener("click", closeProductModal);
+document.getElementById("product-btn-cancel").addEventListener("click", closeProductModal);
+productModalBackdrop.addEventListener("click", e => { if (e.target === productModalBackdrop) closeProductModal(); });
+
+function readProductSubs() {
+  const subs = [];
+  productSubsList.querySelectorAll("[data-sub]").forEach(row => {
+    const nome = row.querySelector('[data-sf="nome"]').value.trim();
+    const valor = parseFloat(row.querySelector('[data-sf="valor"]').value) || 0;
+    if (nome) subs.push({ nome, valor });
+  });
+  return subs;
+}
+
+productForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("product-id").value;
+  const data = {
+    nome: document.getElementById("product-field-name").value.trim(),
+    categoria: document.getElementById("product-field-categoria").value.trim() || "Outros",
+    destino: document.getElementById("product-field-destino").value.trim() || "Todos",
+    subgrupo: document.getElementById("product-field-subgrupo").value.trim(),
+    turno: document.getElementById("product-field-turno").value.trim(),
+    unidade: document.getElementById("product-field-unidade").value.trim() || "unidade",
+    preco: parseFloat(document.getElementById("product-field-preco").value) || 0,
+    ordem: parseInt(document.getElementById("product-field-ordem").value, 10) || 100,
+    detalhe: document.getElementById("product-field-detalhe").value.trim(),
+    qtdFixa: document.getElementById("product-field-qtdfixa").checked,
+    qtdPadrao: Math.max(1, parseInt(document.getElementById("product-field-qtdpadrao").value, 10) || 1),
+    ativo: document.getElementById("product-field-ativo").checked,
+    subs: readProductSubs(),
+  };
+  let item;
+  if (id) {
+    item = catalog.find(p => p.id === id);
+    Object.assign(item, data);
+  } else {
+    item = { id: uid(), ...data };
+    catalog.push(item);
+  }
+  renderCatalogList();
+  quoteMontaDestinos();
+  quoteMontaCatalogo();
+  closeProductModal();
+  await saveCatalogItem(item);
+});
+
+productBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("product-id").value;
+  if (!id || !confirm("Excluir este produto? Essa ação não pode ser desfeita.")) return;
+  catalog = catalog.filter(p => p.id !== id);
+  renderCatalogList();
+  quoteMontaDestinos();
+  quoteMontaCatalogo();
+  closeProductModal();
+  await deleteCatalogItemRemote(id);
+});
+
+/* ============================================================
+   MONTADOR DE COTAÇÃO (dentro de Produtos › Nova Cotação)
+   ============================================================ */
+let quoteSelecionados = {};   /* id -> quantidade */
+let quoteAbertos = {};        /* "categoria|destino|escola" -> aberto */
+let quoteCatAbertos = {};     /* categoria -> aberto */
+let quoteDestAbertos = {};    /* "categoria|destino" -> aberto */
+
+function quoteAtivos() {
+  return catalog.filter(p => p.ativo);
+}
+
+function quoteMontaDestinos() {
+  const sel = document.getElementById("q-destino");
+  const atual = sel.value;
+  const lista = ["Todos os destinos"];
+  quoteAtivos().forEach(p => { if (p.destino && p.destino !== "Todos" && !lista.includes(p.destino)) lista.push(p.destino); });
+  sel.innerHTML = lista.map(d => `<option>${escapeHtml(d)}</option>`).join("");
+  if (atual && lista.includes(atual)) sel.value = atual;
+}
+
+function quoteVisivel(p, filtro) {
+  if (!filtro || filtro === "Todos os destinos") return true;
+  return !p.destino || p.destino === "Todos" || p.destino === filtro;
+}
+
+function quoteItemHtml(p) {
+  const on = Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id);
+  const qtd = on ? quoteSelecionados[p.id] : (p.qtdPadrao || 1);
+  return `
+    <div class="q-opt${on ? " on" : ""}" data-id="${p.id}">
+      <input type="checkbox" data-role="pick" data-id="${p.id}"${on ? " checked" : ""} aria-label="${escapeHtml(p.nome)}">
+      <span class="body">
+        <span class="nm">${escapeHtml(p.nome)}</span>
+        ${p.detalhe ? `<span class="dt">${escapeHtml(p.detalhe)}</span>` : ""}
+        ${p.qtdFixa ? "" : `<span class="q-qty"><label for="qq-${p.id}">Quantidade (${escapeHtml(p.unidade)}s):</label><input type="number" min="1" step="1" id="qq-${p.id}" data-role="qty" data-id="${p.id}" value="${qtd}"></span>`}
+      </span>
+      <span class="pr">${currency(p.preco)}<em>por ${escapeHtml(p.unidade)}</em></span>
+    </div>`;
+}
+
+function quoteFaixa(itens) {
+  const precos = itens.map(p => Number(p.preco) || 0);
+  const min = Math.min(...precos), max = Math.max(...precos);
+  const qtd = itens.length + (itens.length > 1 ? " opções" : " opção");
+  return qtd + (min === max ? " · " + currency(min) : " · " + currency(min) + "–" + currency(max));
+}
+
+function quoteTurnosHtml(turnos) {
+  return turnos.map(t => {
+    const itensHtml = t.itens.map(quoteItemHtml).join("");
+    if (!t.nome) return itensHtml;
+    return `<div class="q-turno"><div class="q-turno-h">${escapeHtml(t.nome)}</div>${itensHtml}</div>`;
+  }).join("");
+}
+
+const quoteCatalogEl = document.getElementById("quote-catalog");
+
+function quoteMontaCatalogo() {
+  const filtro = document.getElementById("q-destino").value;
+  const termo = (document.getElementById("q-busca").value || "").trim().toLowerCase();
+  const lista = quoteAtivos().filter(p => {
+    if (!quoteVisivel(p, filtro)) return false;
+    if (!termo) return true;
+    const alvo = [p.nome, p.detalhe, p.subgrupo, p.turno, p.categoria].join(" ").toLowerCase();
+    return alvo.includes(termo);
+  });
+
+  if (lista.length === 0) {
+    quoteCatalogEl.innerHTML = `<p class="muted-note">${termo ? `Nenhum serviço encontrado para "${escapeHtml(termo)}".` : "Nenhum serviço cadastrado para este destino."}</p>`;
+    quoteAtualizaPrevia();
+    return;
+  }
+
+  let html = "";
+  buildCatalogTree(lista).forEach(cat => {
+    const todosItensCat = cat.destinos.flatMap(d => d.escolas.flatMap(e => e.turnos.flatMap(t => t.itens)));
+    const marcadosCat = todosItensCat.filter(p => Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id)).length;
+    const abertaCat = !!termo || marcadosCat > 0 || quoteCatAbertos[cat.nome] !== false;
+    html += `<div class="q-cat" data-catchave="${escapeHtml(cat.nome)}">
+      <button type="button" class="q-cat-h" data-role="toggle-cat" aria-expanded="${abertaCat}">
+        <span class="arrow">▶</span><span>${escapeHtml(cat.nome)}</span>
+      </button>
+      <div class="q-cat-body"${abertaCat ? "" : " hidden"}>`;
+    cat.destinos.forEach(dest => {
+      const todosItensDest = dest.escolas.flatMap(e => e.turnos.flatMap(t => t.itens));
+      const marcadosDest = todosItensDest.filter(p => Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id)).length;
+      const destChave = `${cat.nome}|${dest.nome}`;
+      const abertoDest = !!termo || marcadosDest > 0 || quoteDestAbertos[destChave] !== false;
+      html += `<div class="q-grp" data-destchave="${escapeHtml(destChave)}">
+        <button type="button" class="q-grp-h" data-role="toggle-dest" aria-expanded="${abertoDest}">
+          <span class="arrow">▶</span><span>${escapeHtml(dest.nome)}</span>
+        </button>
+        <div class="q-grp-body"${abertoDest ? "" : " hidden"}>`;
+      dest.escolas.forEach(esc => {
+        if (!esc.nome) {
+          html += `<div class="q-sub-flat">${quoteTurnosHtml(esc.turnos)}</div>`;
+          return;
+        }
+        const todosItens = esc.turnos.flatMap(t => t.itens);
+        const chave = `${cat.nome}|${dest.nome}|${esc.nome}`;
+        const marcados = todosItens.filter(p => Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id)).length;
+        const aberto = !!termo || marcados > 0 || quoteAbertos[chave] === true;
+        html += `
+          <div class="q-sub" data-chave="${escapeHtml(chave)}">
+            <button type="button" class="q-sub-h" data-role="toggle" aria-expanded="${aberto}">
+              <span class="arrow">▶</span>
+              <span>${escapeHtml(esc.nome)}${marcados ? `<span class="picked">${marcados} na cotação</span>` : ""}</span>
+              <span class="count">${quoteFaixa(todosItens)}</span>
+            </button>
+            <div class="q-sub-body"${aberto ? "" : " hidden"}>${quoteTurnosHtml(esc.turnos)}</div>
+          </div>`;
+      });
+      html += "</div></div>";
+    });
+    html += "</div></div>";
+  });
+  quoteCatalogEl.innerHTML = html;
+  quoteAtualizaPrevia();
+}
+
+function quotePorId(id) { return catalog.find(p => p.id === id) || null; }
+
+function quoteLinhas() {
+  const out = [];
+  quoteAtivos().forEach(p => {
+    if (!Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id)) return;
+    const q = p.qtdFixa ? 1 : Math.max(1, parseInt(quoteSelecionados[p.id], 10) || 1);
+    out.push({ p, qtd: q, total: q * (Number(p.preco) || 0) });
+  });
+  return out;
+}
+function quoteTotal() { return quoteLinhas().reduce((a, l) => a + l.total, 0); }
+function quoteAtualizaPrevia() { document.getElementById("quote-preview-total").textContent = currency(quoteTotal()); }
+
+quoteCatalogEl.addEventListener("change", e => {
+  const el = e.target, id = el.getAttribute("data-id");
+  if (!id) return;
+  if (el.getAttribute("data-role") === "pick") {
+    const p = quotePorId(id);
+    if (el.checked) quoteSelecionados[id] = (p && p.qtdPadrao) || 1;
+    else delete quoteSelecionados[id];
+    quoteMontaCatalogo();
+    return;
+  }
+  if (el.getAttribute("data-role") === "qty") {
+    const v = Math.max(1, parseInt(el.value, 10) || 1);
+    el.value = v;
+    if (Object.prototype.hasOwnProperty.call(quoteSelecionados, id)) quoteSelecionados[id] = v;
+  }
+  quoteAtualizaPrevia();
+});
+
+quoteCatalogEl.addEventListener("click", e => {
+  const toggleCat = e.target.closest('button[data-role="toggle-cat"]');
+  if (toggleCat) {
+    const caixaCat = toggleCat.closest(".q-cat");
+    const corpoCat = caixaCat.querySelector(".q-cat-body");
+    const abrirCat = corpoCat.hidden;
+    corpoCat.hidden = !abrirCat;
+    toggleCat.setAttribute("aria-expanded", String(abrirCat));
+    quoteCatAbertos[caixaCat.getAttribute("data-catchave")] = abrirCat;
+    return;
+  }
+  const toggleDest = e.target.closest('button[data-role="toggle-dest"]');
+  if (toggleDest) {
+    const caixaDest = toggleDest.closest(".q-grp");
+    const corpoDest = caixaDest.querySelector(".q-grp-body");
+    const abrirDest = corpoDest.hidden;
+    corpoDest.hidden = !abrirDest;
+    toggleDest.setAttribute("aria-expanded", String(abrirDest));
+    quoteDestAbertos[caixaDest.getAttribute("data-destchave")] = abrirDest;
+    return;
+  }
+  const toggle = e.target.closest('button[data-role="toggle"]');
+  if (toggle) {
+    const caixa = toggle.closest(".q-sub");
+    const corpo = caixa.querySelector(".q-sub-body");
+    const abrir = corpo.hidden;
+    corpo.hidden = !abrir;
+    toggle.setAttribute("aria-expanded", String(abrir));
+    quoteAbertos[caixa.getAttribute("data-chave")] = abrir;
+    return;
+  }
+  if (e.target.tagName === "INPUT" || e.target.tagName === "LABEL") return;
+  const card = e.target.closest(".q-opt");
+  if (!card) return;
+  const chk = card.querySelector('input[data-role="pick"]');
+  if (!chk) return;
+  chk.checked = !chk.checked;
+  chk.dispatchEvent(new Event("change", { bubbles: true }));
+});
+
+document.getElementById("q-destino").addEventListener("change", quoteMontaCatalogo);
+
+let quoteBuscaTimer = null;
+document.getElementById("q-busca").addEventListener("input", () => {
+  clearTimeout(quoteBuscaTimer);
+  quoteBuscaTimer = setTimeout(quoteMontaCatalogo, 180);
+});
+
+document.getElementById("q-btn-limpar").addEventListener("click", () => {
+  if (!confirm("Limpar os dados do estudante e os serviços marcados?")) return;
+  ["q-nome", "q-email", "q-obs", "q-busca"].forEach(id => { document.getElementById(id).value = ""; });
+  document.getElementById("q-status").value = "Enviada";
+  quoteSelecionados = {};
+  document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
+  quoteMontaCatalogo();
+  document.getElementById("q-nome").focus();
+});
+
+function quoteValida() {
+  const campos = [
+    { el: document.getElementById("q-nome"), nome: "o nome do estudante" },
+    { el: document.getElementById("q-email"), nome: "o e-mail do estudante" },
+    { el: document.getElementById("q-consultor"), nome: "o nome do consultor" },
+    { el: document.getElementById("q-consultor-email"), nome: "o e-mail do consultor" },
+  ];
+  const faltando = [];
+  campos.forEach(c => {
+    const vazio = !c.el.value.trim();
+    c.el.classList.toggle("err", vazio);
+    if (vazio) faltando.push(c.nome);
+  });
+  if (faltando.length) {
+    alert("Preencha " + faltando.join(", ") + " antes de gerar.");
+    campos.find(c => !c.el.value.trim()).el.focus();
+    return false;
+  }
+  if (quoteLinhas().length === 0) {
+    alert("Marque pelo menos um serviço para a cotação.");
+    return false;
+  }
+  return true;
+}
+
+function quoteGerar() {
+  if (!quoteValida()) return;
+
+  const nome = document.getElementById("q-nome").value.trim();
+  document.getElementById("d-nome").textContent = nome;
+  document.getElementById("d-email").textContent = document.getElementById("q-email").value.trim();
+  document.getElementById("d-titulo").textContent = "Cotação para " + nome;
+  document.getElementById("d-status").textContent = document.getElementById("q-status").value;
+  document.getElementById("d-consultor").textContent = document.getElementById("q-consultor").value.trim();
+  document.getElementById("d-consultor-email").textContent = document.getElementById("q-consultor-email").value.trim();
+  document.getElementById("d-emissao").textContent = formatDate(document.getElementById("q-emissao").value);
+  document.getElementById("d-validade").textContent = formatDate(document.getElementById("q-validade").value);
+
+  let html = "";
+  quoteLinhas().forEach(l => {
+    html += `<tr class="item"><td>${escapeHtml(l.p.nome)}</td><td class="c">${l.qtd}</td><td class="r">${currency(l.p.preco)}</td><td class="tot">${currency(l.total)}</td></tr>`;
+    (l.p.subs || []).forEach(s => {
+      html += `<tr class="subrow-doc"><td class="name">${escapeHtml(s.nome)}</td><td class="c"></td><td class="r"></td><td class="tot">${currency(s.valor)}</td></tr>`;
+    });
+  });
+  document.getElementById("d-itens").innerHTML = html;
+
+  const t = quoteTotal();
+  document.getElementById("d-subtotal").textContent = currency(t);
+  document.getElementById("d-total").textContent = currency(t);
+
+  const obs = document.getElementById("q-obs").value.trim();
+  document.getElementById("d-obs").hidden = !obs;
+  document.getElementById("d-obs-txt").textContent = obs;
+
+  document.getElementById("quote-doc-overlay").hidden = false;
+}
+
+document.getElementById("q-btn-gerar").addEventListener("click", quoteGerar);
+document.getElementById("quote-doc-back").addEventListener("click", () => {
+  document.getElementById("quote-doc-overlay").hidden = true;
+});
+document.getElementById("quote-doc-print").addEventListener("click", () => window.print());
+
+function initQuoteBuilderDefaults() {
+  const hoje = new Date();
+  const emissao = document.getElementById("q-emissao");
+  const validade = document.getElementById("q-validade");
+  if (!emissao.value) emissao.value = hoje.toISOString().slice(0, 10);
+  if (!validade.value) validade.value = new Date(hoje.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  if (session) {
+    if (!document.getElementById("q-consultor").value) document.getElementById("q-consultor").value = session.name;
+    if (!document.getElementById("q-consultor-email").value) document.getElementById("q-consultor-email").value = session.email;
+  }
+}
+
+/* ============================================================
+   USUÁRIOS (somente ADM)
+   ============================================================ */
+let users = [];
+
+const userModalBackdrop = document.getElementById("user-modal-backdrop");
+const userForm = document.getElementById("user-form");
+const userBtnDelete = document.getElementById("user-btn-delete");
+const usersTbody = document.getElementById("users-tbody");
+const usersEmpty = document.getElementById("users-empty");
+const userFieldRole = document.getElementById("user-field-role");
+const permissionsTbody = document.getElementById("permissions-tbody");
+
+function renderRoleOptions() {
+  userFieldRole.innerHTML = ROLES.map(r => `<option value="${r}">${r}</option>`).join("");
+}
+
+function renderUsers() {
+  usersTbody.innerHTML = "";
+  usersEmpty.style.display = users.length === 0 ? "block" : "none";
+
+  users.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(u => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(u.name)}</td>
+      <td class="cell-muted">${escapeHtml(u.email)}</td>
+      <td><span class="badge ${u.role === "ADM" ? "badge-role-adm" : "badge-neutral"}">${escapeHtml(u.role)}</span></td>
+      <td><span class="badge ${u.active ? "badge-good" : "badge-danger"}">${u.active ? "Ativo" : "Inativo"}</span></td>
+      <td class="cell-actions">›</td>
+    `;
+    tr.addEventListener("click", () => openUserModal(u.id));
+    usersTbody.appendChild(tr);
+  });
+
+  renderUsersDashboard();
+}
+
+function renderUsersDashboard() {
+  document.getElementById("users-stat-total").textContent = users.length;
+  document.getElementById("users-stat-active").textContent = users.filter(u => u.active).length;
+  document.getElementById("users-stat-adm").textContent = users.filter(u => u.role === "ADM").length;
+}
+
+function openUserModal(id) {
+  const u = users.find(u => u.id === id);
+  if (!u) return;
+  userForm.reset();
+  renderRoleOptions();
+
+  const isLastAdmin = u.role === "ADM" && users.filter(x => x.role === "ADM" && x.active).length === 1;
+
+  document.getElementById("user-id").value = u.id;
+  document.getElementById("user-field-name").value = u.name;
+  document.getElementById("user-field-email").value = u.email;
+  document.getElementById("user-field-role").value = u.role;
+  document.getElementById("user-field-active").checked = !!u.active;
+  document.getElementById("user-field-role").disabled = isLastAdmin;
+  document.getElementById("user-field-active").disabled = isLastAdmin;
+  document.getElementById("user-adm-hint").style.display = isLastAdmin ? "block" : "none";
+  userBtnDelete.style.display = (u.id === session.id || isLastAdmin) ? "none" : "inline-block";
+
+  userModalBackdrop.classList.add("open");
+  document.getElementById("user-field-name").focus();
+}
+
+function closeUserModal() { userModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-user").addEventListener("click", () => {
+  alert('Para criar um novo login, use o Supabase Dashboard → Authentication → Users → "Add user". Depois de criado, ele aparece aqui para você ajustar a função e o acesso.');
+});
+document.getElementById("user-modal-close").addEventListener("click", closeUserModal);
+document.getElementById("user-btn-cancel").addEventListener("click", closeUserModal);
+userModalBackdrop.addEventListener("click", e => { if (e.target === userModalBackdrop) closeUserModal(); });
+
+userForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("user-id").value;
+  const u = users.find(u => u.id === id);
+  if (!u) return;
+
+  const role = document.getElementById("user-field-role").value;
+  const active = document.getElementById("user-field-active").checked;
+  const wasLastAdmin = u.role === "ADM" && users.filter(x => x.role === "ADM" && x.active).length === 1;
+  if (wasLastAdmin && (role !== "ADM" || !active)) {
+    alert("Não é possível remover o acesso do último administrador (ADM).");
+    return;
+  }
+
+  u.name = document.getElementById("user-field-name").value.trim();
+  u.role = role;
+  u.active = active;
+
+  renderUsers();
+  closeUserModal();
+  await updateUserProfile(u.id, { name: u.name, role: u.role, active: u.active });
+});
+
+userBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("user-id").value;
+  if (!id) return;
+  const u = users.find(u => u.id === id);
+  if (u.role === "ADM" && users.filter(x => x.role === "ADM" && x.active).length === 1) {
+    alert("Não é possível desativar o último administrador (ADM).");
+    return;
+  }
+  if (!confirm(`Desativar "${u.name}"? Ele perde o acesso ao sistema imediatamente. Para excluir o login por completo, use o Supabase Dashboard.`)) return;
+  u.active = false;
+  renderUsers();
+  closeUserModal();
+  await updateUserProfile(u.id, { name: u.name, role: u.role, active: false });
+});
+
+/* ============================================================
+   PERMISSÕES POR FUNÇÃO (somente ADM)
+   ============================================================ */
+function renderPermissionsTable() {
+  permissionsTbody.innerHTML = "";
+
+  const admRow = document.createElement("tr");
+  admRow.innerHTML = `
+    <td class="perm-role-name">ADM</td>
+    <td colspan="4" class="perm-locked">Acesso total (fixo)</td>
+  `;
+  permissionsTbody.appendChild(admRow);
+
+  CONFIGURABLE_ROLES.forEach(role => {
+    const tr = document.createElement("tr");
+    const rolePerms = rolePermissions[role] || {};
+    const cells = MODULES.map(m => `
+      <td>
+        <input type="checkbox" data-role="${role}" data-module="${m.id}" ${rolePerms[m.id] ? "checked" : ""}>
+      </td>
+    `).join("");
+    tr.innerHTML = `<td class="perm-role-name">${escapeHtml(role)}</td>${cells}`;
+    permissionsTbody.appendChild(tr);
+  });
+
+  permissionsTbody.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener("change", async () => {
+      await setModuleAccess(cb.dataset.role, cb.dataset.module, cb.checked);
+    });
+  });
+}
+
+/* ============================================================
+   GLOBAL: Escape closes any open modal
+   ============================================================ */
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (modalBackdrop.classList.contains("open")) closeDealModal();
+  if (leadModalBackdrop.classList.contains("open")) closeLeadModal();
+  if (quoteModalBackdrop.classList.contains("open")) closeQuoteModal();
+  if (productModalBackdrop.classList.contains("open")) closeProductModal();
+  if (userModalBackdrop.classList.contains("open")) closeUserModal();
+  if (assignModalBackdrop.classList.contains("open")) closeAssignModal();
+  if (importModalBackdrop.classList.contains("open")) closeImportModal();
+  if (sourcesModalBackdrop.classList.contains("open")) closeSourcesModal();
+  closeRowMenu();
+});
+
+/* ============================================================
+   INIT (assíncrono — busca tudo do Supabase antes de renderizar)
+   ============================================================ */
+(async () => {
+  session = await getSession();
+  if (!session) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  await loadRolePermissions();
+
+  [users, leads, deals, quotes, catalog, SOURCES] = await Promise.all([
+    loadUsers(),
+    loadLeads(),
+    loadDeals(),
+    loadQuotes(),
+    loadCatalog(),
+    loadSources(),
+  ]);
+
+  renderSessionChip();
+  initSidebarToggle();
+  initNavigation();
+  renderStageOptions();
+  renderBoard();
+  renderLeadFilterOptions();
+  renderLeads();
+  renderQuotes();
+  initProdutosSubtabs();
+  renderCatalogList();
+  quoteMontaDestinos();
+  quoteMontaCatalogo();
+  initQuoteBuilderDefaults();
+  if (session.role === "ADM") {
+    renderUsers();
+    renderPermissionsTable();
+  }
+
+  document.body.style.visibility = "visible";
+})();
