@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM de Vendas</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <h1>CRM de Vendas</h1>
+    </div>
+    <button id="btn-new" class="btn btn-primary">+ Novo negócio</button>
+  </header>
+
+  <section class="dashboard" id="dashboard">
+    <div class="stat-card">
+      <span class="stat-label">Negócios abertos</span>
+      <span class="stat-value" id="stat-open">0</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Valor em pipeline</span>
+      <span class="stat-value" id="stat-pipeline-value">R$ 0</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Ganhos (mês)</span>
+      <span class="stat-value stat-good" id="stat-won">R$ 0</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Taxa de conversão</span>
+      <span class="stat-value" id="stat-conversion">0%</span>
+    </div>
+  </section>
+
+  <main class="board" id="board">
+    <!-- columns injected by JS -->
+  </main>
+
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Novo negócio</h2>
+        <button class="btn-icon" id="modal-close">&times;</button>
+      </div>
+      <form id="deal-form">
+        <input type="hidden" id="deal-id">
+        <label>Cliente / Empresa
+          <input type="text" id="field-name" required placeholder="Ex: Padaria Bom Pão">
+        </label>
+        <label>Contato
+          <input type="text" id="field-contact" placeholder="Ex: Maria Silva">
+        </label>
+        <label>Telefone / E-mail
+          <input type="text" id="field-info" placeholder="Ex: (11) 99999-0000">
+        </label>
+        <label>Valor estimado (R$)
+          <input type="number" id="field-value" min="0" step="0.01" placeholder="0,00">
+        </label>
+        <label>Estágio
+          <select id="field-stage"></select>
+        </label>
+        <label>Notas
+          <textarea id="field-notes" rows="3" placeholder="Detalhes, próxima ação, objeções..."></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="btn-delete" style="display:none;">Excluir</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
