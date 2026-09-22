@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790102515">
+<link rel="stylesheet" href="style.css?v=1790102824">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -66,6 +66,21 @@
         <button class="nav-item" data-view="colaboradores">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span>Colaboradores</span>
+        </button>
+
+        <button class="nav-item" data-view="formularios">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="8" y1="19" x2="12" y2="19"/></svg>
+          <span>Formulários</span>
+        </button>
+
+        <button class="nav-item" data-view="templates">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Templates</span>
+        </button>
+
+        <button class="nav-item" data-view="areaaluno">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>
+          <span>Área do Aluno</span>
         </button>
 
         <div class="nav-label" id="nav-label-admin" style="display:none;">ADMINISTRAÇÃO</div>
@@ -605,6 +620,30 @@
             <tbody id="collaborators-tbody"></tbody>
           </table>
           <div class="empty-hint" id="collaborators-empty" style="display:none;">Nenhum colaborador cadastrado ainda.</div>
+        </div>
+      </section>
+
+      <!-- FORMULÁRIOS VIEW (em construção) -->
+      <section class="view" id="view-formularios">
+        <div class="panel">
+          <div class="panel-header"><h2>Formulários</h2></div>
+          <div class="empty-hint">Em construção — em breve você vai poder criar e gerenciar formulários por aqui.</div>
+        </div>
+      </section>
+
+      <!-- TEMPLATES VIEW (em construção) -->
+      <section class="view" id="view-templates">
+        <div class="panel">
+          <div class="panel-header"><h2>Templates</h2></div>
+          <div class="empty-hint">Em construção — em breve você vai poder criar e gerenciar templates por aqui.</div>
+        </div>
+      </section>
+
+      <!-- ÁREA DO ALUNO VIEW (em construção) -->
+      <section class="view" id="view-areaaluno">
+        <div class="panel">
+          <div class="panel-header"><h2>Área do Aluno</h2></div>
+          <div class="empty-hint">Em construção — em breve os alunos vão poder acessar essa área.</div>
         </div>
       </section>
 
@@ -1469,7 +1508,7 @@
   </div>
 
   <script src="config.js?v=1790028144"></script>
-  <script src="auth.js?v=1790102515"></script>
-  <script src="script.js?v=1790102515"></script>
+  <script src="auth.js?v=1790102824"></script>
+  <script src="script.js?v=1790102824"></script>
 </body>
 </html>

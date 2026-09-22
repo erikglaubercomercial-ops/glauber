@@ -6,6 +6,11 @@ let session = null;
 function canAccessView(view) {
   if (!session) return false;
   if (view === "dashboard") return true;
+  /* telas novas ainda em construção — liberadas pra todo mundo por
+     enquanto, sem nenhum conteúdo real por trás; quando ganharem
+     funcionalidade de verdade, passam a exigir permissão por função
+     como os demais módulos */
+  if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
   if (view === "usuarios") return session.role === "ADM";
   return hasModuleAccess(session.role, view);
 }
@@ -53,6 +58,9 @@ const VIEW_TITLES = {
   financeiro: "Financeiro",
   matriculas: "Matrículas",
   colaboradores: "Colaboradores",
+  formularios: "Formulários",
+  templates: "Templates",
+  areaaluno: "Área do Aluno",
   usuarios: "Usuários",
 };
 
