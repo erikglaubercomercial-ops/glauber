@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM de Vendas</title>
-<link rel="stylesheet" href="style.css?v=1790067971">
+<link rel="stylesheet" href="style.css?v=1790068240">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -228,6 +228,14 @@
           <div class="stat-card">
             <span class="stat-label">Taxa de conversão</span>
             <span class="stat-value" id="stat-conversion">0%</span>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:16px;">
+          <div class="filter-bar" style="border-bottom:none; padding:14px 20px;">
+            <span class="filter-sep" style="font-weight:600; color:var(--text);">Performance por consultor:</span>
+            <select id="pipeline-filter-consultor"><option value="">Todos os consultores</option></select>
+            <button type="button" class="btn btn-ghost btn-sm" id="pipeline-filter-clear">Limpar filtro</button>
           </div>
         </div>
 
@@ -1204,7 +1212,7 @@
   </div>
 
   <script src="config.js?v=1790028144"></script>
-  <script src="auth.js?v=1790067971"></script>
-  <script src="script.js?v=1790067971"></script>
+  <script src="auth.js?v=1790068240"></script>
+  <script src="script.js?v=1790068240"></script>
 </body>
 </html>

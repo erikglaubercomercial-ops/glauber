@@ -217,10 +217,38 @@ function renderStageOptions() {
   fieldStage.innerHTML = STAGES.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
 }
 
+/* ---- filtro: performance por consultor ---- */
+function dealConsultorId(deal) {
+  if (!deal.leadId) return null;
+  const lead = leads.find(l => l.id === deal.leadId);
+  return lead ? lead.consultorId : null;
+}
+
+function renderPipelineFilterOptions() {
+  const sel = document.getElementById("pipeline-filter-consultor");
+  const current = sel.value;
+  const consultants = users.filter(u => u.role === "Consultor").slice().sort((a, b) => a.name.localeCompare(b.name));
+  sel.innerHTML = `<option value="">Todos os consultores</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  sel.value = current;
+}
+
+function getFilteredDeals() {
+  const consultorId = document.getElementById("pipeline-filter-consultor").value;
+  if (!consultorId) return deals;
+  return deals.filter(d => dealConsultorId(d) === consultorId);
+}
+
+document.getElementById("pipeline-filter-consultor").addEventListener("change", () => { renderBoard(); });
+document.getElementById("pipeline-filter-clear").addEventListener("click", () => {
+  document.getElementById("pipeline-filter-consultor").value = "";
+  renderBoard();
+});
+
 function renderBoard() {
   boardEl.innerHTML = "";
+  const filteredDeals = getFilteredDeals();
   STAGES.forEach(stage => {
-    const stageDeals = deals.filter(d => d.stage === stage.id);
+    const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
     const totalValue = stageDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
     const column = document.createElement("div");
@@ -261,9 +289,12 @@ function renderCard(deal) {
   card.className = "card";
   card.draggable = true;
   card.dataset.id = deal.id;
+  const consultorId = dealConsultorId(deal);
+  const consultant = consultorId ? users.find(u => u.id === consultorId) : null;
   card.innerHTML = `
     <div class="card-name">${escapeHtml(deal.name)}</div>
     <div class="card-contact">${escapeHtml(deal.contact || "Sem contato")}</div>
+    ${consultant ? `<div class="card-consultor">${escapeHtml(consultant.name)}</div>` : ""}
     <div class="card-value">${currency(deal.value)}</div>
   `;
   card.addEventListener("dragstart", e => {
@@ -286,19 +317,20 @@ function moveDeal(id, newStage) {
 }
 
 function renderPipelineDashboard() {
-  const open = deals.filter(d => !isClosedStage(d.stage));
+  const scopedDeals = getFilteredDeals();
+  const open = scopedDeals.filter(d => !isClosedStage(d.stage));
   const pipelineValue = open.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
   const now = new Date();
-  const wonThisMonth = deals.filter(d => {
+  const wonThisMonth = scopedDeals.filter(d => {
     if (!isWonStage(d.stage) || !d.closedAt) return false;
     const closed = new Date(d.closedAt);
     return closed.getMonth() === now.getMonth() && closed.getFullYear() === now.getFullYear();
   });
   const wonValue = wonThisMonth.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
-  const closed = deals.filter(d => isClosedStage(d.stage));
-  const conversion = closed.length === 0 ? 0 : Math.round((deals.filter(d => isWonStage(d.stage)).length / closed.length) * 100);
+  const closed = scopedDeals.filter(d => isClosedStage(d.stage));
+  const conversion = closed.length === 0 ? 0 : Math.round((scopedDeals.filter(d => isWonStage(d.stage)).length / closed.length) * 100);
 
   document.getElementById("stat-open").textContent = open.length;
   document.getElementById("stat-pipeline-value").textContent = currency(pipelineValue);
@@ -3611,6 +3643,7 @@ document.addEventListener("keydown", e => {
   initSidebarToggle();
   initNavigation();
   renderStageOptions();
+  renderPipelineFilterOptions();
   renderBoard();
   renderLeadFilterOptions();
   renderLeads();
