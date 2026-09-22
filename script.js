@@ -526,7 +526,12 @@ async function loadLeads() {
 }
 async function saveLeads() {
   const { error } = await supabase.from("leads").upsert(leads.map(leadToDb));
-  if (error) console.error("Erro ao salvar leads:", error);
+  if (error) {
+    console.error("Erro ao salvar leads:", error);
+    if (error.code === "23505") {
+      alert("Não foi possível salvar: já existe um lead com esse e-mail cadastrado. Atualize a página (F5) e tente novamente.");
+    }
+  }
 }
 async function deleteLeadsRemote(ids) {
   const { error } = await supabase.from("leads").delete().in("id", ids);
@@ -1017,6 +1022,12 @@ leadForm.addEventListener("submit", async e => {
     status: document.getElementById("lead-field-status").value,
     active: document.getElementById("lead-field-active").checked,
   };
+
+  if (data.email && leads.some(l => l.id !== id && l.email && l.email.toLowerCase() === data.email.toLowerCase())) {
+    alert(`Já existe um lead cadastrado com o e-mail "${data.email}".`);
+    return;
+  }
+
   let newLead = null;
   if (id) {
     Object.assign(leads.find(l => l.id === id), data);
@@ -1182,13 +1193,17 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
   }
 
   const now = Date.now();
-  let imported = 0, skipped = 0;
+  let imported = 0, skipped = 0, skippedDuplicates = 0;
   const importedLeads = [];
+  const seenEmails = new Set(leads.filter(l => l.email).map(l => l.email.toLowerCase()));
 
   importRows.forEach(row => {
     const get = key => mapping[key] !== undefined ? (row[mapping[key]] || "").trim() : "";
     const name = get("name");
     if (!name) { skipped++; return; }
+
+    const email = get("email");
+    if (email && seenEmails.has(email.toLowerCase())) { skippedDuplicates++; return; }
 
     let consultorId = null;
     const consultorRaw = get("consultor");
@@ -1204,7 +1219,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
       name,
       company: get("company"),
       phone: get("phone"),
-      email: get("email"),
+      email,
       category: matchEnum(get("category"), CATEGORIES, "Outro"),
       source: matchEnum(get("source"), SOURCES, "Outro"),
       temperature: matchEnum(get("temperature"), TEMPERATURES, "Morno"),
@@ -1213,6 +1228,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
       active: true,
       createdAt: now,
     };
+    if (email) seenEmails.add(email.toLowerCase());
     leads.push(newLead);
     importedLeads.push(newLead);
     imported++;
@@ -1220,7 +1236,9 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
 
   renderLeads();
   closeImportModal();
-  alert(`Importação concluída: ${imported} lead(s) importado(s)${skipped ? `, ${skipped} linha(s) ignorada(s) por falta de nome` : ""}.`);
+  alert(`Importação concluída: ${imported} lead(s) importado(s)`
+    + `${skipped ? `, ${skipped} linha(s) ignorada(s) por falta de nome` : ""}`
+    + `${skippedDuplicates ? `, ${skippedDuplicates} linha(s) ignorada(s) por e-mail já cadastrado` : ""}.`);
   await saveLeads();
 
   if (importedLeads.length) {
@@ -2748,6 +2766,18 @@ function getFilteredEnrollments() {
   return enrollments.filter(e => !status || e.status === status);
 }
 
+async function copyEnrollmentLink(enr, btnEl) {
+  const url = buildPublicEnrollmentUrl(enr.publicToken);
+  const original = btnEl.textContent;
+  try {
+    await navigator.clipboard.writeText(url);
+    btnEl.textContent = "Copiado!";
+  } catch {
+    prompt("Copie o link abaixo:", url);
+  }
+  setTimeout(() => { btnEl.textContent = original; }, 1500);
+}
+
 function renderEnrollments() {
   const filtered = getFilteredEnrollments().slice().sort((a, b) => b.createdAt - a.createdAt);
   const tbody = document.getElementById("enrollments-tbody");
@@ -2760,8 +2790,12 @@ function renderEnrollments() {
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.turno || "—")}</td>
       <td><span class="badge ${ENROLLMENT_STATUS_BADGE[e.status] || "badge-neutral"}">${escapeHtml(e.status)}</span></td>
-      <td class="cell-actions">›</td>
+      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="copy-link">Copiar link</button></td>
     `;
+    tr.querySelector('[data-act="copy-link"]').addEventListener("click", ev => {
+      ev.stopPropagation();
+      copyEnrollmentLink(e, ev.currentTarget);
+    });
     tr.addEventListener("click", () => openEnrollmentModal(e.id));
     tbody.appendChild(tr);
   });
@@ -2781,14 +2815,55 @@ document.getElementById("enr-filter-clear").addEventListener("click", () => {
   renderEnrollments();
 });
 
-/* ---- modal: nova matrícula (escolher lead de origem) ---- */
+/* ---- modal: nova matrícula (buscar lead de origem por nome/e-mail) ---- */
 const enrollmentNewModalBackdrop = document.getElementById("enrollment-new-modal-backdrop");
+const enrollmentLeadSearch = document.getElementById("enrollment-lead-search");
+const enrollmentLeadResults = document.getElementById("enrollment-lead-results");
+const enrollmentNewLeadId = document.getElementById("enrollment-new-lead-id");
+
+function renderLeadSearchResults(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { enrollmentLeadResults.classList.remove("open"); enrollmentLeadResults.innerHTML = ""; return; }
+  const matches = leads.filter(l =>
+    (l.name && l.name.toLowerCase().includes(q)) || (l.email && l.email.toLowerCase().includes(q))
+  ).slice(0, 8);
+  enrollmentLeadResults.innerHTML = matches.length
+    ? matches.map(l => `
+      <div class="enr-lead-result-item" data-id="${l.id}">
+        <div>${escapeHtml(l.name)}</div>
+        <div class="sub">${escapeHtml(l.email || l.phone || "sem contato")}</div>
+      </div>`).join("")
+    : `<div class="enr-lead-result-empty">Nenhum lead encontrado</div>`;
+  enrollmentLeadResults.classList.add("open");
+}
+
+enrollmentLeadSearch.addEventListener("input", () => {
+  enrollmentNewLeadId.value = "";
+  renderLeadSearchResults(enrollmentLeadSearch.value);
+});
+enrollmentLeadSearch.addEventListener("focus", () => {
+  if (enrollmentLeadSearch.value.trim()) renderLeadSearchResults(enrollmentLeadSearch.value);
+});
+enrollmentLeadSearch.addEventListener("blur", () => {
+  setTimeout(() => enrollmentLeadResults.classList.remove("open"), 150);
+});
+enrollmentLeadResults.addEventListener("mousedown", e => {
+  const item = e.target.closest(".enr-lead-result-item[data-id]");
+  if (!item) return;
+  const lead = leads.find(l => l.id === item.dataset.id);
+  if (!lead) return;
+  enrollmentNewLeadId.value = lead.id;
+  enrollmentLeadSearch.value = lead.name;
+  enrollmentLeadResults.classList.remove("open");
+});
 
 function openNewEnrollmentModal() {
-  const sel = document.getElementById("enrollment-new-lead");
-  sel.innerHTML = `<option value="">— Começar em branco —</option>` +
-    leads.slice().sort((a, b) => a.name.localeCompare(b.name)).map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join("");
+  enrollmentLeadSearch.value = "";
+  enrollmentNewLeadId.value = "";
+  enrollmentLeadResults.innerHTML = "";
+  enrollmentLeadResults.classList.remove("open");
   enrollmentNewModalBackdrop.classList.add("open");
+  enrollmentLeadSearch.focus();
 }
 function closeNewEnrollmentModal() { enrollmentNewModalBackdrop.classList.remove("open"); }
 
@@ -2799,7 +2874,7 @@ enrollmentNewModalBackdrop.addEventListener("click", e => { if (e.target === enr
 
 document.getElementById("enrollment-new-form").addEventListener("submit", async e => {
   e.preventDefault();
-  const leadId = document.getElementById("enrollment-new-lead").value || null;
+  const leadId = enrollmentNewLeadId.value || null;
   const lead = leadId ? leads.find(l => l.id === leadId) : null;
   const draft = {
     leadId, consultorId: (lead ? lead.consultorId : null) || (isOwnLeadsOnly() ? session.id : null),

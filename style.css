@@ -706,6 +706,19 @@ body {
 .modal-lg { max-width: 640px; }
 
 /* ===== MATRÍCULAS ===== */
+.enr-lead-search-wrap { position: relative; }
+.enr-lead-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.enr-lead-search-wrap input { padding-left: 34px !important; }
+.enr-lead-results {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow-modal); max-height: 220px; overflow-y: auto; display: none;
+}
+.enr-lead-results.open { display: block; }
+.enr-lead-result-item { padding: 9px 12px; cursor: pointer; font-size: 13px; }
+.enr-lead-result-item:hover { background: var(--content-bg); }
+.enr-lead-result-item .sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.enr-lead-result-empty { padding: 9px 12px; font-size: 12.5px; color: var(--text-muted); }
 .enr-section-title {
   font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--text-muted); margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--border);
