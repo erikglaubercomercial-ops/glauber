@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Entrar — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=1790066380">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body class="auth-body">
@@ -27,6 +27,18 @@
       <div class="auth-error" id="login-error" style="display:none;"></div>
 
       <button type="submit" class="btn btn-primary auth-submit">Entrar</button>
+      <button type="button" class="auth-forgot-link" id="login-forgot-toggle">Esqueci minha senha</button>
+    </form>
+
+    <form id="forgot-form" class="auth-form" style="display:none;">
+      <p class="auth-subtitle" style="margin:0;">Informe seu e-mail para receber o link de redefinição de senha.</p>
+      <label>E-mail
+        <input type="email" id="forgot-email" required placeholder="voce@empresa.com" autocomplete="username">
+      </label>
+      <div class="auth-error" id="forgot-error" style="display:none;"></div>
+      <div class="public-message success" id="forgot-success" style="display:none;">Link enviado! Confira seu e-mail.</div>
+      <button type="submit" class="btn btn-primary auth-submit">Enviar link</button>
+      <button type="button" class="auth-forgot-link" id="login-forgot-back">Voltar para o login</button>
     </form>
   </div>
 

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redefinir senha — Peregrinos Intercâmbio</title>
+<link rel="stylesheet" href="style.css?v=1790066380">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body class="auth-body">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <img class="auth-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
+    </div>
+
+    <div id="rs-loading">
+      <p class="auth-subtitle" style="text-align:center; margin:0;">Verificando link...</p>
+    </div>
+
+    <div id="rs-invalid" style="display:none;">
+      <h1 class="auth-title">Link inválido ou expirado</h1>
+      <p class="auth-subtitle">Peça um novo link de redefinição de senha e tente novamente.</p>
+      <a class="btn btn-primary auth-submit" href="login.html" style="display:block; text-align:center; text-decoration:none; box-sizing:border-box;">Voltar para o login</a>
+    </div>
+
+    <div id="rs-form-wrap" style="display:none;">
+      <h1 class="auth-title">Defina sua nova senha</h1>
+      <p class="auth-subtitle">Escolha uma senha nova para acessar o CRM.</p>
+      <form id="rs-form" class="auth-form">
+        <label>Nova senha
+          <input type="password" id="rs-password" required minlength="6" placeholder="••••••••" autocomplete="new-password">
+        </label>
+        <label>Confirmar nova senha
+          <input type="password" id="rs-password-confirm" required minlength="6" placeholder="••••••••" autocomplete="new-password">
+        </label>
+        <div class="auth-error" id="rs-error" style="display:none;"></div>
+        <button type="submit" class="btn btn-primary auth-submit">Salvar nova senha</button>
+      </form>
+    </div>
+
+    <div id="rs-success" style="display:none;">
+      <div class="public-message success">Senha atualizada! Redirecionando para o login...</div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="redefinir-senha.js"></script>
+</body>
+</html>

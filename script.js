@@ -3121,6 +3121,31 @@ document.getElementById("user-modal-close").addEventListener("click", closeUserM
 document.getElementById("user-btn-cancel").addEventListener("click", closeUserModal);
 userModalBackdrop.addEventListener("click", e => { if (e.target === userModalBackdrop) closeUserModal(); });
 
+document.getElementById("user-btn-reset-password").addEventListener("click", async () => {
+  const id = document.getElementById("user-id").value;
+  const u = users.find(u => u.id === id);
+  if (!u) return;
+  if (!confirm(`Enviar e-mail de redefinição de senha para ${u.name} (${u.email})?`)) return;
+
+  const btn = document.getElementById("user-btn-reset-password");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Enviando…";
+
+  const { error } = await supabase.auth.resetPasswordForEmail(u.email, {
+    redirectTo: `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}redefinir-senha.html`,
+  });
+
+  btn.disabled = false;
+  btn.textContent = original;
+
+  if (error) {
+    alert("Não foi possível enviar o e-mail de redefinição. Tente novamente.");
+    return;
+  }
+  alert(`E-mail de redefinição enviado para ${u.email}.`);
+});
+
 userForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("user-id").value;

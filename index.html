@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM de Vendas</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=1790066380">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body style="visibility:hidden;">
@@ -1075,9 +1075,10 @@
         <label>Nome
           <input type="text" id="user-field-name" required placeholder="Ex: Maria Souza">
         </label>
-        <label>E-mail <span class="field-hint">(login — alterado pelo Supabase Dashboard)</span>
+        <label>E-mail <span class="field-hint">(login — não pode ser alterado por aqui)</span>
           <input type="email" id="user-field-email" disabled>
         </label>
+        <button type="button" class="btn btn-ghost btn-sm" id="user-btn-reset-password" style="align-self:flex-start;">Enviar redefinição de senha</button>
         <label>Função
           <select id="user-field-role"></select>
         </label>
@@ -1154,7 +1155,7 @@
   </div>
 
   <script src="config.js?v=1790028144"></script>
-  <script src="auth.js?v=1790065446"></script>
-  <script src="script.js?v=1790065446"></script>
+  <script src="auth.js?v=1790066153"></script>
+  <script src="script.js?v=1790066153"></script>
 </body>
 </html>
