@@ -48,6 +48,7 @@ const VIEW_TITLES = {
   pipeline: "Pipeline",
   cotacao: "Cotação",
   produtos: "Produtos",
+  financeiro: "Financeiro",
   usuarios: "Usuários",
 };
 
@@ -68,7 +69,7 @@ function initNavigation() {
     document.getElementById("btn-manage-stages").style.display = "";
   }
 
-  const firstAccessible = ["leads", "pipeline", "cotacao", "produtos", "usuarios"].find(canAccessView);
+  const firstAccessible = ["leads", "pipeline", "cotacao", "produtos", "financeiro", "usuarios"].find(canAccessView);
   switchView(firstAccessible || "leads");
 }
 
@@ -277,6 +278,7 @@ function moveDeal(id, newStage) {
   deal.closedAt = isClosedStage(newStage) ? Date.now() : null;
   saveDeals();
   renderBoard();
+  if (isWonStage(newStage)) handleDealWon(deal);
 }
 
 function renderPipelineDashboard() {
@@ -344,20 +346,23 @@ dealForm.addEventListener("submit", async e => {
     notes: document.getElementById("field-notes").value.trim(),
   };
 
+  let deal;
   if (id) {
-    const deal = deals.find(d => d.id === id);
+    deal = deals.find(d => d.id === id);
     const wasClosed = isClosedStage(deal.stage);
     const nowClosed = isClosedStage(stage);
     Object.assign(deal, data);
     if (nowClosed && !wasClosed) deal.closedAt = Date.now();
     if (!nowClosed) deal.closedAt = null;
   } else {
-    deals.push({ id: uid(), ...data, createdAt: Date.now(), closedAt: isClosedStage(stage) ? Date.now() : null });
+    deal = { id: uid(), ...data, createdAt: Date.now(), closedAt: isClosedStage(stage) ? Date.now() : null };
+    deals.push(deal);
   }
 
   renderBoard();
   closeDealModal();
   await saveDeals();
+  if (isWonStage(deal.stage)) handleDealWon(deal);
 });
 
 btnDelete.addEventListener("click", async () => {
@@ -1521,9 +1526,9 @@ let catalogEscAbertos = {};
 
 /* ---- sub-abas Catálogo / Nova Cotação ---- */
 function initProdutosSubtabs() {
-  document.querySelectorAll(".subtab").forEach(btn => {
+  document.querySelectorAll("#produtos-subtabs .subtab").forEach(btn => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b === btn));
+      document.querySelectorAll("#produtos-subtabs .subtab").forEach(b => b.classList.toggle("active", b === btn));
       const target = btn.dataset.subtab;
       document.getElementById("subview-catalogo").classList.toggle("active", target === "catalogo");
       document.getElementById("subview-cotacao-builder").classList.toggle("active", target === "cotacao");
@@ -2111,6 +2116,553 @@ function initQuoteBuilderDefaults() {
 }
 
 /* ============================================================
+   FINANCEIRO — despesas, comissões de consultores e contas a
+   receber, conectado aos negócios Ganho/Perdido do Pipeline
+   ============================================================ */
+function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+let EXPENSE_CATEGORIES = [];
+let expenses = [];
+let commissions = [];
+let receivables = [];
+let commissionSettings = { defaultPercentage: 10 };
+
+async function loadExpenseCategories() {
+  const { data, error } = await supabase.from("expense_categories").select("name").order("ordem");
+  if (error || !data || !data.length) return ["Aluguel", "Salários", "Marketing", "Ferramentas/Softwares", "Impostos", "Outro"];
+  return data.map(r => r.name);
+}
+async function addExpenseCategoryRemote(name) {
+  const { error } = await supabase.from("expense_categories").insert({ name, ordem: EXPENSE_CATEGORIES.length + 1 });
+  if (error) console.error("Erro ao adicionar categoria de despesa:", error);
+}
+async function renameExpenseCategoryRemote(oldName, newName) {
+  const { error } = await supabase.from("expense_categories").update({ name: newName }).eq("name", oldName);
+  if (error) console.error("Erro ao renomear categoria de despesa:", error);
+}
+async function deleteExpenseCategoryRemote(name) {
+  const { error } = await supabase.from("expense_categories").delete().eq("name", name);
+  if (error) console.error("Erro ao excluir categoria de despesa:", error);
+}
+
+function expenseFromDb(r) {
+  return {
+    id: r.id, description: r.description, category: r.category || "Outro",
+    amount: Number(r.amount) || 0,
+    dueDate: r.due_date, paid: !!r.paid,
+    paidAt: r.paid_at ? new Date(r.paid_at).getTime() : null,
+    recurring: !!r.recurring, notes: r.notes || "",
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function expenseToDb(e) {
+  return {
+    id: e.id, description: e.description, category: e.category, amount: e.amount,
+    due_date: e.dueDate, paid: e.paid,
+    paid_at: e.paidAt ? new Date(e.paidAt).toISOString() : null,
+    recurring: e.recurring, notes: e.notes,
+    created_at: new Date(e.createdAt).toISOString(),
+  };
+}
+async function loadExpenses() {
+  const { data, error } = await supabase.from("expenses").select("*").order("due_date", { ascending: false });
+  if (error) { console.error("Erro ao carregar despesas:", error); return []; }
+  return data.map(expenseFromDb);
+}
+async function saveExpenses() {
+  const { error } = await supabase.from("expenses").upsert(expenses.map(expenseToDb));
+  if (error) console.error("Erro ao salvar despesas:", error);
+}
+async function deleteExpenseRemote(id) {
+  const { error } = await supabase.from("expenses").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir despesa:", error);
+}
+
+async function loadCommissionSettings() {
+  const { data, error } = await supabase.from("commission_settings").select("default_percentage").eq("id", 1).single();
+  if (error || !data) return { defaultPercentage: 10 };
+  return { defaultPercentage: Number(data.default_percentage) || 10 };
+}
+async function updateCommissionSettingRemote(pct) {
+  const { error } = await supabase.from("commission_settings").update({ default_percentage: pct }).eq("id", 1);
+  if (error) console.error("Erro ao salvar comissão padrão:", error);
+}
+
+function commissionFromDb(r) {
+  return {
+    id: r.id, dealId: r.deal_id, consultorId: r.consultor_id,
+    dealName: r.deal_name || "", dealValue: Number(r.deal_value) || 0,
+    percentage: Number(r.percentage) || 0, amount: Number(r.amount) || 0,
+    status: r.status, paidAt: r.paid_at ? new Date(r.paid_at).getTime() : null,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function commissionToDb(c) {
+  return {
+    id: c.id, deal_id: c.dealId, consultor_id: c.consultorId,
+    deal_name: c.dealName, deal_value: c.dealValue,
+    percentage: c.percentage, amount: c.amount, status: c.status,
+    paid_at: c.paidAt ? new Date(c.paidAt).toISOString() : null,
+    created_at: new Date(c.createdAt).toISOString(),
+  };
+}
+async function loadCommissions() {
+  const { data, error } = await supabase.from("commissions").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar comissões:", error); return []; }
+  return data.map(commissionFromDb);
+}
+async function saveCommission(c) {
+  const { error } = await supabase.from("commissions").upsert(commissionToDb(c));
+  if (error) console.error("Erro ao salvar comissão:", error);
+}
+
+function receivableFromDb(r) {
+  return {
+    id: r.id, dealId: r.deal_id, clientName: r.client_name || "",
+    installmentNumber: r.installment_number, installmentsTotal: r.installments_total,
+    amount: Number(r.amount) || 0, dueDate: r.due_date,
+    paid: !!r.paid, paidAt: r.paid_at ? new Date(r.paid_at).getTime() : null,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function receivableToDb(r) {
+  return {
+    id: r.id, deal_id: r.dealId, client_name: r.clientName,
+    installment_number: r.installmentNumber, installments_total: r.installmentsTotal,
+    amount: r.amount, due_date: r.dueDate, paid: r.paid,
+    paid_at: r.paidAt ? new Date(r.paidAt).toISOString() : null,
+    created_at: new Date(r.createdAt).toISOString(),
+  };
+}
+async function loadReceivables() {
+  const { data, error } = await supabase.from("receivables").select("*").order("due_date", { ascending: true });
+  if (error) { console.error("Erro ao carregar contas a receber:", error); return []; }
+  return data.map(receivableFromDb);
+}
+async function saveReceivables(list) {
+  const { error } = await supabase.from("receivables").upsert(list.map(receivableToDb));
+  if (error) console.error("Erro ao salvar contas a receber:", error);
+}
+async function updateReceivableRemote(r) {
+  const { error } = await supabase.from("receivables").update(receivableToDb(r)).eq("id", r.id);
+  if (error) console.error("Erro ao atualizar conta a receber:", error);
+}
+
+/* ---- ao marcar um negócio como Ganho: gera comissão e pede as parcelas ---- */
+async function handleDealWon(deal) {
+  if (!isWonStage(deal.stage)) return;
+
+  if (!commissions.some(c => c.dealId === deal.id)) {
+    const lead = deal.leadId ? leads.find(l => l.id === deal.leadId) : null;
+    const pct = commissionSettings.defaultPercentage;
+    const commission = {
+      id: uid(), dealId: deal.id, consultorId: lead ? lead.consultorId : null,
+      dealName: deal.name, dealValue: deal.value,
+      percentage: pct, amount: round2(deal.value * pct / 100),
+      status: "Pendente", paidAt: null, createdAt: Date.now(),
+    };
+    commissions.push(commission);
+    renderCommissions();
+    await saveCommission(commission);
+  }
+
+  if (!receivables.some(r => r.dealId === deal.id)) {
+    openReceivableSetupModal(deal);
+  }
+}
+
+/* ---- modal: configurar recebimento (parcelas) ---- */
+let receivableSetupDeal = null;
+const receivableSetupModalBackdrop = document.getElementById("receivable-setup-modal-backdrop");
+const receivableSetupForm = document.getElementById("receivable-setup-form");
+
+function openReceivableSetupModal(deal) {
+  receivableSetupDeal = deal;
+  document.getElementById("rec-setup-total").value = deal.value || 0;
+  document.getElementById("rec-setup-installments").value = 1;
+  const firstDue = new Date(Date.now() + 30 * 86400000);
+  document.getElementById("rec-setup-first-due").value = firstDue.toISOString().slice(0, 10);
+  receivableSetupModalBackdrop.classList.add("open");
+}
+function closeReceivableSetupModal() {
+  receivableSetupModalBackdrop.classList.remove("open");
+  receivableSetupDeal = null;
+}
+document.getElementById("receivable-setup-modal-close").addEventListener("click", closeReceivableSetupModal);
+document.getElementById("receivable-setup-btn-skip").addEventListener("click", closeReceivableSetupModal);
+receivableSetupModalBackdrop.addEventListener("click", e => { if (e.target === receivableSetupModalBackdrop) closeReceivableSetupModal(); });
+
+receivableSetupForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!receivableSetupDeal) return;
+  const deal = receivableSetupDeal;
+  const total = parseFloat(document.getElementById("rec-setup-total").value) || 0;
+  const installmentsCount = Math.max(1, parseInt(document.getElementById("rec-setup-installments").value, 10) || 1);
+  const firstDue = document.getElementById("rec-setup-first-due").value || new Date().toISOString().slice(0, 10);
+  const perInstallment = round2(total / installmentsCount);
+
+  const newReceivables = [];
+  for (let i = 0; i < installmentsCount; i++) {
+    const due = new Date(`${firstDue}T00:00:00`);
+    due.setMonth(due.getMonth() + i);
+    const amount = i === installmentsCount - 1 ? round2(total - perInstallment * (installmentsCount - 1)) : perInstallment;
+    newReceivables.push({
+      id: uid(), dealId: deal.id, clientName: deal.name,
+      installmentNumber: i + 1, installmentsTotal: installmentsCount,
+      amount, dueDate: due.toISOString().slice(0, 10),
+      paid: false, paidAt: null, createdAt: Date.now(),
+    });
+  }
+  receivables.push(...newReceivables);
+  renderReceivables();
+  renderFinanceiroOverview();
+  closeReceivableSetupModal();
+  await saveReceivables(newReceivables);
+});
+
+/* ---- sub-abas Financeiro ---- */
+function initFinanceiroSubtabs() {
+  document.querySelectorAll("#financeiro-subtabs .subtab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#financeiro-subtabs .subtab").forEach(b => b.classList.toggle("active", b === btn));
+      const target = btn.dataset.finSubtab;
+      document.getElementById("subview-fin-overview").classList.toggle("active", target === "overview");
+      document.getElementById("subview-fin-receivables").classList.toggle("active", target === "receivables");
+      document.getElementById("subview-fin-expenses").classList.toggle("active", target === "expenses");
+      document.getElementById("subview-fin-commissions").classList.toggle("active", target === "commissions");
+    });
+  });
+}
+
+/* ---- Visão Geral ---- */
+function renderFinanceiroOverview() {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+
+  const wonThisMonth = deals.filter(d => isWonStage(d.stage) && d.closedAt >= monthStart && d.closedAt < monthEnd);
+  const revenue = wonThisMonth.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+
+  const expensesThisMonth = expenses.filter(e => {
+    const t = new Date(`${e.dueDate}T00:00:00`).getTime();
+    return t >= monthStart && t < monthEnd;
+  });
+  const expensesTotal = expensesThisMonth.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const pendingReceivable = receivables.filter(r => !r.paid).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+  document.getElementById("fin-stat-revenue").textContent = currency(revenue);
+  document.getElementById("fin-stat-expenses").textContent = currency(expensesTotal);
+  document.getElementById("fin-stat-profit").textContent = currency(revenue - expensesTotal);
+  document.getElementById("fin-stat-receivable").textContent = currency(pendingReceivable);
+
+  const closedDeals = deals.filter(d => isClosedStage(d.stage)).slice().sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0)).slice(0, 30);
+  const tbody = document.getElementById("fin-overview-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("fin-overview-empty").style.display = closedDeals.length === 0 ? "block" : "none";
+  closedDeals.forEach(d => {
+    const won = isWonStage(d.stage);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(d.name)}</td>
+      <td><span class="badge ${won ? "badge-good" : "badge-danger"}">${won ? "Ganho" : "Perdido"}</span></td>
+      <td>${currency(d.value)}</td>
+      <td class="cell-muted">${d.closedAt ? new Date(d.closedAt).toLocaleDateString("pt-BR") : "—"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---- Contas a Receber ---- */
+function getFilteredReceivables() {
+  const status = document.getElementById("fin-rec-filter-status").value;
+  return receivables.filter(r => {
+    if (status === "pendente" && r.paid) return false;
+    if (status === "pago" && !r.paid) return false;
+    return true;
+  });
+}
+
+function renderReceivables() {
+  const filtered = getFilteredReceivables().slice().sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  const tbody = document.getElementById("fin-receivables-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("fin-receivables-empty").style.display = filtered.length === 0 ? "block" : "none";
+  filtered.forEach(r => {
+    const deal = deals.find(d => d.id === r.dealId);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(r.clientName)}</td>
+      <td class="cell-muted">${escapeHtml(deal ? deal.name : "—")}</td>
+      <td class="cell-muted">${r.installmentNumber}/${r.installmentsTotal}</td>
+      <td>${currency(r.amount)}</td>
+      <td class="cell-muted">${formatDate(r.dueDate)}</td>
+      <td><span class="badge ${r.paid ? "badge-good" : "badge-warn"}">${r.paid ? "Pago" : "Pendente"}</span></td>
+      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${r.paid ? "Marcar pendente" : "Marcar pago"}</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("fin-receivables-tbody").addEventListener("click", async e => {
+  const btn = e.target.closest('button[data-act="toggle-paid"]');
+  if (!btn) return;
+  const r = receivables.find(x => x.id === btn.dataset.id);
+  if (!r) return;
+  r.paid = !r.paid;
+  r.paidAt = r.paid ? Date.now() : null;
+  renderReceivables();
+  renderFinanceiroOverview();
+  await updateReceivableRemote(r);
+});
+document.getElementById("fin-rec-filter-status").addEventListener("change", renderReceivables);
+document.getElementById("fin-rec-filter-clear").addEventListener("click", () => {
+  document.getElementById("fin-rec-filter-status").value = "";
+  renderReceivables();
+});
+
+/* ---- Despesas ---- */
+function renderExpenseFilterOptions() {
+  document.getElementById("fin-exp-filter-category").innerHTML =
+    `<option value="">Categoria (todas)</option>` + EXPENSE_CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+}
+
+function getFilteredExpenses() {
+  const category = document.getElementById("fin-exp-filter-category").value;
+  const status = document.getElementById("fin-exp-filter-status").value;
+  return expenses.filter(e => {
+    if (category && e.category !== category) return false;
+    if (status === "pendente" && e.paid) return false;
+    if (status === "pago" && !e.paid) return false;
+    return true;
+  });
+}
+
+function renderExpenses() {
+  const filtered = getFilteredExpenses().slice().sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  const tbody = document.getElementById("fin-expenses-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("fin-expenses-empty").style.display = filtered.length === 0 ? "block" : "none";
+  filtered.forEach(e => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(e.description)}</td>
+      <td class="cell-muted">${escapeHtml(e.category)}</td>
+      <td>${currency(e.amount)}</td>
+      <td class="cell-muted">${formatDate(e.dueDate)}</td>
+      <td><span class="badge ${e.paid ? "badge-good" : "badge-warn"}">${e.paid ? "Paga" : "Pendente"}</span></td>
+      <td class="cell-actions">›</td>
+    `;
+    tr.addEventListener("click", () => openExpenseModal(e.id));
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById("fin-exp-filter-category").addEventListener("change", renderExpenses);
+document.getElementById("fin-exp-filter-status").addEventListener("change", renderExpenses);
+document.getElementById("fin-exp-filter-clear").addEventListener("click", () => {
+  document.getElementById("fin-exp-filter-category").value = "";
+  document.getElementById("fin-exp-filter-status").value = "";
+  renderExpenses();
+});
+
+const expenseModalBackdrop = document.getElementById("expense-modal-backdrop");
+const expenseForm = document.getElementById("expense-form");
+const expenseBtnDelete = document.getElementById("expense-btn-delete");
+
+function openExpenseModal(id) {
+  expenseForm.reset();
+  document.getElementById("expense-field-category").innerHTML = EXPENSE_CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  if (id) {
+    const e = expenses.find(x => x.id === id);
+    document.getElementById("expense-modal-title").textContent = "Editar despesa";
+    document.getElementById("expense-id").value = e.id;
+    document.getElementById("expense-field-description").value = e.description;
+    document.getElementById("expense-field-category").value = e.category;
+    document.getElementById("expense-field-amount").value = e.amount || "";
+    document.getElementById("expense-field-due-date").value = e.dueDate || "";
+    document.getElementById("expense-field-paid").checked = !!e.paid;
+    document.getElementById("expense-field-recurring").checked = !!e.recurring;
+    document.getElementById("expense-field-notes").value = e.notes || "";
+    expenseBtnDelete.style.display = "inline-block";
+  } else {
+    document.getElementById("expense-modal-title").textContent = "Nova despesa";
+    document.getElementById("expense-id").value = "";
+    document.getElementById("expense-field-due-date").value = new Date().toISOString().slice(0, 10);
+    expenseBtnDelete.style.display = "none";
+  }
+  expenseModalBackdrop.classList.add("open");
+  document.getElementById("expense-field-description").focus();
+}
+function closeExpenseModal() { expenseModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-expense").addEventListener("click", () => openExpenseModal(null));
+document.getElementById("expense-modal-close").addEventListener("click", closeExpenseModal);
+document.getElementById("expense-btn-cancel").addEventListener("click", closeExpenseModal);
+expenseModalBackdrop.addEventListener("click", e => { if (e.target === expenseModalBackdrop) closeExpenseModal(); });
+
+expenseForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("expense-id").value;
+  const paid = document.getElementById("expense-field-paid").checked;
+  const data = {
+    description: document.getElementById("expense-field-description").value.trim(),
+    category: document.getElementById("expense-field-category").value,
+    amount: parseFloat(document.getElementById("expense-field-amount").value) || 0,
+    dueDate: document.getElementById("expense-field-due-date").value || new Date().toISOString().slice(0, 10),
+    paid,
+    recurring: document.getElementById("expense-field-recurring").checked,
+    notes: document.getElementById("expense-field-notes").value.trim(),
+  };
+  if (id) {
+    const existing = expenses.find(x => x.id === id);
+    const wasPaid = existing.paid;
+    Object.assign(existing, data);
+    if (paid && !wasPaid) existing.paidAt = Date.now();
+    if (!paid) existing.paidAt = null;
+  } else {
+    expenses.push({ id: uid(), ...data, paidAt: paid ? Date.now() : null, createdAt: Date.now() });
+  }
+  renderExpenses();
+  renderFinanceiroOverview();
+  closeExpenseModal();
+  await saveExpenses();
+});
+
+expenseBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("expense-id").value;
+  if (!id) return;
+  if (!confirm("Excluir esta despesa? Essa ação não pode ser desfeita.")) return;
+  expenses = expenses.filter(x => x.id !== id);
+  renderExpenses();
+  renderFinanceiroOverview();
+  closeExpenseModal();
+  await deleteExpenseRemote(id);
+});
+
+/* ---- gerenciar categorias de despesa ---- */
+const expenseCategoriesModalBackdrop = document.getElementById("expense-categories-modal-backdrop");
+const expenseCategoriesListEl = document.getElementById("expense-categories-list");
+const expenseCategoriesNewInput = document.getElementById("expense-categories-new-input");
+
+function expenseCategoryUsageCount(name) {
+  return expenses.filter(e => e.category === name).length;
+}
+function renderExpenseCategoriesList() {
+  expenseCategoriesListEl.innerHTML = EXPENSE_CATEGORIES.map((c, i) => `
+    <div class="source-row">
+      <input type="text" value="${escapeHtml(c)}" data-index="${i}">
+      <span class="source-usage">${expenseCategoryUsageCount(c)} despesa(s)</span>
+      <button type="button" class="btn btn-icon" data-act="del" data-index="${i}" title="Excluir categoria">&times;</button>
+    </div>`).join("");
+}
+function openExpenseCategoriesModal() {
+  renderExpenseCategoriesList();
+  expenseCategoriesNewInput.value = "";
+  expenseCategoriesModalBackdrop.classList.add("open");
+}
+function closeExpenseCategoriesModal() { expenseCategoriesModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-manage-expense-categories").addEventListener("click", openExpenseCategoriesModal);
+document.getElementById("expense-categories-modal-close").addEventListener("click", closeExpenseCategoriesModal);
+document.getElementById("expense-categories-btn-done").addEventListener("click", closeExpenseCategoriesModal);
+expenseCategoriesModalBackdrop.addEventListener("click", e => { if (e.target === expenseCategoriesModalBackdrop) closeExpenseCategoriesModal(); });
+
+expenseCategoriesListEl.addEventListener("change", async e => {
+  const input = e.target.closest('input[type="text"]');
+  if (!input) return;
+  const index = parseInt(input.dataset.index, 10);
+  const oldName = EXPENSE_CATEGORIES[index];
+  const newName = input.value.trim();
+  if (!newName) { input.value = oldName; return; }
+  const duplicate = EXPENSE_CATEGORIES.some((c, i) => i !== index && c.toLowerCase() === newName.toLowerCase());
+  if (duplicate) { alert("Já existe uma categoria com esse nome."); input.value = oldName; return; }
+  if (newName === oldName) return;
+  EXPENSE_CATEGORIES[index] = newName;
+  expenses.forEach(e => { if (e.category === oldName) e.category = newName; });
+  renderExpenseCategoriesList();
+  renderExpenseFilterOptions();
+  renderExpenses();
+  await renameExpenseCategoryRemote(oldName, newName);
+  await saveExpenses();
+});
+
+expenseCategoriesListEl.addEventListener("click", async e => {
+  const btn = e.target.closest('button[data-act="del"]');
+  if (!btn) return;
+  const index = parseInt(btn.dataset.index, 10);
+  const name = EXPENSE_CATEGORIES[index];
+  if (EXPENSE_CATEGORIES.length === 1) { alert("Mantenha ao menos uma categoria cadastrada."); return; }
+  const count = expenseCategoryUsageCount(name);
+  const msg = count > 0
+    ? `Excluir a categoria "${name}"? ${count} despesa(s) já usam esse valor — elas manterão "${name}" no registro, mas essa opção deixará de existir para novas despesas.`
+    : `Excluir a categoria "${name}"?`;
+  if (!confirm(msg)) return;
+  EXPENSE_CATEGORIES.splice(index, 1);
+  renderExpenseCategoriesList();
+  renderExpenseFilterOptions();
+  await deleteExpenseCategoryRemote(name);
+});
+
+async function addNewExpenseCategory() {
+  const name = expenseCategoriesNewInput.value.trim();
+  if (!name) return;
+  const duplicate = EXPENSE_CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase());
+  if (duplicate) { alert("Já existe uma categoria com esse nome."); return; }
+  EXPENSE_CATEGORIES.push(name);
+  expenseCategoriesNewInput.value = "";
+  renderExpenseCategoriesList();
+  renderExpenseFilterOptions();
+  expenseCategoriesNewInput.focus();
+  await addExpenseCategoryRemote(name);
+}
+document.getElementById("expense-categories-add-btn").addEventListener("click", addNewExpenseCategory);
+expenseCategoriesNewInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); addNewExpenseCategory(); }
+});
+
+/* ---- Comissões ---- */
+function renderCommissions() {
+  const list = commissions.slice().sort((a, b) => b.createdAt - a.createdAt);
+  const tbody = document.getElementById("fin-commissions-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("fin-commissions-empty").style.display = list.length === 0 ? "block" : "none";
+  list.forEach(c => {
+    const consultant = users.find(u => u.id === c.consultorId);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(consultant ? consultant.name : "—")}</td>
+      <td class="cell-muted">${escapeHtml(c.dealName)}</td>
+      <td class="cell-muted">${currency(c.dealValue)}</td>
+      <td class="cell-muted">${c.percentage}%</td>
+      <td class="cell-primary">${currency(c.amount)}</td>
+      <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${c.status}</span></td>
+      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? "Marcar pendente" : "Marcar pago"}</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("fin-commission-setting-wrap").style.display = session && session.role === "ADM" ? "flex" : "none";
+  document.getElementById("fin-commission-pct").value = commissionSettings.defaultPercentage;
+}
+
+document.getElementById("fin-commissions-tbody").addEventListener("click", async e => {
+  const btn = e.target.closest('button[data-act="toggle-status"]');
+  if (!btn) return;
+  const c = commissions.find(x => x.id === btn.dataset.id);
+  if (!c) return;
+  c.status = c.status === "Pago" ? "Pendente" : "Pago";
+  c.paidAt = c.status === "Pago" ? Date.now() : null;
+  renderCommissions();
+  await saveCommission(c);
+});
+
+document.getElementById("fin-commission-pct-save").addEventListener("click", async () => {
+  const pct = parseFloat(document.getElementById("fin-commission-pct").value) || 0;
+  commissionSettings.defaultPercentage = pct;
+  await updateCommissionSettingRemote(pct);
+  alert("Comissão padrão atualizada.");
+});
+
+/* ============================================================
    USUÁRIOS (somente ADM)
    ============================================================ */
 let users = [];
@@ -2231,7 +2783,7 @@ function renderPermissionsTable() {
   const admRow = document.createElement("tr");
   admRow.innerHTML = `
     <td class="perm-role-name">ADM</td>
-    <td colspan="4" class="perm-locked">Acesso total (fixo)</td>
+    <td colspan="5" class="perm-locked">Acesso total (fixo)</td>
   `;
   permissionsTbody.appendChild(admRow);
 
@@ -2282,7 +2834,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -2290,6 +2842,11 @@ document.addEventListener("keydown", e => {
     loadCatalog(),
     loadSources(),
     loadPipelineStages(),
+    loadExpenseCategories(),
+    loadExpenses(),
+    loadCommissions(),
+    loadReceivables(),
+    loadCommissionSettings(),
   ]);
 
   renderSessionChip();
@@ -2305,6 +2862,12 @@ document.addEventListener("keydown", e => {
   quoteMontaDestinos();
   quoteMontaCatalogo();
   initQuoteBuilderDefaults();
+  initFinanceiroSubtabs();
+  renderExpenseFilterOptions();
+  renderFinanceiroOverview();
+  renderReceivables();
+  renderExpenses();
+  renderCommissions();
   if (session.role === "ADM") {
     renderUsers();
     renderPermissionsTable();

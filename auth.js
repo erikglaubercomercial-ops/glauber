@@ -9,6 +9,7 @@ const MODULES = [
   { id: "pipeline", label: "Pipeline" },
   { id: "cotacao", label: "Cotação" },
   { id: "produtos", label: "Produtos" },
+  { id: "financeiro", label: "Financeiro" },
 ];
 
 const ROLES = ["ADM", "Gerente", "Consultor", "Influencer", "MKT", "Financeiro"];

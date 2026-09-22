@@ -47,6 +47,11 @@
           <span>Produtos</span>
         </button>
 
+        <button class="nav-item" data-view="financeiro">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+          <span>Financeiro</span>
+        </button>
+
         <div class="nav-label" id="nav-label-admin" style="display:none;">ADMINISTRAÇÃO</div>
 
         <button class="nav-item" data-view="usuarios" id="nav-usuarios" style="display:none;">
@@ -312,6 +317,116 @@
         </div>
       </section>
 
+      <!-- FINANCEIRO VIEW -->
+      <section class="view" id="view-financeiro">
+        <div class="stat-row">
+          <div class="stat-card">
+            <span class="stat-label">Faturamento (mês)</span>
+            <span class="stat-value stat-good" id="fin-stat-revenue">€ 0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Despesas (mês)</span>
+            <span class="stat-value" id="fin-stat-expenses">€ 0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Lucro líquido (mês)</span>
+            <span class="stat-value" id="fin-stat-profit">€ 0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">A receber (pendente)</span>
+            <span class="stat-value" id="fin-stat-receivable">€ 0</span>
+          </div>
+        </div>
+
+        <div class="subtabs" id="financeiro-subtabs">
+          <button type="button" class="subtab active" data-fin-subtab="overview">Visão Geral</button>
+          <button type="button" class="subtab" data-fin-subtab="receivables">Contas a Receber</button>
+          <button type="button" class="subtab" data-fin-subtab="expenses">Despesas</button>
+          <button type="button" class="subtab" data-fin-subtab="commissions">Comissões</button>
+        </div>
+
+        <!-- VISÃO GERAL -->
+        <div class="subview active" id="subview-fin-overview">
+          <div class="panel">
+            <div class="panel-header"><h2>Negócios fechados recentemente</h2></div>
+            <table class="data-table">
+              <thead><tr><th>Negócio</th><th>Resultado</th><th>Valor</th><th>Data</th></tr></thead>
+              <tbody id="fin-overview-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="fin-overview-empty" style="display:none;">Nenhum negócio fechado ainda.</div>
+          </div>
+        </div>
+
+        <!-- CONTAS A RECEBER -->
+        <div class="subview" id="subview-fin-receivables">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Contas a Receber</h2>
+            </div>
+            <div class="filter-bar">
+              <select id="fin-rec-filter-status">
+                <option value="">Status (todos)</option>
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+              </select>
+              <button type="button" class="btn btn-ghost btn-sm" id="fin-rec-filter-clear">Limpar filtros</button>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Cliente</th><th>Negócio</th><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+              <tbody id="fin-receivables-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="fin-receivables-empty" style="display:none;">Nenhuma conta a receber cadastrada ainda.</div>
+          </div>
+        </div>
+
+        <!-- DESPESAS -->
+        <div class="subview" id="subview-fin-expenses">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Despesas</h2>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-expense-categories">Gerenciar categorias</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-new-expense">+ Nova despesa</button>
+              </div>
+            </div>
+            <div class="filter-bar">
+              <select id="fin-exp-filter-category"><option value="">Categoria (todas)</option></select>
+              <select id="fin-exp-filter-status">
+                <option value="">Status (todos)</option>
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+              </select>
+              <button type="button" class="btn btn-ghost btn-sm" id="fin-exp-filter-clear">Limpar filtros</button>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+              <tbody id="fin-expenses-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="fin-expenses-empty" style="display:none;">Nenhuma despesa cadastrada ainda.</div>
+          </div>
+        </div>
+
+        <!-- COMISSÕES -->
+        <div class="subview" id="subview-fin-commissions">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Comissões dos Consultores</h2>
+              <div class="fin-commission-setting" id="fin-commission-setting-wrap" style="display:none;">
+                <label>Comissão padrão (%)
+                  <input type="number" id="fin-commission-pct" min="0" max="100" step="0.1" style="width:80px;">
+                </label>
+                <button type="button" class="btn btn-ghost btn-sm" id="fin-commission-pct-save">Salvar</button>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Consultor</th><th>Negócio</th><th>Valor do negócio</th><th>%</th><th>Comissão</th><th>Status</th><th></th></tr></thead>
+              <tbody id="fin-commissions-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="fin-commissions-empty" style="display:none;">Nenhuma comissão gerada ainda.</div>
+          </div>
+        </div>
+      </section>
+
       <!-- USUÁRIOS VIEW (somente ADM) -->
       <section class="view" id="view-usuarios">
         <div class="stat-row">
@@ -357,6 +472,7 @@
                   <th>Pipeline</th>
                   <th>Cotação</th>
                   <th>Produtos</th>
+                  <th>Financeiro</th>
                 </tr>
               </thead>
               <tbody id="permissions-tbody"></tbody>
@@ -563,6 +679,96 @@
           <button type="button" class="btn btn-primary" id="stages-btn-done">Concluído</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DESPESA -->
+  <div class="modal-backdrop" id="expense-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="expense-modal-title">Nova despesa</h2>
+        <button class="btn-icon" id="expense-modal-close">&times;</button>
+      </div>
+      <form id="expense-form">
+        <input type="hidden" id="expense-id">
+        <label>Descrição
+          <input type="text" id="expense-field-description" required placeholder="Ex: Aluguel do escritório">
+        </label>
+        <label>Categoria
+          <select id="expense-field-category"></select>
+        </label>
+        <label>Valor (€)
+          <input type="number" id="expense-field-amount" min="0" step="0.01" placeholder="0,00">
+        </label>
+        <label>Vencimento
+          <input type="date" id="expense-field-due-date">
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="expense-field-paid">
+          <span>Já paga</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="expense-field-recurring">
+          <span>Despesa recorrente (mensal)</span>
+        </label>
+        <label>Notas
+          <textarea id="expense-field-notes" rows="2" placeholder="Detalhes (opcional)"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="expense-btn-delete" style="display:none;">Excluir</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="expense-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GERENCIAR CATEGORIAS DE DESPESA -->
+  <div class="modal-backdrop" id="expense-categories-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Gerenciar categorias de despesa</h2>
+        <button class="btn-icon" id="expense-categories-modal-close">&times;</button>
+      </div>
+      <div class="sources-body">
+        <div id="expense-categories-list"></div>
+        <div class="sources-add-row">
+          <input type="text" id="expense-categories-new-input" placeholder="Nova categoria">
+          <button type="button" class="btn btn-primary btn-sm" id="expense-categories-add-btn">+ Adicionar</button>
+        </div>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-primary" id="expense-categories-btn-done">Concluído</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIGURAR RECEBIMENTO (ao marcar negócio como Ganho) -->
+  <div class="modal-backdrop" id="receivable-setup-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Configurar recebimento</h2>
+        <button class="btn-icon" id="receivable-setup-modal-close">&times;</button>
+      </div>
+      <form id="receivable-setup-form">
+        <p class="muted-note">Negócio marcado como Ganho. Configure como esse pagamento vai ser recebido, para controlar no Financeiro.</p>
+        <label>Valor total (€)
+          <input type="number" id="rec-setup-total" min="0" step="0.01">
+        </label>
+        <label>Número de parcelas
+          <input type="number" id="rec-setup-installments" min="1" step="1" value="1">
+        </label>
+        <label>Vencimento da 1ª parcela
+          <input type="date" id="rec-setup-first-due">
+        </label>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="receivable-setup-btn-skip">Pular</button>
+          <button type="submit" class="btn btn-primary">Criar contas a receber</button>
+        </div>
+      </form>
     </div>
   </div>
 
