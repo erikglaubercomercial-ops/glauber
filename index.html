@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790095347">
+<link rel="stylesheet" href="style.css?v=1790096238">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -176,6 +176,11 @@
           </div>
 
           <div class="filter-bar">
+            <div class="enr-lead-search-wrap filter-lead-search" id="leads-search-wrap">
+              <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="leads-search-input" placeholder="Buscar por nome ou e-mail" autocomplete="off">
+              <div class="enr-lead-results" id="leads-search-results"></div>
+            </div>
             <select id="filter-category"><option value="">Categoria (todas)</option></select>
             <select id="filter-source"><option value="">Origem (todas)</option></select>
             <select id="filter-consultor"><option value="">Consultor (todos)</option></select>
@@ -847,6 +852,47 @@
     </div>
   </div>
 
+  <!-- MODAL: FOLLOW-UP DO NEGÓCIO -->
+  <div class="modal-backdrop" id="followup-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Follow-up</h2>
+        <button class="btn-icon" id="followup-modal-close">&times;</button>
+      </div>
+      <form id="followup-form">
+        <label>Próximo follow-up
+          <input type="date" id="followup-field-date">
+        </label>
+        <p class="muted-note">Deixe em branco e salve para remover o follow-up marcado.</p>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="followup-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: NOTAS RÁPIDAS DO NEGÓCIO -->
+  <div class="modal-backdrop" id="notes-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Notas</h2>
+        <button class="btn-icon" id="notes-modal-close">&times;</button>
+      </div>
+      <form id="notes-form">
+        <label>Anotações
+          <textarea id="notes-field-text" rows="6" placeholder="Anote algo pontual sobre esse negócio..."></textarea>
+        </label>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="notes-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: GERENCIAR COLUNAS DO PIPELINE (ADM) -->
   <div class="modal-backdrop" id="stages-modal-backdrop">
     <div class="modal">
@@ -1416,7 +1462,7 @@
   </div>
 
   <script src="config.js?v=1790028144"></script>
-  <script src="auth.js?v=1790095347"></script>
-  <script src="script.js?v=1790095347"></script>
+  <script src="auth.js?v=1790096238"></script>
+  <script src="script.js?v=1790096238"></script>
 </body>
 </html>

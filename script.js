@@ -169,7 +169,7 @@ function dealFromDb(r) {
   return {
     id: r.id, name: r.name, contact: r.contact || "", info: r.info || "",
     value: Number(r.value) || 0, stage: r.stage, notes: r.notes || "",
-    leadId: r.lead_id || null,
+    leadId: r.lead_id || null, followUpAt: r.follow_up_at || null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     closedAt: r.closed_at ? new Date(r.closed_at).getTime() : null,
   };
@@ -177,7 +177,7 @@ function dealFromDb(r) {
 function dealToDb(d) {
   return {
     id: d.id, name: d.name, contact: d.contact, info: d.info, value: d.value, stage: d.stage, notes: d.notes,
-    lead_id: d.leadId || null,
+    lead_id: d.leadId || null, follow_up_at: d.followUpAt || null,
     created_at: new Date(d.createdAt).toISOString(),
     closed_at: d.closedAt ? new Date(d.closedAt).toISOString() : null,
   };
@@ -196,6 +196,7 @@ function createDealForLead(lead) {
     stage: firstStage.id,
     notes: "",
     leadId: lead.id,
+    followUpAt: null,
     createdAt: Date.now(),
     closedAt: null,
   };
@@ -309,6 +310,9 @@ function renderBoard() {
   renderPipelineDashboard();
 }
 
+const CARD_CALENDAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+const CARD_NOTES_ICON_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+
 function renderCard(deal) {
   const card = document.createElement("div");
   card.className = "card";
@@ -317,10 +321,42 @@ function renderCard(deal) {
   card.style.setProperty("--stage-color", stageColor(deal.stage));
   const consultorId = dealConsultorId(deal);
   const consultant = consultorId ? users.find(u => u.id === consultorId) : null;
+  const lead = deal.leadId ? leads.find(l => l.id === deal.leadId) : null;
+  const waDigits = lead ? leadWhatsAppDigits(lead) : null;
+  const phoneText = lead ? (lead.phone || "") : (deal.contact || "");
+  const emailText = lead ? (lead.email || "") : ((deal.info || "").includes("@") ? deal.info : "");
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const followUpOverdue = !!(deal.followUpAt && deal.followUpAt <= todayIso);
+  const followUpClass = deal.followUpAt ? (followUpOverdue ? "urgent" : "set") : "";
+  const followUpTitle = deal.followUpAt ? `Follow-up: ${formatDate(deal.followUpAt)}` : "Marcar follow-up";
+
   card.innerHTML = `
     <div class="card-name">${escapeHtml(deal.name)}</div>
-    <div class="card-contact">${escapeHtml(deal.contact || "Sem contato")}</div>
+    <div class="card-meta">${new Date(deal.createdAt).toLocaleDateString("pt-BR")}</div>
+    ${phoneText ? `
+      <div class="card-contact-row">
+        ${waDigits
+          ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp">${WPP_ICON_SVG}</a>`
+          : `<span class="wpp-btn disabled" title="Sem WhatsApp configurado">${WPP_ICON_SVG}</span>`}
+        <span>${escapeHtml(phoneText)}</span>
+      </div>` : ""}
+    ${emailText ? `<div class="card-email">${escapeHtml(emailText)}</div>` : ""}
+    ${lead && (lead.source || lead.temperature) ? `
+      <div class="card-tags">
+        ${lead.source ? originBadge(lead.source) : ""}
+        ${lead.temperature ? `<span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature)}</span>` : ""}
+      </div>` : ""}
     ${consultant ? `<div class="card-consultor">${escapeHtml(consultant.name)}</div>` : ""}
+    <div class="card-footer">
+      <span class="card-value">${deal.value ? currency(deal.value) : "—"}</span>
+      <div class="card-actions">
+        <button type="button" class="card-action-btn ${followUpClass}" data-act="followup" title="${followUpTitle}">
+          ${CARD_CALENDAR_ICON_SVG}${deal.followUpAt ? `<span>${formatDate(deal.followUpAt)}</span>` : ""}
+        </button>
+        <button type="button" class="card-action-btn ${deal.notes ? "set" : ""}" data-act="notes" title="Notas">${CARD_NOTES_ICON_SVG}</button>
+      </div>
+    </div>
   `;
   card.addEventListener("dragstart", e => {
     e.dataTransfer.setData("text/plain", deal.id);
@@ -328,8 +364,76 @@ function renderCard(deal) {
   });
   card.addEventListener("dragend", () => card.classList.remove("dragging"));
   card.addEventListener("click", () => openDealModal(deal.id));
+
+  const wppLink = card.querySelector("a.wpp-btn");
+  if (wppLink) wppLink.addEventListener("click", e => e.stopPropagation());
+  card.querySelector('[data-act="followup"]').addEventListener("click", e => {
+    e.stopPropagation();
+    openFollowUpModal(deal.id);
+  });
+  card.querySelector('[data-act="notes"]').addEventListener("click", e => {
+    e.stopPropagation();
+    openNotesModal(deal.id);
+  });
   return card;
 }
+
+/* ---- follow-up rápido do negócio (data), pelo card do Pipeline ---- */
+const followUpModalBackdrop = document.getElementById("followup-modal-backdrop");
+const followUpForm = document.getElementById("followup-form");
+let followUpDealId = null;
+
+function openFollowUpModal(dealId) {
+  const deal = deals.find(d => d.id === dealId);
+  if (!deal) return;
+  followUpDealId = dealId;
+  document.getElementById("followup-field-date").value = deal.followUpAt || "";
+  followUpModalBackdrop.classList.add("open");
+}
+function closeFollowUpModal() { followUpModalBackdrop.classList.remove("open"); }
+
+document.getElementById("followup-modal-close").addEventListener("click", closeFollowUpModal);
+document.getElementById("followup-btn-cancel").addEventListener("click", closeFollowUpModal);
+followUpModalBackdrop.addEventListener("click", e => { if (e.target === followUpModalBackdrop) closeFollowUpModal(); });
+
+followUpForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const deal = deals.find(d => d.id === followUpDealId);
+  if (!deal) return;
+  deal.followUpAt = document.getElementById("followup-field-date").value || null;
+  renderBoard();
+  closeFollowUpModal();
+  await saveDeals();
+});
+
+/* ---- notas rápidas do negócio, pelo card do Pipeline ---- */
+const notesModalBackdrop = document.getElementById("notes-modal-backdrop");
+const notesForm = document.getElementById("notes-form");
+let notesDealId = null;
+
+function openNotesModal(dealId) {
+  const deal = deals.find(d => d.id === dealId);
+  if (!deal) return;
+  notesDealId = dealId;
+  document.getElementById("notes-field-text").value = deal.notes || "";
+  notesModalBackdrop.classList.add("open");
+  document.getElementById("notes-field-text").focus();
+}
+function closeNotesModal() { notesModalBackdrop.classList.remove("open"); }
+
+document.getElementById("notes-modal-close").addEventListener("click", closeNotesModal);
+document.getElementById("notes-btn-cancel").addEventListener("click", closeNotesModal);
+notesModalBackdrop.addEventListener("click", e => { if (e.target === notesModalBackdrop) closeNotesModal(); });
+
+notesForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const deal = deals.find(d => d.id === notesDealId);
+  if (!deal) return;
+  deal.notes = document.getElementById("notes-field-text").value.trim();
+  renderBoard();
+  closeNotesModal();
+  await saveDeals();
+});
 
 function moveDeal(id, newStage) {
   const deal = deals.find(d => d.id === id);
@@ -768,21 +872,82 @@ document.getElementById("filter-clear").addEventListener("click", () => {
   document.getElementById("filter-date-from").value = "";
   document.getElementById("filter-date-to").value = "";
   document.getElementById("filter-show-inactive").checked = false;
+  clearLeadsSearch();
+  renderLeads();
+});
+
+/* ---- busca de lead na própria barra de filtros: digitar mostra um
+   dropdown por nome/e-mail; clicar num resultado deixa só aquele
+   lead na lista (até limpar os filtros) ---- */
+let leadsSearchSelectedId = null;
+const leadsSearchInput = document.getElementById("leads-search-input");
+const leadsSearchResults = document.getElementById("leads-search-results");
+
+function visibleLeadsBase() {
+  const showInactive = document.getElementById("filter-show-inactive").checked;
+  const ownOnly = isOwnLeadsOnly();
+  return leads.filter(l => {
+    if (ownOnly && l.consultorId !== session.id) return false;
+    if (!showInactive && l.active === false) return false;
+    return true;
+  });
+}
+
+function renderLeadsSearchResults(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { leadsSearchResults.classList.remove("open"); leadsSearchResults.innerHTML = ""; return; }
+  const matches = visibleLeadsBase().filter(l =>
+    (l.name && l.name.toLowerCase().includes(q)) || (l.email && l.email.toLowerCase().includes(q))
+  ).slice(0, 8);
+  leadsSearchResults.innerHTML = matches.length
+    ? matches.map(l => `
+      <div class="enr-lead-result-item" data-id="${l.id}">
+        <div>${escapeHtml(l.name)}</div>
+        <div class="sub">${escapeHtml(l.email || l.phone || "sem contato")}</div>
+      </div>`).join("")
+    : `<div class="enr-lead-result-empty">Nenhum lead encontrado</div>`;
+  leadsSearchResults.classList.add("open");
+}
+
+function clearLeadsSearch() {
+  leadsSearchSelectedId = null;
+  leadsSearchInput.value = "";
+  leadsSearchResults.classList.remove("open");
+  leadsSearchResults.innerHTML = "";
+}
+
+leadsSearchInput.addEventListener("input", () => {
+  leadsSearchSelectedId = null;
+  renderLeadsSearchResults(leadsSearchInput.value);
+});
+leadsSearchInput.addEventListener("focus", () => {
+  if (leadsSearchInput.value.trim() && !leadsSearchSelectedId) renderLeadsSearchResults(leadsSearchInput.value);
+});
+leadsSearchInput.addEventListener("blur", () => {
+  setTimeout(() => leadsSearchResults.classList.remove("open"), 150);
+});
+leadsSearchResults.addEventListener("mousedown", e => {
+  const item = e.target.closest(".enr-lead-result-item[data-id]");
+  if (!item) return;
+  const lead = leads.find(l => l.id === item.dataset.id);
+  if (!lead) return;
+  leadsSearchSelectedId = lead.id;
+  leadsSearchInput.value = lead.name;
+  leadsSearchResults.classList.remove("open");
   renderLeads();
 });
 
 function getFilteredLeads() {
+  const base = visibleLeadsBase();
+  if (leadsSearchSelectedId) return base.filter(l => l.id === leadsSearchSelectedId);
+
   const category = document.getElementById("filter-category").value;
   const source = document.getElementById("filter-source").value;
   const consultorId = document.getElementById("filter-consultor").value;
   const dateFrom = document.getElementById("filter-date-from").value;
   const dateTo = document.getElementById("filter-date-to").value;
-  const showInactive = document.getElementById("filter-show-inactive").checked;
-  const ownOnly = isOwnLeadsOnly();
 
-  return leads.filter(l => {
-    if (ownOnly && l.consultorId !== session.id) return false;
-    if (!showInactive && l.active === false) return false;
+  return base.filter(l => {
     if (category && l.category !== category) return false;
     if (source && l.source !== source) return false;
     if (consultorId && l.consultorId !== consultorId) return false;
@@ -4244,6 +4409,8 @@ document.addEventListener("keydown", e => {
   if (importModalBackdrop.classList.contains("open")) closeImportModal();
   if (sourcesModalBackdrop.classList.contains("open")) closeSourcesModal();
   if (collaboratorModalBackdrop.classList.contains("open")) closeCollaboratorModal();
+  if (followUpModalBackdrop.classList.contains("open")) closeFollowUpModal();
+  if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
   closeRowMenu();
 });
 
