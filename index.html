@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM de Vendas</title>
-<link rel="stylesheet" href="style.css?v=1790084448">
+<link rel="stylesheet" href="style.css?v=1790085721">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -582,7 +582,10 @@
         <div class="panel">
           <div class="panel-header">
             <h2>Colaboradores</h2>
-            <button type="button" class="btn btn-primary" id="btn-new-collaborator">+ Novo colaborador</button>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-ghost" id="btn-copy-collaborator-signup-link">Copiar link de cadastro</button>
+              <button type="button" class="btn btn-primary" id="btn-new-collaborator">+ Novo colaborador</button>
+            </div>
           </div>
           <div class="filter-bar">
             <select id="collab-filter-status">
@@ -1098,12 +1101,6 @@
       <form id="collaborator-form">
         <input type="hidden" id="collab-id">
 
-        <div class="enr-link-row" id="collab-link-row" style="display:none;">
-          <span>Link para o colaborador preencher:</span>
-          <input type="text" id="collab-public-link" readonly>
-          <button type="button" class="btn btn-ghost btn-sm" id="collab-copy-link">Copiar link</button>
-        </div>
-
         <div class="enr-section-title">Dados profissionais</div>
         <div class="grid-2">
           <label>Nome completo *
@@ -1419,7 +1416,7 @@
   </div>
 
   <script src="config.js?v=1790028144"></script>
-  <script src="auth.js?v=1790084448"></script>
-  <script src="script.js?v=1790084448"></script>
+  <script src="auth.js?v=1790085721"></script>
+  <script src="script.js?v=1790085721"></script>
 </body>
 </html>

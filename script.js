@@ -3507,9 +3507,24 @@ async function getCollaboratorDocSignedUrl(path) {
   return data.signedUrl;
 }
 
-function buildPublicCollaboratorUrl(token) {
-  return `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}colaborador-publico.html?token=${token}`;
+/* link único e fixo, igual para qualquer novo colaborador — não há
+   mais um token por pessoa; quem preenche cria o próprio cadastro */
+function buildCollaboratorSignupUrl() {
+  return `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}colaborador-publico.html`;
 }
+
+document.getElementById("btn-copy-collaborator-signup-link").addEventListener("click", async e => {
+  const url = buildCollaboratorSignupUrl();
+  const btn = e.currentTarget;
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(url);
+    btn.textContent = "Copiado!";
+  } catch {
+    prompt("Copie o link abaixo:", url);
+  }
+  setTimeout(() => { btn.textContent = original; }, 1500);
+});
 
 const COLLAB_STATUS_BADGE = {
   "Aguardando colaborador": "badge-warn",
@@ -3607,9 +3622,6 @@ function openCollaboratorModal(id) {
     document.getElementById("collab-field-emergency-phone").value = c.emergencyPhone || "";
     collabBtnDelete.style.display = "inline-block";
 
-    document.getElementById("collab-link-row").style.display = "flex";
-    document.getElementById("collab-public-link").value = buildPublicCollaboratorUrl(c.publicToken);
-
     COLLAB_DOC_FIELDS.forEach(f => {
       if (!c[f.key]) return;
       getCollaboratorDocSignedUrl(c[f.key]).then(url => {
@@ -3623,7 +3635,6 @@ function openCollaboratorModal(id) {
     document.getElementById("collaborator-modal-title").textContent = "Novo colaborador";
     document.getElementById("collab-id").value = "";
     document.getElementById("collab-field-status").value = "Aguardando colaborador";
-    document.getElementById("collab-link-row").style.display = "none";
     collabBtnDelete.style.display = "none";
   }
 
@@ -3636,20 +3647,6 @@ document.getElementById("btn-new-collaborator").addEventListener("click", () => 
 document.getElementById("collaborator-modal-close").addEventListener("click", closeCollaboratorModal);
 document.getElementById("collab-btn-cancel").addEventListener("click", closeCollaboratorModal);
 collaboratorModalBackdrop.addEventListener("click", e => { if (e.target === collaboratorModalBackdrop) closeCollaboratorModal(); });
-
-document.getElementById("collab-copy-link").addEventListener("click", async () => {
-  const input = document.getElementById("collab-public-link");
-  input.select();
-  const btn = document.getElementById("collab-copy-link");
-  try {
-    await navigator.clipboard.writeText(input.value);
-    const original = btn.textContent;
-    btn.textContent = "Copiado!";
-    setTimeout(() => { btn.textContent = original; }, 1500);
-  } catch {
-    /* clipboard indisponível — o campo já fica selecionado para copiar com Ctrl/Cmd+C */
-  }
-});
 
 collaboratorForm.addEventListener("submit", async e => {
   e.preventDefault();

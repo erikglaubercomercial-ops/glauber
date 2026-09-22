@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cadastro de colaborador — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1790084448">
+<link rel="stylesheet" href="style.css?v=1790085721">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -12,24 +12,17 @@
     <div class="public-card">
       <img class="public-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
 
-      <div id="pc-loading">
-        <p class="public-subtitle">Carregando...</p>
-      </div>
-
-      <div id="pc-error" style="display:none;">
-        <div class="public-message error">Não encontramos esse cadastro. Verifique se o link está correto ou fale com o RH.</div>
-      </div>
-
-      <div id="pc-content" style="display:none;">
+      <div id="pc-content">
         <h1 class="public-title">Bem-vindo(a) à Peregrinos!</h1>
-        <p class="public-subtitle">Confira os dados abaixo e complete seu cadastro.</p>
+        <p class="public-subtitle">Preencha seus dados abaixo para completar seu cadastro como colaborador(a).</p>
 
-        <div class="public-summary" id="pc-summary"></div>
-
-        <div class="public-message success" id="pc-success" style="display:none;">Dados enviados! Você pode voltar a essa página a qualquer momento para atualizar suas informações.</div>
+        <div class="public-message success" id="pc-success" style="display:none;">Dados enviados! Nossa equipe vai concluir seu cadastro em breve.</div>
 
         <form class="public-form" id="pc-form">
           <div class="public-section-title">Dados pessoais</div>
+          <label>Nome completo *
+            <input type="text" id="pc-name" required placeholder="Ex: João Pereira">
+          </label>
           <label>Data de nascimento
             <input type="date" id="pc-birth-date">
           </label>

@@ -1,65 +1,14 @@
 /* ============================================================
-   PÁGINA PÚBLICA DE CADASTRO DE COLABORADOR — sem login. O acesso
-   é controlado pelo token secreto na URL (?token=...), validado no
-   banco via funções RPC (get/update_collaborator_by_token).
+   PÁGINA PÚBLICA DE CADASTRO DE COLABORADOR — sem login, sem
+   token: é um único link fixo, o mesmo para qualquer novo
+   colaborador. Ao enviar, cria um cadastro novo direto no banco
+   via função RPC security definer (create_collaborator_public).
    Depende de config.js (variável global `supabase`) já carregado.
    ============================================================ */
 
-const params = new URLSearchParams(window.location.search);
-const token = params.get("token");
-
-const loadingEl = document.getElementById("pc-loading");
-const errorEl = document.getElementById("pc-error");
-const contentEl = document.getElementById("pc-content");
-const summaryEl = document.getElementById("pc-summary");
 const form = document.getElementById("pc-form");
 const submitBtn = document.getElementById("pc-submit");
 const successEl = document.getElementById("pc-success");
-
-let collaborator = null;
-
-(async () => {
-  if (!token) {
-    loadingEl.style.display = "none";
-    errorEl.style.display = "block";
-    return;
-  }
-
-  const { data, error } = await supabase.rpc("get_collaborator_by_token", { p_token: token });
-  if (error || !data || !data.id) {
-    loadingEl.style.display = "none";
-    errorEl.style.display = "block";
-    return;
-  }
-
-  collaborator = data;
-  summaryEl.innerHTML = `
-    <div>Nome<b>${collaborator.name || "—"}</b></div>
-    <div>Cargo<b>${collaborator.role_title || "—"}</b></div>
-    <div>Departamento<b>${collaborator.department || "—"}</b></div>
-  `;
-
-  document.getElementById("pc-birth-date").value = collaborator.birth_date || "";
-  document.getElementById("pc-nationality").value = collaborator.nationality || "";
-  document.getElementById("pc-cpf").value = collaborator.cpf || "";
-  document.getElementById("pc-rg").value = collaborator.rg || "";
-  document.getElementById("pc-marital-status").value = collaborator.marital_status || "";
-  document.getElementById("pc-phone").value = collaborator.personal_phone || "";
-  document.getElementById("pc-email").value = collaborator.personal_email || "";
-  document.getElementById("pc-emergency-name").value = collaborator.emergency_name || "";
-  document.getElementById("pc-emergency-relationship").value = collaborator.emergency_relationship || "";
-  document.getElementById("pc-emergency-phone").value = collaborator.emergency_phone || "";
-  document.getElementById("pc-street").value = collaborator.address_street || "";
-  document.getElementById("pc-number").value = collaborator.address_number || "";
-  document.getElementById("pc-complement").value = collaborator.address_complement || "";
-  document.getElementById("pc-neighborhood").value = collaborator.address_neighborhood || "";
-  document.getElementById("pc-city").value = collaborator.address_city || "";
-  document.getElementById("pc-state").value = collaborator.address_state || "";
-  document.getElementById("pc-zip").value = collaborator.address_zip || "";
-
-  loadingEl.style.display = "none";
-  contentEl.style.display = "block";
-})();
 
 const DOC_UPLOADS = [
   { input: "pc-id-document", field: "id_document_path", slug: "rg-cpf" },
@@ -75,7 +24,10 @@ form.addEventListener("submit", async e => {
   submitBtn.textContent = "Enviando…";
   successEl.style.display = "none";
 
+  const collabId = crypto.randomUUID();
+
   const payload = {
+    name: document.getElementById("pc-name").value.trim(),
     birth_date: document.getElementById("pc-birth-date").value || null,
     nationality: document.getElementById("pc-nationality").value.trim(),
     cpf: document.getElementById("pc-cpf").value.trim(),
@@ -105,7 +57,7 @@ form.addEventListener("submit", async e => {
       return;
     }
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const path = `${collaborator.id}/${doc.slug}-${Date.now()}.${ext}`;
+    const path = `${collabId}/${doc.slug}-${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from("collaborator-documents").upload(path, file);
     if (uploadError) {
       alert("Não foi possível enviar um dos arquivos. Tente novamente.");
@@ -116,7 +68,7 @@ form.addEventListener("submit", async e => {
     payload[doc.field] = path;
   }
 
-  const { error } = await supabase.rpc("update_collaborator_by_token", { p_token: token, p_data: payload });
+  const { error } = await supabase.rpc("create_collaborator_public", { p_id: collabId, p_data: payload });
 
   submitBtn.disabled = false;
   submitBtn.textContent = "Enviar meus dados";
@@ -125,6 +77,8 @@ form.addEventListener("submit", async e => {
     alert("Não foi possível salvar seus dados. Tente novamente em instantes.");
     return;
   }
+  form.reset();
+  form.style.display = "none";
   successEl.style.display = "block";
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
