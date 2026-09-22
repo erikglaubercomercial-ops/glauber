@@ -887,6 +887,44 @@ body {
   background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; margin-left: 6px; color: var(--text-muted);
 }
 
+/* catálogo: navegação por caixas */
+.cat-breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 14px 20px 6px; }
+.cat-crumb {
+  background: none; border: none; padding: 3px 6px; font-size: 13px; font-weight: 600;
+  color: var(--text-muted); cursor: pointer; border-radius: 6px; font-family: inherit;
+}
+.cat-crumb:hover { color: var(--primary); background: var(--content-bg); }
+.cat-crumb.active { color: var(--text); cursor: default; }
+.cat-crumb.active:hover { background: none; }
+.cat-crumb-sep { color: var(--border); font-size: 13px; padding: 0 2px; }
+
+.cat-box-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px; padding: 10px 20px 22px;
+}
+.cat-box {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 20px 18px; text-align: left; cursor: pointer; font-family: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.cat-box:hover {
+  transform: translateY(-2px); box-shadow: 0 14px 28px rgba(20, 30, 60, 0.09);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+.cat-box-icon {
+  width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); flex-shrink: 0;
+}
+.cat-box-name { font-weight: 700; font-size: 14.5px; color: var(--text); line-height: 1.3; }
+.cat-box-count { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+.cat-items-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px; padding: 10px 20px 22px;
+}
+.cat-items-grid .prod-card { margin-bottom: 0; height: 100%; }
+
 .subs-editor { margin-top: 6px; padding-top: 6px; }
 .subs-label { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
 .sub-row { display: grid; grid-template-columns: 1fr 120px 36px; gap: 8px; margin-bottom: 8px; align-items: center; }

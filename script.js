@@ -1539,9 +1539,14 @@ async function deleteCatalogItemRemote(id) {
 }
 
 let catalog = [];
-let catalogCatAbertos = {};
-let catalogDestAbertos = {};
-let catalogEscAbertos = {};
+let catalogNavPath = [];
+
+const CATALOG_ICONS = {
+  categoria: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+  destino: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
+  escola: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>`,
+  turno: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+};
 
 /* ---- sub-abas Catálogo / Nova Cotação ---- */
 function initProdutosSubtabs() {
@@ -1585,14 +1590,6 @@ function buildCatalogTree(lista) {
 /* ---- lista administrativa do catálogo (mesma árvore de 4 níveis) ---- */
 const catalogListEl = document.getElementById("catalog-list");
 
-function adminTurnosHtml(turnos, isAdmin) {
-  return turnos.map(t => {
-    const itensHtml = t.itens.map(p => adminItemCardHtml(p, isAdmin)).join("");
-    if (!t.nome) return itensHtml;
-    return `<div class="q-turno"><div class="q-turno-h">${escapeHtml(t.nome)}</div>${itensHtml}</div>`;
-  }).join("");
-}
-
 function adminItemCardHtml(p, isAdmin) {
   const subs = p.subs.length;
   const actions = isAdmin ? `
@@ -1611,85 +1608,113 @@ function adminItemCardHtml(p, isAdmin) {
     </div>`;
 }
 
+/* ---- navegação por caixas: resolve em qual nível da árvore estamos ---- */
+function catalogNodeAtPath(path) {
+  const tree = buildCatalogTree(catalog.slice().sort((a, b) => a.ordem - b.ordem));
+  if (path.length === 0) return { kind: "categoria", boxes: tree };
+
+  const cat = tree.find(c => c.nome === path[0]);
+  if (!cat) return { kind: "categoria", boxes: tree, invalid: true };
+  if (path.length === 1) return { kind: "destino", boxes: cat.destinos };
+
+  const dest = cat.destinos.find(d => d.nome === path[1]);
+  if (!dest) return { kind: "destino", boxes: cat.destinos, invalid: true };
+  if (path.length === 2) {
+    return {
+      kind: "escola",
+      boxes: dest.escolas.filter(e => e.nome),
+      looseItens: dest.escolas.filter(e => !e.nome).flatMap(e => e.turnos.flatMap(t => t.itens)),
+    };
+  }
+
+  const esc = dest.escolas.find(e => e.nome === path[2]);
+  if (!esc) return { kind: "escola", boxes: dest.escolas.filter(e => e.nome), invalid: true };
+  if (path.length === 3) {
+    return {
+      kind: "turno",
+      boxes: esc.turnos.filter(t => t.nome),
+      looseItens: esc.turnos.filter(t => !t.nome).flatMap(t => t.itens),
+    };
+  }
+
+  const turno = esc.turnos.find(t => t.nome === path[3]);
+  if (!turno) return { kind: "turno", boxes: esc.turnos.filter(t => t.nome), invalid: true };
+  return { kind: "itens", itens: turno.itens };
+}
+
+function catalogCountItems(node, kind) {
+  if (kind === "categoria") return node.destinos.flatMap(d => d.escolas.flatMap(e => e.turnos.flatMap(t => t.itens))).length;
+  if (kind === "destino") return node.escolas.flatMap(e => e.turnos.flatMap(t => t.itens)).length;
+  if (kind === "escola") return node.turnos.flatMap(t => t.itens).length;
+  return node.itens.length;
+}
+
+function renderCatalogBreadcrumb() {
+  const items = [{ label: "Catálogo", idx: -1 }, ...catalogNavPath.map((name, i) => ({ label: name, idx: i }))];
+  return `<div class="cat-breadcrumb">${items.map((it, i) => {
+    const isLast = i === items.length - 1;
+    return `${i > 0 ? '<span class="cat-crumb-sep">›</span>' : ""}<button type="button" class="cat-crumb${isLast ? " active" : ""}" data-idx="${it.idx}">${escapeHtml(it.label)}</button>`;
+  }).join("")}</div>`;
+}
+
 function renderCatalogList() {
   const isAdmin = !!(session && session.role === "ADM");
   document.getElementById("btn-new-catalog-item").style.display = isAdmin ? "" : "none";
+  renderProductsDashboard();
 
   if (catalog.length === 0) {
     catalogListEl.innerHTML = '<p class="muted-note">Nenhum produto no catálogo ainda. Use "+ Novo produto" para começar.</p>';
-    renderProductsDashboard();
     return;
   }
 
-  const ordenado = catalog.slice().sort((a, b) => a.ordem - b.ordem);
-  let html = "";
-  buildCatalogTree(ordenado).forEach(cat => {
-    const aberta = catalogCatAbertos[cat.nome] !== false;
-    html += `<div class="q-cat" data-catchave="${escapeHtml(cat.nome)}">
-      <button type="button" class="q-cat-h" data-role="toggle-cat" aria-expanded="${aberta}">
-        <span class="arrow">▶</span><span>${escapeHtml(cat.nome)}</span>
-      </button>
-      <div class="q-cat-body"${aberta ? "" : " hidden"}>`;
-    cat.destinos.forEach(dest => {
-      const destChave = `${cat.nome}|${dest.nome}`;
-      const destAberto = catalogDestAbertos[destChave] !== false;
-      html += `<div class="q-grp" data-destchave="${escapeHtml(destChave)}">
-        <button type="button" class="q-grp-h" data-role="toggle-dest" aria-expanded="${destAberto}">
-          <span class="arrow">▶</span><span>${escapeHtml(dest.nome)}</span>
-        </button>
-        <div class="q-grp-body"${destAberto ? "" : " hidden"}>`;
-      dest.escolas.forEach(esc => {
-        if (!esc.nome) {
-          html += adminTurnosHtml(esc.turnos, isAdmin);
-        } else {
-          const escChave = `${cat.nome}|${dest.nome}|${esc.nome}`;
-          const escAberta = catalogEscAbertos[escChave] !== false;
-          html += `
-            <div class="q-sub" data-eschave="${escapeHtml(escChave)}">
-              <button type="button" class="q-sub-h" data-role="toggle-esc" aria-expanded="${escAberta}">
-                <span class="arrow">▶</span><span>${escapeHtml(esc.nome)}</span>
-              </button>
-              <div class="q-sub-body"${escAberta ? "" : " hidden"}>${adminTurnosHtml(esc.turnos, isAdmin)}</div>
-            </div>`;
-        }
-      });
-      html += "</div></div>";
-    });
-    html += "</div></div>";
-  });
+  const view = catalogNodeAtPath(catalogNavPath);
+  if (view.invalid) { catalogNavPath = []; renderCatalogList(); return; }
+
+  let html = renderCatalogBreadcrumb();
+
+  if (view.kind === "itens") {
+    const itens = view.itens.slice().sort((a, b) => a.ordem - b.ordem);
+    html += `<div class="cat-items-grid">${itens.map(p => adminItemCardHtml(p, isAdmin)).join("")}</div>`;
+  } else {
+    const boxesHtml = view.boxes.map(node => {
+      const count = catalogCountItems(node, view.kind);
+      return `
+        <button type="button" class="cat-box" data-nav="${escapeHtml(node.nome)}">
+          <span class="cat-box-icon">${CATALOG_ICONS[view.kind]}</span>
+          <span class="cat-box-name">${escapeHtml(node.nome)}</span>
+          <span class="cat-box-count">${count} ${count === 1 ? "produto" : "produtos"}</span>
+        </button>`;
+    }).join("");
+
+    let looseHtml = "";
+    if (view.looseItens && view.looseItens.length) {
+      const itens = view.looseItens.slice().sort((a, b) => a.ordem - b.ordem);
+      looseHtml = `<div class="cat-items-grid">${itens.map(p => adminItemCardHtml(p, isAdmin)).join("")}</div>`;
+    }
+
+    if (!view.boxes.length && !looseHtml) {
+      html += `<p class="muted-note">Nenhum item aqui ainda.</p>`;
+    } else {
+      if (view.boxes.length) html += `<div class="cat-box-grid">${boxesHtml}</div>`;
+      html += looseHtml;
+    }
+  }
+
   catalogListEl.innerHTML = html;
-  renderProductsDashboard();
 }
 
 catalogListEl.addEventListener("click", async e => {
-  const toggleDest = e.target.closest('button[data-role="toggle-dest"]');
-  if (toggleDest) {
-    const boxDest = toggleDest.closest(".q-grp");
-    const bodyDest = boxDest.querySelector(".q-grp-body");
-    const abrirDest = bodyDest.hidden;
-    bodyDest.hidden = !abrirDest;
-    toggleDest.setAttribute("aria-expanded", String(abrirDest));
-    catalogDestAbertos[boxDest.getAttribute("data-destchave")] = abrirDest;
+  const crumb = e.target.closest(".cat-crumb");
+  if (crumb) {
+    const idx = parseInt(crumb.dataset.idx, 10);
+    catalogNavPath = idx < 0 ? [] : catalogNavPath.slice(0, idx + 1);
+    renderCatalogList();
     return;
   }
-  const toggleEsc = e.target.closest('button[data-role="toggle-esc"]');
-  if (toggleEsc) {
-    const boxEsc = toggleEsc.closest(".q-sub");
-    const bodyEsc = boxEsc.querySelector(".q-sub-body");
-    const abrirEsc = bodyEsc.hidden;
-    bodyEsc.hidden = !abrirEsc;
-    toggleEsc.setAttribute("aria-expanded", String(abrirEsc));
-    catalogEscAbertos[boxEsc.getAttribute("data-eschave")] = abrirEsc;
-    return;
-  }
-  const toggle = e.target.closest('button[data-role="toggle-cat"]');
-  if (toggle) {
-    const box = toggle.closest(".q-cat");
-    const body = box.querySelector(".q-cat-body");
-    const abrir = body.hidden;
-    body.hidden = !abrir;
-    toggle.setAttribute("aria-expanded", String(abrir));
-    catalogCatAbertos[box.getAttribute("data-catchave")] = abrir;
+  const box = e.target.closest(".cat-box");
+  if (box) {
+    catalogNavPath = [...catalogNavPath, box.dataset.nav];
+    renderCatalogList();
     return;
   }
   if (!(session && session.role === "ADM")) return;
