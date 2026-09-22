@@ -3747,6 +3747,25 @@ const COLLAB_STATUS_BADGE = {
 
 let collaborators = [];
 
+/* ---- aviso do time (dashboard, linha única de configuração) ---- */
+let teamAnnouncement = { message: "", updatedByName: "", updatedAt: null };
+
+async function loadTeamAnnouncement() {
+  const { data, error } = await supabase.from("team_announcements").select("*").eq("id", 1).single();
+  if (error || !data) return { message: "", updatedByName: "", updatedAt: null };
+  return {
+    message: data.message || "",
+    updatedByName: data.updated_by_name || "",
+    updatedAt: data.updated_at ? new Date(data.updated_at).getTime() : null,
+  };
+}
+async function updateTeamAnnouncementRemote(message) {
+  const { error } = await supabase.from("team_announcements")
+    .update({ message, updated_by_name: session.name || "", updated_at: new Date().toISOString() })
+    .eq("id", 1);
+  if (error) console.error("Erro ao salvar aviso do time:", error);
+}
+
 function getFilteredCollaborators() {
   const status = document.getElementById("collab-filter-status").value;
   return collaborators.filter(c => !status || c.status === status);
@@ -3949,6 +3968,10 @@ function renderDashboardView() {
   renderDashboardRankingChart();
   renderDashboardAlertas();
   renderDashboardAtividade();
+  renderDashCalendar();
+  renderTeamMessagePanel();
+  renderDashFollowupsPanel();
+  renderDashFinanceiroVencidoPanel();
 }
 
 /* ---- cartões de estatística ---- */
@@ -4269,6 +4292,163 @@ function renderDashboardAtividade() {
   });
 }
 
+/* ---- barra lateral do dashboard: calendário ---- */
+let dashCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+const DASH_CAL_DOW = ["D", "S", "T", "Q", "Q", "S", "S"];
+const DASH_CAL_MONTH_LABEL = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+function renderDashCalendar() {
+  const grid = document.getElementById("dash-calendar");
+  const year = dashCalendarCursor.getFullYear();
+  const month = dashCalendarCursor.getMonth();
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const followUpDates = new Set(deals.filter(d => !isClosedStage(d.stage) && d.followUpAt).map(d => d.followUpAt));
+
+  const firstOfMonth = new Date(year, month, 1);
+  const startOffset = firstOfMonth.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) {
+    cells.push({ day: daysInPrevMonth - startOffset + 1 + i, muted: true });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    cells.push({ day: d, muted: false, iso, isToday: iso === todayIso, hasFollowUp: followUpDates.has(iso) });
+  }
+  let nextDay = 1;
+  while (cells.length % 7 !== 0) {
+    cells.push({ day: nextDay++, muted: true });
+  }
+
+  const dowHtml = DASH_CAL_DOW.map(d => `<div class="dash-cal-dow">${d}</div>`).join("");
+  const daysHtml = cells.map(c => `
+    <div class="dash-cal-day${c.muted ? " is-muted" : ""}${c.isToday ? " is-today" : ""}">
+      ${c.day}${c.hasFollowUp ? '<span class="dash-cal-dot"></span>' : ""}
+    </div>`).join("");
+
+  grid.innerHTML = `
+    <div class="dash-calendar-nav">
+      <button type="button" id="dash-cal-prev" aria-label="Mês anterior">&lsaquo;</button>
+      <span class="dash-cal-label">${DASH_CAL_MONTH_LABEL[month]} de ${year}</span>
+      <button type="button" id="dash-cal-next" aria-label="Próximo mês">&rsaquo;</button>
+    </div>
+    <div class="dash-cal-grid">${dowHtml}${daysHtml}</div>`;
+
+  document.getElementById("dash-cal-prev").addEventListener("click", () => {
+    dashCalendarCursor = new Date(year, month - 1, 1);
+    renderDashCalendar();
+  });
+  document.getElementById("dash-cal-next").addEventListener("click", () => {
+    dashCalendarCursor = new Date(year, month + 1, 1);
+    renderDashCalendar();
+  });
+}
+
+/* ---- barra lateral do dashboard: aviso do time (ADM edita) ---- */
+function renderTeamMessagePanel() {
+  const isAdmin = !!(session && session.role === "ADM");
+  document.getElementById("btn-edit-team-message").style.display = isAdmin ? "" : "none";
+  const body = document.getElementById("dash-team-message-body");
+  body.innerHTML = teamAnnouncement.message
+    ? `<p class="dash-team-message-text">${escapeHtml(teamAnnouncement.message)}</p>`
+    : `<p class="dash-team-message-empty">Nenhum aviso no momento.</p>`;
+}
+
+const teamMessageModalBackdrop = document.getElementById("team-message-modal-backdrop");
+const teamMessageForm = document.getElementById("team-message-form");
+
+function openTeamMessageModal() {
+  document.getElementById("team-message-field-text").value = teamAnnouncement.message || "";
+  teamMessageModalBackdrop.classList.add("open");
+  document.getElementById("team-message-field-text").focus();
+}
+function closeTeamMessageModal() { teamMessageModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-edit-team-message").addEventListener("click", openTeamMessageModal);
+document.getElementById("team-message-modal-close").addEventListener("click", closeTeamMessageModal);
+document.getElementById("team-message-btn-cancel").addEventListener("click", closeTeamMessageModal);
+teamMessageModalBackdrop.addEventListener("click", e => { if (e.target === teamMessageModalBackdrop) closeTeamMessageModal(); });
+
+teamMessageForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const message = document.getElementById("team-message-field-text").value.trim();
+  teamAnnouncement.message = message;
+  renderTeamMessagePanel();
+  closeTeamMessageModal();
+  await updateTeamAnnouncementRemote(message);
+});
+
+/* ---- barra lateral do dashboard: follow-ups pendentes do pipeline ---- */
+function renderDashFollowupsPanel() {
+  const panel = document.getElementById("dash-aviso-followup");
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const items = deals
+    .filter(d => !isClosedStage(d.stage) && d.followUpAt)
+    .map(d => ({ deal: d, overdue: d.followUpAt < todayIso, today: d.followUpAt === todayIso }))
+    .filter(it => it.overdue || it.today)
+    .sort((a, b) => a.deal.followUpAt.localeCompare(b.deal.followUpAt))
+    .slice(0, 8);
+
+  if (!items.length) {
+    panel.style.display = "none";
+    return;
+  }
+  panel.style.display = "";
+
+  document.getElementById("dash-followup-list").innerHTML = `<div class="dash-aviso-list">${items.map(it => `
+    <div class="dash-aviso-item${it.overdue ? " is-overdue" : ""}" data-deal-id="${it.deal.id}">
+      <span class="dash-aviso-item-title">${escapeHtml(it.deal.name)}</span>
+      <span class="dash-aviso-item-meta">${it.overdue ? "Atrasado" : "Hoje"} · ${formatDate(it.deal.followUpAt)}</span>
+    </div>`).join("")}</div>`;
+
+  document.getElementById("dash-followup-list").querySelectorAll(".dash-aviso-item").forEach(el => {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", () => {
+      if (!canAccessView("pipeline")) return;
+      switchView("pipeline");
+      openDealModal(el.dataset.dealId);
+    });
+  });
+}
+
+/* ---- barra lateral do dashboard: financeiro vencido (a pagar/receber) ---- */
+function renderDashFinanceiroVencidoPanel() {
+  const panel = document.getElementById("dash-aviso-financeiro");
+  if (!hasModuleAccess(session.role, "financeiro")) {
+    panel.style.display = "none";
+    return;
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const overdueReceivables = receivables.filter(r => !r.paid && r.dueDate && r.dueDate < todayIso);
+  const overdueExpenses = expenses.filter(e => !e.paid && e.dueDate && e.dueDate < todayIso);
+
+  const items = [
+    ...overdueReceivables.map(r => ({
+      title: `${r.clientName || "Cliente"} — a receber`, value: currency(r.amount), date: r.dueDate,
+    })),
+    ...overdueExpenses.map(e => ({
+      title: `${e.description} — a pagar`, value: currency(e.amount), date: e.dueDate,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
+
+  if (!items.length) {
+    panel.style.display = "none";
+    return;
+  }
+  panel.style.display = "";
+
+  document.getElementById("dash-financeiro-vencido-list").innerHTML = `<div class="dash-aviso-list">${items.map(it => `
+    <div class="dash-aviso-item is-overdue">
+      <span class="dash-aviso-item-title">${escapeHtml(it.title)}</span>
+      <span class="dash-aviso-item-meta">Venceu em ${formatDate(it.date)} · ${it.value}</span>
+    </div>`).join("")}</div>`;
+}
+
 /* ============================================================
    USUÁRIOS (somente ADM)
    ============================================================ */
@@ -4459,6 +4639,7 @@ document.addEventListener("keydown", e => {
   if (collaboratorModalBackdrop.classList.contains("open")) closeCollaboratorModal();
   if (followUpModalBackdrop.classList.contains("open")) closeFollowUpModal();
   if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
+  if (teamMessageModalBackdrop.classList.contains("open")) closeTeamMessageModal();
   closeRowMenu();
 });
 
@@ -4474,7 +4655,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -4489,6 +4670,7 @@ document.addEventListener("keydown", e => {
     loadCommissionSettings(),
     loadEnrollments(),
     loadCollaborators(),
+    loadTeamAnnouncement(),
   ]);
 
   renderSessionChip();

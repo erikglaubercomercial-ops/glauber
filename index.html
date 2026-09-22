@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790102824">
+<link rel="stylesheet" href="style.css?v=1790103602">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -122,44 +122,75 @@
       <!-- LEADS VIEW -->
       <!-- DASHBOARD VIEW -->
       <section class="view active" id="view-dashboard">
-        <div class="stat-row" id="dash-stat-row"></div>
+        <div class="dashboard-layout">
+          <div class="dashboard-main">
+            <div class="stat-row" id="dash-stat-row"></div>
 
-        <div class="panel dash-funnel-panel">
-          <div class="panel-header"><h2>Funil de Vendas</h2></div>
-          <div class="dash-funnel" id="dash-funnel"></div>
-        </div>
+            <div class="panel dash-funnel-panel">
+              <div class="panel-header"><h2>Funil de Vendas</h2></div>
+              <div class="dash-funnel" id="dash-funnel"></div>
+            </div>
 
-        <div class="dash-grid-2" id="dash-row-charts">
-          <div class="panel" id="dash-panel-origem">
-            <div class="panel-header"><h2>Leads por Origem</h2></div>
-            <div class="dash-chart-box">
-              <canvas id="dash-chart-origem"></canvas>
-              <p class="muted-note" id="dash-chart-origem-empty" style="display:none;">Nenhum lead cadastrado ainda.</p>
+            <div class="dash-grid-2" id="dash-row-charts">
+              <div class="panel" id="dash-panel-origem">
+                <div class="panel-header"><h2>Leads por Origem</h2></div>
+                <div class="dash-chart-box">
+                  <canvas id="dash-chart-origem"></canvas>
+                  <p class="muted-note" id="dash-chart-origem-empty" style="display:none;">Nenhum lead cadastrado ainda.</p>
+                </div>
+              </div>
+              <div class="panel" id="dash-panel-faturamento" style="display:none;">
+                <div class="panel-header"><h2>Faturamento (últimos 6 meses)</h2></div>
+                <div class="dash-chart-box"><canvas id="dash-chart-faturamento"></canvas></div>
+              </div>
+            </div>
+
+            <div class="panel" id="dash-panel-ranking" style="display:none;">
+              <div class="panel-header"><h2>Ranking de consultores — negócios ganhos no mês</h2></div>
+              <div class="dash-chart-box dash-chart-box-wide">
+                <canvas id="dash-chart-ranking"></canvas>
+                <p class="muted-note" id="dash-chart-ranking-empty" style="display:none;">Nenhum negócio ganho neste mês ainda.</p>
+              </div>
+            </div>
+
+            <div class="dash-grid-2" id="dash-row-lists">
+              <div class="panel" id="dash-panel-alertas" style="display:none;">
+                <div class="panel-header"><h2>Atenção necessária</h2></div>
+                <div id="dash-alertas-list"></div>
+              </div>
+              <div class="panel" id="dash-panel-atividade">
+                <div class="panel-header"><h2>Atividade recente</h2></div>
+                <div id="dash-atividade-list"></div>
+              </div>
             </div>
           </div>
-          <div class="panel" id="dash-panel-faturamento" style="display:none;">
-            <div class="panel-header"><h2>Faturamento (últimos 6 meses)</h2></div>
-            <div class="dash-chart-box"><canvas id="dash-chart-faturamento"></canvas></div>
-          </div>
-        </div>
 
-        <div class="panel" id="dash-panel-ranking" style="display:none;">
-          <div class="panel-header"><h2>Ranking de consultores — negócios ganhos no mês</h2></div>
-          <div class="dash-chart-box dash-chart-box-wide">
-            <canvas id="dash-chart-ranking"></canvas>
-            <p class="muted-note" id="dash-chart-ranking-empty" style="display:none;">Nenhum negócio ganho neste mês ainda.</p>
-          </div>
-        </div>
+          <aside class="dashboard-sidebar">
+            <div class="panel dash-calendar-panel">
+              <div class="panel-header"><h2>Calendário</h2></div>
+              <div class="dash-calendar" id="dash-calendar"></div>
+            </div>
 
-        <div class="dash-grid-2" id="dash-row-lists">
-          <div class="panel" id="dash-panel-alertas" style="display:none;">
-            <div class="panel-header"><h2>Atenção necessária</h2></div>
-            <div id="dash-alertas-list"></div>
-          </div>
-          <div class="panel" id="dash-panel-atividade">
-            <div class="panel-header"><h2>Atividade recente</h2></div>
-            <div id="dash-atividade-list"></div>
-          </div>
+            <div class="panel dash-aviso-panel" id="dash-aviso-team">
+              <div class="panel-header">
+                <h2>Aviso do time</h2>
+                <button type="button" class="btn-icon" id="btn-edit-team-message" title="Editar aviso" style="display:none;">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </button>
+              </div>
+              <div id="dash-team-message-body"></div>
+            </div>
+
+            <div class="panel dash-aviso-panel" id="dash-aviso-followup" style="display:none;">
+              <div class="panel-header"><h2>Follow-ups pendentes</h2></div>
+              <div id="dash-followup-list"></div>
+            </div>
+
+            <div class="panel dash-aviso-panel" id="dash-aviso-financeiro" style="display:none;">
+              <div class="panel-header"><h2>Financeiro vencido</h2></div>
+              <div id="dash-financeiro-vencido-list"></div>
+            </div>
+          </aside>
         </div>
       </section>
 
@@ -939,6 +970,27 @@
     </div>
   </div>
 
+  <!-- MODAL: AVISO DO TIME (ADM) -->
+  <div class="modal-backdrop" id="team-message-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Aviso do time</h2>
+        <button class="btn-icon" id="team-message-modal-close">&times;</button>
+      </div>
+      <form id="team-message-form">
+        <label>Mensagem para o time
+          <textarea id="team-message-field-text" rows="6" placeholder="Escreva um aviso para toda a equipe..."></textarea>
+        </label>
+        <p class="muted-note">Deixe em branco e salve para remover o aviso.</p>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="team-message-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: GERENCIAR COLUNAS DO PIPELINE (ADM) -->
   <div class="modal-backdrop" id="stages-modal-backdrop">
     <div class="modal">
@@ -1509,6 +1561,6 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="script.js?v=1790102824"></script>
+  <script src="script.js?v=1790103602"></script>
 </body>
 </html>

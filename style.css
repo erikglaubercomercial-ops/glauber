@@ -1002,10 +1002,56 @@ body {
 }
 
 /* ===== DASHBOARD ===== */
+.dashboard-layout { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
+.dashboard-main { min-width: 0; }
+.dashboard-sidebar { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 18px; }
+@media (max-width: 1100px) {
+  .dashboard-layout { grid-template-columns: 1fr; }
+  .dashboard-sidebar { position: static; }
+}
+
 .dash-funnel-panel { margin-bottom: 18px; }
 .dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
 .dash-grid-2.dash-single { grid-template-columns: 1fr; }
 @media (max-width: 900px) { .dash-grid-2 { grid-template-columns: 1fr; } }
+
+/* --- Sidebar: calendário --- */
+.dash-calendar-panel .panel-header { margin-bottom: 10px; }
+.dash-calendar-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.dash-calendar-nav .dash-cal-label { font-size: 13px; font-weight: 700; text-transform: capitalize; color: var(--text); }
+.dash-calendar-nav button {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 8px; width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted);
+}
+.dash-calendar-nav button:hover { background: var(--content-bg); color: var(--text); }
+.dash-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.dash-cal-dow { font-size: 10.5px; font-weight: 700; text-align: center; color: var(--text-muted); padding-bottom: 4px; }
+.dash-cal-day {
+  position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; border-radius: 8px; color: var(--text);
+}
+.dash-cal-day.is-muted { color: var(--text-muted); opacity: 0.45; }
+.dash-cal-day.is-today { background: var(--primary); color: #fff; font-weight: 700; }
+.dash-cal-day .dash-cal-dot {
+  position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--warn);
+}
+.dash-cal-day.is-today .dash-cal-dot { background: #fff; }
+
+/* --- Sidebar: avisos --- */
+.dash-aviso-panel .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.dash-team-message-text { font-size: 13px; line-height: 1.5; color: var(--text); white-space: pre-wrap; }
+.dash-team-message-empty { font-size: 12.5px; color: var(--text-muted); font-style: italic; }
+.dash-aviso-list { display: flex; flex-direction: column; gap: 8px; }
+.dash-aviso-item {
+  display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px;
+  background: var(--content-bg); border: 1px solid var(--border);
+}
+.dash-aviso-item.is-overdue { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--content-bg)); }
+.dash-aviso-item-title { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.dash-aviso-item-meta { font-size: 11.5px; color: var(--text-muted); }
+.dash-aviso-item.is-overdue .dash-aviso-item-meta { color: var(--danger); font-weight: 600; }
+.dash-aviso-empty { font-size: 12.5px; color: var(--text-muted); font-style: italic; }
 
 .dash-funnel {
   display: flex; flex-direction: column; align-items: center; gap: 14px;
