@@ -344,6 +344,7 @@ body {
 
 .row-inactive { opacity: 0.55; }
 .row-inactive:hover { opacity: 0.8; }
+#leads-tbody tr { box-shadow: inset 4px 0 0 0 var(--row-stage-color, transparent); }
 
 /* ===== BULK ACTION BAR ===== */
 .bulk-bar {
@@ -458,6 +459,7 @@ body {
 .column {
   background: var(--surface);
   border: 1px solid var(--border);
+  border-top: 5px solid var(--stage-color, var(--border));
   border-radius: var(--radius);
   min-width: 240px;
   max-width: 260px;
@@ -478,12 +480,12 @@ body {
   font-size: 13px;
 }
 .column-count {
-  background: var(--content-bg);
-  color: var(--text-muted);
+  background: color-mix(in srgb, var(--stage-color, var(--text-muted)) 16%, transparent);
+  color: var(--stage-color, var(--text-muted));
   border-radius: 999px;
   padding: 2px 8px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .column-value {
   font-size: 11px;
@@ -506,10 +508,11 @@ body {
 .card {
   background: var(--content-bg);
   border: 1px solid var(--border);
+  border-left: 4px solid var(--stage-color, var(--border));
   border-radius: 8px;
   padding: 10px 12px;
   cursor: grab;
-  transition: box-shadow 0.15s, transform 0.15s;
+  transition: box-shadow 0.15s, transform 0.15s, border-left-color 0.3s;
 }
 .card:hover { box-shadow: var(--shadow); }
 .card:active { cursor: grabbing; }
@@ -520,7 +523,6 @@ body {
   color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent);
   border-radius: 999px; padding: 2px 8px; margin-bottom: 6px;
 }
-.card-value { font-size: 13px; font-weight: 700; color: var(--primary); }
 .card.dragging { opacity: 0.4; }
 
 .empty-hint {

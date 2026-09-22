@@ -113,6 +113,29 @@ function isWonStage(id) { const s = stageById(id); return !!(s && s.isWon); }
 function isLostStage(id) { const s = stageById(id); return !!(s && s.isLost); }
 function isClosedStage(id) { return isWonStage(id) || isLostStage(id); }
 
+/* cor do estágio: azul (início do funil) → vermelho (prestes a fechar),
+   Ganho sempre verde, Perdido sempre amarelo — usada no Pipeline e
+   sincronizada na tela de Leads */
+const STAGE_COLOR_START = { r: 59, g: 130, b: 246 };  // azul
+const STAGE_COLOR_END = { r: 239, g: 68, b: 68 };     // vermelho
+const STAGE_COLOR_WON = "#16a34a";
+const STAGE_COLOR_LOST = "#eab308";
+
+function stageColor(stageId) {
+  const stage = stageById(stageId);
+  if (!stage) return "#8891a5";
+  if (stage.isWon) return STAGE_COLOR_WON;
+  if (stage.isLost) return STAGE_COLOR_LOST;
+  const openStages = STAGES.filter(s => !s.isWon && !s.isLost);
+  const idx = openStages.findIndex(s => s.id === stageId);
+  if (idx === -1) return "#8891a5";
+  const t = openStages.length <= 1 ? 0 : idx / (openStages.length - 1);
+  const r = Math.round(STAGE_COLOR_START.r + (STAGE_COLOR_END.r - STAGE_COLOR_START.r) * t);
+  const g = Math.round(STAGE_COLOR_START.g + (STAGE_COLOR_END.g - STAGE_COLOR_START.g) * t);
+  const b = Math.round(STAGE_COLOR_START.b + (STAGE_COLOR_END.b - STAGE_COLOR_START.b) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 async function loadPipelineStages() {
   const { data, error } = await supabase.from("pipeline_stages").select("*").order("position");
   if (error || !data || !data.length) {
@@ -254,6 +277,7 @@ function renderBoard() {
     const column = document.createElement("div");
     column.className = "column";
     column.dataset.stage = stage.id;
+    column.style.setProperty("--stage-color", stageColor(stage.id));
     column.innerHTML = `
       <div class="column-header">
         <span>${stage.label}</span>
@@ -289,13 +313,13 @@ function renderCard(deal) {
   card.className = "card";
   card.draggable = true;
   card.dataset.id = deal.id;
+  card.style.setProperty("--stage-color", stageColor(deal.stage));
   const consultorId = dealConsultorId(deal);
   const consultant = consultorId ? users.find(u => u.id === consultorId) : null;
   card.innerHTML = `
     <div class="card-name">${escapeHtml(deal.name)}</div>
     <div class="card-contact">${escapeHtml(deal.contact || "Sem contato")}</div>
     ${consultant ? `<div class="card-consultor">${escapeHtml(consultant.name)}</div>` : ""}
-    <div class="card-value">${currency(deal.value)}</div>
   `;
   card.addEventListener("dragstart", e => {
     e.dataTransfer.setData("text/plain", deal.id);
@@ -313,6 +337,7 @@ function moveDeal(id, newStage) {
   deal.closedAt = isClosedStage(newStage) ? Date.now() : null;
   saveDeals();
   renderBoard();
+  renderLeads();
   if (isWonStage(newStage)) handleDealWon(deal);
 }
 
@@ -396,6 +421,7 @@ dealForm.addEventListener("submit", async e => {
   }
 
   renderBoard();
+  renderLeads();
   closeDealModal();
   await saveDeals();
   if (isWonStage(deal.stage)) handleDealWon(deal);
@@ -669,6 +695,8 @@ function renderLeads() {
     if (lead.active === false) tr.className = "row-inactive";
     const phoneDigits = extractPhoneDigits(lead.phone);
     const consultant = users.find(u => u.id === lead.consultorId);
+    const linkedDeal = deals.find(d => d.leadId === lead.id);
+    tr.style.setProperty("--row-stage-color", linkedDeal ? stageColor(linkedDeal.stage) : "transparent");
 
     tr.innerHTML = `
       <td class="cell-check"><input type="checkbox" class="row-checkbox" data-id="${lead.id}" ${selectedLeadIds.has(lead.id) ? "checked" : ""}></td>
