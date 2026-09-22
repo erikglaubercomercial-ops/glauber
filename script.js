@@ -117,7 +117,7 @@ function isClosedStage(id) { return isWonStage(id) || isLostStage(id); }
 /* cor do estágio: azul (início do funil) → vermelho (prestes a fechar),
    Ganho sempre verde, Perdido sempre amarelo — usada no Pipeline e
    sincronizada na tela de Leads */
-const STAGE_COLOR_START = { r: 59, g: 130, b: 246 };  // azul
+const STAGE_COLOR_START = { r: 49, g: 103, b: 161 };  // azul Peregrinos
 const STAGE_COLOR_END = { r: 239, g: 68, b: 68 };     // vermelho
 const STAGE_COLOR_WON = "#16a34a";
 const STAGE_COLOR_LOST = "#eab308";
@@ -3720,7 +3720,7 @@ if (window.Chart) {
   Chart.defaults.color = "#8891a5";
 }
 
-const DASH_PALETTE = ["#4f7df3", "#6366f1", "#8b5cf6", "#a855f7", "#ec4899", "#f59e0b", "#14b8a6", "#64748b"];
+const DASH_PALETTE = ["#3167a1", "#fb9d2d", "#1f4670", "#6faed6", "#16a34a", "#e2483d", "#8891a5", "#9b6dd6"];
 const MONTH_ABBR = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 let dashCharts = {};
 

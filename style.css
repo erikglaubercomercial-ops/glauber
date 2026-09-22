@@ -2,29 +2,31 @@
   color-scheme: light;
   --page-bg-1: #8fb8f6;
   --page-bg-2: #a9c9f8;
-  --sidebar-bg: #101a33;
-  --sidebar-text: #8b93a7;
+  /* paleta oficial Peregrinos (mesmas cores já usadas no documento de cotação) */
+  --sidebar-bg: #1f4670;
+  --sidebar-text: #a9bdd8;
   --sidebar-text-active: #ffffff;
-  --sidebar-hover: #182448;
+  --sidebar-hover: #2a5885;
   --surface: #ffffff;
-  --content-bg: #f5f7fb;
-  --border: #e6e9f0;
-  --text: #1a1d29;
-  --text-muted: #8891a5;
-  --primary: #4f7df3;
-  --primary-hover: #3c67e0;
+  --content-bg: #f4f7fb;
+  --border: #e4e9f0;
+  --text: #1a2233;
+  --text-muted: #7c8aa0;
+  --primary: #3167a1;
+  --primary-hover: #275480;
+  --primary-deep: #1f4670;
   --good: #16a34a;
   --good-bg: #e8f8ee;
   --danger: #e2483d;
   --danger-bg: #fdeceb;
-  --warn: #d99a1f;
-  --warn-bg: #fbf1de;
+  --warn: #fb9d2d;
+  --warn-bg: #fef1e0;
   --cold: #2563eb;
   --cold-bg: #e7effe;
   --wpp: #1fa855;
-  --radius: 14px;
-  --radius-sm: 9px;
-  --shadow: 0 1px 2px rgba(16,24,40,0.05), 0 8px 20px rgba(16,24,40,0.06);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --shadow: 0 2px 6px rgba(20,50,90,0.05), 0 10px 26px rgba(20,50,90,0.07);
   --shadow-modal: 0 20px 50px rgba(10,15,30,0.35);
 }
 
@@ -83,7 +85,7 @@ body {
   width: 34px;
   height: 34px;
   background: #ffffff;
-  border-radius: 9px;
+  border-radius: 50%;
   padding: 4px;
   flex-shrink: 0;
 }
@@ -127,13 +129,14 @@ body {
   font-weight: 500;
   font-family: inherit;
   text-align: left;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
 .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
-.nav-item.active { background: var(--primary); color: #fff; }
+.nav-item.active { background: var(--surface); color: var(--primary-deep); font-weight: 700; box-shadow: 0 6px 14px rgba(0,0,0,0.18); }
+.nav-item.active .nav-icon { color: var(--warn); }
 .nav-icon { flex-shrink: 0; }
 
 .sidebar-signout {
@@ -146,8 +149,8 @@ body {
   font-size: 13.5px;
   font-weight: 500;
   font-family: inherit;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
   cursor: pointer;
 }
 
@@ -241,13 +244,37 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px 18px;
+  padding: 18px 20px;
   box-shadow: var(--shadow);
 }
 .stat-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
 .stat-value { display: block; font-size: 23px; font-weight: 700; }
 .stat-good { color: var(--good); }
 .stat-bad { color: var(--danger); }
+
+/* cores sólidas por posição, ciclando a paleta Peregrinos (azul, azul
+   profundo, laranja, vermelho) — dá o efeito colorido de painel sem
+   precisar de nenhuma mudança de HTML/JS em cada tela */
+.stat-row .stat-card:nth-child(4n+1) { background: var(--primary); border-color: transparent; }
+.stat-row .stat-card:nth-child(4n+2) { background: var(--primary-deep); border-color: transparent; }
+.stat-row .stat-card:nth-child(4n+3) { background: var(--warn); border-color: transparent; }
+.stat-row .stat-card:nth-child(4n+4) { background: var(--danger); border-color: transparent; }
+.stat-row .stat-card:nth-child(4n+1) .stat-label,
+.stat-row .stat-card:nth-child(4n+1) .stat-value,
+.stat-row .stat-card:nth-child(4n+2) .stat-label,
+.stat-row .stat-card:nth-child(4n+2) .stat-value,
+.stat-row .stat-card:nth-child(4n+3) .stat-label,
+.stat-row .stat-card:nth-child(4n+3) .stat-value,
+.stat-row .stat-card:nth-child(4n+4) .stat-label,
+.stat-row .stat-card:nth-child(4n+4) .stat-value {
+  color: #fff;
+}
+.stat-row .stat-card:nth-child(4n+1) .stat-label,
+.stat-row .stat-card:nth-child(4n+2) .stat-label,
+.stat-row .stat-card:nth-child(4n+3) .stat-label,
+.stat-row .stat-card:nth-child(4n+4) .stat-label {
+  color: rgba(255,255,255,0.78);
+}
 
 /* ===== PANEL / TABLE ===== */
 .panel {
@@ -445,7 +472,7 @@ body {
 /* ===== BUTTONS ===== */
 .btn {
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: 10px;
   padding: 9px 16px;
   font-size: 13.5px;
   font-weight: 600;
