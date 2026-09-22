@@ -733,6 +733,12 @@ function isOwnLeadsOnly() {
   return !!(session && session.role === "Consultor");
 }
 
+/* só ADM e Gerente podem alterar a origem de um lead já cadastrado —
+   qualquer função pode definir a origem na hora de criar o lead */
+function canEditLeadSource() {
+  return !!(session && (session.role === "ADM" || session.role === "Gerente"));
+}
+
 function renderLeadFilterOptions() {
   const categorySel = document.getElementById("filter-category");
   const sourceSel = document.getElementById("filter-source");
@@ -910,7 +916,7 @@ function toggleBulkMenu(triggerEl) {
   menu.innerHTML = `
     <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
     <button type="button" class="row-menu-item" data-action="temperature">Mudar temperatura</button>
-    <button type="button" class="row-menu-item" data-action="source">Mudar origem</button>
+    ${canEditLeadSource() ? '<button type="button" class="row-menu-item" data-action="source">Mudar origem</button>' : ""}
     <div class="row-menu-divider"></div>
     <button type="button" class="row-menu-item" data-action="deactivate">Desativar leads</button>
     <button type="button" class="row-menu-item row-menu-item-danger" data-action="delete">Excluir leads</button>
@@ -926,7 +932,8 @@ function toggleBulkMenu(triggerEl) {
     closeBulkMenu();
     openQuickFieldModal(ids, "temperature");
   });
-  menu.querySelector('[data-action="source"]').addEventListener("click", () => {
+  const sourceBtn = menu.querySelector('[data-action="source"]');
+  if (sourceBtn) sourceBtn.addEventListener("click", () => {
     closeBulkMenu();
     openQuickFieldModal(ids, "source");
   });
@@ -1037,7 +1044,7 @@ function toggleRowMenu(lead, triggerEl) {
   menu.innerHTML = `
     <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
     <button type="button" class="row-menu-item" data-action="temperature">Mudar temperatura</button>
-    <button type="button" class="row-menu-item" data-action="source">Mudar origem</button>
+    ${canEditLeadSource() ? '<button type="button" class="row-menu-item" data-action="source">Mudar origem</button>' : ""}
     <button type="button" class="row-menu-item" data-action="email" ${lead.email ? "" : "disabled"}>Enviar e-mail</button>
     <button type="button" class="row-menu-item" data-action="quote">Ver cotação</button>
     <div class="row-menu-divider"></div>
@@ -1055,7 +1062,8 @@ function toggleRowMenu(lead, triggerEl) {
     closeRowMenu();
     openQuickFieldModal([lead.id], "temperature");
   });
-  menu.querySelector('[data-action="source"]').addEventListener("click", () => {
+  const sourceBtn = menu.querySelector('[data-action="source"]');
+  if (sourceBtn) sourceBtn.addEventListener("click", () => {
     closeRowMenu();
     openQuickFieldModal([lead.id], "source");
   });
@@ -1172,6 +1180,14 @@ function openLeadModal(id) {
     document.getElementById("lead-field-active").checked = true;
     leadBtnDelete.style.display = "none";
   }
+
+  /* origem só pode ser alterada por ADM/Gerente depois que o lead já
+     existe — na criação, qualquer função pode escolher a origem */
+  const sourceField = document.getElementById("lead-field-source");
+  const sourceLocked = !!id && !canEditLeadSource();
+  sourceField.disabled = sourceLocked;
+  sourceField.title = sourceLocked ? "Apenas ADM ou Gerente podem alterar a origem de um lead já cadastrado." : "";
+
   leadModalBackdrop.classList.add("open");
   document.getElementById("lead-field-name").focus();
 }
