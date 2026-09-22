@@ -125,9 +125,7 @@
           <div class="bulk-bar" id="leads-bulk-bar" style="display:none;">
             <span id="leads-bulk-count">0 selecionado(s)</span>
             <div class="spacer"></div>
-            <button type="button" class="btn btn-ghost btn-sm" id="leads-bulk-assign">Atribuir consultor</button>
-            <button type="button" class="btn btn-ghost btn-sm" id="leads-bulk-deactivate">Desativar</button>
-            <button type="button" class="btn btn-danger btn-sm" id="leads-bulk-delete">Excluir</button>
+            <button type="button" class="btn-icon" id="leads-bulk-menu-trigger" title="Ações em massa">⋮</button>
             <button type="button" class="btn-icon" id="leads-bulk-clear" title="Limpar seleção">&times;</button>
           </div>
 
@@ -176,7 +174,10 @@
 
         <div class="panel-header board-header">
           <h2>Funil de Negócios</h2>
-          <button class="btn btn-primary" id="btn-new">+ Novo negócio</button>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-stages" style="display:none;">Gerenciar colunas</button>
+            <button class="btn btn-primary" id="btn-new">+ Novo negócio</button>
+          </div>
         </div>
         <div class="board" id="board"></div>
       </section>
@@ -520,6 +521,48 @@
           <button type="submit" class="btn btn-primary">Salvar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ALTERAR TEMPERATURA / ORIGEM (individual ou em massa) -->
+  <div class="modal-backdrop" id="quickfield-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="quickfield-modal-title">Alterar</h2>
+        <button class="btn-icon" id="quickfield-modal-close">&times;</button>
+      </div>
+      <form id="quickfield-form">
+        <label><span id="quickfield-label-text">Valor</span>
+          <select id="quickfield-select"></select>
+        </label>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="quickfield-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GERENCIAR COLUNAS DO PIPELINE (ADM) -->
+  <div class="modal-backdrop" id="stages-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Gerenciar colunas do pipeline</h2>
+        <button class="btn-icon" id="stages-modal-close">&times;</button>
+      </div>
+      <div class="sources-body">
+        <p class="muted-note">Essas são as colunas do funil de negócios. "Ganho" e "Perdido" são colunas especiais e não podem ser excluídas.</p>
+        <div id="stages-list"></div>
+        <div class="sources-add-row">
+          <input type="text" id="stages-new-input" placeholder="Nova coluna">
+          <button type="button" class="btn btn-primary btn-sm" id="stages-add-btn">+ Adicionar</button>
+        </div>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-primary" id="stages-btn-done">Concluído</button>
+        </div>
+      </div>
     </div>
   </div>
 

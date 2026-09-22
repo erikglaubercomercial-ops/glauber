@@ -65,6 +65,7 @@ function initNavigation() {
 
   if (session && session.role === "ADM") {
     document.getElementById("nav-label-admin").style.display = "";
+    document.getElementById("btn-manage-stages").style.display = "";
   }
 
   const firstAccessible = ["leads", "pipeline", "cotacao", "produtos", "usuarios"].find(canAccessView);
@@ -100,21 +101,46 @@ function uid() {
 /* ============================================================
    PIPELINE (kanban) — negócios
    ============================================================ */
-const STAGES = [
-  { id: "lead", label: "Lead" },
-  { id: "contato", label: "Contato Feito" },
-  { id: "proposta", label: "Proposta" },
-  { id: "negociacao", label: "Negociação" },
-  { id: "ganho", label: "Ganho" },
-  { id: "perdido", label: "Perdido" },
-];
-const CLOSED_WON = "ganho";
-const CLOSED_LOST = "perdido";
+let STAGES = [];
+
+function stageById(id) { return STAGES.find(s => s.id === id); }
+function isWonStage(id) { const s = stageById(id); return !!(s && s.isWon); }
+function isLostStage(id) { const s = stageById(id); return !!(s && s.isLost); }
+function isClosedStage(id) { return isWonStage(id) || isLostStage(id); }
+
+async function loadPipelineStages() {
+  const { data, error } = await supabase.from("pipeline_stages").select("*").order("position");
+  if (error || !data || !data.length) {
+    return [
+      { id: "lead", label: "Lead", position: 1, isWon: false, isLost: false },
+      { id: "contato", label: "Contato Feito", position: 2, isWon: false, isLost: false },
+      { id: "proposta", label: "Proposta", position: 3, isWon: false, isLost: false },
+      { id: "negociacao", label: "Negociação", position: 4, isWon: false, isLost: false },
+      { id: "ganho", label: "Ganho", position: 5, isWon: true, isLost: false },
+      { id: "perdido", label: "Perdido", position: 6, isWon: false, isLost: true },
+    ];
+  }
+  return data.map(r => ({ id: r.id, label: r.label, position: r.position, isWon: r.is_won, isLost: r.is_lost }));
+}
+async function addPipelineStageRemote(stage) {
+  const { error } = await supabase.from("pipeline_stages")
+    .insert({ id: stage.id, label: stage.label, position: stage.position, is_won: stage.isWon, is_lost: stage.isLost });
+  if (error) console.error("Erro ao criar coluna do pipeline:", error);
+}
+async function renamePipelineStageRemote(id, label) {
+  const { error } = await supabase.from("pipeline_stages").update({ label }).eq("id", id);
+  if (error) console.error("Erro ao renomear coluna do pipeline:", error);
+}
+async function deletePipelineStageRemote(id) {
+  const { error } = await supabase.from("pipeline_stages").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir coluna do pipeline:", error);
+}
 
 function dealFromDb(r) {
   return {
     id: r.id, name: r.name, contact: r.contact || "", info: r.info || "",
     value: Number(r.value) || 0, stage: r.stage, notes: r.notes || "",
+    leadId: r.lead_id || null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     closedAt: r.closed_at ? new Date(r.closed_at).getTime() : null,
   };
@@ -122,9 +148,42 @@ function dealFromDb(r) {
 function dealToDb(d) {
   return {
     id: d.id, name: d.name, contact: d.contact, info: d.info, value: d.value, stage: d.stage, notes: d.notes,
+    lead_id: d.leadId || null,
     created_at: new Date(d.createdAt).toISOString(),
     closed_at: d.closedAt ? new Date(d.closedAt).toISOString() : null,
   };
+}
+
+/* cria automaticamente o card do negócio no Pipeline (1ª coluna) para um lead novo */
+function createDealForLead(lead) {
+  const firstStage = STAGES[0];
+  if (!firstStage) return null;
+  const deal = {
+    id: uid(),
+    name: lead.name,
+    contact: lead.phone || lead.email || "",
+    info: lead.email || lead.phone || "",
+    value: 0,
+    stage: firstStage.id,
+    notes: "",
+    leadId: lead.id,
+    createdAt: Date.now(),
+    closedAt: null,
+  };
+  deals.push(deal);
+  return deal;
+}
+
+/* clique no botão de WhatsApp de um lead avança o negócio dele para a próxima
+   coluna do pipeline — nunca fecha automaticamente (Ganho/Perdido) */
+function advanceLeadPipelineStage(leadId) {
+  const deal = deals.find(d => d.leadId === leadId);
+  if (!deal || isClosedStage(deal.stage)) return;
+  const idx = STAGES.findIndex(s => s.id === deal.stage);
+  if (idx === -1 || idx + 1 >= STAGES.length) return;
+  const next = STAGES[idx + 1];
+  if (next.isWon || next.isLost) return;
+  moveDeal(deal.id, next.id);
 }
 
 async function loadDeals() {
@@ -215,25 +274,25 @@ function moveDeal(id, newStage) {
   const deal = deals.find(d => d.id === id);
   if (!deal || deal.stage === newStage) return;
   deal.stage = newStage;
-  deal.closedAt = (newStage === CLOSED_WON || newStage === CLOSED_LOST) ? Date.now() : null;
+  deal.closedAt = isClosedStage(newStage) ? Date.now() : null;
   saveDeals();
   renderBoard();
 }
 
 function renderPipelineDashboard() {
-  const open = deals.filter(d => d.stage !== CLOSED_WON && d.stage !== CLOSED_LOST);
+  const open = deals.filter(d => !isClosedStage(d.stage));
   const pipelineValue = open.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
   const now = new Date();
   const wonThisMonth = deals.filter(d => {
-    if (d.stage !== CLOSED_WON || !d.closedAt) return false;
+    if (!isWonStage(d.stage) || !d.closedAt) return false;
     const closed = new Date(d.closedAt);
     return closed.getMonth() === now.getMonth() && closed.getFullYear() === now.getFullYear();
   });
   const wonValue = wonThisMonth.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
-  const closed = deals.filter(d => d.stage === CLOSED_WON || d.stage === CLOSED_LOST);
-  const conversion = closed.length === 0 ? 0 : Math.round((deals.filter(d => d.stage === CLOSED_WON).length / closed.length) * 100);
+  const closed = deals.filter(d => isClosedStage(d.stage));
+  const conversion = closed.length === 0 ? 0 : Math.round((deals.filter(d => isWonStage(d.stage)).length / closed.length) * 100);
 
   document.getElementById("stat-open").textContent = open.length;
   document.getElementById("stat-pipeline-value").textContent = currency(pipelineValue);
@@ -258,7 +317,7 @@ function openDealModal(id) {
   } else {
     document.getElementById("modal-title").textContent = "Novo negócio";
     document.getElementById("deal-id").value = "";
-    document.getElementById("field-stage").value = "lead";
+    document.getElementById("field-stage").value = STAGES[0] ? STAGES[0].id : "";
     btnDelete.style.display = "none";
   }
   modalBackdrop.classList.add("open");
@@ -287,13 +346,13 @@ dealForm.addEventListener("submit", async e => {
 
   if (id) {
     const deal = deals.find(d => d.id === id);
-    const wasClosed = deal.stage === CLOSED_WON || deal.stage === CLOSED_LOST;
-    const isClosed = stage === CLOSED_WON || stage === CLOSED_LOST;
+    const wasClosed = isClosedStage(deal.stage);
+    const nowClosed = isClosedStage(stage);
     Object.assign(deal, data);
-    if (isClosed && !wasClosed) deal.closedAt = Date.now();
-    if (!isClosed) deal.closedAt = null;
+    if (nowClosed && !wasClosed) deal.closedAt = Date.now();
+    if (!nowClosed) deal.closedAt = null;
   } else {
-    deals.push({ id: uid(), ...data, createdAt: Date.now(), closedAt: (stage === CLOSED_WON || stage === CLOSED_LOST) ? Date.now() : null });
+    deals.push({ id: uid(), ...data, createdAt: Date.now(), closedAt: isClosedStage(stage) ? Date.now() : null });
   }
 
   renderBoard();
@@ -309,6 +368,93 @@ btnDelete.addEventListener("click", async () => {
   renderBoard();
   closeDealModal();
   await deleteDealRemote(id);
+});
+
+/* ============================================================
+   GERENCIAR COLUNAS DO PIPELINE (somente ADM)
+   ============================================================ */
+const stagesModalBackdrop = document.getElementById("stages-modal-backdrop");
+const stagesListEl = document.getElementById("stages-list");
+const stagesNewInput = document.getElementById("stages-new-input");
+
+function stageUsageCount(id) {
+  return deals.filter(d => d.stage === id).length;
+}
+
+function renderStagesList() {
+  stagesListEl.innerHTML = STAGES.map(s => `
+    <div class="source-row">
+      <input type="text" value="${escapeHtml(s.label)}" data-id="${s.id}">
+      <span class="source-usage">${stageUsageCount(s.id)} negócio(s)</span>
+      <button type="button" class="btn btn-icon" data-act="del" data-id="${s.id}" title="Excluir coluna" ${(s.isWon || s.isLost) ? "disabled" : ""}>&times;</button>
+    </div>`).join("");
+}
+
+function openStagesModal() {
+  renderStagesList();
+  stagesNewInput.value = "";
+  stagesModalBackdrop.classList.add("open");
+}
+function closeStagesModal() { stagesModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-manage-stages").addEventListener("click", openStagesModal);
+document.getElementById("stages-modal-close").addEventListener("click", closeStagesModal);
+document.getElementById("stages-btn-done").addEventListener("click", closeStagesModal);
+stagesModalBackdrop.addEventListener("click", e => { if (e.target === stagesModalBackdrop) closeStagesModal(); });
+
+stagesListEl.addEventListener("change", async e => {
+  const input = e.target.closest('input[type="text"]');
+  if (!input) return;
+  const stage = STAGES.find(s => s.id === input.dataset.id);
+  const newLabel = input.value.trim();
+  if (!newLabel) { input.value = stage.label; return; }
+  if (newLabel === stage.label) return;
+  stage.label = newLabel;
+  renderStagesList();
+  renderStageOptions();
+  renderBoard();
+  await renamePipelineStageRemote(stage.id, newLabel);
+});
+
+stagesListEl.addEventListener("click", async e => {
+  const btn = e.target.closest('button[data-act="del"]');
+  if (!btn || btn.disabled) return;
+  const stage = STAGES.find(s => s.id === btn.dataset.id);
+  const count = stageUsageCount(stage.id);
+  if (count > 0) {
+    alert(`Mova os ${count} negócio(s) dessa coluna para outra antes de excluí-la.`);
+    return;
+  }
+  if (STAGES.length <= 1) {
+    alert("Mantenha ao menos uma coluna no pipeline.");
+    return;
+  }
+  if (!confirm(`Excluir a coluna "${stage.label}"?`)) return;
+  STAGES = STAGES.filter(s => s.id !== stage.id);
+  renderStagesList();
+  renderStageOptions();
+  renderBoard();
+  await deletePipelineStageRemote(stage.id);
+});
+
+async function addNewStage() {
+  const label = stagesNewInput.value.trim();
+  if (!label) return;
+  const duplicate = STAGES.some(s => s.label.toLowerCase() === label.toLowerCase());
+  if (duplicate) { alert("Já existe uma coluna com esse nome."); return; }
+  const maxPos = STAGES.reduce((m, s) => Math.max(m, s.position), 0);
+  const stage = { id: uid(), label, position: maxPos + 1, isWon: false, isLost: false };
+  STAGES.push(stage);
+  stagesNewInput.value = "";
+  renderStagesList();
+  renderStageOptions();
+  renderBoard();
+  stagesNewInput.focus();
+  await addPipelineStageRemote(stage);
+}
+document.getElementById("stages-add-btn").addEventListener("click", addNewStage);
+stagesNewInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); addNewStage(); }
 });
 
 /* ============================================================
@@ -506,6 +652,11 @@ function renderLeads() {
       toggleRowMenu(lead, e.currentTarget);
     });
 
+    const wppLink = tr.querySelector("a.wpp-btn");
+    if (wppLink) {
+      wppLink.addEventListener("click", () => advanceLeadPipelineStage(lead.id));
+    }
+
     tr.addEventListener("click", e => {
       if (e.target.closest(".wpp-btn")) return;
       openLeadModal(lead.id);
@@ -556,27 +707,114 @@ document.getElementById("leads-bulk-clear").addEventListener("click", () => {
   renderLeads();
 });
 
-document.getElementById("leads-bulk-assign").addEventListener("click", () => {
-  if (selectedLeadIds.size === 0) return;
-  openAssignModal(Array.from(selectedLeadIds));
-});
+/* ---- menu de 3 pontinhos das ações em massa (mesmo padrão do menu de linha) ---- */
+let openBulkMenuEl = null;
+function closeBulkMenu() {
+  if (openBulkMenuEl) {
+    openBulkMenuEl.remove();
+    openBulkMenuEl = null;
+  }
+}
 
-document.getElementById("leads-bulk-deactivate").addEventListener("click", async () => {
+function toggleBulkMenu(triggerEl) {
+  if (openBulkMenuEl) { closeBulkMenu(); return; }
+  closeRowMenu();
   if (selectedLeadIds.size === 0) return;
-  leads.forEach(l => { if (selectedLeadIds.has(l.id)) l.active = false; });
-  selectedLeadIds.clear();
-  renderLeads();
-  await saveLeads();
-});
 
-document.getElementById("leads-bulk-delete").addEventListener("click", async () => {
-  if (selectedLeadIds.size === 0) return;
-  if (!confirm(`Excluir ${selectedLeadIds.size} lead(s) selecionado(s)? Essa ação não pode ser desfeita.`)) return;
   const ids = Array.from(selectedLeadIds);
-  leads = leads.filter(l => !selectedLeadIds.has(l.id));
-  selectedLeadIds.clear();
+  const rect = triggerEl.getBoundingClientRect();
+  const menu = document.createElement("div");
+  menu.className = "floating-menu";
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.left = `${Math.max(8, rect.right - 190)}px`;
+  menu.innerHTML = `
+    <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
+    <button type="button" class="row-menu-item" data-action="temperature">Mudar temperatura</button>
+    <button type="button" class="row-menu-item" data-action="source">Mudar origem</button>
+    <div class="row-menu-divider"></div>
+    <button type="button" class="row-menu-item" data-action="deactivate">Desativar leads</button>
+    <button type="button" class="row-menu-item row-menu-item-danger" data-action="delete">Excluir leads</button>
+  `;
+  document.body.appendChild(menu);
+  openBulkMenuEl = menu;
+
+  menu.querySelector('[data-action="assign"]').addEventListener("click", () => {
+    closeBulkMenu();
+    openAssignModal(ids);
+  });
+  menu.querySelector('[data-action="temperature"]').addEventListener("click", () => {
+    closeBulkMenu();
+    openQuickFieldModal(ids, "temperature");
+  });
+  menu.querySelector('[data-action="source"]').addEventListener("click", () => {
+    closeBulkMenu();
+    openQuickFieldModal(ids, "source");
+  });
+  menu.querySelector('[data-action="deactivate"]').addEventListener("click", async () => {
+    closeBulkMenu();
+    leads.forEach(l => { if (selectedLeadIds.has(l.id)) l.active = false; });
+    selectedLeadIds.clear();
+    renderLeads();
+    await saveLeads();
+  });
+  menu.querySelector('[data-action="delete"]').addEventListener("click", async () => {
+    closeBulkMenu();
+    if (!confirm(`Excluir ${ids.length} lead(s) selecionado(s)? Essa ação não pode ser desfeita.`)) return;
+    leads = leads.filter(l => !ids.includes(l.id));
+    selectedLeadIds.clear();
+    renderLeads();
+    await deleteLeadsRemote(ids);
+  });
+}
+
+document.getElementById("leads-bulk-menu-trigger").addEventListener("click", e => {
+  e.stopPropagation();
+  toggleBulkMenu(e.currentTarget);
+});
+
+document.addEventListener("click", e => {
+  if (!openBulkMenuEl) return;
+  if (e.target.closest(".floating-menu") || e.target.closest("#leads-bulk-menu-trigger")) return;
+  closeBulkMenu();
+});
+
+/* ---- alterar temperatura / origem (individual ou em massa) ---- */
+const quickFieldModalBackdrop = document.getElementById("quickfield-modal-backdrop");
+const quickFieldForm = document.getElementById("quickfield-form");
+const quickFieldSelect = document.getElementById("quickfield-select");
+let quickFieldTarget = { ids: [], field: null };
+
+function openQuickFieldModal(ids, field) {
+  quickFieldTarget = { ids, field };
+  const isTemp = field === "temperature";
+  const options = isTemp ? TEMPERATURES : SOURCES;
+  document.getElementById("quickfield-modal-title").textContent =
+    (isTemp ? "Mudar temperatura" : "Mudar origem") + (ids.length > 1 ? ` (${ids.length} leads)` : "");
+  document.getElementById("quickfield-label-text").textContent = isTemp ? "Temperatura" : "Origem";
+  quickFieldSelect.innerHTML = options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
+  if (ids.length === 1) {
+    const lead = leads.find(l => l.id === ids[0]);
+    if (lead && lead[field]) quickFieldSelect.value = lead[field];
+  }
+  quickFieldModalBackdrop.classList.add("open");
+}
+function closeQuickFieldModal() { quickFieldModalBackdrop.classList.remove("open"); }
+
+document.getElementById("quickfield-modal-close").addEventListener("click", closeQuickFieldModal);
+document.getElementById("quickfield-btn-cancel").addEventListener("click", closeQuickFieldModal);
+quickFieldModalBackdrop.addEventListener("click", e => { if (e.target === quickFieldModalBackdrop) closeQuickFieldModal(); });
+
+quickFieldForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const value = quickFieldSelect.value;
+  const { ids, field } = quickFieldTarget;
+  ids.forEach(id => {
+    const lead = leads.find(l => l.id === id);
+    if (lead) lead[field] = value;
+  });
   renderLeads();
-  await deleteLeadsRemote(ids);
+  closeQuickFieldModal();
+  await saveLeads();
 });
 
 async function toggleLeadActive(lead) {
@@ -618,6 +856,8 @@ function toggleRowMenu(lead, triggerEl) {
   const isInactive = lead.active === false;
   menu.innerHTML = `
     <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
+    <button type="button" class="row-menu-item" data-action="temperature">Mudar temperatura</button>
+    <button type="button" class="row-menu-item" data-action="source">Mudar origem</button>
     <button type="button" class="row-menu-item" data-action="email" ${lead.email ? "" : "disabled"}>Enviar e-mail</button>
     <button type="button" class="row-menu-item" data-action="quote">Ver cotação</button>
     <div class="row-menu-divider"></div>
@@ -630,6 +870,14 @@ function toggleRowMenu(lead, triggerEl) {
   menu.querySelector('[data-action="assign"]').addEventListener("click", () => {
     closeRowMenu();
     openAssignModal([lead.id]);
+  });
+  menu.querySelector('[data-action="temperature"]').addEventListener("click", () => {
+    closeRowMenu();
+    openQuickFieldModal([lead.id], "temperature");
+  });
+  menu.querySelector('[data-action="source"]').addEventListener("click", () => {
+    closeRowMenu();
+    openQuickFieldModal([lead.id], "source");
   });
   menu.querySelector('[data-action="email"]').addEventListener("click", () => {
     closeRowMenu();
@@ -763,15 +1011,23 @@ leadForm.addEventListener("submit", async e => {
     status: document.getElementById("lead-field-status").value,
     active: document.getElementById("lead-field-active").checked,
   };
+  let newLead = null;
   if (id) {
     Object.assign(leads.find(l => l.id === id), data);
   } else {
     const consultorId = isOwnLeadsOnly() ? session.id : null;
-    leads.push({ id: uid(), ...data, consultorId, createdAt: Date.now() });
+    newLead = { id: uid(), ...data, consultorId, createdAt: Date.now() };
+    leads.push(newLead);
   }
   renderLeads();
   closeLeadModal();
   await saveLeads();
+
+  if (newLead) {
+    createDealForLead(newLead);
+    renderBoard();
+    await saveDeals();
+  }
 });
 
 leadBtnDelete.addEventListener("click", async () => {
@@ -921,6 +1177,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
 
   const now = Date.now();
   let imported = 0, skipped = 0;
+  const importedLeads = [];
 
   importRows.forEach(row => {
     const get = key => mapping[key] !== undefined ? (row[mapping[key]] || "").trim() : "";
@@ -936,7 +1193,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
     }
     if (!consultorId && isOwnLeadsOnly()) consultorId = session.id;
 
-    leads.push({
+    const newLead = {
       id: uid(),
       name,
       company: get("company"),
@@ -949,7 +1206,9 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
       consultorId,
       active: true,
       createdAt: now,
-    });
+    };
+    leads.push(newLead);
+    importedLeads.push(newLead);
     imported++;
   });
 
@@ -957,6 +1216,12 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
   closeImportModal();
   alert(`Importação concluída: ${imported} lead(s) importado(s)${skipped ? `, ${skipped} linha(s) ignorada(s) por falta de nome` : ""}.`);
   await saveLeads();
+
+  if (importedLeads.length) {
+    importedLeads.forEach(l => createDealForLead(l));
+    renderBoard();
+    await saveDeals();
+  }
 });
 
 /* ============================================================
@@ -2017,13 +2282,14 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
     loadQuotes(),
     loadCatalog(),
     loadSources(),
+    loadPipelineStages(),
   ]);
 
   renderSessionChip();
