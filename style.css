@@ -412,6 +412,7 @@ body {
   border: none;
   cursor: pointer;
   text-decoration: none;
+  flex: 0 0 auto;
 }
 .wpp-btn:hover { background: color-mix(in srgb, var(--wpp) 24%, transparent); }
 .wpp-btn.disabled {
@@ -420,6 +421,11 @@ body {
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* botão de WhatsApp colado ao nome do lead, na lista */
+.cell-name-row { display: inline-flex; align-items: center; gap: 8px; }
+.cell-name-row .wpp-btn { width: 24px; height: 24px; }
+.cell-name-row .wpp-btn svg { width: 13px; height: 13px; }
 
 /* ===== BUTTONS ===== */
 .btn {

@@ -701,15 +701,21 @@ function renderLeads() {
 
     tr.innerHTML = `
       <td class="cell-check"><input type="checkbox" class="row-checkbox" data-id="${lead.id}" ${selectedLeadIds.has(lead.id) ? "checked" : ""}></td>
-      <td class="cell-primary">${escapeHtml(lead.name)}${lead.active === false ? ' <span class="badge badge-neutral">Inativo</span>' : ""}${lead.company ? `<div class="cell-sub">${escapeHtml(lead.company)}</div>` : ""}</td>
+      <td class="cell-primary">
+        <span class="cell-name-row">
+          <span>${escapeHtml(lead.name)}</span>
+          ${phoneDigits
+            ? `<a class="wpp-btn" href="${buildWhatsAppLink(phoneDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp Web">${WPP_ICON_SVG}</a>`
+            : `<span class="wpp-btn disabled" title="Sem telefone válido">${WPP_ICON_SVG}</span>`}
+          ${lead.active === false ? '<span class="badge badge-neutral">Inativo</span>' : ""}
+        </span>
+        ${lead.company ? `<div class="cell-sub">${escapeHtml(lead.company)}</div>` : ""}
+      </td>
       <td class="cell-muted">${escapeHtml(lead.category || "—")}</td>
       <td class="cell-muted">${escapeHtml(lead.source || "—")}</td>
       <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : "—"}</td>
       <td><span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span></td>
       <td><span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(lead.status)}</span></td>
-      <td class="cell-nowrap">${phoneDigits
-        ? `<a class="wpp-btn" href="${buildWhatsAppLink(phoneDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp Web">${WPP_ICON_SVG}</a>`
-        : `<span class="wpp-btn disabled" title="Sem telefone válido">${WPP_ICON_SVG}</span>`}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
     `;
 
