@@ -602,6 +602,7 @@ async function deleteLeadsRemote(ids) {
 let leads = [];
 let selectedLeadIds = new Set();
 let quotesClientFilter = null;
+let quotesClientFilterLeadId = null;
 let openRowMenuEl = null;
 
 const leadModalBackdrop = document.getElementById("lead-modal-backdrop");
@@ -987,7 +988,9 @@ function sendLeadEmail(lead) {
 
 function viewLeadQuotes(lead) {
   quotesClientFilter = lead.company || lead.name;
+  quotesClientFilterLeadId = lead.id;
   switchView("cotacao");
+  openQuoteList();
   renderQuotes();
 }
 
@@ -1409,19 +1412,29 @@ sourcesNewInput.addEventListener("keydown", e => {
 });
 
 /* ============================================================
-   COTAÇÃO (quotes)
+   COTAÇÃO (quotes) — lista com filtros + construtor completo
+   (puxa dados de um lead, monta o catálogo de serviços e gera
+   o PDF; ao gerar, a cotação também é salva na tabela quotes)
    ============================================================ */
 function quoteRowFromDb(r) {
   return {
-    id: r.id, client: r.client, items: r.items || "", value: Number(r.value) || 0,
-    validade: r.validade || "", status: r.status,
+    id: r.id, client: r.client, email: r.email || "", items: r.items || "",
+    value: Number(r.value) || 0, validade: r.validade || "", status: r.status,
+    leadId: r.lead_id || null, consultorId: r.consultor_id || null,
+    consultorName: r.consultor_name || "", consultorEmail: r.consultor_email || "",
+    emissao: r.emissao || "", observacoes: r.observacoes || "",
+    itemsDetail: Array.isArray(r.items_detail) ? r.items_detail : [],
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
 }
 function quoteRowToDb(q) {
   return {
-    id: q.id, client: q.client, items: q.items, value: q.value,
-    validade: q.validade || null, status: q.status,
+    id: q.id, client: q.client, email: q.email || "", items: q.items || "",
+    value: q.value, validade: q.validade || null, status: q.status,
+    lead_id: q.leadId || null, consultor_id: q.consultorId || null,
+    consultor_name: q.consultorName || "", consultor_email: q.consultorEmail || "",
+    emissao: q.emissao || null, observacoes: q.observacoes || "",
+    items_detail: q.itemsDetail || [],
     created_at: new Date(q.createdAt).toISOString(),
   };
 }
@@ -1431,9 +1444,10 @@ async function loadQuotes() {
   if (error) { console.error("Erro ao carregar cotações:", error); return []; }
   return data.map(quoteRowFromDb);
 }
-async function saveQuotes() {
-  const { error } = await supabase.from("quotes").upsert(quotes.map(quoteRowToDb));
-  if (error) console.error("Erro ao salvar cotações:", error);
+async function saveQuoteRow(q) {
+  const { error } = await supabase.from("quotes").upsert(quoteRowToDb(q));
+  if (error) console.error("Erro ao salvar cotação:", error);
+  return !error;
 }
 async function deleteQuoteRemote(id) {
   const { error } = await supabase.from("quotes").delete().eq("id", id);
@@ -1442,15 +1456,13 @@ async function deleteQuoteRemote(id) {
 
 let quotes = [];
 
-const quoteModalBackdrop = document.getElementById("quote-modal-backdrop");
-const quoteForm = document.getElementById("quote-form");
-const quoteBtnDelete = document.getElementById("quote-btn-delete");
 const quotesTbody = document.getElementById("quotes-tbody");
 const quotesEmpty = document.getElementById("quotes-empty");
 
 const QUOTE_STATUS_BADGE = {
   "Aberta": "badge-neutral",
   "Enviada": "badge-warn",
+  "Em negociação": "badge-warn",
   "Aprovada": "badge-good",
   "Recusada": "badge-danger",
 };
@@ -1461,12 +1473,39 @@ function formatDate(isoDate) {
   return `${d}/${m}/${y}`;
 }
 
-function renderQuotes() {
-  const chipRow = document.getElementById("quotes-filter-chip-row");
-  const filtered = quotesClientFilter
-    ? quotes.filter(q => q.client.toLowerCase().includes(quotesClientFilter.toLowerCase()))
-    : quotes;
+function isQuoteWon(q) { return q.status === "Aprovada"; }
+function isQuoteLost(q) { return q.status === "Recusada"; }
 
+/* ---- filtro: consultor ---- */
+function renderQuotesFilterOptions() {
+  const sel = document.getElementById("quotes-filter-consultor");
+  const current = sel.value;
+  const consultants = users.filter(u => u.role === "Consultor").slice().sort((a, b) => a.name.localeCompare(b.name));
+  sel.innerHTML = `<option value="">Todos os consultores</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  sel.value = current;
+}
+
+function getFilteredQuotes() {
+  const term = (document.getElementById("quotes-filter-search").value || "").trim().toLowerCase();
+  const statusFilter = document.getElementById("quotes-filter-status").value;
+  const consultorId = document.getElementById("quotes-filter-consultor").value;
+  return quotes.filter(q => {
+    if (quotesClientFilter) {
+      const byLead = quotesClientFilterLeadId && q.leadId === quotesClientFilterLeadId;
+      const byName = q.client.toLowerCase().includes(quotesClientFilter.toLowerCase());
+      if (!byLead && !byName) return false;
+    }
+    if (term && !(q.client.toLowerCase().includes(term) || (q.email || "").toLowerCase().includes(term))) return false;
+    if (statusFilter === "ganha" && !isQuoteWon(q)) return false;
+    if (statusFilter === "perdida" && !isQuoteLost(q)) return false;
+    if (consultorId && q.consultorId !== consultorId) return false;
+    return true;
+  });
+}
+
+function renderQuotes() {
+  renderQuotesFilterOptions();
+  const chipRow = document.getElementById("quotes-filter-chip-row");
   if (quotesClientFilter) {
     chipRow.style.display = "flex";
     document.getElementById("quotes-filter-chip-label").textContent = quotesClientFilter;
@@ -1474,92 +1513,159 @@ function renderQuotes() {
     chipRow.style.display = "none";
   }
 
+  const filtered = getFilteredQuotes();
   quotesTbody.innerHTML = "";
   quotesEmpty.style.display = filtered.length === 0 ? "block" : "none";
 
   filtered.slice().sort((a, b) => b.createdAt - a.createdAt).forEach(q => {
+    const consultant = users.find(u => u.id === q.consultorId);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-primary">${escapeHtml(q.client)}</td>
+      <td class="cell-muted">${escapeHtml(q.email || "—")}</td>
       <td class="cell-muted">${escapeHtml(q.items || "—")}</td>
+      <td class="cell-muted">${escapeHtml((consultant && consultant.name) || q.consultorName || "—")}</td>
       <td class="cell-muted">${formatDate(q.validade)}</td>
       <td><span class="badge ${QUOTE_STATUS_BADGE[q.status] || "badge-neutral"}">${escapeHtml(q.status)}</span></td>
       <td class="cell-primary">${currency(q.value)}</td>
       <td class="cell-actions">›</td>
     `;
-    tr.addEventListener("click", () => openQuoteModal(q.id));
+    tr.addEventListener("click", () => openQuoteBuilder(q.id));
     quotesTbody.appendChild(tr);
   });
 
   renderQuotesDashboard();
 }
 
+document.getElementById("quotes-filter-search").addEventListener("input", renderQuotes);
+document.getElementById("quotes-filter-status").addEventListener("change", renderQuotes);
+document.getElementById("quotes-filter-consultor").addEventListener("change", renderQuotes);
+document.getElementById("quotes-filter-clear").addEventListener("click", () => {
+  document.getElementById("quotes-filter-search").value = "";
+  document.getElementById("quotes-filter-status").value = "";
+  document.getElementById("quotes-filter-consultor").value = "";
+  quotesClientFilter = null;
+  quotesClientFilterLeadId = null;
+  renderQuotes();
+});
 document.getElementById("quotes-filter-chip-clear").addEventListener("click", () => {
   quotesClientFilter = null;
+  quotesClientFilterLeadId = null;
   renderQuotes();
 });
 
 function renderQuotesDashboard() {
-  const open = quotes.filter(q => q.status === "Aberta" || q.status === "Enviada");
+  const open = quotes.filter(q => !isQuoteWon(q) && !isQuoteLost(q));
   document.getElementById("quotes-stat-open").textContent = open.length;
   document.getElementById("quotes-stat-value").textContent = currency(quotes.reduce((s, q) => s + (Number(q.value) || 0), 0));
-  document.getElementById("quotes-stat-approved").textContent = quotes.filter(q => q.status === "Aprovada").length;
+  document.getElementById("quotes-stat-approved").textContent = quotes.filter(isQuoteWon).length;
+  document.getElementById("quotes-stat-lost").textContent = quotes.filter(isQuoteLost).length;
 }
 
-function openQuoteModal(id) {
-  quoteForm.reset();
-  if (id) {
-    const q = quotes.find(q => q.id === id);
-    document.getElementById("quote-modal-title").textContent = "Editar cotação";
-    document.getElementById("quote-id").value = q.id;
-    document.getElementById("quote-field-client").value = q.client;
-    document.getElementById("quote-field-items").value = q.items || "";
-    document.getElementById("quote-field-value").value = q.value || "";
-    document.getElementById("quote-field-validade").value = q.validade || "";
-    document.getElementById("quote-field-status").value = q.status || "Aberta";
-    quoteBtnDelete.style.display = "inline-block";
-  } else {
-    document.getElementById("quote-modal-title").textContent = "Nova cotação";
-    document.getElementById("quote-id").value = "";
-    quoteBtnDelete.style.display = "none";
-  }
-  quoteModalBackdrop.classList.add("open");
-  document.getElementById("quote-field-client").focus();
+/* ---- alternância lista ⇄ construtor, dentro da própria tela de Cotação ---- */
+function openQuoteList() {
+  document.getElementById("subview-cotacao-lista").classList.add("active");
+  document.getElementById("subview-cotacao-builder").classList.remove("active");
 }
 
-function closeQuoteModal() { quoteModalBackdrop.classList.remove("open"); }
+function openQuoteBuilder(id) {
+  document.getElementById("subview-cotacao-lista").classList.remove("active");
+  document.getElementById("subview-cotacao-builder").classList.add("active");
 
-document.getElementById("quote-modal-close").addEventListener("click", closeQuoteModal);
-document.getElementById("quote-btn-cancel").addEventListener("click", closeQuoteModal);
-quoteModalBackdrop.addEventListener("click", e => { if (e.target === quoteModalBackdrop) closeQuoteModal(); });
+  document.getElementById("q-id").value = id || "";
+  document.getElementById("q-lead-id").value = "";
+  quoteLeadSearch.value = "";
+  document.getElementById("q-nome").value = "";
+  document.getElementById("q-email").value = "";
+  document.getElementById("q-status").value = "Enviada";
+  document.getElementById("q-consultor").value = "";
+  document.getElementById("q-consultor-email").value = "";
+  document.getElementById("q-emissao").value = "";
+  document.getElementById("q-validade").value = "";
+  document.getElementById("q-obs").value = "";
+  document.getElementById("q-busca").value = "";
+  quoteSelecionados = {};
+  document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
 
-quoteForm.addEventListener("submit", async e => {
-  e.preventDefault();
-  const id = document.getElementById("quote-id").value;
-  const data = {
-    client: document.getElementById("quote-field-client").value.trim(),
-    items: document.getElementById("quote-field-items").value.trim(),
-    value: parseFloat(document.getElementById("quote-field-value").value) || 0,
-    validade: document.getElementById("quote-field-validade").value,
-    status: document.getElementById("quote-field-status").value,
-  };
+  document.getElementById("q-btn-excluir").style.display = id ? "inline-block" : "none";
+  document.getElementById("quote-builder-title").textContent = id ? "Editar cotação" : "Nova cotação";
+
   if (id) {
-    Object.assign(quotes.find(q => q.id === id), data);
-  } else {
-    quotes.push({ id: uid(), ...data, createdAt: Date.now() });
+    const q = quotes.find(x => x.id === id);
+    if (q) {
+      document.getElementById("q-lead-id").value = q.leadId || "";
+      quoteLeadSearch.value = q.client || "";
+      document.getElementById("q-nome").value = q.client || "";
+      document.getElementById("q-email").value = q.email || "";
+      document.getElementById("q-status").value = q.status || "Enviada";
+      document.getElementById("q-consultor").value = q.consultorName || "";
+      document.getElementById("q-consultor-email").value = q.consultorEmail || "";
+      document.getElementById("q-emissao").value = q.emissao || "";
+      document.getElementById("q-validade").value = q.validade || "";
+      document.getElementById("q-obs").value = q.observacoes || "";
+      (q.itemsDetail || []).forEach(l => { if (l.id) quoteSelecionados[l.id] = l.qtd || 1; });
+    }
   }
-  renderQuotes();
-  closeQuoteModal();
-  await saveQuotes();
-});
 
-quoteBtnDelete.addEventListener("click", async () => {
-  const id = document.getElementById("quote-id").value;
+  quoteMontaDestinos();
+  quoteMontaCatalogo();
+  if (!id) initQuoteBuilderDefaults();
+  document.getElementById("q-nome").focus();
+}
+
+document.getElementById("btn-new-quote").addEventListener("click", () => openQuoteBuilder(null));
+document.getElementById("q-btn-voltar").addEventListener("click", () => { openQuoteList(); renderQuotes(); });
+
+document.getElementById("q-btn-excluir").addEventListener("click", async () => {
+  const id = document.getElementById("q-id").value;
   if (!id || !confirm("Excluir esta cotação? Essa ação não pode ser desfeita.")) return;
   quotes = quotes.filter(q => q.id !== id);
-  renderQuotes();
-  closeQuoteModal();
   await deleteQuoteRemote(id);
+  openQuoteList();
+  renderQuotes();
+});
+
+/* ---- puxar dados de um lead existente (busca por nome/e-mail) ---- */
+const quoteLeadSearch = document.getElementById("quote-lead-search");
+const quoteLeadResults = document.getElementById("quote-lead-results");
+const quoteLeadIdField = document.getElementById("q-lead-id");
+
+function renderQuoteLeadSearchResults(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { quoteLeadResults.classList.remove("open"); quoteLeadResults.innerHTML = ""; return; }
+  const matches = leads.filter(l =>
+    (l.name && l.name.toLowerCase().includes(q)) || (l.email && l.email.toLowerCase().includes(q))
+  ).slice(0, 8);
+  quoteLeadResults.innerHTML = matches.length
+    ? matches.map(l => `
+      <div class="enr-lead-result-item" data-id="${l.id}">
+        <div>${escapeHtml(l.name)}</div>
+        <div class="sub">${escapeHtml(l.email || l.phone || "sem contato")}</div>
+      </div>`).join("")
+    : `<div class="enr-lead-result-empty">Nenhum lead encontrado</div>`;
+  quoteLeadResults.classList.add("open");
+}
+
+quoteLeadSearch.addEventListener("input", () => {
+  quoteLeadIdField.value = "";
+  renderQuoteLeadSearchResults(quoteLeadSearch.value);
+});
+quoteLeadSearch.addEventListener("focus", () => {
+  if (quoteLeadSearch.value.trim()) renderQuoteLeadSearchResults(quoteLeadSearch.value);
+});
+quoteLeadSearch.addEventListener("blur", () => {
+  setTimeout(() => quoteLeadResults.classList.remove("open"), 150);
+});
+quoteLeadResults.addEventListener("mousedown", e => {
+  const item = e.target.closest(".enr-lead-result-item[data-id]");
+  if (!item) return;
+  const lead = leads.find(l => l.id === item.dataset.id);
+  if (!lead) return;
+  quoteLeadIdField.value = lead.id;
+  quoteLeadSearch.value = lead.name;
+  document.getElementById("q-nome").value = lead.name || "";
+  document.getElementById("q-email").value = lead.email || "";
+  quoteLeadResults.classList.remove("open");
 });
 
 /* ============================================================
@@ -1610,18 +1716,6 @@ const CATALOG_ICONS = {
   escola: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>`,
   turno: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
 };
-
-/* ---- sub-abas Catálogo / Nova Cotação ---- */
-function initProdutosSubtabs() {
-  document.querySelectorAll("#produtos-subtabs .subtab").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("#produtos-subtabs .subtab").forEach(b => b.classList.toggle("active", b === btn));
-      const target = btn.dataset.subtab;
-      document.getElementById("subview-catalogo").classList.toggle("active", target === "catalogo");
-      document.getElementById("subview-cotacao-builder").classList.toggle("active", target === "cotacao");
-    });
-  });
-}
 
 /* ---- estatísticas ---- */
 function renderProductsDashboard() {
@@ -2140,6 +2234,8 @@ document.getElementById("q-btn-limpar").addEventListener("click", () => {
   if (!confirm("Limpar os dados do estudante e os serviços marcados?")) return;
   ["q-nome", "q-email", "q-obs", "q-busca"].forEach(id => { document.getElementById(id).value = ""; });
   document.getElementById("q-status").value = "Enviada";
+  document.getElementById("q-lead-id").value = "";
+  quoteLeadSearch.value = "";
   quoteSelecionados = {};
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
   quoteMontaCatalogo();
@@ -2171,21 +2267,55 @@ function quoteValida() {
   return true;
 }
 
-function quoteGerar() {
+async function quoteGerar() {
   if (!quoteValida()) return;
 
   const nome = document.getElementById("q-nome").value.trim();
+  const email = document.getElementById("q-email").value.trim();
+  const status = document.getElementById("q-status").value;
+  const consultorNome = document.getElementById("q-consultor").value.trim();
+  const consultorEmail = document.getElementById("q-consultor-email").value.trim();
+  const emissao = document.getElementById("q-emissao").value;
+  const validade = document.getElementById("q-validade").value;
+  const obs = document.getElementById("q-obs").value.trim();
+  const leadId = document.getElementById("q-lead-id").value || null;
+  const linhas = quoteLinhas();
+  const total = quoteTotal();
+  const itemsSummary = linhas.map(l => l.p.nome).slice(0, 3).join(", ") + (linhas.length > 3 ? ` +${linhas.length - 3}` : "");
+
+  /* ---- salva a cotação na tabela quotes (lista + filtros) ---- */
+  const id = document.getElementById("q-id").value || uid();
+  document.getElementById("q-id").value = id;
+  const existing = quotes.find(q => q.id === id);
+  const consultantUser = users.find(u => u.email && u.email.toLowerCase() === consultorEmail.toLowerCase());
+  let consultorId = null;
+  if (consultantUser) consultorId = consultantUser.id;
+  else if (session && session.email && consultorEmail.toLowerCase() === session.email.toLowerCase()) consultorId = session.id;
+  else if (existing) consultorId = existing.consultorId;
+
+  const record = {
+    id, client: nome, email, items: itemsSummary, value: total, validade, status,
+    leadId, consultorId, consultorName: consultorNome, consultorEmail, emissao, observacoes: obs,
+    itemsDetail: linhas.map(l => ({ id: l.p.id, nome: l.p.nome, qtd: l.qtd, preco: l.p.preco, total: l.total })),
+    createdAt: existing ? existing.createdAt : Date.now(),
+  };
+  if (existing) Object.assign(existing, record);
+  else quotes.push(record);
+  renderQuotes();
+  await saveQuoteRow(record);
+
+  /* ---- gera o documento imprimível (PDF via "Salvar como PDF") ---- */
   document.getElementById("d-nome").textContent = nome;
-  document.getElementById("d-email").textContent = document.getElementById("q-email").value.trim();
+  document.getElementById("d-email").textContent = email;
   document.getElementById("d-titulo").textContent = "Cotação para " + nome;
-  document.getElementById("d-status").textContent = document.getElementById("q-status").value;
-  document.getElementById("d-consultor").textContent = document.getElementById("q-consultor").value.trim();
-  document.getElementById("d-consultor-email").textContent = document.getElementById("q-consultor-email").value.trim();
-  document.getElementById("d-emissao").textContent = formatDate(document.getElementById("q-emissao").value);
-  document.getElementById("d-validade").textContent = formatDate(document.getElementById("q-validade").value);
+  document.getElementById("d-status").textContent = status;
+  document.getElementById("d-consultor").textContent = consultorNome;
+  document.getElementById("d-consultor-email").textContent = consultorEmail;
+  document.getElementById("d-emissao").textContent = formatDate(emissao);
+  document.getElementById("d-validade").textContent = formatDate(validade);
 
   let html = "";
-  quoteLinhas().forEach(l => {
+  linhas.forEach(l => {
     html += `<tr class="item"><td>${escapeHtml(l.p.nome)}</td><td class="c">${l.qtd}</td><td class="r">${currency(l.p.preco)}</td><td class="tot">${currency(l.total)}</td></tr>`;
     (l.p.subs || []).forEach(s => {
       html += `<tr class="subrow-doc"><td class="name">${escapeHtml(s.nome)}</td><td class="c"></td><td class="r"></td><td class="tot">${currency(s.valor)}</td></tr>`;
@@ -2193,11 +2323,9 @@ function quoteGerar() {
   });
   document.getElementById("d-itens").innerHTML = html;
 
-  const t = quoteTotal();
-  document.getElementById("d-subtotal").textContent = currency(t);
-  document.getElementById("d-total").textContent = currency(t);
+  document.getElementById("d-subtotal").textContent = currency(total);
+  document.getElementById("d-total").textContent = currency(total);
 
-  const obs = document.getElementById("q-obs").value.trim();
   document.getElementById("d-obs").hidden = !obs;
   document.getElementById("d-obs-txt").textContent = obs;
 
@@ -3630,7 +3758,12 @@ document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   if (modalBackdrop.classList.contains("open")) closeDealModal();
   if (leadModalBackdrop.classList.contains("open")) closeLeadModal();
-  if (quoteModalBackdrop.classList.contains("open")) closeQuoteModal();
+  if (document.getElementById("subview-cotacao-builder").classList.contains("active") && !document.getElementById("quote-doc-overlay").hidden) {
+    document.getElementById("quote-doc-overlay").hidden = true;
+  } else if (document.getElementById("subview-cotacao-builder").classList.contains("active")) {
+    openQuoteList();
+    renderQuotes();
+  }
   if (productModalBackdrop.classList.contains("open")) closeProductModal();
   if (userModalBackdrop.classList.contains("open")) closeUserModal();
   if (assignModalBackdrop.classList.contains("open")) closeAssignModal();
@@ -3676,11 +3809,9 @@ document.addEventListener("keydown", e => {
   renderLeadFilterOptions();
   renderLeads();
   renderQuotes();
-  initProdutosSubtabs();
   renderCatalogList();
   quoteMontaDestinos();
   quoteMontaCatalogo();
-  initQuoteBuilderDefaults();
   initFinanceiroSubtabs();
   renderExpenseFilterOptions();
   renderFinanceiroOverview();

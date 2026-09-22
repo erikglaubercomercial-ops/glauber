@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM de Vendas</title>
-<link rel="stylesheet" href="style.css?v=1790069932">
+<link rel="stylesheet" href="style.css?v=1790071250">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -251,81 +251,75 @@
 
       <!-- COTACAO VIEW -->
       <section class="view" id="view-cotacao">
-        <div class="stat-row">
-          <div class="stat-card">
-            <span class="stat-label">Cotações abertas</span>
-            <span class="stat-value" id="quotes-stat-open">0</span>
+        <!-- LISTA DE COTAÇÕES -->
+        <div class="subview active" id="subview-cotacao-lista">
+          <div class="stat-row">
+            <div class="stat-card">
+              <span class="stat-label">Cotações abertas</span>
+              <span class="stat-value" id="quotes-stat-open">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Valor cotado</span>
+              <span class="stat-value" id="quotes-stat-value">€ 0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Ganhas</span>
+              <span class="stat-value stat-good" id="quotes-stat-approved">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Perdidas</span>
+              <span class="stat-value stat-bad" id="quotes-stat-lost">0</span>
+            </div>
           </div>
-          <div class="stat-card">
-            <span class="stat-label">Valor cotado</span>
-            <span class="stat-value" id="quotes-stat-value">€ 0</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Aprovadas</span>
-            <span class="stat-value stat-good" id="quotes-stat-approved">0</span>
-          </div>
-        </div>
 
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Cotações</h2>
-            <a href="https://claude.ai/artifact/TP2symvqqkocx5MCh2Peqa" target="_blank" rel="noopener" class="btn btn-primary" id="btn-new-quote">+ Nova cotação ↗</a>
-          </div>
-          <div class="filter-chip-row" id="quotes-filter-chip-row" style="display:none;">
-            <span>Mostrando cotações de: <strong id="quotes-filter-chip-label"></strong></span>
-            <button type="button" class="btn-icon" id="quotes-filter-chip-clear" title="Limpar filtro">&times;</button>
-          </div>
-          <table class="data-table">
-            <thead>
-              <tr><th>Cliente</th><th>Itens</th><th>Validade</th><th>Status</th><th>Valor</th><th></th></tr>
-            </thead>
-            <tbody id="quotes-tbody"></tbody>
-          </table>
-          <div class="empty-hint" id="quotes-empty" style="display:none;">Nenhuma cotação cadastrada ainda.</div>
-        </div>
-      </section>
-
-      <!-- PRODUTOS VIEW -->
-      <section class="view" id="view-produtos">
-        <div class="stat-row">
-          <div class="stat-card">
-            <span class="stat-label">Produtos no catálogo</span>
-            <span class="stat-value" id="products-stat-total">0</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Visíveis para consultores</span>
-            <span class="stat-value stat-good" id="products-stat-active">0</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Destinos cadastrados</span>
-            <span class="stat-value" id="products-stat-destinos">0</span>
-          </div>
-        </div>
-
-        <div class="subtabs" id="produtos-subtabs">
-          <button type="button" class="subtab active" data-subtab="catalogo">Catálogo</button>
-          <button type="button" class="subtab" data-subtab="cotacao">Nova Cotação</button>
-        </div>
-
-        <!-- CATÁLOGO (ADM) -->
-        <div class="subview active" id="subview-catalogo">
           <div class="panel">
             <div class="panel-header">
-              <h2>Catálogo de Produtos</h2>
-              <div style="display:flex; gap:8px;">
-                <a href="https://claude.ai/artifact/TP2symvqqkocx5MCh2Peqa" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Cotações Peregrinos ↗</a>
-                <button type="button" class="btn btn-primary btn-sm" id="btn-new-catalog-item">+ Novo produto</button>
-              </div>
+              <h2>Cotações</h2>
+              <button type="button" class="btn btn-primary" id="btn-new-quote">+ Nova cotação</button>
             </div>
-            <div id="catalog-list" class="catalog-admin-list"></div>
+            <div class="filter-bar">
+              <input type="text" id="quotes-filter-search" placeholder="Buscar por nome ou e-mail do cliente">
+              <select id="quotes-filter-status">
+                <option value="">Status (todas)</option>
+                <option value="ganha">Somente ganhas</option>
+                <option value="perdida">Somente perdidas</option>
+              </select>
+              <select id="quotes-filter-consultor"></select>
+              <button type="button" class="btn btn-ghost btn-sm" id="quotes-filter-clear">Limpar filtros</button>
+            </div>
+            <div class="filter-chip-row" id="quotes-filter-chip-row" style="display:none;">
+              <span>Mostrando cotações de: <strong id="quotes-filter-chip-label"></strong></span>
+              <button type="button" class="btn-icon" id="quotes-filter-chip-clear" title="Limpar filtro">&times;</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Cliente</th><th>E-mail</th><th>Itens</th><th>Consultor</th><th>Validade</th><th>Status</th><th>Valor</th><th></th></tr>
+              </thead>
+              <tbody id="quotes-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="quotes-empty" style="display:none;">Nenhuma cotação cadastrada ainda.</div>
           </div>
         </div>
 
-        <!-- NOVA COTAÇÃO (builder) -->
+        <!-- CONSTRUTOR DE COTAÇÃO -->
         <div class="subview" id="subview-cotacao-builder">
+          <div class="quote-builder-topbar">
+            <button type="button" class="btn btn-ghost btn-sm" id="q-btn-voltar">← Voltar para a lista</button>
+            <h2 id="quote-builder-title">Nova cotação</h2>
+          </div>
+
           <div class="panel" style="margin-bottom:16px;">
             <div class="panel-header"><h2>Dados do estudante</h2></div>
             <div class="quote-form-body">
+              <input type="hidden" id="q-id">
+              <label class="f"><span>Puxar dados de um lead existente (opcional)</span>
+                <div class="enr-lead-search-wrap">
+                  <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input type="text" id="quote-lead-search" placeholder="Buscar por nome ou e-mail" autocomplete="off">
+                  <div class="enr-lead-results" id="quote-lead-results"></div>
+                </div>
+                <input type="hidden" id="q-lead-id">
+              </label>
               <div class="grid-2">
                 <label class="f"><span>Nome do estudante *</span><input type="text" id="q-nome" placeholder="Mariah Luísa"></label>
                 <label class="f"><span>E-mail do estudante *</span><input type="email" id="q-email" placeholder="nome@email.com"></label>
@@ -373,9 +367,36 @@
 
           <div class="quote-summary-bar">
             <div class="sum">Total da cotação<b id="quote-preview-total">€0,00</b></div>
+            <button type="button" class="btn btn-danger" id="q-btn-excluir" style="display:none;">Excluir cotação</button>
             <button type="button" class="btn btn-ghost" id="q-btn-limpar">Limpar</button>
-            <button type="button" class="btn btn-primary" id="q-btn-gerar">Gerar cotação</button>
+            <button type="button" class="btn btn-primary" id="q-btn-gerar">Gerar cotação (PDF)</button>
           </div>
+        </div>
+      </section>
+
+      <!-- PRODUTOS VIEW -->
+      <section class="view" id="view-produtos">
+        <div class="stat-row">
+          <div class="stat-card">
+            <span class="stat-label">Produtos no catálogo</span>
+            <span class="stat-value" id="products-stat-total">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Visíveis para consultores</span>
+            <span class="stat-value stat-good" id="products-stat-active">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Destinos cadastrados</span>
+            <span class="stat-value" id="products-stat-destinos">0</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Catálogo de Produtos</h2>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-new-catalog-item">+ Novo produto</button>
+          </div>
+          <div id="catalog-list" class="catalog-admin-list"></div>
         </div>
       </section>
 
@@ -1010,45 +1031,6 @@
     </div>
   </div>
 
-  <!-- MODAL: COTAÇÃO -->
-  <div class="modal-backdrop" id="quote-modal-backdrop">
-    <div class="modal">
-      <div class="modal-header">
-        <h2 id="quote-modal-title">Nova cotação</h2>
-        <button class="btn-icon" id="quote-modal-close">&times;</button>
-      </div>
-      <form id="quote-form">
-        <input type="hidden" id="quote-id">
-        <label>Cliente
-          <input type="text" id="quote-field-client" required placeholder="Ex: Padaria Bom Pão">
-        </label>
-        <label>Itens / Descrição
-          <input type="text" id="quote-field-items" placeholder="Ex: 3x Forno Industrial">
-        </label>
-        <label>Valor (€)
-          <input type="number" id="quote-field-value" min="0" step="0.01" placeholder="0,00">
-        </label>
-        <label>Validade
-          <input type="date" id="quote-field-validade">
-        </label>
-        <label>Status
-          <select id="quote-field-status">
-            <option value="Aberta">Aberta</option>
-            <option value="Enviada">Enviada</option>
-            <option value="Aprovada">Aprovada</option>
-            <option value="Recusada">Recusada</option>
-          </select>
-        </label>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="quote-btn-delete" style="display:none;">Excluir</button>
-          <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="quote-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- MODAL: PRODUTO DO CATÁLOGO -->
   <div class="modal-backdrop" id="product-modal-backdrop">
     <div class="modal modal-lg">
@@ -1212,7 +1194,7 @@
   </div>
 
   <script src="config.js?v=1790028144"></script>
-  <script src="auth.js?v=1790068995"></script>
-  <script src="script.js?v=1790068995"></script>
+  <script src="auth.js?v=1790071250"></script>
+  <script src="script.js?v=1790071250"></script>
 </body>
 </html>
