@@ -170,6 +170,7 @@ function dealFromDb(r) {
     id: r.id, name: r.name, contact: r.contact || "", info: r.info || "",
     value: Number(r.value) || 0, stage: r.stage, notes: r.notes || "",
     leadId: r.lead_id || null, followUpAt: r.follow_up_at || null,
+    firstInteractionAt: r.first_interaction_at ? new Date(r.first_interaction_at).getTime() : null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     closedAt: r.closed_at ? new Date(r.closed_at).getTime() : null,
   };
@@ -178,6 +179,7 @@ function dealToDb(d) {
   return {
     id: d.id, name: d.name, contact: d.contact, info: d.info, value: d.value, stage: d.stage, notes: d.notes,
     lead_id: d.leadId || null, follow_up_at: d.followUpAt || null,
+    first_interaction_at: d.firstInteractionAt ? new Date(d.firstInteractionAt).toISOString() : null,
     created_at: new Date(d.createdAt).toISOString(),
     closed_at: d.closedAt ? new Date(d.closedAt).toISOString() : null,
   };
@@ -206,9 +208,20 @@ function createDealForLead(lead) {
 
 /* clique no botão de WhatsApp de um lead avança o negócio dele para a próxima
    coluna do pipeline — nunca fecha automaticamente (Ganho/Perdido) */
+/* registra a data/hora da primeira interação do negócio, a partir do
+   primeiro clique no botão de WhatsApp (lista de Leads ou card do
+   Pipeline) — não sobrescreve se já tiver sido registrada antes */
+async function recordFirstInteraction(deal) {
+  if (!deal || deal.firstInteractionAt) return;
+  deal.firstInteractionAt = Date.now();
+  await saveDeals();
+}
+
 function advanceLeadPipelineStage(leadId) {
   const deal = deals.find(d => d.leadId === leadId);
-  if (!deal || isClosedStage(deal.stage)) return;
+  if (!deal) return;
+  recordFirstInteraction(deal);
+  if (isClosedStage(deal.stage)) return;
   const idx = STAGES.findIndex(s => s.id === deal.stage);
   if (idx === -1 || idx + 1 >= STAGES.length) return;
   const next = STAGES[idx + 1];
@@ -366,7 +379,10 @@ function renderCard(deal) {
   card.addEventListener("click", () => openDealModal(deal.id));
 
   const wppLink = card.querySelector("a.wpp-btn");
-  if (wppLink) wppLink.addEventListener("click", e => e.stopPropagation());
+  if (wppLink) wppLink.addEventListener("click", e => {
+    e.stopPropagation();
+    recordFirstInteraction(deal);
+  });
   card.querySelector('[data-act="followup"]').addEventListener("click", e => {
     e.stopPropagation();
     openFollowUpModal(deal.id);
@@ -473,18 +489,28 @@ function openDealModal(id) {
   renderStageOptions();
   if (id) {
     const deal = deals.find(d => d.id === id);
+    const lead = deal.leadId ? leads.find(l => l.id === deal.leadId) : null;
+    const consultorId = dealConsultorId(deal);
+    const consultant = consultorId ? users.find(u => u.id === consultorId) : null;
     document.getElementById("modal-title").textContent = "Editar negócio";
     document.getElementById("deal-id").value = deal.id;
     document.getElementById("field-name").value = deal.name;
+    document.getElementById("field-source").value = (lead && lead.source) || "—";
+    document.getElementById("field-consultor-display").value = (consultant && consultant.name) || "—";
     document.getElementById("field-contact").value = deal.contact || "";
     document.getElementById("field-info").value = deal.info || "";
-    document.getElementById("field-value").value = deal.value || "";
+    document.getElementById("field-first-interaction").value = deal.firstInteractionAt
+      ? new Date(deal.firstInteractionAt).toLocaleString("pt-BR")
+      : "Ainda sem interação registrada";
     document.getElementById("field-stage").value = deal.stage;
     document.getElementById("field-notes").value = deal.notes || "";
     btnDelete.style.display = "inline-block";
   } else {
     document.getElementById("modal-title").textContent = "Novo negócio";
     document.getElementById("deal-id").value = "";
+    document.getElementById("field-source").value = "—";
+    document.getElementById("field-consultor-display").value = "—";
+    document.getElementById("field-first-interaction").value = "Ainda sem interação registrada";
     document.getElementById("field-stage").value = STAGES[0] ? STAGES[0].id : "";
     btnDelete.style.display = "none";
   }
@@ -507,21 +533,15 @@ dealForm.addEventListener("submit", async e => {
     name: document.getElementById("field-name").value.trim(),
     contact: document.getElementById("field-contact").value.trim(),
     info: document.getElementById("field-info").value.trim(),
-    value: parseFloat(document.getElementById("field-value").value) || 0,
-    stage,
     notes: document.getElementById("field-notes").value.trim(),
   };
 
   let deal;
   if (id) {
     deal = deals.find(d => d.id === id);
-    const wasClosed = isClosedStage(deal.stage);
-    const nowClosed = isClosedStage(stage);
     Object.assign(deal, data);
-    if (nowClosed && !wasClosed) deal.closedAt = Date.now();
-    if (!nowClosed) deal.closedAt = null;
   } else {
-    deal = { id: uid(), ...data, createdAt: Date.now(), closedAt: isClosedStage(stage) ? Date.now() : null };
+    deal = { id: uid(), ...data, value: 0, stage, createdAt: Date.now(), closedAt: isClosedStage(stage) ? Date.now() : null };
     deals.push(deal);
   }
 

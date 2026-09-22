@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790096238">
+<link rel="stylesheet" href="style.css?v=1790101114">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -680,16 +680,24 @@
         <label>Cliente / Empresa
           <input type="text" id="field-name" required placeholder="Ex: Padaria Bom Pão">
         </label>
+        <div class="grid-2">
+          <label>Origem
+            <input type="text" id="field-source" disabled>
+          </label>
+          <label>Consultor
+            <input type="text" id="field-consultor-display" disabled>
+          </label>
+        </div>
         <label>Contato
           <input type="text" id="field-contact" placeholder="Ex: Maria Silva">
         </label>
         <label>Telefone / E-mail
           <input type="text" id="field-info" placeholder="Ex: (11) 99999-0000">
         </label>
-        <label>Valor estimado (€)
-          <input type="number" id="field-value" min="0" step="0.01" placeholder="0,00">
+        <label>Primeira interação
+          <input type="text" id="field-first-interaction" disabled>
         </label>
-        <label>Estágio
+        <label style="display:none;">Estágio
           <select id="field-stage"></select>
         </label>
         <label>Notas
@@ -1462,7 +1470,7 @@
   </div>
 
   <script src="config.js?v=1790028144"></script>
-  <script src="auth.js?v=1790096238"></script>
-  <script src="script.js?v=1790096238"></script>
+  <script src="auth.js?v=1790101114"></script>
+  <script src="script.js?v=1790101114"></script>
 </body>
 </html>
