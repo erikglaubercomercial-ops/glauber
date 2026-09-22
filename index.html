@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM de Vendas</title>
-<link rel="stylesheet" href="style.css?v=1790082831">
+<link rel="stylesheet" href="style.css?v=1790084448">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -61,6 +61,11 @@
         <button class="nav-item" data-view="matriculas">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 8h7M9 12h5"/></svg>
           <span>Matrículas</span>
+        </button>
+
+        <button class="nav-item" data-view="colaboradores">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Colaboradores</span>
         </button>
 
         <div class="nav-label" id="nav-label-admin" style="display:none;">ADMINISTRAÇÃO</div>
@@ -553,6 +558,49 @@
         </div>
       </section>
 
+      <!-- COLABORADORES VIEW -->
+      <section class="view" id="view-colaboradores">
+        <div class="stat-row">
+          <div class="stat-card">
+            <span class="stat-label">Total de colaboradores</span>
+            <span class="stat-value" id="collab-stat-total">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Aguardando colaborador</span>
+            <span class="stat-value" id="collab-stat-waiting">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Preenchidos</span>
+            <span class="stat-value stat-good" id="collab-stat-filled">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Completos</span>
+            <span class="stat-value stat-good" id="collab-stat-complete">0</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Colaboradores</h2>
+            <button type="button" class="btn btn-primary" id="btn-new-collaborator">+ Novo colaborador</button>
+          </div>
+          <div class="filter-bar">
+            <select id="collab-filter-status">
+              <option value="">Status (todos)</option>
+              <option value="Aguardando colaborador">Aguardando colaborador</option>
+              <option value="Preenchido pelo colaborador">Preenchido pelo colaborador</option>
+              <option value="Completo">Completo</option>
+            </select>
+            <button type="button" class="btn btn-ghost btn-sm" id="collab-filter-clear">Limpar filtros</button>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>Nome</th><th>Cargo</th><th>Departamento</th><th>Status</th><th></th></tr></thead>
+            <tbody id="collaborators-tbody"></tbody>
+          </table>
+          <div class="empty-hint" id="collaborators-empty" style="display:none;">Nenhum colaborador cadastrado ainda.</div>
+        </div>
+      </section>
+
       <!-- USUÁRIOS VIEW (somente ADM) -->
       <section class="view" id="view-usuarios">
         <div class="stat-row">
@@ -600,6 +648,7 @@
                   <th>Produtos</th>
                   <th>Financeiro</th>
                   <th>Matrículas</th>
+                  <th>Colaboradores</th>
                 </tr>
               </thead>
               <tbody id="permissions-tbody"></tbody>
@@ -1039,6 +1088,174 @@
     </div>
   </div>
 
+  <!-- MODAL: COLABORADOR (cadastro/edição completa) -->
+  <div class="modal-backdrop" id="collaborator-modal-backdrop">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="collaborator-modal-title">Colaborador</h2>
+        <button class="btn-icon" id="collaborator-modal-close">&times;</button>
+      </div>
+      <form id="collaborator-form">
+        <input type="hidden" id="collab-id">
+
+        <div class="enr-link-row" id="collab-link-row" style="display:none;">
+          <span>Link para o colaborador preencher:</span>
+          <input type="text" id="collab-public-link" readonly>
+          <button type="button" class="btn btn-ghost btn-sm" id="collab-copy-link">Copiar link</button>
+        </div>
+
+        <div class="enr-section-title">Dados profissionais</div>
+        <div class="grid-2">
+          <label>Nome completo *
+            <input type="text" id="collab-field-name" required placeholder="Ex: João Pereira">
+          </label>
+          <label>Status
+            <select id="collab-field-status">
+              <option value="Aguardando colaborador">Aguardando colaborador</option>
+              <option value="Preenchido pelo colaborador">Preenchido pelo colaborador</option>
+              <option value="Completo">Completo</option>
+            </select>
+          </label>
+          <label>E-mail corporativo
+            <input type="email" id="collab-field-work-email" placeholder="nome@peregrinosintercambio.com">
+          </label>
+          <label>Cargo / função
+            <input type="text" id="collab-field-role-title" placeholder="Ex: Consultor de vendas">
+          </label>
+          <label>Departamento
+            <input type="text" id="collab-field-department" placeholder="Ex: Comercial">
+          </label>
+          <label>Tipo de contrato
+            <select id="collab-field-contract-type">
+              <option value="">Selecione</option>
+              <option value="CLT">CLT</option>
+              <option value="PJ">PJ</option>
+              <option value="Estágio">Estágio</option>
+            </select>
+          </label>
+          <label>Data de início
+            <input type="date" id="collab-field-start-date">
+          </label>
+          <label>Gestor responsável
+            <select id="collab-field-manager"></select>
+          </label>
+        </div>
+
+        <div class="enr-section-title">Dados pessoais (preenchidos pelo colaborador)</div>
+        <div class="grid-2">
+          <label>Data de nascimento
+            <input type="date" id="collab-field-birth-date">
+          </label>
+          <label>Nacionalidade
+            <input type="text" id="collab-field-nationality">
+          </label>
+          <label>CPF
+            <input type="text" id="collab-field-cpf">
+          </label>
+          <label>RG
+            <input type="text" id="collab-field-rg">
+          </label>
+          <label>Estado civil
+            <select id="collab-field-marital-status">
+              <option value="">Selecione</option>
+              <option value="Solteiro(a)">Solteiro(a)</option>
+              <option value="Casado(a)">Casado(a)</option>
+              <option value="Divorciado(a)">Divorciado(a)</option>
+              <option value="Viúvo(a)">Viúvo(a)</option>
+              <option value="União estável">União estável</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </label>
+          <label>Telefone pessoal
+            <input type="text" id="collab-field-personal-phone">
+          </label>
+          <label>E-mail pessoal
+            <input type="email" id="collab-field-personal-email">
+          </label>
+        </div>
+
+        <div class="enr-section-title">Endereço</div>
+        <div class="grid-2">
+          <label>Rua
+            <input type="text" id="collab-field-street">
+          </label>
+          <label>Número
+            <input type="text" id="collab-field-number">
+          </label>
+          <label>Complemento
+            <input type="text" id="collab-field-complement">
+          </label>
+          <label>Bairro
+            <input type="text" id="collab-field-neighborhood">
+          </label>
+          <label>Cidade
+            <input type="text" id="collab-field-city">
+          </label>
+          <label>Estado
+            <input type="text" id="collab-field-state" maxlength="2" placeholder="Ex: SP">
+          </label>
+          <label>CEP
+            <input type="text" id="collab-field-zip">
+          </label>
+        </div>
+
+        <div class="enr-section-title">Contato de emergência</div>
+        <div class="grid-2">
+          <label>Nome
+            <input type="text" id="collab-field-emergency-name">
+          </label>
+          <label>Parentesco
+            <input type="text" id="collab-field-emergency-relationship">
+          </label>
+          <label>Telefone
+            <input type="text" id="collab-field-emergency-phone">
+          </label>
+        </div>
+
+        <div class="enr-section-title">Documentos</div>
+        <div class="grid-2">
+          <label>Foto do RG/CPF
+            <div class="enr-photo-row">
+              <input type="file" id="collab-field-id-document" accept="image/*,.pdf">
+              <a href="#" id="collab-id-document-view-link" target="_blank" rel="noopener" style="display:none;">Ver arquivo atual</a>
+            </div>
+          </label>
+          <label>Comprovante de residência
+            <div class="enr-photo-row">
+              <input type="file" id="collab-field-address-proof" accept="image/*,.pdf">
+              <a href="#" id="collab-address-proof-view-link" target="_blank" rel="noopener" style="display:none;">Ver arquivo atual</a>
+            </div>
+          </label>
+          <label>Foto 3x4
+            <div class="enr-photo-row">
+              <input type="file" id="collab-field-photo" accept="image/*">
+              <a href="#" id="collab-photo-view-link" target="_blank" rel="noopener" style="display:none;">Ver arquivo atual</a>
+            </div>
+          </label>
+          <label>Currículo
+            <div class="enr-photo-row">
+              <input type="file" id="collab-field-resume" accept="image/*,.pdf">
+              <a href="#" id="collab-resume-view-link" target="_blank" rel="noopener" style="display:none;">Ver arquivo atual</a>
+            </div>
+          </label>
+          <label>Carteira de trabalho (se CLT)
+            <div class="enr-photo-row">
+              <input type="file" id="collab-field-work-card" accept="image/*,.pdf">
+              <a href="#" id="collab-work-card-view-link" target="_blank" rel="noopener" style="display:none;">Ver arquivo atual</a>
+            </div>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="collab-btn-delete" style="display:none;">Excluir</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="collab-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: PRODUTO DO CATÁLOGO -->
   <div class="modal-backdrop" id="product-modal-backdrop">
     <div class="modal modal-lg">
@@ -1202,7 +1419,7 @@
   </div>
 
   <script src="config.js?v=1790028144"></script>
-  <script src="auth.js?v=1790082831"></script>
-  <script src="script.js?v=1790082831"></script>
+  <script src="auth.js?v=1790084448"></script>
+  <script src="script.js?v=1790084448"></script>
 </body>
 </html>

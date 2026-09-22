@@ -52,6 +52,7 @@ const VIEW_TITLES = {
   produtos: "Produtos",
   financeiro: "Financeiro",
   matriculas: "Matrículas",
+  colaboradores: "Colaboradores",
   usuarios: "Usuários",
 };
 
@@ -72,7 +73,7 @@ function initNavigation() {
     document.getElementById("btn-manage-stages").style.display = "";
   }
 
-  const firstAccessible = ["dashboard", "leads", "pipeline", "cotacao", "produtos", "financeiro", "matriculas", "usuarios"].find(canAccessView);
+  const firstAccessible = ["dashboard", "leads", "pipeline", "cotacao", "produtos", "financeiro", "matriculas", "colaboradores", "usuarios"].find(canAccessView);
   switchView(firstAccessible || "leads");
 }
 
@@ -3429,6 +3430,292 @@ enrBtnDelete.addEventListener("click", async () => {
 });
 
 /* ============================================================
+   COLABORADORES — cadastro de novos funcionários, com link
+   público (sem login) para o próprio colaborador preencher seus
+   dados pessoais e enviar documentos. Mesmo padrão de Matrículas.
+   ============================================================ */
+function collaboratorFromDb(r) {
+  return {
+    id: r.id, managerId: r.manager_id,
+    name: r.name, workEmail: r.work_email || "", roleTitle: r.role_title || "",
+    department: r.department || "", startDate: r.start_date, contractType: r.contract_type || "",
+    birthDate: r.birth_date, cpf: r.cpf || "", rg: r.rg || "",
+    maritalStatus: r.marital_status || "", nationality: r.nationality || "",
+    personalPhone: r.personal_phone || "", personalEmail: r.personal_email || "",
+    emergencyName: r.emergency_name || "", emergencyRelationship: r.emergency_relationship || "", emergencyPhone: r.emergency_phone || "",
+    addressStreet: r.address_street || "", addressNumber: r.address_number || "",
+    addressComplement: r.address_complement || "", addressNeighborhood: r.address_neighborhood || "",
+    addressCity: r.address_city || "", addressState: r.address_state || "", addressZip: r.address_zip || "",
+    idDocumentPath: r.id_document_path || null, addressProofPath: r.address_proof_path || null,
+    photoPath: r.photo_path || null, resumePath: r.resume_path || null, workCardPath: r.work_card_path || null,
+    status: r.status, publicToken: r.public_token,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function collaboratorToDb(c) {
+  return {
+    id: c.id, manager_id: c.managerId || null,
+    name: c.name, work_email: c.workEmail, role_title: c.roleTitle,
+    department: c.department, start_date: c.startDate || null, contract_type: c.contractType,
+    birth_date: c.birthDate || null, cpf: c.cpf, rg: c.rg,
+    marital_status: c.maritalStatus, nationality: c.nationality,
+    personal_phone: c.personalPhone, personal_email: c.personalEmail,
+    emergency_name: c.emergencyName, emergency_relationship: c.emergencyRelationship, emergency_phone: c.emergencyPhone,
+    address_street: c.addressStreet, address_number: c.addressNumber,
+    address_complement: c.addressComplement, address_neighborhood: c.addressNeighborhood,
+    address_city: c.addressCity, address_state: c.addressState, address_zip: c.addressZip,
+    id_document_path: c.idDocumentPath, address_proof_path: c.addressProofPath,
+    photo_path: c.photoPath, resume_path: c.resumePath, work_card_path: c.workCardPath,
+    status: c.status,
+  };
+}
+
+async function loadCollaborators() {
+  const { data, error } = await supabase.from("collaborators").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar colaboradores:", error); return []; }
+  return data.map(collaboratorFromDb);
+}
+async function saveCollaboratorRemote(c) {
+  const { data, error } = await supabase.from("collaborators").upsert(collaboratorToDb(c)).select().single();
+  if (error) { console.error("Erro ao salvar colaborador:", error); return null; }
+  return collaboratorFromDb(data);
+}
+async function deleteCollaboratorRemote(id) {
+  const { error } = await supabase.from("collaborators").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir colaborador:", error);
+}
+
+const COLLAB_DOC_FIELDS = [
+  { key: "idDocumentPath", input: "collab-field-id-document", link: "collab-id-document-view-link", slug: "rg-cpf" },
+  { key: "addressProofPath", input: "collab-field-address-proof", link: "collab-address-proof-view-link", slug: "comprovante-residencia" },
+  { key: "photoPath", input: "collab-field-photo", link: "collab-photo-view-link", slug: "foto-3x4" },
+  { key: "resumePath", input: "collab-field-resume", link: "collab-resume-view-link", slug: "curriculo" },
+  { key: "workCardPath", input: "collab-field-work-card", link: "collab-work-card-view-link", slug: "carteira-trabalho" },
+];
+
+async function uploadCollaboratorDocument(file, collaboratorId, slug) {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${collaboratorId}/${slug}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("collaborator-documents").upload(path, file, { upsert: true });
+  if (error) { console.error("Erro ao enviar documento do colaborador:", error); return null; }
+  return path;
+}
+async function getCollaboratorDocSignedUrl(path) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from("collaborator-documents").createSignedUrl(path, 3600);
+  if (error) { console.error("Erro ao gerar link do documento:", error); return null; }
+  return data.signedUrl;
+}
+
+function buildPublicCollaboratorUrl(token) {
+  return `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}colaborador-publico.html?token=${token}`;
+}
+
+const COLLAB_STATUS_BADGE = {
+  "Aguardando colaborador": "badge-warn",
+  "Preenchido pelo colaborador": "badge-neutral",
+  "Completo": "badge-good",
+};
+
+let collaborators = [];
+
+function getFilteredCollaborators() {
+  const status = document.getElementById("collab-filter-status").value;
+  return collaborators.filter(c => !status || c.status === status);
+}
+
+function renderCollaborators() {
+  const filtered = getFilteredCollaborators().slice().sort((a, b) => b.createdAt - a.createdAt);
+  const tbody = document.getElementById("collaborators-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("collaborators-empty").style.display = filtered.length === 0 ? "block" : "none";
+  filtered.forEach(c => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(c.name || "—")}</td>
+      <td class="cell-muted">${escapeHtml(c.roleTitle || "—")}</td>
+      <td class="cell-muted">${escapeHtml(c.department || "—")}</td>
+      <td><span class="badge ${COLLAB_STATUS_BADGE[c.status] || "badge-neutral"}">${escapeHtml(c.status)}</span></td>
+      <td class="cell-actions">›</td>
+    `;
+    tr.addEventListener("click", () => openCollaboratorModal(c.id));
+    tbody.appendChild(tr);
+  });
+  renderCollaboratorsDashboard();
+}
+
+function renderCollaboratorsDashboard() {
+  document.getElementById("collab-stat-total").textContent = collaborators.length;
+  document.getElementById("collab-stat-waiting").textContent = collaborators.filter(c => c.status === "Aguardando colaborador").length;
+  document.getElementById("collab-stat-filled").textContent = collaborators.filter(c => c.status === "Preenchido pelo colaborador").length;
+  document.getElementById("collab-stat-complete").textContent = collaborators.filter(c => c.status === "Completo").length;
+}
+
+document.getElementById("collab-filter-status").addEventListener("change", renderCollaborators);
+document.getElementById("collab-filter-clear").addEventListener("click", () => {
+  document.getElementById("collab-filter-status").value = "";
+  renderCollaborators();
+});
+
+/* ---- modal: colaborador (criar/editar em um único formulário) ---- */
+const collaboratorModalBackdrop = document.getElementById("collaborator-modal-backdrop");
+const collaboratorForm = document.getElementById("collaborator-form");
+const collabBtnDelete = document.getElementById("collab-btn-delete");
+
+function renderCollaboratorManagerOptions() {
+  const sel = document.getElementById("collab-field-manager");
+  const current = sel.value;
+  const managers = users.filter(u => u.role === "ADM" || u.role === "Gerente").slice().sort((a, b) => a.name.localeCompare(b.name));
+  sel.innerHTML = `<option value="">Sem gestor definido</option>` + managers.map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join("");
+  sel.value = current;
+}
+
+function openCollaboratorModal(id) {
+  collaboratorForm.reset();
+  renderCollaboratorManagerOptions();
+  COLLAB_DOC_FIELDS.forEach(f => { document.getElementById(f.link).style.display = "none"; });
+
+  if (id) {
+    const c = collaborators.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById("collaborator-modal-title").textContent = c.name || "Colaborador";
+    document.getElementById("collab-id").value = c.id;
+    document.getElementById("collab-field-name").value = c.name || "";
+    document.getElementById("collab-field-status").value = c.status || "Aguardando colaborador";
+    document.getElementById("collab-field-work-email").value = c.workEmail || "";
+    document.getElementById("collab-field-role-title").value = c.roleTitle || "";
+    document.getElementById("collab-field-department").value = c.department || "";
+    document.getElementById("collab-field-contract-type").value = c.contractType || "";
+    document.getElementById("collab-field-start-date").value = c.startDate || "";
+    document.getElementById("collab-field-manager").value = c.managerId || "";
+    document.getElementById("collab-field-birth-date").value = c.birthDate || "";
+    document.getElementById("collab-field-nationality").value = c.nationality || "";
+    document.getElementById("collab-field-cpf").value = c.cpf || "";
+    document.getElementById("collab-field-rg").value = c.rg || "";
+    document.getElementById("collab-field-marital-status").value = c.maritalStatus || "";
+    document.getElementById("collab-field-personal-phone").value = c.personalPhone || "";
+    document.getElementById("collab-field-personal-email").value = c.personalEmail || "";
+    document.getElementById("collab-field-street").value = c.addressStreet || "";
+    document.getElementById("collab-field-number").value = c.addressNumber || "";
+    document.getElementById("collab-field-complement").value = c.addressComplement || "";
+    document.getElementById("collab-field-neighborhood").value = c.addressNeighborhood || "";
+    document.getElementById("collab-field-city").value = c.addressCity || "";
+    document.getElementById("collab-field-state").value = c.addressState || "";
+    document.getElementById("collab-field-zip").value = c.addressZip || "";
+    document.getElementById("collab-field-emergency-name").value = c.emergencyName || "";
+    document.getElementById("collab-field-emergency-relationship").value = c.emergencyRelationship || "";
+    document.getElementById("collab-field-emergency-phone").value = c.emergencyPhone || "";
+    collabBtnDelete.style.display = "inline-block";
+
+    document.getElementById("collab-link-row").style.display = "flex";
+    document.getElementById("collab-public-link").value = buildPublicCollaboratorUrl(c.publicToken);
+
+    COLLAB_DOC_FIELDS.forEach(f => {
+      if (!c[f.key]) return;
+      getCollaboratorDocSignedUrl(c[f.key]).then(url => {
+        if (!url) return;
+        const link = document.getElementById(f.link);
+        link.href = url;
+        link.style.display = "inline";
+      });
+    });
+  } else {
+    document.getElementById("collaborator-modal-title").textContent = "Novo colaborador";
+    document.getElementById("collab-id").value = "";
+    document.getElementById("collab-field-status").value = "Aguardando colaborador";
+    document.getElementById("collab-link-row").style.display = "none";
+    collabBtnDelete.style.display = "none";
+  }
+
+  collaboratorModalBackdrop.classList.add("open");
+  document.getElementById("collab-field-name").focus();
+}
+function closeCollaboratorModal() { collaboratorModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-collaborator").addEventListener("click", () => openCollaboratorModal(null));
+document.getElementById("collaborator-modal-close").addEventListener("click", closeCollaboratorModal);
+document.getElementById("collab-btn-cancel").addEventListener("click", closeCollaboratorModal);
+collaboratorModalBackdrop.addEventListener("click", e => { if (e.target === collaboratorModalBackdrop) closeCollaboratorModal(); });
+
+document.getElementById("collab-copy-link").addEventListener("click", async () => {
+  const input = document.getElementById("collab-public-link");
+  input.select();
+  const btn = document.getElementById("collab-copy-link");
+  try {
+    await navigator.clipboard.writeText(input.value);
+    const original = btn.textContent;
+    btn.textContent = "Copiado!";
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  } catch {
+    /* clipboard indisponível — o campo já fica selecionado para copiar com Ctrl/Cmd+C */
+  }
+});
+
+collaboratorForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("collab-id").value;
+  const isNew = !id;
+  const collabId = id || uid();
+
+  const data = {
+    id: collabId,
+    name: document.getElementById("collab-field-name").value.trim(),
+    status: document.getElementById("collab-field-status").value,
+    workEmail: document.getElementById("collab-field-work-email").value.trim(),
+    roleTitle: document.getElementById("collab-field-role-title").value.trim(),
+    department: document.getElementById("collab-field-department").value.trim(),
+    contractType: document.getElementById("collab-field-contract-type").value,
+    startDate: document.getElementById("collab-field-start-date").value || null,
+    managerId: document.getElementById("collab-field-manager").value || null,
+    birthDate: document.getElementById("collab-field-birth-date").value || null,
+    nationality: document.getElementById("collab-field-nationality").value.trim(),
+    cpf: document.getElementById("collab-field-cpf").value.trim(),
+    rg: document.getElementById("collab-field-rg").value.trim(),
+    maritalStatus: document.getElementById("collab-field-marital-status").value,
+    personalPhone: document.getElementById("collab-field-personal-phone").value.trim(),
+    personalEmail: document.getElementById("collab-field-personal-email").value.trim(),
+    addressStreet: document.getElementById("collab-field-street").value.trim(),
+    addressNumber: document.getElementById("collab-field-number").value.trim(),
+    addressComplement: document.getElementById("collab-field-complement").value.trim(),
+    addressNeighborhood: document.getElementById("collab-field-neighborhood").value.trim(),
+    addressCity: document.getElementById("collab-field-city").value.trim(),
+    addressState: document.getElementById("collab-field-state").value.trim(),
+    addressZip: document.getElementById("collab-field-zip").value.trim(),
+    emergencyName: document.getElementById("collab-field-emergency-name").value.trim(),
+    emergencyRelationship: document.getElementById("collab-field-emergency-relationship").value.trim(),
+    emergencyPhone: document.getElementById("collab-field-emergency-phone").value.trim(),
+  };
+
+  const existing = isNew ? null : collaborators.find(x => x.id === id);
+  const merged = existing ? Object.assign(existing, data) : data;
+
+  for (const f of COLLAB_DOC_FIELDS) {
+    const file = document.getElementById(f.input).files[0];
+    if (!file) continue;
+    const path = await uploadCollaboratorDocument(file, collabId, f.slug);
+    if (path) merged[f.key] = path;
+  }
+
+  const saved = await saveCollaboratorRemote(merged);
+  if (!saved) { alert("Não foi possível salvar o colaborador. Tente novamente."); return; }
+
+  if (existing) Object.assign(existing, saved);
+  else collaborators.push(saved);
+
+  renderCollaborators();
+  closeCollaboratorModal();
+});
+
+collabBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("collab-id").value;
+  if (!id || !confirm("Excluir este colaborador? Essa ação não pode ser desfeita.")) return;
+  collaborators = collaborators.filter(x => x.id !== id);
+  renderCollaborators();
+  closeCollaboratorModal();
+  await deleteCollaboratorRemote(id);
+});
+
+/* ============================================================
    DASHBOARD — visão geral com funil, gráficos e alertas
    ============================================================ */
 if (window.Chart) {
@@ -3918,7 +4205,7 @@ function renderPermissionsTable() {
   const admRow = document.createElement("tr");
   admRow.innerHTML = `
     <td class="perm-role-name">ADM</td>
-    <td colspan="6" class="perm-locked">Acesso total (fixo)</td>
+    <td colspan="7" class="perm-locked">Acesso total (fixo)</td>
   `;
   permissionsTbody.appendChild(admRow);
 
@@ -3959,6 +4246,7 @@ document.addEventListener("keydown", e => {
   if (assignModalBackdrop.classList.contains("open")) closeAssignModal();
   if (importModalBackdrop.classList.contains("open")) closeImportModal();
   if (sourcesModalBackdrop.classList.contains("open")) closeSourcesModal();
+  if (collaboratorModalBackdrop.classList.contains("open")) closeCollaboratorModal();
   closeRowMenu();
 });
 
@@ -3974,7 +4262,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -3988,6 +4276,7 @@ document.addEventListener("keydown", e => {
     loadReceivables(),
     loadCommissionSettings(),
     loadEnrollments(),
+    loadCollaborators(),
   ]);
 
   renderSessionChip();
@@ -4009,6 +4298,7 @@ document.addEventListener("keydown", e => {
   renderExpenses();
   renderCommissions();
   renderEnrollments();
+  renderCollaborators();
   if (session.role === "ADM") {
     renderUsers();
     renderPermissionsTable();

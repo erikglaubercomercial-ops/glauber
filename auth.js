@@ -11,6 +11,7 @@ const MODULES = [
   { id: "produtos", label: "Produtos" },
   { id: "financeiro", label: "Financeiro" },
   { id: "matriculas", label: "Matrículas" },
+  { id: "colaboradores", label: "Colaboradores" },
 ];
 
 const ROLES = ["ADM", "Gerente", "Consultor", "Influencer", "MKT", "Financeiro"];
