@@ -49,6 +49,7 @@ const VIEW_TITLES = {
   cotacao: "Cotação",
   produtos: "Produtos",
   financeiro: "Financeiro",
+  matriculas: "Matrículas",
   usuarios: "Usuários",
 };
 
@@ -69,7 +70,7 @@ function initNavigation() {
     document.getElementById("btn-manage-stages").style.display = "";
   }
 
-  const firstAccessible = ["leads", "pipeline", "cotacao", "produtos", "financeiro", "usuarios"].find(canAccessView);
+  const firstAccessible = ["leads", "pipeline", "cotacao", "produtos", "financeiro", "matriculas", "usuarios"].find(canAccessView);
   switchView(firstAccessible || "leads");
 }
 
@@ -2663,6 +2664,290 @@ document.getElementById("fin-commission-pct-save").addEventListener("click", asy
 });
 
 /* ============================================================
+   MATRÍCULAS — documentos e dados do aluno, com link público
+   para o próprio aluno preencher (sem precisar de login)
+   ============================================================ */
+let enrollments = [];
+
+function enrollmentFromDb(r) {
+  return {
+    id: r.id, leadId: r.lead_id, consultorId: r.consultor_id,
+    name: r.name, email: r.email || "", phone: r.phone || "",
+    emergencyPhone: r.emergency_phone || "",
+    passportNumber: r.passport_number || "", passportPhotoPath: r.passport_photo_path || null,
+    cpf: r.cpf || "",
+    addressStreet: r.address_street || "", addressNumber: r.address_number || "",
+    addressComplement: r.address_complement || "", addressNeighborhood: r.address_neighborhood || "",
+    addressCity: r.address_city || "", addressState: r.address_state || "", addressZip: r.address_zip || "",
+    school: r.school || "", turno: r.turno || "",
+    courseValue: Number(r.course_value) || 0,
+    arrivalDate: r.arrival_date, classStartDate: r.class_start_date,
+    status: r.status, publicToken: r.public_token,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function enrollmentToDb(e) {
+  return {
+    id: e.id, lead_id: e.leadId || null, consultor_id: e.consultorId || null,
+    name: e.name, email: e.email, phone: e.phone,
+    emergency_phone: e.emergencyPhone,
+    passport_number: e.passportNumber, passport_photo_path: e.passportPhotoPath,
+    cpf: e.cpf,
+    address_street: e.addressStreet, address_number: e.addressNumber,
+    address_complement: e.addressComplement, address_neighborhood: e.addressNeighborhood,
+    address_city: e.addressCity, address_state: e.addressState, address_zip: e.addressZip,
+    school: e.school, turno: e.turno,
+    course_value: e.courseValue,
+    arrival_date: e.arrivalDate || null, class_start_date: e.classStartDate || null,
+    status: e.status,
+  };
+}
+
+async function loadEnrollments() {
+  const { data, error } = await supabase.from("enrollments").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar matrículas:", error); return []; }
+  return data.map(enrollmentFromDb);
+}
+async function saveEnrollmentRemote(e) {
+  const { data, error } = await supabase.from("enrollments").upsert(enrollmentToDb(e)).select().single();
+  if (error) { console.error("Erro ao salvar matrícula:", error); return null; }
+  return enrollmentFromDb(data);
+}
+async function deleteEnrollmentRemote(id) {
+  const { error } = await supabase.from("enrollments").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir matrícula:", error);
+}
+
+async function uploadPassportPhoto(file, enrollmentId) {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${enrollmentId}/passaporte-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("passport-photos").upload(path, file, { upsert: true });
+  if (error) { console.error("Erro ao enviar foto do passaporte:", error); return null; }
+  return path;
+}
+async function getPassportPhotoSignedUrl(path) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from("passport-photos").createSignedUrl(path, 3600);
+  if (error) { console.error("Erro ao gerar link da foto:", error); return null; }
+  return data.signedUrl;
+}
+
+function buildPublicEnrollmentUrl(token) {
+  return `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}matricula-publica.html?token=${token}`;
+}
+
+const ENROLLMENT_STATUS_BADGE = {
+  "Aguardando aluno": "badge-warn",
+  "Preenchido pelo aluno": "badge-neutral",
+  "Completo": "badge-good",
+};
+
+/* ---- lista ---- */
+function getFilteredEnrollments() {
+  const status = document.getElementById("enr-filter-status").value;
+  return enrollments.filter(e => !status || e.status === status);
+}
+
+function renderEnrollments() {
+  const filtered = getFilteredEnrollments().slice().sort((a, b) => b.createdAt - a.createdAt);
+  const tbody = document.getElementById("enrollments-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("enrollments-empty").style.display = filtered.length === 0 ? "block" : "none";
+  filtered.forEach(e => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(e.name || "—")}</td>
+      <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
+      <td class="cell-muted">${escapeHtml(e.turno || "—")}</td>
+      <td><span class="badge ${ENROLLMENT_STATUS_BADGE[e.status] || "badge-neutral"}">${escapeHtml(e.status)}</span></td>
+      <td class="cell-actions">›</td>
+    `;
+    tr.addEventListener("click", () => openEnrollmentModal(e.id));
+    tbody.appendChild(tr);
+  });
+  renderEnrollmentsDashboard();
+}
+
+function renderEnrollmentsDashboard() {
+  document.getElementById("enr-stat-total").textContent = enrollments.length;
+  document.getElementById("enr-stat-waiting").textContent = enrollments.filter(e => e.status === "Aguardando aluno").length;
+  document.getElementById("enr-stat-filled").textContent = enrollments.filter(e => e.status === "Preenchido pelo aluno").length;
+  document.getElementById("enr-stat-complete").textContent = enrollments.filter(e => e.status === "Completo").length;
+}
+
+document.getElementById("enr-filter-status").addEventListener("change", renderEnrollments);
+document.getElementById("enr-filter-clear").addEventListener("click", () => {
+  document.getElementById("enr-filter-status").value = "";
+  renderEnrollments();
+});
+
+/* ---- modal: nova matrícula (escolher lead de origem) ---- */
+const enrollmentNewModalBackdrop = document.getElementById("enrollment-new-modal-backdrop");
+
+function openNewEnrollmentModal() {
+  const sel = document.getElementById("enrollment-new-lead");
+  sel.innerHTML = `<option value="">— Começar em branco —</option>` +
+    leads.slice().sort((a, b) => a.name.localeCompare(b.name)).map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join("");
+  enrollmentNewModalBackdrop.classList.add("open");
+}
+function closeNewEnrollmentModal() { enrollmentNewModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-enrollment").addEventListener("click", openNewEnrollmentModal);
+document.getElementById("enrollment-new-modal-close").addEventListener("click", closeNewEnrollmentModal);
+document.getElementById("enrollment-new-btn-cancel").addEventListener("click", closeNewEnrollmentModal);
+enrollmentNewModalBackdrop.addEventListener("click", e => { if (e.target === enrollmentNewModalBackdrop) closeNewEnrollmentModal(); });
+
+document.getElementById("enrollment-new-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const leadId = document.getElementById("enrollment-new-lead").value || null;
+  const lead = leadId ? leads.find(l => l.id === leadId) : null;
+  const draft = {
+    leadId, consultorId: (lead ? lead.consultorId : null) || (isOwnLeadsOnly() ? session.id : null),
+    name: lead ? lead.name : "", email: lead ? lead.email : "", phone: lead ? lead.phone : "",
+    emergencyPhone: "", passportNumber: "", passportPhotoPath: null, cpf: "",
+    addressStreet: "", addressNumber: "", addressComplement: "", addressNeighborhood: "",
+    addressCity: "", addressState: "", addressZip: "",
+    school: "", turno: "", courseValue: 0, arrivalDate: null, classStartDate: null,
+    status: "Aguardando aluno",
+  };
+  const saved = await saveEnrollmentRemote(draft);
+  if (!saved) { alert("Não foi possível criar a matrícula. Tente novamente."); return; }
+  enrollments.push(saved);
+  renderEnrollments();
+  closeNewEnrollmentModal();
+  openEnrollmentModal(saved.id);
+});
+
+/* ---- modal: matrícula (edição completa) ---- */
+const enrollmentModalBackdrop = document.getElementById("enrollment-modal-backdrop");
+const enrollmentForm = document.getElementById("enrollment-form");
+const enrBtnDelete = document.getElementById("enr-btn-delete");
+
+function renderEnrollmentDatalists() {
+  const schools = [...new Set(catalog.map(c => c.subgrupo).filter(Boolean))].sort();
+  const turnos = [...new Set(catalog.map(c => c.turno).filter(Boolean))].sort();
+  document.getElementById("enr-schools-list").innerHTML = schools.map(s => `<option value="${escapeHtml(s)}">`).join("");
+  document.getElementById("enr-turnos-list").innerHTML = turnos.map(t => `<option value="${escapeHtml(t)}">`).join("");
+}
+
+async function openEnrollmentModal(id) {
+  enrollmentForm.reset();
+  renderEnrollmentDatalists();
+  const enr = enrollments.find(x => x.id === id);
+  if (!enr) return;
+
+  document.getElementById("enrollment-modal-title").textContent = enr.name || "Matrícula";
+  document.getElementById("enr-id").value = enr.id;
+  document.getElementById("enr-field-name").value = enr.name || "";
+  document.getElementById("enr-field-status").value = enr.status || "Aguardando aluno";
+  document.getElementById("enr-field-phone").value = enr.phone || "";
+  document.getElementById("enr-field-email").value = enr.email || "";
+  document.getElementById("enr-field-emergency").value = enr.emergencyPhone || "";
+  document.getElementById("enr-field-cpf").value = enr.cpf || "";
+  document.getElementById("enr-field-passport-number").value = enr.passportNumber || "";
+  document.getElementById("enr-field-street").value = enr.addressStreet || "";
+  document.getElementById("enr-field-number").value = enr.addressNumber || "";
+  document.getElementById("enr-field-complement").value = enr.addressComplement || "";
+  document.getElementById("enr-field-neighborhood").value = enr.addressNeighborhood || "";
+  document.getElementById("enr-field-city").value = enr.addressCity || "";
+  document.getElementById("enr-field-state").value = enr.addressState || "";
+  document.getElementById("enr-field-zip").value = enr.addressZip || "";
+  document.getElementById("enr-field-school").value = enr.school || "";
+  document.getElementById("enr-field-turno").value = enr.turno || "";
+  document.getElementById("enr-field-course-value").value = enr.courseValue || "";
+  document.getElementById("enr-field-arrival").value = enr.arrivalDate || "";
+  document.getElementById("enr-field-class-start").value = enr.classStartDate || "";
+
+  const photoLink = document.getElementById("enr-photo-view-link");
+  photoLink.style.display = "none";
+  if (enr.passportPhotoPath) {
+    getPassportPhotoSignedUrl(enr.passportPhotoPath).then(url => {
+      if (url) { photoLink.href = url; photoLink.style.display = ""; }
+    });
+  }
+
+  const linkRow = document.getElementById("enr-link-row");
+  if (enr.publicToken) {
+    linkRow.style.display = "flex";
+    document.getElementById("enr-public-link").value = buildPublicEnrollmentUrl(enr.publicToken);
+  } else {
+    linkRow.style.display = "none";
+  }
+
+  enrBtnDelete.style.display = "inline-block";
+  enrollmentModalBackdrop.classList.add("open");
+}
+function closeEnrollmentModal() { enrollmentModalBackdrop.classList.remove("open"); }
+
+document.getElementById("enrollment-modal-close").addEventListener("click", closeEnrollmentModal);
+document.getElementById("enr-btn-cancel").addEventListener("click", closeEnrollmentModal);
+enrollmentModalBackdrop.addEventListener("click", e => { if (e.target === enrollmentModalBackdrop) closeEnrollmentModal(); });
+
+document.getElementById("enr-copy-link").addEventListener("click", async () => {
+  const input = document.getElementById("enr-public-link");
+  input.select();
+  const btn = document.getElementById("enr-copy-link");
+  try {
+    await navigator.clipboard.writeText(input.value);
+    const original = btn.textContent;
+    btn.textContent = "Copiado!";
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  } catch {
+    /* clipboard indisponível — o campo já fica selecionado para copiar com Ctrl/Cmd+C */
+  }
+});
+
+enrollmentForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("enr-id").value;
+  const enr = enrollments.find(x => x.id === id);
+  if (!enr) return;
+
+  const fileInput = document.getElementById("enr-field-passport-photo");
+  const file = fileInput.files[0];
+  if (file) {
+    const path = await uploadPassportPhoto(file, enr.id);
+    if (path) enr.passportPhotoPath = path;
+  }
+
+  Object.assign(enr, {
+    name: document.getElementById("enr-field-name").value.trim(),
+    status: document.getElementById("enr-field-status").value,
+    phone: document.getElementById("enr-field-phone").value.trim(),
+    email: document.getElementById("enr-field-email").value.trim(),
+    emergencyPhone: document.getElementById("enr-field-emergency").value.trim(),
+    cpf: document.getElementById("enr-field-cpf").value.trim(),
+    passportNumber: document.getElementById("enr-field-passport-number").value.trim(),
+    addressStreet: document.getElementById("enr-field-street").value.trim(),
+    addressNumber: document.getElementById("enr-field-number").value.trim(),
+    addressComplement: document.getElementById("enr-field-complement").value.trim(),
+    addressNeighborhood: document.getElementById("enr-field-neighborhood").value.trim(),
+    addressCity: document.getElementById("enr-field-city").value.trim(),
+    addressState: document.getElementById("enr-field-state").value.trim(),
+    addressZip: document.getElementById("enr-field-zip").value.trim(),
+    school: document.getElementById("enr-field-school").value.trim(),
+    turno: document.getElementById("enr-field-turno").value.trim(),
+    courseValue: parseFloat(document.getElementById("enr-field-course-value").value) || 0,
+    arrivalDate: document.getElementById("enr-field-arrival").value || null,
+    classStartDate: document.getElementById("enr-field-class-start").value || null,
+  });
+
+  renderEnrollments();
+  closeEnrollmentModal();
+  await saveEnrollmentRemote(enr);
+});
+
+enrBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("enr-id").value;
+  if (!id) return;
+  if (!confirm("Excluir esta matrícula? Essa ação não pode ser desfeita.")) return;
+  enrollments = enrollments.filter(x => x.id !== id);
+  renderEnrollments();
+  closeEnrollmentModal();
+  await deleteEnrollmentRemote(id);
+});
+
+/* ============================================================
    USUÁRIOS (somente ADM)
    ============================================================ */
 let users = [];
@@ -2783,7 +3068,7 @@ function renderPermissionsTable() {
   const admRow = document.createElement("tr");
   admRow.innerHTML = `
     <td class="perm-role-name">ADM</td>
-    <td colspan="5" class="perm-locked">Acesso total (fixo)</td>
+    <td colspan="6" class="perm-locked">Acesso total (fixo)</td>
   `;
   permissionsTbody.appendChild(admRow);
 
@@ -2834,7 +3119,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -2847,6 +3132,7 @@ document.addEventListener("keydown", e => {
     loadCommissions(),
     loadReceivables(),
     loadCommissionSettings(),
+    loadEnrollments(),
   ]);
 
   renderSessionChip();
@@ -2868,6 +3154,7 @@ document.addEventListener("keydown", e => {
   renderReceivables();
   renderExpenses();
   renderCommissions();
+  renderEnrollments();
   if (session.role === "ADM") {
     renderUsers();
     renderPermissionsTable();
