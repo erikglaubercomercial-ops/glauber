@@ -563,9 +563,68 @@ const TEMPERATURE_BADGE = {
 };
 const WPP_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
 
+/* ---- nacionalidade do lead: bandeira + DDI, usados para montar o
+   número completo do WhatsApp (DDI + DDD + número) ---- */
+const COUNTRIES = [
+  { code: "BR", name: "Brasil", ddi: "55", flag: "🇧🇷" },
+  { code: "PT", name: "Portugal", ddi: "351", flag: "🇵🇹" },
+  { code: "IE", name: "Irlanda", ddi: "353", flag: "🇮🇪" },
+  { code: "US", name: "Estados Unidos", ddi: "1", flag: "🇺🇸" },
+  { code: "CA", name: "Canadá", ddi: "1", flag: "🇨🇦" },
+  { code: "GB", name: "Reino Unido", ddi: "44", flag: "🇬🇧" },
+  { code: "AU", name: "Austrália", ddi: "61", flag: "🇦🇺" },
+  { code: "NZ", name: "Nova Zelândia", ddi: "64", flag: "🇳🇿" },
+  { code: "ES", name: "Espanha", ddi: "34", flag: "🇪🇸" },
+  { code: "FR", name: "França", ddi: "33", flag: "🇫🇷" },
+  { code: "DE", name: "Alemanha", ddi: "49", flag: "🇩🇪" },
+  { code: "IT", name: "Itália", ddi: "39", flag: "🇮🇹" },
+  { code: "NL", name: "Holanda", ddi: "31", flag: "🇳🇱" },
+  { code: "CH", name: "Suíça", ddi: "41", flag: "🇨🇭" },
+  { code: "MT", name: "Malta", ddi: "356", flag: "🇲🇹" },
+  { code: "AR", name: "Argentina", ddi: "54", flag: "🇦🇷" },
+  { code: "CL", name: "Chile", ddi: "56", flag: "🇨🇱" },
+  { code: "CO", name: "Colômbia", ddi: "57", flag: "🇨🇴" },
+  { code: "UY", name: "Uruguai", ddi: "598", flag: "🇺🇾" },
+  { code: "PY", name: "Paraguai", ddi: "595", flag: "🇵🇾" },
+  { code: "PE", name: "Peru", ddi: "51", flag: "🇵🇪" },
+  { code: "MX", name: "México", ddi: "52", flag: "🇲🇽" },
+  { code: "JP", name: "Japão", ddi: "81", flag: "🇯🇵" },
+  { code: "CN", name: "China", ddi: "86", flag: "🇨🇳" },
+  { code: "AO", name: "Angola", ddi: "244", flag: "🇦🇴" },
+  { code: "MZ", name: "Moçambique", ddi: "258", flag: "🇲🇿" },
+];
+function countryByCode(code) { return COUNTRIES.find(c => c.code === code) || COUNTRIES[0]; }
+
+function renderLeadCountryOptions(selectEl) {
+  selectEl.innerHTML = COUNTRIES.map(c => `<option value="${c.code}">${c.flag} ${c.name} (+${c.ddi})</option>`).join("");
+}
+
+/* separa um telefone em texto livre (import de CSV / dados antigos)
+   em DDD + número, assumindo formato brasileiro — mesma suposição
+   que o botão de WhatsApp já fazia antes de existir o campo país */
+function splitBrazilianPhone(raw) {
+  let digits = (raw || "").replace(/\D/g, "");
+  if (digits.length >= 12 && digits.startsWith("55")) digits = digits.slice(2);
+  if (digits.length === 10 || digits.length === 11) {
+    return { ddd: digits.slice(0, 2), number: digits.slice(2) };
+  }
+  return { ddd: "", number: "" };
+}
+
+/* dígitos completos (DDI+DDD+número) prontos pro link do WhatsApp —
+   null quando faltar país, DDD ou número (bloqueia o botão) */
+function leadWhatsAppDigits(lead) {
+  const ddd = (lead.phoneDdd || "").replace(/\D/g, "");
+  const number = (lead.phoneNumber || "").replace(/\D/g, "");
+  if (!ddd || !number) return null;
+  const country = countryByCode(lead.countryCode || "BR");
+  return `${country.ddi}${ddd}${number}`;
+}
+
 function leadFromDb(r) {
   return {
     id: r.id, name: r.name, company: r.company || "", phone: r.phone || "", email: r.email || "",
+    countryCode: r.country_code || "BR", phoneDdd: r.phone_ddd || "", phoneNumber: r.phone_number || "",
     source: r.source, category: r.category, status: r.status, temperature: r.temperature,
     consultorId: r.consultor_id, active: r.active,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
@@ -574,6 +633,7 @@ function leadFromDb(r) {
 function leadToDb(l) {
   return {
     id: l.id, name: l.name, company: l.company, phone: l.phone, email: l.email,
+    country_code: l.countryCode || "BR", phone_ddd: l.phoneDdd || "", phone_number: l.phoneNumber || "",
     source: l.source, category: l.category, status: l.status, temperature: l.temperature,
     consultor_id: l.consultorId || null, active: l.active,
     created_at: new Date(l.createdAt).toISOString(),
@@ -611,15 +671,8 @@ const leadBtnDelete = document.getElementById("lead-btn-delete");
 const leadsTbody = document.getElementById("leads-tbody");
 const leadsEmpty = document.getElementById("leads-empty");
 
-function extractPhoneDigits(phone) {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, "");
-  return digits.length >= 8 ? digits : null;
-}
-
 function buildWhatsAppLink(digits) {
-  const withCountry = digits.startsWith("55") ? digits : `55${digits}`;
-  return `https://web.whatsapp.com/send?phone=${withCountry}`;
+  return `https://web.whatsapp.com/send?phone=${digits}`;
 }
 
 function renderLeadFormOptions(currentSource) {
@@ -694,7 +747,7 @@ function renderLeads() {
   filtered.slice().sort((a, b) => b.createdAt - a.createdAt).forEach(lead => {
     const tr = document.createElement("tr");
     if (lead.active === false) tr.className = "row-inactive";
-    const phoneDigits = extractPhoneDigits(lead.phone);
+    const waDigits = leadWhatsAppDigits(lead);
     const consultant = users.find(u => u.id === lead.consultorId);
     const linkedDeal = deals.find(d => d.leadId === lead.id);
     tr.style.setProperty("--row-stage-color", linkedDeal ? stageColor(linkedDeal.stage) : "transparent");
@@ -704,9 +757,9 @@ function renderLeads() {
       <td class="cell-primary">
         <span class="cell-name-row">
           <span>${escapeHtml(lead.name)}</span>
-          ${phoneDigits
-            ? `<a class="wpp-btn" href="${buildWhatsAppLink(phoneDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp Web">${WPP_ICON_SVG}</a>`
-            : `<span class="wpp-btn disabled" title="Sem telefone válido">${WPP_ICON_SVG}</span>`}
+          ${waDigits
+            ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp Web">${WPP_ICON_SVG}</a>`
+            : `<span class="wpp-btn disabled" title="Preencha país, DDD e número do lead para liberar o WhatsApp">${WPP_ICON_SVG}</span>`}
           ${lead.active === false ? '<span class="badge badge-neutral">Inativo</span>' : ""}
         </span>
         ${lead.company ? `<div class="cell-sub">${escapeHtml(lead.company)}</div>` : ""}
@@ -1046,13 +1099,16 @@ function openLeadModal(id) {
   leadForm.reset();
   const existingLead = id ? leads.find(l => l.id === id) : null;
   renderLeadFormOptions(existingLead ? existingLead.source : null);
+  renderLeadCountryOptions(document.getElementById("lead-field-country"));
   if (id) {
     const lead = existingLead;
     document.getElementById("lead-modal-title").textContent = "Editar lead";
     document.getElementById("lead-id").value = lead.id;
     document.getElementById("lead-field-name").value = lead.name;
     document.getElementById("lead-field-company").value = lead.company || "";
-    document.getElementById("lead-field-phone").value = lead.phone || "";
+    document.getElementById("lead-field-country").value = lead.countryCode || "BR";
+    document.getElementById("lead-field-ddd").value = lead.phoneDdd || "";
+    document.getElementById("lead-field-phone").value = lead.phoneNumber || "";
     document.getElementById("lead-field-email").value = lead.email || "";
     document.getElementById("lead-field-category").value = lead.category || "Outro";
     document.getElementById("lead-field-source").value = lead.source || "Indicação";
@@ -1063,6 +1119,7 @@ function openLeadModal(id) {
   } else {
     document.getElementById("lead-modal-title").textContent = "Novo lead";
     document.getElementById("lead-id").value = "";
+    document.getElementById("lead-field-country").value = "BR";
     document.getElementById("lead-field-category").value = "Outro";
     document.getElementById("lead-field-source").value = "Indicação";
     document.getElementById("lead-field-temperature").value = "Morno";
@@ -1083,10 +1140,25 @@ leadModalBackdrop.addEventListener("click", e => { if (e.target === leadModalBac
 leadForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("lead-id").value;
+  const countryCode = document.getElementById("lead-field-country").value;
+  const phoneDdd = document.getElementById("lead-field-ddd").value.trim().replace(/\D/g, "");
+  const phoneNumber = document.getElementById("lead-field-phone").value.trim().replace(/\D/g, "");
+  const dddField = document.getElementById("lead-field-ddd");
+  const phoneField = document.getElementById("lead-field-phone");
+  const dddVazio = !phoneDdd, phoneVazio = !phoneNumber;
+  dddField.classList.toggle("err", dddVazio);
+  phoneField.classList.toggle("err", phoneVazio);
+  if (dddVazio || phoneVazio) {
+    alert("Preencha o país, o DDD e o número do lead — são obrigatórios para o botão do WhatsApp funcionar.");
+    (dddVazio ? dddField : phoneField).focus();
+    return;
+  }
+
   const data = {
     name: document.getElementById("lead-field-name").value.trim(),
     company: document.getElementById("lead-field-company").value.trim(),
-    phone: document.getElementById("lead-field-phone").value.trim(),
+    countryCode, phoneDdd, phoneNumber,
+    phone: `(${phoneDdd}) ${phoneNumber}`,
     email: document.getElementById("lead-field-email").value.trim(),
     category: document.getElementById("lead-field-category").value,
     source: document.getElementById("lead-field-source").value,
@@ -1286,11 +1358,15 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
     }
     if (!consultorId && isOwnLeadsOnly()) consultorId = session.id;
 
+    const importedPhone = get("phone");
+    const { ddd: importedDdd, number: importedNumber } = splitBrazilianPhone(importedPhone);
+
     const newLead = {
       id: uid(),
       name,
       company: get("company"),
-      phone: get("phone"),
+      phone: importedPhone,
+      countryCode: "BR", phoneDdd: importedDdd, phoneNumber: importedNumber,
       email,
       category: matchEnum(get("category"), CATEGORIES, "Outro"),
       source: matchEnum(get("source"), SOURCES, "Outro"),

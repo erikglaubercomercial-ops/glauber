@@ -584,6 +584,10 @@ body {
   padding: 9px 10px;
   resize: vertical;
 }
+.modal form input.err, .modal form select.err { border-color: var(--danger); }
+.lead-phone-row { display: flex; gap: 12px; align-items: flex-end; }
+.lead-phone-ddd { flex: 0 0 72px; }
+.lead-phone-number { flex: 1 1 auto; }
 .modal form input:focus, .modal form select:focus, .modal form textarea:focus {
   outline: 2px solid color-mix(in srgb, var(--primary) 40%, transparent);
   outline-offset: 1px;

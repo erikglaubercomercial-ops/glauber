@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM de Vendas</title>
-<link rel="stylesheet" href="style.css?v=1790077103">
+<link rel="stylesheet" href="style.css?v=1790080131">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -663,9 +663,17 @@
         <label>Empresa
           <input type="text" id="lead-field-company" placeholder="Ex: Mercado Central">
         </label>
-        <label>Telefone (WhatsApp)
-          <input type="text" id="lead-field-phone" placeholder="Ex: (11) 99999-0000">
+        <label>País (bandeira / DDI)
+          <select id="lead-field-country" required></select>
         </label>
+        <div class="lead-phone-row">
+          <label class="lead-phone-ddd">DDD
+            <input type="text" id="lead-field-ddd" required inputmode="numeric" maxlength="4" placeholder="11">
+          </label>
+          <label class="lead-phone-number">Número (WhatsApp)
+            <input type="text" id="lead-field-phone" required inputmode="numeric" placeholder="99999-0000">
+          </label>
+        </div>
         <label>E-mail
           <input type="email" id="lead-field-email" placeholder="Ex: joao@empresa.com">
         </label>
@@ -1194,7 +1202,7 @@
   </div>
 
   <script src="config.js?v=1790028144"></script>
-  <script src="auth.js?v=1790077103"></script>
-  <script src="script.js?v=1790077103"></script>
+  <script src="auth.js?v=1790080131"></script>
+  <script src="script.js?v=1790080131"></script>
 </body>
 </html>
