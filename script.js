@@ -687,6 +687,7 @@ const TEMPERATURE_BADGE = {
   "Frio": "badge-cold",
 };
 const WPP_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
+const CELL_COPY_ICON_SVG = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 
 /* ---- ícone + cor por origem do lead — reconhece as origens mais comuns
    (por trecho do nome, tolera variações/erros de digitação) e cai num
@@ -1001,14 +1002,33 @@ function renderLeads() {
           ${lead.active === false ? '<span class="badge badge-neutral">Inativo</span>' : ""}
         </span>
         ${lead.company ? `<div class="cell-sub">${escapeHtml(lead.company)}</div>` : ""}
+        ${lead.email ? `
+          <div class="cell-email-row">
+            <span>${escapeHtml(lead.email)}</span>
+            <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.email)}" title="Copiar e-mail">${CELL_COPY_ICON_SVG}</button>
+          </div>` : ""}
+        <div class="cell-temp-row"><span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span></div>
       </td>
       <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : "—"}</td>
-      <td><span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span></td>
       <td><span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(lead.status)}</span></td>
       <td class="cell-muted">${escapeHtml(lead.category || "—")}</td>
       <td class="cell-muted">${originBadge(lead.source)}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
     `;
+
+    const copyBtn = tr.querySelector(".cell-copy-btn");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async e => {
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(copyBtn.dataset.copy);
+          copyBtn.classList.add("copied");
+          setTimeout(() => copyBtn.classList.remove("copied"), 1200);
+        } catch {
+          prompt("Copie o e-mail abaixo:", copyBtn.dataset.copy);
+        }
+      });
+    }
 
     const checkbox = tr.querySelector(".row-checkbox");
     checkbox.addEventListener("click", e => e.stopPropagation());

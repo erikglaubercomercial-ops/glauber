@@ -302,15 +302,17 @@ body {
   letter-spacing: 0.03em;
   color: var(--text-muted);
   font-weight: 700;
-  padding: 12px 20px;
+  padding: 12px 12px;
   border-bottom: 1px solid var(--border);
 }
 .data-table td {
-  padding: 13px 20px;
+  padding: 11px 12px;
   font-size: 13.5px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
+.data-table th:first-child, .data-table td:first-child { padding-left: 18px; }
+.data-table th:last-child, .data-table td:last-child { padding-right: 18px; }
 .data-table tbody tr { cursor: pointer; transition: background 0.15s; }
 .data-table tbody tr:hover { background: var(--content-bg); }
 .data-table tbody tr:last-child td { border-bottom: none; }
@@ -318,6 +320,20 @@ body {
 .cell-muted { color: var(--text-muted); }
 .cell-actions { text-align: right; }
 .cell-sub { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-top: 2px; }
+
+.cell-email-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; color: var(--text-muted); margin-top: 2px;
+}
+.cell-copy-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; flex: 0 0 auto;
+  background: none; border: none; border-radius: 5px;
+  color: var(--text-muted); cursor: pointer; padding: 0;
+}
+.cell-copy-btn:hover { background: var(--content-bg); color: var(--text); }
+.cell-copy-btn.copied { color: var(--good); }
+.cell-temp-row { margin-top: 4px; }
 
 .badge {
   display: inline-block;
