@@ -563,6 +563,52 @@ const TEMPERATURE_BADGE = {
 };
 const WPP_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
 
+/* ---- ícone + cor por origem do lead — reconhece as origens mais comuns
+   (por trecho do nome, tolera variações/erros de digitação) e cai num
+   ícone genérico com cor determinística para qualquer origem customizada
+   que o ADM cadastrar em "Gerenciar origens" ---- */
+const ORIGIN_STYLES = [
+  { match: ["instagram", "insta"], color: "#E1306C",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></svg>` },
+  { match: ["facebook", "facebo", "face"], color: "#1877F2",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h-2a4 4 0 0 0-4 4v2H7v4h2v6h4v-6h3l1-4h-4V8a1 1 0 0 1 1-1h3V4z"/></svg>` },
+  { match: ["tiktok", "tik tok"], color: "#111827",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l8 3"/><circle cx="6" cy="18" r="3"/></svg>` },
+  { match: ["whatsapp"], color: "#1fa855", icon: WPP_ICON_SVG },
+  { match: ["linkedin"], color: "#0A66C2",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="8" y1="11" x2="8" y2="16"/><circle cx="8" cy="7.5" r="0.6" fill="currentColor" stroke="none"/><path d="M12 16v-3.5a1.8 1.8 0 0 1 3.6 0V16"/></svg>` },
+  { match: ["google", "adwords"], color: "#EA4335",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 12h7"/><path d="M12 3a9 9 0 0 1 6.4 15.4"/></svg>` },
+  { match: ["indicacao", "indicação", "referral"], color: "#8B5CF6",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/><circle cx="9" cy="7" r="3"/><path d="M22 19v-1a4 4 0 0 0-3-3.8"/><path d="M16 3.2a4 4 0 0 1 0 7.6"/></svg>` },
+  { match: ["anuncio", "anúncio", "ads", "ad"], color: "#F59E0B",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a2 2 0 0 0 2 2h1l4 4V5L6 9H5a2 2 0 0 0-2 2z"/><path d="M17.5 8.5a5 5 0 0 1 0 7"/><path d="M20.5 6a9 9 0 0 1 0 12"/></svg>` },
+  { match: ["evento", "event", "feira"], color: "#10B981",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>` },
+  { match: ["redes sociais", "social"], color: "#EC4899",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>` },
+  { match: ["email", "e-mail"], color: "#6366F1",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>` },
+  { match: ["site", "website", "web"], color: "#0EA5E9",
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>` },
+];
+const ORIGIN_ICON_FALLBACK = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.6 12 21l-9-9 8.6-8.6a2 2 0 0 1 1.4-.6H20a1 1 0 0 1 1 1v6.6a2 2 0 0 1-.4 1.4z"/><circle cx="16.5" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg>`;
+
+function originStyle(source) {
+  const norm = normalizeImportStr(source || "");
+  const found = ORIGIN_STYLES.find(o => o.match.some(m => norm.includes(m)));
+  if (found) return found;
+  let hash = 0;
+  for (let i = 0; i < norm.length; i++) hash = (hash * 31 + norm.charCodeAt(i)) >>> 0;
+  return { color: DASH_PALETTE[hash % DASH_PALETTE.length], icon: ORIGIN_ICON_FALLBACK };
+}
+
+function originBadge(source) {
+  if (!source) return "—";
+  const style = originStyle(source);
+  return `<span class="origin-badge" style="--origin-color:${style.color}">${style.icon}${escapeHtml(source)}</span>`;
+}
+
 /* ---- nacionalidade do lead: bandeira + DDI, usados para montar o
    número completo do WhatsApp (DDI + DDD + número) ---- */
 const COUNTRIES = [
@@ -764,11 +810,11 @@ function renderLeads() {
         </span>
         ${lead.company ? `<div class="cell-sub">${escapeHtml(lead.company)}</div>` : ""}
       </td>
-      <td class="cell-muted">${escapeHtml(lead.category || "—")}</td>
-      <td class="cell-muted">${escapeHtml(lead.source || "—")}</td>
       <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : "—"}</td>
       <td><span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span></td>
       <td><span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(lead.status)}</span></td>
+      <td class="cell-muted">${escapeHtml(lead.category || "—")}</td>
+      <td class="cell-muted">${originBadge(lead.source)}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
     `;
 

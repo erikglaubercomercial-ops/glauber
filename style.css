@@ -427,6 +427,21 @@ body {
 .cell-name-row .wpp-btn { width: 24px; height: 24px; }
 .cell-name-row .wpp-btn svg { width: 13px; height: 13px; }
 
+/* ===== ORIGIN BADGE (ícone + cor por origem do lead) ===== */
+.origin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--origin-color, var(--text-muted)) 14%, transparent);
+  color: var(--origin-color, var(--text-muted));
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.origin-badge svg { flex: 0 0 auto; width: 13px; height: 13px; }
+
 /* ===== BUTTONS ===== */
 .btn {
   border: 1px solid transparent;
