@@ -2267,9 +2267,23 @@ function quoteValida() {
   return true;
 }
 
-async function quoteGerar() {
-  if (!quoteValida()) return;
+/* validação leve — só o nome do estudante é obrigatório para poder
+   salvar o progresso e encontrar a cotação depois na lista/busca */
+function quoteValidaMinima() {
+  const nomeEl = document.getElementById("q-nome");
+  const vazio = !nomeEl.value.trim();
+  nomeEl.classList.toggle("err", vazio);
+  if (vazio) {
+    alert("Preencha ao menos o nome do estudante para salvar.");
+    nomeEl.focus();
+    return false;
+  }
+  return true;
+}
 
+/* monta o registro a partir do formulário e salva na tabela quotes
+   (usado tanto pelo botão "Salvar" quanto por "Gerar cotação") */
+async function buildAndSaveQuoteRecord() {
   const nome = document.getElementById("q-nome").value.trim();
   const email = document.getElementById("q-email").value.trim();
   const status = document.getElementById("q-status").value;
@@ -2283,7 +2297,6 @@ async function quoteGerar() {
   const total = quoteTotal();
   const itemsSummary = linhas.map(l => l.p.nome).slice(0, 3).join(", ") + (linhas.length > 3 ? ` +${linhas.length - 3}` : "");
 
-  /* ---- salva a cotação na tabela quotes (lista + filtros) ---- */
   const id = document.getElementById("q-id").value || uid();
   document.getElementById("q-id").value = id;
   const existing = quotes.find(q => q.id === id);
@@ -2303,6 +2316,39 @@ async function quoteGerar() {
   else quotes.push(record);
   renderQuotes();
   await saveQuoteRow(record);
+  return record;
+}
+
+async function quoteSalvar() {
+  if (!quoteValidaMinima()) return;
+  const btn = document.getElementById("q-btn-salvar");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  await buildAndSaveQuoteRecord();
+  document.getElementById("q-btn-excluir").style.display = "inline-block";
+  document.getElementById("quote-builder-title").textContent = "Editar cotação";
+  btn.textContent = "Salvo ✓";
+  setTimeout(() => { btn.textContent = textoOriginal; btn.disabled = false; }, 1500);
+}
+
+document.getElementById("q-btn-salvar").addEventListener("click", quoteSalvar);
+
+async function quoteGerar() {
+  if (!quoteValida()) return;
+
+  const nome = document.getElementById("q-nome").value.trim();
+  const email = document.getElementById("q-email").value.trim();
+  const status = document.getElementById("q-status").value;
+  const consultorNome = document.getElementById("q-consultor").value.trim();
+  const consultorEmail = document.getElementById("q-consultor-email").value.trim();
+  const emissao = document.getElementById("q-emissao").value;
+  const validade = document.getElementById("q-validade").value;
+  const obs = document.getElementById("q-obs").value.trim();
+  const linhas = quoteLinhas();
+  const total = quoteTotal();
+
+  /* ---- salva a cotação na tabela quotes (lista + filtros) ---- */
+  await buildAndSaveQuoteRecord();
 
   /* ---- gera o documento imprimível (PDF via "Salvar como PDF") ---- */
   document.getElementById("d-nome").textContent = nome;
