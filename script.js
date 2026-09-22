@@ -5,6 +5,7 @@ let session = null;
 
 function canAccessView(view) {
   if (!session) return false;
+  if (view === "dashboard") return true;
   if (view === "usuarios") return session.role === "ADM";
   return hasModuleAccess(session.role, view);
 }
@@ -44,6 +45,7 @@ function initSidebarToggle() {
    NAVIGATION
    ============================================================ */
 const VIEW_TITLES = {
+  dashboard: "Dashboard",
   leads: "Leads",
   pipeline: "Pipeline",
   cotacao: "Cotação",
@@ -70,7 +72,7 @@ function initNavigation() {
     document.getElementById("btn-manage-stages").style.display = "";
   }
 
-  const firstAccessible = ["leads", "pipeline", "cotacao", "produtos", "financeiro", "matriculas", "usuarios"].find(canAccessView);
+  const firstAccessible = ["dashboard", "leads", "pipeline", "cotacao", "produtos", "financeiro", "matriculas", "usuarios"].find(canAccessView);
   switchView(firstAccessible || "leads");
 }
 
@@ -84,6 +86,7 @@ function switchView(view) {
     section.classList.toggle("active", section.id === `view-${view}`);
   });
   document.getElementById("view-title").textContent = VIEW_TITLES[view] || "";
+  if (view === "dashboard") renderDashboardView();
 }
 
 function currency(v) {
@@ -3046,6 +3049,350 @@ enrBtnDelete.addEventListener("click", async () => {
   closeEnrollmentModal();
   await deleteEnrollmentRemote(id);
 });
+
+/* ============================================================
+   DASHBOARD — visão geral com funil, gráficos e alertas
+   ============================================================ */
+if (window.Chart) {
+  Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  Chart.defaults.color = "#8891a5";
+}
+
+const DASH_PALETTE = ["#4f7df3", "#6366f1", "#8b5cf6", "#a855f7", "#ec4899", "#f59e0b", "#14b8a6", "#64748b"];
+const MONTH_ABBR = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+let dashCharts = {};
+
+function destroyDashChart(key) {
+  if (dashCharts[key]) { dashCharts[key].destroy(); delete dashCharts[key]; }
+}
+
+function renderDashboardView() {
+  renderDashboardStatCards();
+  renderDashboardFunnel();
+  renderDashboardOrigemChart();
+  renderDashboardFaturamentoChart();
+  renderDashboardRankingChart();
+  renderDashboardAlertas();
+  renderDashboardAtividade();
+}
+
+/* ---- cartões de estatística ---- */
+function renderDashboardStatCards() {
+  const now = Date.now();
+  const sevenDaysAgo = now - 7 * 86400000;
+  const activeLeads = leads.filter(l => l.active !== false);
+  const newLeads = activeLeads.filter(l => l.createdAt >= sevenDaysAgo).length;
+
+  const openDeals = deals.filter(d => !isClosedStage(d.stage));
+  const openValue = openDeals.reduce((s, d) => s + (Number(d.value) || 0), 0);
+
+  const closedDeals = deals.filter(d => isClosedStage(d.stage));
+  const wonDeals = deals.filter(d => isWonStage(d.stage));
+  const conversion = closedDeals.length === 0 ? 0 : Math.round((wonDeals.length / closedDeals.length) * 100);
+
+  const cards = [
+    { label: "Leads novos (7 dias)", value: String(newLeads) },
+    { label: "Negócios em aberto", value: `${openDeals.length} · ${currency(openValue)}` },
+    { label: "Taxa de conversão", value: `${conversion}%`, good: true },
+  ];
+
+  if (hasModuleAccess(session.role, "financeiro")) {
+    const now2 = new Date();
+    const monthStart = new Date(now2.getFullYear(), now2.getMonth(), 1).getTime();
+    const monthEnd = new Date(now2.getFullYear(), now2.getMonth() + 1, 1).getTime();
+    const revenue = deals
+      .filter(d => isWonStage(d.stage) && d.closedAt >= monthStart && d.closedAt < monthEnd)
+      .reduce((s, d) => s + (Number(d.value) || 0), 0);
+    const pendingReceivable = receivables.filter(r => !r.paid).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    cards.push({ label: "Faturamento (mês)", value: currency(revenue), good: true });
+    cards.push({ label: "A receber pendente", value: currency(pendingReceivable) });
+  }
+
+  if (hasModuleAccess(session.role, "matriculas")) {
+    const waiting = enrollments.filter(e => e.status === "Aguardando aluno").length;
+    cards.push({ label: "Matrículas aguardando aluno", value: String(waiting) });
+  }
+
+  document.getElementById("dash-stat-row").innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <span class="stat-label">${escapeHtml(c.label)}</span>
+      <span class="stat-value${c.good ? " stat-good" : ""}">${c.value}</span>
+    </div>`).join("");
+}
+
+/* ---- funil de vendas ---- */
+function renderDashboardFunnel() {
+  const container = document.getElementById("dash-funnel");
+  const openStages = STAGES.filter(s => !s.isLost);
+
+  if (deals.length === 0 || openStages.length === 0) {
+    container.innerHTML = `<p class="muted-note dash-funnel-empty">Nenhum negócio no pipeline ainda.</p>`;
+    return;
+  }
+
+  const counts = openStages.map(s => deals.filter(d => d.stage === s.id).length);
+  const maxCount = Math.max(1, ...counts);
+  const lostCount = deals.filter(d => isLostStage(d.stage)).length;
+
+  const rows = openStages.map((s, i) => {
+    const count = counts[i];
+    const pct = count === 0 ? 10 : Math.max(22, Math.round((count / maxCount) * 100));
+    const color = s.isWon ? "#16a34a" : DASH_PALETTE[i % DASH_PALETTE.length];
+    return `
+      <div class="dash-funnel-row">
+        <div class="dash-funnel-bar-wrap">
+          <div class="dash-funnel-bar" style="width:${pct}%; background:${color};">
+            <span class="n">${count}</span>
+          </div>
+        </div>
+        <div class="dash-funnel-label">${escapeHtml(s.label)}</div>
+      </div>`;
+  }).join("");
+
+  const lostHtml = lostCount > 0
+    ? `<p class="muted-note" style="margin-top:6px;">+ ${lostCount} negócio(s) perdido(s) no funil atual</p>`
+    : "";
+
+  container.innerHTML = rows + lostHtml;
+}
+
+/* ---- gráfico: leads por origem (pizza) ---- */
+function renderDashboardOrigemChart() {
+  const canvas = document.getElementById("dash-chart-origem");
+  const emptyEl = document.getElementById("dash-chart-origem-empty");
+  destroyDashChart("origem");
+
+  const counts = {};
+  leads.filter(l => l.active !== false).forEach(l => {
+    const k = l.source || "Outro";
+    counts[k] = (counts[k] || 0) + 1;
+  });
+  const labels = Object.keys(counts);
+
+  if (!labels.length) {
+    canvas.style.display = "none";
+    emptyEl.style.display = "block";
+    return;
+  }
+  canvas.style.display = "";
+  emptyEl.style.display = "none";
+
+  dashCharts.origem = new Chart(canvas, {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{
+        data: labels.map(k => counts[k]),
+        backgroundColor: labels.map((_, i) => DASH_PALETTE[i % DASH_PALETTE.length]),
+        borderWidth: 0,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "62%",
+      plugins: { legend: { position: "right", labels: { boxWidth: 10, padding: 12, font: { size: 11.5 }, usePointStyle: true } } },
+    },
+  });
+}
+
+/* ---- gráfico: faturamento últimos 6 meses (barras) ---- */
+function renderDashboardFaturamentoChart() {
+  const panel = document.getElementById("dash-panel-faturamento");
+  const grid = document.getElementById("dash-row-charts");
+  if (!hasModuleAccess(session.role, "financeiro")) {
+    panel.style.display = "none";
+    grid.classList.add("dash-single");
+    return;
+  }
+  panel.style.display = "";
+  grid.classList.remove("dash-single");
+
+  const canvas = document.getElementById("dash-chart-faturamento");
+  destroyDashChart("faturamento");
+
+  const now = new Date();
+  const labels = [];
+  const data = [];
+  for (let i = 5; i >= 0; i--) {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthStart = monthDate.getTime();
+    const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1).getTime();
+    const total = deals
+      .filter(d => isWonStage(d.stage) && d.closedAt >= monthStart && d.closedAt < monthEnd)
+      .reduce((s, d) => s + (Number(d.value) || 0), 0);
+    labels.push(MONTH_ABBR[monthDate.getMonth()]);
+    data.push(total);
+  }
+
+  dashCharts.faturamento = new Chart(canvas, {
+    type: "bar",
+    data: { labels, datasets: [{ data, backgroundColor: "#4f7df3", borderRadius: 6, maxBarThickness: 40 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => currency(ctx.parsed.y) } } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => currency(v).replace(",00", "") } },
+        x: { grid: { display: false } },
+      },
+    },
+  });
+}
+
+/* ---- gráfico: ranking de consultores (barras) ---- */
+function renderDashboardRankingChart() {
+  const panel = document.getElementById("dash-panel-ranking");
+  const isManager = session.role === "ADM" || session.role === "Gerente";
+  if (!isManager) {
+    panel.style.display = "none";
+    return;
+  }
+  panel.style.display = "";
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+
+  const totals = {};
+  deals.filter(d => isWonStage(d.stage) && d.closedAt >= monthStart && d.closedAt < monthEnd).forEach(d => {
+    const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
+    const consultorId = lead ? lead.consultorId : null;
+    if (!consultorId) return;
+    totals[consultorId] = (totals[consultorId] || 0) + (Number(d.value) || 0);
+  });
+
+  const rows = Object.entries(totals)
+    .map(([id, value]) => ({ name: (users.find(u => u.id === id) || {}).name || "—", value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+
+  const canvas = document.getElementById("dash-chart-ranking");
+  const emptyEl = document.getElementById("dash-chart-ranking-empty");
+  destroyDashChart("ranking");
+
+  if (!rows.length) {
+    canvas.style.display = "none";
+    emptyEl.style.display = "block";
+    return;
+  }
+  canvas.style.display = "";
+  emptyEl.style.display = "none";
+
+  dashCharts.ranking = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: rows.map(r => r.name),
+      datasets: [{
+        data: rows.map(r => r.value),
+        backgroundColor: rows.map((_, i) => DASH_PALETTE[i % DASH_PALETTE.length]),
+        borderRadius: 6,
+        maxBarThickness: 34,
+      }],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => currency(ctx.parsed.x) } } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => currency(v).replace(",00", "") } } },
+    },
+  });
+}
+
+/* ---- lista: atenção necessária (vencidos) ---- */
+function renderDashboardAlertas() {
+  const panel = document.getElementById("dash-panel-alertas");
+  const listRow = document.getElementById("dash-row-lists");
+  if (!hasModuleAccess(session.role, "financeiro")) {
+    panel.style.display = "none";
+    listRow.classList.add("dash-single");
+    return;
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const overdueReceivables = receivables.filter(r => !r.paid && r.dueDate && r.dueDate < todayIso);
+  const overdueExpenses = expenses.filter(e => !e.paid && e.dueDate && e.dueDate < todayIso);
+
+  const items = [
+    ...overdueReceivables.map(r => ({
+      title: `${r.clientName || "Cliente"} — parcela ${r.installmentNumber}/${r.installmentsTotal}`,
+      sub: `Venceu em ${formatDate(r.dueDate)}`, value: currency(r.amount), date: r.dueDate,
+    })),
+    ...overdueExpenses.map(e => ({
+      title: e.description, sub: `Despesa venceu em ${formatDate(e.dueDate)}`, value: currency(e.amount), date: e.dueDate,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
+
+  if (!items.length) {
+    panel.style.display = "none";
+    listRow.classList.add("dash-single");
+    return;
+  }
+  panel.style.display = "";
+  listRow.classList.remove("dash-single");
+
+  document.getElementById("dash-alertas-list").innerHTML = items.map(it => `
+    <div class="dash-list-item">
+      <span class="dash-list-icon warn">!</span>
+      <div class="dash-list-body">
+        <div class="dash-list-title">${escapeHtml(it.title)}</div>
+        <div class="dash-list-sub">${escapeHtml(it.sub)}</div>
+      </div>
+      <span class="dash-list-value danger">${it.value}</span>
+    </div>`).join("");
+}
+
+/* ---- lista: atividade recente ---- */
+function renderDashboardAtividade() {
+  const recentLeads = leads.slice().sort((a, b) => b.createdAt - a.createdAt).slice(0, 5)
+    .map(l => ({ kind: "lead", id: l.id, title: l.name, sub: `Novo lead · ${l.source || "Outro"}`, date: l.createdAt }));
+
+  const recentDeals = deals.filter(d => isClosedStage(d.stage) && d.closedAt).slice()
+    .sort((a, b) => b.closedAt - a.closedAt).slice(0, 5)
+    .map(d => ({
+      kind: "deal", id: d.id, title: d.name,
+      sub: isWonStage(d.stage) ? `Negócio ganho · ${currency(d.value)}` : "Negócio perdido",
+      date: d.closedAt, won: isWonStage(d.stage),
+    }));
+
+  const items = [...recentLeads, ...recentDeals].sort((a, b) => b.date - a.date).slice(0, 8);
+
+  const listEl = document.getElementById("dash-atividade-list");
+  if (!items.length) {
+    listEl.innerHTML = `<p class="muted-note" style="padding:16px 20px;">Nenhuma atividade recente ainda.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = items.map(it => {
+    const iconClass = it.kind === "lead" ? "info" : (it.won ? "good" : "warn");
+    const icon = it.kind === "lead" ? "+" : (it.won ? "✓" : "×");
+    return `
+      <div class="dash-list-item dash-activity-item" data-kind="${it.kind}" data-id="${it.id}">
+        <span class="dash-list-icon ${iconClass}">${icon}</span>
+        <div class="dash-list-body">
+          <div class="dash-list-title">${escapeHtml(it.title)}</div>
+          <div class="dash-list-sub">${escapeHtml(it.sub)}</div>
+        </div>
+        <span class="dash-list-value">${new Date(it.date).toLocaleDateString("pt-BR")}</span>
+      </div>`;
+  }).join("");
+
+  listEl.querySelectorAll(".dash-activity-item").forEach(el => {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", () => {
+      const kind = el.dataset.kind;
+      const id = el.dataset.id;
+      if (kind === "lead" && canAccessView("leads")) {
+        switchView("leads");
+        openLeadModal(id);
+      } else if (kind === "deal" && canAccessView("pipeline")) {
+        switchView("pipeline");
+        openDealModal(id);
+      }
+    });
+  });
+}
 
 /* ============================================================
    USUÁRIOS (somente ADM)
