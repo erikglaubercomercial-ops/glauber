@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formulário — Peregrinos Intercâmbio</title>
+<link rel="stylesheet" href="style.css?v=1790105340">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div class="public-page">
+    <div class="public-card">
+      <img class="public-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
+
+      <div id="pf-loading">
+        <p class="public-subtitle">Carregando...</p>
+      </div>
+
+      <div id="pf-error" style="display:none;">
+        <div class="public-message error">Não encontramos esse formulário. Verifique se o link está correto.</div>
+      </div>
+
+      <div id="pf-content" style="display:none;">
+        <h1 class="public-title" id="pf-title"></h1>
+        <p class="public-subtitle" id="pf-subtitle"></p>
+
+        <div class="public-message success" id="pf-success" style="display:none;">Recebemos suas informações! Em breve alguém da nossa equipe vai entrar em contato.</div>
+
+        <form class="public-form" id="pf-form"></form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="formulario-publico.js"></script>
+</body>
+</html>

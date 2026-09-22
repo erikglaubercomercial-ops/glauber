@@ -319,6 +319,7 @@ body {
 .cell-primary { font-weight: 700; }
 .cell-muted { color: var(--text-muted); }
 .cell-actions { text-align: right; }
+.cell-actions-row { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
 .cell-sub { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-top: 2px; }
 
 .cell-email-row {
@@ -877,6 +878,17 @@ body {
 .public-message.error { background: var(--danger-bg); color: var(--danger); }
 @media (max-width: 640px) { .public-summary { grid-template-columns: 1fr; } }
 
+.public-form textarea {
+  font-family: inherit; font-size: 14px; color: var(--text);
+  background: var(--content-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; resize: vertical;
+}
+.public-radio-group { display: flex; gap: 18px; padding-top: 2px; }
+.public-radio-option {
+  display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer;
+}
+.public-radio-option input { width: auto; }
+.public-required { color: var(--danger); }
+
 .quote-form-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
 .quote-form-body .f { display: flex; flex-direction: column; gap: 5px; }
 .quote-form-body .f > span {
@@ -920,6 +932,29 @@ body {
   flex: 1; font-family: inherit; font-size: 14px; color: var(--text);
   background: var(--content-bg); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px;
 }
+
+/* construtor de campos de formulário */
+.form-builder-fields-header {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; font-weight: 700; color: var(--text); margin-top: 4px;
+}
+#form-builder-fields { display: flex; flex-direction: column; gap: 10px; }
+.form-field-row {
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  background: var(--content-bg); display: flex; flex-direction: column; gap: 8px;
+}
+.form-field-row-main { display: grid; grid-template-columns: 1fr 200px; gap: 8px; }
+.form-field-row-main input[type="text"], .form-field-row-main select {
+  font-family: inherit; font-size: 13.5px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px;
+}
+.form-field-row-sub { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.form-field-row-sub .checkbox-label { font-size: 12.5px; margin: 0; }
+.ff-options {
+  flex: 1; min-width: 180px; font-family: inherit; font-size: 13px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px;
+}
+.ff-delete { margin-left: auto; }
 
 /* catálogo navegável (montagem de cotação) */
 .q-cat { margin-bottom: 20px; }

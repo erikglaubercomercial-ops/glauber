@@ -806,7 +806,7 @@ function leadFromDb(r) {
     id: r.id, name: r.name, company: r.company || "", phone: r.phone || "", email: r.email || "",
     countryCode: r.country_code || "BR", phoneDdd: r.phone_ddd || "", phoneNumber: r.phone_number || "",
     source: r.source, category: r.category, status: r.status, temperature: r.temperature,
-    consultorId: r.consultor_id, active: r.active,
+    consultorId: r.consultor_id, active: r.active, notes: r.notes || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
 }
@@ -815,7 +815,7 @@ function leadToDb(l) {
     id: l.id, name: l.name, company: l.company, phone: l.phone, email: l.email,
     country_code: l.countryCode || "BR", phone_ddd: l.phoneDdd || "", phone_number: l.phoneNumber || "",
     source: l.source, category: l.category, status: l.status, temperature: l.temperature,
-    consultor_id: l.consultorId || null, active: l.active,
+    consultor_id: l.consultorId || null, active: l.active, notes: l.notes || "",
     created_at: new Date(l.createdAt).toISOString(),
   };
 }
@@ -1382,6 +1382,7 @@ function openLeadModal(id) {
     document.getElementById("lead-field-source").value = lead.source || "Indicação";
     document.getElementById("lead-field-temperature").value = lead.temperature || "Morno";
     document.getElementById("lead-field-status").value = lead.status || "Novo";
+    document.getElementById("lead-field-notes").value = lead.notes || "";
     document.getElementById("lead-field-active").checked = lead.active !== false;
     leadBtnDelete.style.display = "inline-block";
   } else {
@@ -1440,6 +1441,7 @@ leadForm.addEventListener("submit", async e => {
     source: document.getElementById("lead-field-source").value,
     temperature: document.getElementById("lead-field-temperature").value,
     status: document.getElementById("lead-field-status").value,
+    notes: document.getElementById("lead-field-notes").value.trim(),
     active: document.getElementById("lead-field-active").checked,
   };
 
@@ -3945,6 +3947,275 @@ collabBtnDelete.addEventListener("click", async () => {
 });
 
 /* ============================================================
+   FORMULÁRIOS — construtor simples de formulários públicos. Cada
+   envio cria um lead automaticamente: campos especiais (nome/
+   e-mail/telefone/origem) alimentam as colunas do lead; qualquer
+   outro campo extra vira uma linha em leads.notes. O envio em si
+   roda todo no banco (RPC security definer), sem passar por aqui.
+   ============================================================ */
+const FORM_FIELD_TYPES = [
+  { value: "name", label: "Nome (vira o nome do lead)" },
+  { value: "email", label: "E-mail (vira o e-mail do lead)" },
+  { value: "phone_br", label: "Telefone com DDD (vira o telefone do lead)" },
+  { value: "source", label: "Origem (como o lead chegou até nós)" },
+  { value: "boolean", label: "Sim / Não" },
+  { value: "date", label: "Data" },
+  { value: "text", label: "Texto curto" },
+  { value: "textarea", label: "Texto longo" },
+  { value: "select", label: "Lista de opções personalizada" },
+];
+
+let forms = [];
+let formSubmissionCounts = {};
+
+function formFromDb(r) {
+  return {
+    id: r.id, title: r.title || "Formulário", subtitle: r.subtitle || "",
+    slug: r.slug, fields: Array.isArray(r.fields) ? r.fields : [], active: r.active !== false,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function formToDb(f) {
+  return {
+    id: f.id, title: f.title, subtitle: f.subtitle, slug: f.slug,
+    fields: f.fields, active: f.active, updated_at: new Date().toISOString(),
+  };
+}
+
+async function loadForms() {
+  const { data, error } = await supabase.from("forms").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar formulários:", error); return []; }
+  return data.map(formFromDb);
+}
+async function loadFormSubmissionCounts() {
+  const { data, error } = await supabase.from("form_submissions").select("form_id");
+  if (error) { console.error("Erro ao carregar respostas de formulários:", error); return {}; }
+  const counts = {};
+  data.forEach(r => { counts[r.form_id] = (counts[r.form_id] || 0) + 1; });
+  return counts;
+}
+async function saveFormRemote(f) {
+  const { data, error } = await supabase.from("forms").upsert(formToDb(f)).select().single();
+  if (error) { console.error("Erro ao salvar formulário:", error); return null; }
+  return formFromDb(data);
+}
+async function deleteFormRemote(id) {
+  const { error } = await supabase.from("forms").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir formulário:", error);
+}
+
+function slugify(text) {
+  return (text || "")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "formulario";
+}
+function uniqueFormSlug(base) {
+  let slug = base, i = 2;
+  while (forms.some(f => f.slug === slug)) { slug = `${base}-${i}`; i++; }
+  return slug;
+}
+function buildFormPublicUrl(slug) {
+  return `${window.location.origin}/formulario-publico.html?f=${encodeURIComponent(slug)}`;
+}
+function canManageForms() {
+  return !!(session && ["ADM", "Gerente", "MKT"].includes(session.role));
+}
+
+function renderFormsList() {
+  document.getElementById("btn-new-form").style.display = canManageForms() ? "" : "none";
+  const tbody = document.getElementById("forms-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("forms-empty").style.display = forms.length === 0 ? "block" : "none";
+  forms.slice().sort((a, b) => b.createdAt - a.createdAt).forEach(f => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(f.title)}</td>
+      <td class="cell-muted">${escapeHtml(f.subtitle || "—")}</td>
+      <td class="cell-muted">${f.fields.length}</td>
+      <td class="cell-muted">${formSubmissionCounts[f.id] || 0}</td>
+      <td class="cell-actions">
+        <div class="cell-actions-row">
+          <button type="button" class="cell-copy-btn" data-act="copy" title="Copiar link">${CELL_COPY_ICON_SVG}</button>
+          <span>›</span>
+        </div>
+      </td>
+    `;
+    tr.addEventListener("click", () => openFormModal(f.id));
+    tr.querySelector('[data-act="copy"]').addEventListener("click", e => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(buildFormPublicUrl(f.slug));
+      const btn = e.currentTarget;
+      btn.classList.add("copied");
+      setTimeout(() => btn.classList.remove("copied"), 1500);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---- construtor de campos, dentro do modal do formulário ---- */
+let formBuilderFields = [];
+let formBuilderFieldSeq = 0;
+let formBuilderReadOnly = false;
+
+function newFormFieldId() {
+  formBuilderFieldSeq++;
+  return `campo_${Date.now().toString(36)}${formBuilderFieldSeq}`;
+}
+
+function renderFormBuilderFields() {
+  const container = document.getElementById("form-builder-fields");
+  const dis = formBuilderReadOnly ? "disabled" : "";
+  container.innerHTML = formBuilderFields.map((f, i) => `
+    <div class="form-field-row" data-index="${i}">
+      <div class="form-field-row-main">
+        <input type="text" class="ff-label" ${dis} placeholder="Pergunta" value="${escapeHtml(f.label || "")}">
+        <select class="ff-type" ${dis}>
+          ${FORM_FIELD_TYPES.map(t => `<option value="${t.value}" ${f.type === t.value ? "selected" : ""}>${escapeHtml(t.label)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="form-field-row-sub">
+        <label class="checkbox-label"><input type="checkbox" class="ff-required" ${dis} ${f.required ? "checked" : ""}><span>Obrigatório</span></label>
+        <input type="text" class="ff-options" ${dis} placeholder="Opções separadas por vírgula" value="${escapeHtml((f.options || []).join(", "))}" style="${f.type === "select" ? "" : "display:none;"}">
+        ${formBuilderReadOnly ? "" : '<button type="button" class="btn-icon ff-delete" title="Excluir campo">&times;</button>'}
+      </div>
+    </div>`).join("");
+}
+
+document.getElementById("form-builder-fields").addEventListener("input", e => {
+  const row = e.target.closest(".form-field-row");
+  if (!row) return;
+  const i = parseInt(row.dataset.index, 10);
+  if (e.target.classList.contains("ff-label")) formBuilderFields[i].label = e.target.value;
+  if (e.target.classList.contains("ff-options")) {
+    formBuilderFields[i].options = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
+  }
+});
+document.getElementById("form-builder-fields").addEventListener("change", e => {
+  const row = e.target.closest(".form-field-row");
+  if (!row) return;
+  const i = parseInt(row.dataset.index, 10);
+  if (e.target.classList.contains("ff-type")) {
+    formBuilderFields[i].type = e.target.value;
+    renderFormBuilderFields();
+  }
+  if (e.target.classList.contains("ff-required")) formBuilderFields[i].required = e.target.checked;
+});
+document.getElementById("form-builder-fields").addEventListener("click", e => {
+  const btn = e.target.closest(".ff-delete");
+  if (!btn) return;
+  const i = parseInt(btn.closest(".form-field-row").dataset.index, 10);
+  formBuilderFields.splice(i, 1);
+  renderFormBuilderFields();
+});
+document.getElementById("form-btn-add-field").addEventListener("click", () => {
+  formBuilderFields.push({ id: newFormFieldId(), label: "", type: "text", required: false, options: [] });
+  renderFormBuilderFields();
+});
+
+/* ---- modal do formulário (criar/editar) ---- */
+const formModalBackdrop = document.getElementById("form-modal-backdrop");
+const formBuilderForm = document.getElementById("form-builder-form");
+const formBtnDelete = document.getElementById("form-btn-delete");
+const formBtnCopyLink = document.getElementById("form-btn-copy-link");
+let formModalSlug = "";
+
+function openFormModal(id) {
+  formBuilderForm.reset();
+  const existing = id ? forms.find(f => f.id === id) : null;
+  formBuilderReadOnly = !canManageForms();
+
+  if (existing) {
+    document.getElementById("form-modal-title").textContent = existing.title;
+    document.getElementById("form-id").value = existing.id;
+    document.getElementById("form-field-title").value = existing.title;
+    document.getElementById("form-field-subtitle").value = existing.subtitle;
+    formBuilderFields = existing.fields.map(f => ({ ...f, options: f.options || [] }));
+    formModalSlug = existing.slug;
+    formBtnDelete.style.display = formBuilderReadOnly ? "none" : "inline-block";
+    formBtnCopyLink.style.display = "inline-block";
+  } else {
+    document.getElementById("form-modal-title").textContent = "Novo formulário";
+    document.getElementById("form-id").value = "";
+    formBuilderFields = [];
+    formModalSlug = "";
+    formBtnDelete.style.display = "none";
+    formBtnCopyLink.style.display = "none";
+  }
+  renderFormBuilderFields();
+
+  document.getElementById("form-field-title").disabled = formBuilderReadOnly;
+  document.getElementById("form-field-subtitle").disabled = formBuilderReadOnly;
+  document.getElementById("form-btn-add-field").style.display = formBuilderReadOnly ? "none" : "";
+  formBuilderForm.querySelector('button[type="submit"]').style.display = formBuilderReadOnly ? "none" : "";
+
+  formModalBackdrop.classList.add("open");
+  if (!formBuilderReadOnly) document.getElementById("form-field-title").focus();
+}
+function closeFormModal() { formModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-form").addEventListener("click", () => openFormModal(null));
+document.getElementById("form-modal-close").addEventListener("click", closeFormModal);
+document.getElementById("form-btn-cancel").addEventListener("click", closeFormModal);
+formModalBackdrop.addEventListener("click", e => { if (e.target === formModalBackdrop) closeFormModal(); });
+
+formBtnCopyLink.addEventListener("click", () => {
+  if (!formModalSlug) return;
+  navigator.clipboard.writeText(buildFormPublicUrl(formModalSlug));
+  formBtnCopyLink.textContent = "Copiado!";
+  setTimeout(() => { formBtnCopyLink.textContent = "Copiar link"; }, 1500);
+});
+
+formBuilderForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  if (formBuilderReadOnly) return;
+  const id = document.getElementById("form-id").value;
+  const title = document.getElementById("form-field-title").value.trim();
+  const subtitle = document.getElementById("form-field-subtitle").value.trim();
+  if (!formBuilderFields.length) {
+    alert("Adicione ao menos um campo ao formulário.");
+    return;
+  }
+  if (formBuilderFields.some(f => !f.label.trim())) {
+    alert("Preencha o texto de todas as perguntas do formulário.");
+    return;
+  }
+
+  const slug = id ? formModalSlug : uniqueFormSlug(slugify(title));
+  const data = {
+    id: id || uid(),
+    title, subtitle, slug,
+    fields: formBuilderFields.map(f => ({
+      id: f.id, label: f.label.trim(), type: f.type, required: !!f.required,
+      ...(f.type === "select" ? { options: f.options || [] } : {}),
+    })),
+    active: true,
+  };
+
+  const saved = await saveFormRemote(data);
+  if (!saved) { alert("Não foi possível salvar o formulário. Tente novamente."); return; }
+
+  if (id) {
+    const idx = forms.findIndex(x => x.id === id);
+    if (idx >= 0) forms[idx] = saved; else forms.push(saved);
+  } else {
+    forms.push(saved);
+  }
+  renderFormsList();
+  closeFormModal();
+});
+
+formBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("form-id").value;
+  if (!id || !confirm("Excluir este formulário? O link público deixará de funcionar. Essa ação não pode ser desfeita.")) return;
+  forms = forms.filter(f => f.id !== id);
+  renderFormsList();
+  closeFormModal();
+  await deleteFormRemote(id);
+});
+
+/* ============================================================
    DASHBOARD — visão geral com funil, gráficos e alertas
    ============================================================ */
 if (window.Chart) {
@@ -4640,6 +4911,7 @@ document.addEventListener("keydown", e => {
   if (followUpModalBackdrop.classList.contains("open")) closeFollowUpModal();
   if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
   if (teamMessageModalBackdrop.classList.contains("open")) closeTeamMessageModal();
+  if (formModalBackdrop.classList.contains("open")) closeFormModal();
   closeRowMenu();
 });
 
@@ -4655,7 +4927,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissionCounts] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -4671,6 +4943,8 @@ document.addEventListener("keydown", e => {
     loadEnrollments(),
     loadCollaborators(),
     loadTeamAnnouncement(),
+    loadForms(),
+    loadFormSubmissionCounts(),
   ]);
 
   renderSessionChip();
@@ -4693,6 +4967,7 @@ document.addEventListener("keydown", e => {
   renderCommissions();
   renderEnrollments();
   renderCollaborators();
+  renderFormsList();
   if (session.role === "ADM") {
     renderUsers();
     renderPermissionsTable();

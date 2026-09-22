@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790103602">
+<link rel="stylesheet" href="style.css?v=1790105340">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -654,11 +654,18 @@
         </div>
       </section>
 
-      <!-- FORMULÁRIOS VIEW (em construção) -->
+      <!-- FORMULÁRIOS VIEW -->
       <section class="view" id="view-formularios">
         <div class="panel">
-          <div class="panel-header"><h2>Formulários</h2></div>
-          <div class="empty-hint">Em construção — em breve você vai poder criar e gerenciar formulários por aqui.</div>
+          <div class="panel-header">
+            <h2>Formulários</h2>
+            <button type="button" class="btn btn-primary" id="btn-new-form" style="display:none;">+ Novo formulário</button>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>Título</th><th>Subtítulo</th><th>Campos</th><th>Respostas</th><th></th></tr></thead>
+            <tbody id="forms-tbody"></tbody>
+          </table>
+          <div class="empty-hint" id="forms-empty" style="display:none;">Nenhum formulário criado ainda.</div>
         </div>
       </section>
 
@@ -828,6 +835,9 @@
             <option value="Descartado">Descartado</option>
           </select>
         </label>
+        <label>Notas
+          <textarea id="lead-field-notes" rows="3" placeholder="Detalhes adicionais (ex: respostas de formulário)"></textarea>
+        </label>
         <label class="checkbox-label">
           <input type="checkbox" id="lead-field-active" checked>
           <span>Lead ativo</span>
@@ -985,6 +995,39 @@
         <div class="modal-actions">
           <div class="spacer"></div>
           <button type="button" class="btn btn-ghost" id="team-message-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: FORMULÁRIO (criar/editar, com construtor de campos) -->
+  <div class="modal-backdrop" id="form-modal-backdrop">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="form-modal-title">Novo formulário</h2>
+        <button class="btn-icon" id="form-modal-close">&times;</button>
+      </div>
+      <form id="form-builder-form">
+        <input type="hidden" id="form-id">
+        <label>Título
+          <input type="text" id="form-field-title" required placeholder="Ex: Somos todos Peregrinos">
+        </label>
+        <label>Subtítulo
+          <input type="text" id="form-field-subtitle" placeholder="Ex: Rumo à Irlanda">
+        </label>
+
+        <div class="form-builder-fields-header">
+          <span>Campos do formulário</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="form-btn-add-field">+ Adicionar campo</button>
+        </div>
+        <div id="form-builder-fields"></div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="form-btn-delete" style="display:none;">Excluir formulário</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="form-btn-copy-link" style="display:none;">Copiar link</button>
+          <button type="button" class="btn btn-ghost" id="form-btn-cancel">Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar</button>
         </div>
       </form>
@@ -1561,6 +1604,6 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="script.js?v=1790103602"></script>
+  <script src="script.js?v=1790105340"></script>
 </body>
 </html>
