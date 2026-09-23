@@ -720,6 +720,8 @@ const TEMPERATURE_BADGE = {
 };
 const WPP_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
 const CELL_COPY_ICON_SVG = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+/* placeholder de foto do consultor — até termos upload de foto de perfil */
+const PERSON_PHOTO_PLACEHOLDER_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>`;
 
 /* ---- ícone + cor por origem do lead — reconhece as origens mais comuns
    (por trecho do nome, tolera variações/erros de digitação) e cai num
@@ -1426,14 +1428,18 @@ function renderStuckOverview() {
   const groups = getStuckGroups();
   const grid = document.getElementById("stuck-cards-grid");
   document.getElementById("stuck-overview-empty").style.display = groups.length === 0 ? "block" : "none";
-  grid.innerHTML = groups.map((g, i) => `
+  grid.innerHTML = groups.map(g => `
     <button type="button" class="stuck-card${g.maxDays >= 7 ? " is-urgent" : ""}" data-consultor="${g.consultorId || ""}">
-      <span class="stuck-card-avatar" style="background:${DASH_PALETTE[i % DASH_PALETTE.length]};">${escapeHtml(initials(g.consultorName) || "?")}</span>
+      <span class="stuck-card-avatar">${PERSON_PHOTO_PLACEHOLDER_SVG}</span>
       <span class="stuck-card-body">
-        <span class="stuck-card-count">${g.leads.length}</span>
         <span class="stuck-card-name">${escapeHtml(g.consultorName)}</span>
         <span class="stuck-card-sub">até ${g.maxDays} dia(s) parado</span>
       </span>
+      <span class="stuck-card-count-wrap">
+        <span class="stuck-card-count">${g.leads.length}</span>
+        <span class="stuck-card-count-label">parados</span>
+      </span>
+      <svg class="stuck-card-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>`).join("");
 
   grid.querySelectorAll(".stuck-card").forEach(card => {

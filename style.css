@@ -1121,22 +1121,25 @@ body {
 .agenda-type-btn.active[data-type="aviso"] { background: #6faed6; border-color: #6faed6; color: #fff; }
 
 /* leads parados por consultor */
-.stuck-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.stuck-cards-grid { display: flex; flex-direction: column; }
 .stuck-card {
-  display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 14px;
-  border: 1px solid var(--border); background: var(--surface); cursor: pointer;
-  transition: box-shadow .15s ease, transform .15s ease; text-align: left; width: 100%;
+  display: flex; align-items: center; gap: 14px; padding: 14px 6px; border: none; border-bottom: 1px solid var(--border);
+  background: transparent; cursor: pointer; transition: background .15s ease; text-align: left; width: 100%; border-radius: 10px;
 }
-.stuck-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.08); transform: translateY(-2px); }
+.stuck-card:last-child { border-bottom: none; }
+.stuck-card:hover { background: var(--content-bg); }
 .stuck-card-avatar {
-  width: 46px; height: 46px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center;
-  font-size: 15px; font-weight: 700; flex-shrink: 0;
+  width: 44px; height: 44px; border-radius: 50%; color: var(--text-muted); background: var(--content-bg);
+  border: 1.5px dashed var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.stuck-card-body { min-width: 0; }
+.stuck-card-body { min-width: 0; flex: 1; }
 .stuck-card-name { font-size: 13.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stuck-card-count { font-size: 24px; font-weight: 800; color: var(--text); line-height: 1.3; }
 .stuck-card-sub { font-size: 11.5px; color: var(--text-muted); }
+.stuck-card-count-wrap { flex-shrink: 0; text-align: right; }
+.stuck-card-count { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1.2; }
+.stuck-card-count-label { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; }
 .stuck-card.is-urgent .stuck-card-count { color: var(--danger); }
+.stuck-card-chevron { color: var(--text-muted); flex-shrink: 0; }
 
 /* --- Sidebar: avisos --- */
 .dash-aviso-panel .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
