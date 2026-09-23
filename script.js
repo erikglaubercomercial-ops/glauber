@@ -178,6 +178,7 @@ function dealFromDb(r) {
     id: r.id, name: r.name, contact: r.contact || "", info: r.info || "",
     value: Number(r.value) || 0, stage: r.stage, notes: r.notes || "",
     leadId: r.lead_id || null, followUpAt: r.follow_up_at || null,
+    consultorId: r.consultor_id || null,
     firstInteractionAt: r.first_interaction_at ? new Date(r.first_interaction_at).getTime() : null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     closedAt: r.closed_at ? new Date(r.closed_at).getTime() : null,
@@ -187,6 +188,7 @@ function dealToDb(d) {
   return {
     id: d.id, name: d.name, contact: d.contact, info: d.info, value: d.value, stage: d.stage, notes: d.notes,
     lead_id: d.leadId || null, follow_up_at: d.followUpAt || null,
+    consultor_id: d.leadId ? null : (d.consultorId || null),
     first_interaction_at: d.firstInteractionAt ? new Date(d.firstInteractionAt).toISOString() : null,
     created_at: new Date(d.createdAt).toISOString(),
     closed_at: d.closedAt ? new Date(d.closedAt).toISOString() : null,
@@ -265,23 +267,35 @@ function renderStageOptions() {
 
 /* ---- filtro: performance por consultor ---- */
 function dealConsultorId(deal) {
-  if (!deal.leadId) return null;
-  const lead = leads.find(l => l.id === deal.leadId);
-  return lead ? lead.consultorId : null;
+  if (deal.leadId) {
+    const lead = leads.find(l => l.id === deal.leadId);
+    return lead ? lead.consultorId : null;
+  }
+  return deal.consultorId || null;
 }
 
 function renderPipelineFilterOptions() {
   const sel = document.getElementById("pipeline-filter-consultor");
   const current = sel.value;
+  if (isOwnLeadsOnly()) {
+    sel.style.display = "none";
+    return;
+  }
+  sel.style.display = "";
   const consultants = users.filter(u => u.role === "Consultor").slice().sort((a, b) => a.name.localeCompare(b.name));
   sel.innerHTML = `<option value="">Todos os consultores</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   sel.value = current;
 }
 
 function getFilteredDeals() {
-  const consultorId = document.getElementById("pipeline-filter-consultor").value;
-  if (!consultorId) return deals;
-  return deals.filter(d => dealConsultorId(d) === consultorId);
+  let list = deals;
+  if (isOwnLeadsOnly()) {
+    list = list.filter(d => dealConsultorId(d) === session.id);
+  } else {
+    const consultorId = document.getElementById("pipeline-filter-consultor").value;
+    if (consultorId) list = list.filter(d => dealConsultorId(d) === consultorId);
+  }
+  return list;
 }
 
 document.getElementById("pipeline-filter-consultor").addEventListener("change", () => { renderBoard(); });
@@ -549,7 +563,10 @@ dealForm.addEventListener("submit", async e => {
     deal = deals.find(d => d.id === id);
     Object.assign(deal, data);
   } else {
-    deal = { id: uid(), ...data, value: 0, stage, createdAt: Date.now(), closedAt: isClosedStage(stage) ? Date.now() : null };
+    deal = {
+      id: uid(), ...data, value: 0, stage, createdAt: Date.now(), closedAt: isClosedStage(stage) ? Date.now() : null,
+      consultorId: isOwnLeadsOnly() ? session.id : null,
+    };
     deals.push(deal);
   }
 
