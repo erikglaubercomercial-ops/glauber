@@ -316,6 +316,22 @@ body {
 .data-table tbody tr { cursor: pointer; transition: background 0.15s; }
 .data-table tbody tr:hover { background: var(--content-bg); }
 .data-table tbody tr:last-child td { border-bottom: none; }
+
+/* variante de lista: cabeçalho colorido + linhas com mais espaço, usada nas
+   telas de listagem por nome (Leads, Leads Parados, Matrículas,
+   Colaboradores, Formulários, Usuários) */
+.data-table-list thead th {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  padding: 14px 12px;
+  border-bottom: none;
+}
+.data-table-list thead th:first-child { border-top-left-radius: 10px; }
+.data-table-list thead th:last-child { border-top-right-radius: 10px; }
+.data-table-list td { padding: 17px 12px; }
+.data-table-list tbody tr:nth-child(even) { background: var(--content-bg); }
+.data-table-list tbody tr:hover { background: var(--border); }
 .cell-primary { font-weight: 700; }
 .cell-muted { color: var(--text-muted); }
 .cell-actions { text-align: right; }
@@ -334,7 +350,7 @@ body {
 }
 .cell-copy-btn:hover { background: var(--content-bg); color: var(--text); }
 .cell-copy-btn.copied { color: var(--good); }
-.cell-temp-row { margin-top: 4px; }
+.cell-temp-row { margin-top: 4px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 
 .badge {
   display: inline-block;

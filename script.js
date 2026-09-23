@@ -1041,10 +1041,12 @@ function renderLeads() {
             <span>${escapeHtml(lead.email)}</span>
             <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.email)}" title="Copiar e-mail">${CELL_COPY_ICON_SVG}</button>
           </div>` : ""}
-        <div class="cell-temp-row"><span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span></div>
+        <div class="cell-temp-row">
+          <span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(lead.status)}</span>
+          <span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span>
+        </div>
       </td>
       <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : "—"}</td>
-      <td><span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(lead.status)}</span></td>
       <td class="cell-muted">${escapeHtml(lead.category || "—")}</td>
       <td class="cell-muted">${originBadge(lead.source)}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
