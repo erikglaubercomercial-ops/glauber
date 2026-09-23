@@ -12,6 +12,7 @@ function canAccessView(view) {
      como os demais módulos */
   if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
   if (view === "usuarios") return session.role === "ADM";
+  if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
   return hasModuleAccess(session.role, view);
 }
 
@@ -53,6 +54,7 @@ const VIEW_TITLES = {
   dashboard: "Dashboard",
   leads: "Leads",
   pipeline: "Pipeline",
+  leadsparados: "Leads Parados",
   cotacao: "Cotação",
   produtos: "Produtos",
   financeiro: "Financeiro",
@@ -96,6 +98,11 @@ function switchView(view) {
   });
   document.getElementById("view-title").textContent = VIEW_TITLES[view] || "";
   if (view === "dashboard") renderDashboardView();
+  if (view === "leadsparados") {
+    document.getElementById("subview-stuck-detalhe").classList.remove("active");
+    document.getElementById("subview-stuck-overview").classList.add("active");
+    renderStuckOverview();
+  }
 }
 
 function currency(v) {
@@ -1376,8 +1383,161 @@ assignForm.addEventListener("submit", async e => {
   });
   renderLeads();
   closeAssignModal();
+  refreshStuckLeadsAfterReassign(assigningLeadIds);
   await saveLeads();
 });
+
+/* ============================================================
+   LEADS PARADOS — leads sem avanço (status "Novo") agrupados por
+   consultor, com reatribuição em massa (ADM/Gerente).
+   ============================================================ */
+function leadIsStuck(lead) {
+  return lead.active !== false && lead.status === "Novo";
+}
+function leadStuckDays(lead) {
+  return Math.floor((Date.now() - lead.createdAt) / 86400000);
+}
+function stuckDaysBadgeClass(days) {
+  if (days >= 7) return "badge-danger";
+  if (days >= 3) return "badge-warn";
+  return "badge-good";
+}
+
+function getStuckGroups() {
+  const stuck = leads.filter(leadIsStuck);
+  const byConsultor = new Map();
+  stuck.forEach(l => {
+    const key = l.consultorId || "";
+    if (!byConsultor.has(key)) byConsultor.set(key, []);
+    byConsultor.get(key).push(l);
+  });
+  return Array.from(byConsultor.entries()).map(([consultorId, group]) => {
+    const consultant = consultorId ? users.find(u => u.id === consultorId) : null;
+    return {
+      consultorId: consultorId || null,
+      consultorName: consultant ? consultant.name : "Sem consultor",
+      leads: group,
+      maxDays: Math.max(...group.map(leadStuckDays)),
+    };
+  }).sort((a, b) => b.leads.length - a.leads.length);
+}
+
+function renderStuckOverview() {
+  const groups = getStuckGroups();
+  const grid = document.getElementById("stuck-cards-grid");
+  document.getElementById("stuck-overview-empty").style.display = groups.length === 0 ? "block" : "none";
+  grid.innerHTML = groups.map((g, i) => `
+    <button type="button" class="stuck-card${g.maxDays >= 7 ? " is-urgent" : ""}" data-consultor="${g.consultorId || ""}">
+      <span class="stuck-card-avatar" style="background:${DASH_PALETTE[i % DASH_PALETTE.length]};">${escapeHtml(initials(g.consultorName) || "?")}</span>
+      <span class="stuck-card-body">
+        <span class="stuck-card-count">${g.leads.length}</span>
+        <span class="stuck-card-name">${escapeHtml(g.consultorName)}</span>
+        <span class="stuck-card-sub">até ${g.maxDays} dia(s) parado</span>
+      </span>
+    </button>`).join("");
+
+  grid.querySelectorAll(".stuck-card").forEach(card => {
+    card.addEventListener("click", () => openStuckDetail(card.dataset.consultor || null));
+  });
+}
+
+let stuckDetailConsultorId;
+let selectedStuckLeadIds = new Set();
+
+function openStuckDetail(consultorId) {
+  stuckDetailConsultorId = consultorId;
+  selectedStuckLeadIds = new Set();
+  document.getElementById("subview-stuck-overview").classList.remove("active");
+  document.getElementById("subview-stuck-detalhe").classList.add("active");
+  renderStuckDetailTable();
+}
+function closeStuckDetail() {
+  document.getElementById("subview-stuck-detalhe").classList.remove("active");
+  document.getElementById("subview-stuck-overview").classList.add("active");
+  renderStuckOverview();
+}
+document.getElementById("stuck-btn-voltar").addEventListener("click", closeStuckDetail);
+
+function renderStuckDetailTable() {
+  const group = getStuckGroups().find(g => (g.consultorId || null) === stuckDetailConsultorId);
+  const list = group ? group.leads.slice().sort((a, b) => leadStuckDays(b) - leadStuckDays(a)) : [];
+  const fallbackConsultor = users.find(u => u.id === stuckDetailConsultorId);
+  const consultorName = group ? group.consultorName : (fallbackConsultor ? fallbackConsultor.name : "Sem consultor");
+
+  document.getElementById("stuck-detalhe-title").textContent = `Leads parados — ${consultorName}`;
+  document.getElementById("stuck-detalhe-empty").style.display = list.length === 0 ? "block" : "none";
+
+  const tbody = document.getElementById("stuck-detalhe-tbody");
+  tbody.innerHTML = list.map(l => {
+    const days = leadStuckDays(l);
+    return `
+      <tr>
+        <td class="cell-check"><input type="checkbox" class="stuck-row-checkbox" data-id="${l.id}" ${selectedStuckLeadIds.has(l.id) ? "checked" : ""}></td>
+        <td class="cell-primary">${escapeHtml(l.name)}</td>
+        <td class="cell-muted">${escapeHtml(l.email || l.phone || "—")}</td>
+        <td class="cell-muted">${escapeHtml(l.source || "—")}</td>
+        <td><span class="badge ${TEMPERATURE_BADGE[l.temperature] || "badge-neutral"}">${escapeHtml(l.temperature || "—")}</span></td>
+        <td><span class="badge ${stuckDaysBadgeClass(days)}">${days} dia(s)</span></td>
+      </tr>`;
+  }).join("");
+
+  tbody.querySelectorAll(".stuck-row-checkbox").forEach(cb => {
+    cb.addEventListener("change", e => {
+      if (e.target.checked) selectedStuckLeadIds.add(e.target.dataset.id);
+      else selectedStuckLeadIds.delete(e.target.dataset.id);
+      updateStuckSelectAllState(list);
+      updateStuckBulkBar();
+    });
+  });
+
+  updateStuckSelectAllState(list);
+  updateStuckBulkBar();
+}
+
+function updateStuckSelectAllState(list) {
+  const cb = document.getElementById("stuck-select-all");
+  if (!list.length) { cb.checked = false; cb.indeterminate = false; return; }
+  const selectedCount = list.filter(l => selectedStuckLeadIds.has(l.id)).length;
+  cb.checked = selectedCount === list.length;
+  cb.indeterminate = selectedCount > 0 && selectedCount < list.length;
+}
+
+document.getElementById("stuck-select-all").addEventListener("change", e => {
+  const group = getStuckGroups().find(g => (g.consultorId || null) === stuckDetailConsultorId);
+  const list = group ? group.leads : [];
+  if (e.target.checked) list.forEach(l => selectedStuckLeadIds.add(l.id));
+  else list.forEach(l => selectedStuckLeadIds.delete(l.id));
+  renderStuckDetailTable();
+});
+
+function updateStuckBulkBar() {
+  const bar = document.getElementById("stuck-bulk-bar");
+  const count = selectedStuckLeadIds.size;
+  document.getElementById("stuck-bulk-count").textContent = `${count} selecionado(s)`;
+  bar.style.display = count > 0 ? "flex" : "none";
+}
+
+document.getElementById("stuck-bulk-clear").addEventListener("click", () => {
+  selectedStuckLeadIds = new Set();
+  renderStuckDetailTable();
+});
+
+document.getElementById("stuck-btn-reassign").addEventListener("click", () => {
+  if (!selectedStuckLeadIds.size) return;
+  openAssignModal(Array.from(selectedStuckLeadIds));
+});
+
+/* depois de reatribuir (pelo modal padrão de "Atribuir consultor"),
+   atualiza a tela de Leads Parados se ela estiver aberta na hora */
+function refreshStuckLeadsAfterReassign(reassignedIds) {
+  if (!document.getElementById("view-leadsparados").classList.contains("active")) return;
+  reassignedIds.forEach(id => selectedStuckLeadIds.delete(id));
+  if (document.getElementById("subview-stuck-detalhe").classList.contains("active")) {
+    renderStuckDetailTable();
+  } else {
+    renderStuckOverview();
+  }
+}
 
 /* ---- modal de lead (criar/editar) ---- */
 function openLeadModal(id) {

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790163188">
+<link rel="stylesheet" href="style.css?v=1790164231">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -41,6 +41,11 @@
         <button class="nav-item" data-view="pipeline">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg>
           <span>Pipeline</span>
+        </button>
+
+        <button class="nav-item" data-view="leadsparados" id="nav-leadsparados" style="display:none;">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Leads Parados</span>
         </button>
 
         <button class="nav-item" data-view="cotacao">
@@ -306,6 +311,50 @@
           </div>
         </div>
         <div class="board" id="board"></div>
+      </section>
+
+      <!-- LEADS PARADOS VIEW (ADM/Gerente) -->
+      <section class="view" id="view-leadsparados">
+        <div class="subview active" id="subview-stuck-overview">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Leads parados por consultor</h2>
+            </div>
+            <p class="muted-note" id="stuck-overview-empty" style="display:none;">Nenhum lead parado no momento — tudo em dia por aqui.</p>
+            <div class="stuck-cards-grid" id="stuck-cards-grid"></div>
+          </div>
+        </div>
+
+        <div class="subview" id="subview-stuck-detalhe">
+          <div class="quote-builder-topbar">
+            <button type="button" class="btn btn-ghost btn-sm" id="stuck-btn-voltar">← Voltar</button>
+            <h2 id="stuck-detalhe-title">Leads parados</h2>
+          </div>
+          <div class="panel">
+            <div class="bulk-bar" id="stuck-bulk-bar" style="display:none;">
+              <span id="stuck-bulk-count">0 selecionado(s)</span>
+              <div class="spacer"></div>
+              <button type="button" class="btn btn-primary btn-sm" id="stuck-btn-reassign">Direcionar para outro consultor</button>
+              <button type="button" class="btn-icon" id="stuck-bulk-clear" title="Limpar seleção">&times;</button>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="cell-check"><input type="checkbox" id="stuck-select-all"></th>
+                    <th>Nome</th>
+                    <th>Contato</th>
+                    <th>Origem</th>
+                    <th>Temperatura</th>
+                    <th>Parado há</th>
+                  </tr>
+                </thead>
+                <tbody id="stuck-detalhe-tbody"></tbody>
+              </table>
+            </div>
+            <div class="empty-hint" id="stuck-detalhe-empty" style="display:none;">Nenhum lead parado para esse consultor.</div>
+          </div>
+        </div>
       </section>
 
       <!-- COTACAO VIEW -->
@@ -1669,6 +1718,6 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="script.js?v=1790163188"></script>
+  <script src="script.js?v=1790164231"></script>
 </body>
 </html>
