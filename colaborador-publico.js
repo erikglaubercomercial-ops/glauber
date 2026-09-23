@@ -11,11 +11,7 @@ const submitBtn = document.getElementById("pc-submit");
 const successEl = document.getElementById("pc-success");
 
 const DOC_UPLOADS = [
-  { input: "pc-id-document", field: "id_document_path", slug: "rg-cpf" },
-  { input: "pc-address-proof", field: "address_proof_path", slug: "comprovante-residencia" },
-  { input: "pc-photo", field: "photo_path", slug: "foto-3x4" },
-  { input: "pc-resume", field: "resume_path", slug: "curriculo" },
-  { input: "pc-work-card", field: "work_card_path", slug: "carteira-trabalho" },
+  { input: "pc-photo", field: "photo_path", slug: "foto-perfil" },
 ];
 
 form.addEventListener("submit", async e => {

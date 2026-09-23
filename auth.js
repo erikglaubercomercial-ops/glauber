@@ -11,7 +11,7 @@ const MODULES = [
   { id: "produtos", label: "Produtos" },
   { id: "financeiro", label: "Financeiro" },
   { id: "matriculas", label: "Matrículas" },
-  { id: "colaboradores", label: "Colaboradores" },
+  { id: "colaboradores", label: "Time" },
   { id: "contratos", label: "Contratos" },
 ];
 

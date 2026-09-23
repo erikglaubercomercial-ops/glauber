@@ -60,7 +60,7 @@ const VIEW_TITLES = {
   produtos: "Produtos",
   financeiro: "Financeiro",
   matriculas: "Matrículas",
-  colaboradores: "Colaboradores",
+  colaboradores: "Time",
   formularios: "Formulários",
   templates: "Templates",
   areaaluno: "Área do Aluno",
@@ -4218,11 +4218,7 @@ async function deleteCollaboratorRemote(id) {
 }
 
 const COLLAB_DOC_FIELDS = [
-  { key: "idDocumentPath", input: "collab-field-id-document", link: "collab-id-document-view-link", slug: "rg-cpf" },
-  { key: "addressProofPath", input: "collab-field-address-proof", link: "collab-address-proof-view-link", slug: "comprovante-residencia" },
-  { key: "photoPath", input: "collab-field-photo", link: "collab-photo-view-link", slug: "foto-3x4" },
-  { key: "resumePath", input: "collab-field-resume", link: "collab-resume-view-link", slug: "curriculo" },
-  { key: "workCardPath", input: "collab-field-work-card", link: "collab-work-card-view-link", slug: "carteira-trabalho" },
+  { key: "photoPath", input: "collab-field-photo", link: "collab-photo-view-link", slug: "foto-perfil" },
 ];
 
 async function uploadCollaboratorDocument(file, collaboratorId, slug) {
@@ -5719,7 +5715,7 @@ function renderPermissionsTable() {
   const admRow = document.createElement("tr");
   admRow.innerHTML = `
     <td class="perm-role-name">ADM</td>
-    <td colspan="7" class="perm-locked">Acesso total (fixo)</td>
+    <td colspan="8" class="perm-locked">Acesso total (fixo)</td>
   `;
   permissionsTbody.appendChild(admRow);
 
