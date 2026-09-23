@@ -1063,26 +1063,62 @@ body {
 
 /* --- Sidebar: calendário --- */
 .dash-calendar-panel .panel-header { margin-bottom: 10px; }
-.dash-calendar-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.dash-calendar-nav .dash-cal-label { font-size: 13px; font-weight: 700; text-transform: capitalize; color: var(--text); }
+.dash-calendar-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.dash-calendar-nav .dash-cal-label { font-size: 14.5px; font-weight: 700; text-transform: capitalize; color: var(--text); }
 .dash-calendar-nav button {
   border: 1px solid var(--border); background: var(--surface); border-radius: 8px; width: 26px; height: 26px;
   display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted);
 }
 .dash-calendar-nav button:hover { background: var(--content-bg); color: var(--text); }
-.dash-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-.dash-cal-dow { font-size: 10.5px; font-weight: 700; text-align: center; color: var(--text-muted); padding-bottom: 4px; }
+.dash-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dash-cal-dow { font-size: 10.5px; font-weight: 700; text-align: center; color: var(--text-muted); padding-bottom: 8px; }
 .dash-cal-day {
   position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; border-radius: 8px; color: var(--text);
+  font-size: 13.5px; font-weight: 600; border-radius: 50%; color: var(--text); cursor: pointer; border: none;
+  background: transparent; font-family: inherit; width: 100%;
 }
-.dash-cal-day.is-muted { color: var(--text-muted); opacity: 0.45; }
-.dash-cal-day.is-today { background: var(--primary); color: #fff; font-weight: 700; }
-.dash-cal-day .dash-cal-dot {
-  position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
-  width: 4px; height: 4px; border-radius: 50%; background: var(--warn);
+.dash-cal-day:not(.is-muted):hover { background: var(--content-bg); }
+.dash-cal-day.is-muted { color: var(--text-muted); opacity: 0.4; cursor: default; }
+.dash-cal-day.is-today { box-shadow: inset 0 0 0 1.5px var(--primary); }
+.dash-cal-day.is-selected { background: var(--primary); color: #fff; font-weight: 700; box-shadow: none; }
+.dash-cal-day .dash-cal-dots { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
+.dash-cal-day .dash-cal-dot { width: 4px; height: 4px; border-radius: 50%; }
+.dash-cal-dot.dot-tarefa { background: var(--warn); }
+.dash-cal-dot.dot-reuniao { background: var(--primary); }
+.dash-cal-dot.dot-aviso { background: #6faed6; }
+.dash-cal-day.is-selected .dash-cal-dot { background: #fff; }
+
+.dash-cal-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.dash-cal-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+.dash-cal-legend-item .dash-cal-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* --- Sidebar: agenda do dia --- */
+.dash-agenda-panel .panel-header { margin-bottom: 8px; }
+.dash-agenda-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer;
 }
-.dash-cal-day.is-today .dash-cal-dot { background: #fff; }
+.dash-agenda-item:last-child { border-bottom: none; }
+.dash-agenda-item-badge {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 10px; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; line-height: 1.15; text-align: center;
+}
+.dash-agenda-item-badge.dot-tarefa { background: var(--warn); }
+.dash-agenda-item-badge.dot-reuniao { background: var(--primary); }
+.dash-agenda-item-badge.dot-aviso { background: #6faed6; }
+.dash-agenda-item-body { min-width: 0; flex: 1; }
+.dash-agenda-item-title { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-agenda-item-meta { font-size: 11.5px; color: var(--text-muted); }
+
+/* --- modal: tipo de compromisso na agenda --- */
+.agenda-type-picker { display: flex; gap: 8px; }
+.agenda-type-btn {
+  flex: 1; padding: 9px 0; text-align: center; border-radius: 9px; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--text-muted); font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.agenda-type-btn.active[data-type="tarefa"] { background: var(--warn); border-color: var(--warn); color: #fff; }
+.agenda-type-btn.active[data-type="reuniao"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+.agenda-type-btn.active[data-type="aviso"] { background: #6faed6; border-color: #6faed6; color: #fff; }
 
 /* --- Sidebar: avisos --- */
 .dash-aviso-panel .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }

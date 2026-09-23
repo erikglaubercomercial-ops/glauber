@@ -3768,6 +3768,39 @@ async function updateTeamAnnouncementRemote(message) {
   if (error) console.error("Erro ao salvar aviso do time:", error);
 }
 
+/* ---- agenda do dashboard (tarefas, reuniões, avisos) ---- */
+let agendaItems = [];
+
+function agendaItemFromDb(r) {
+  return {
+    id: r.id, title: r.title, type: r.type, itemDate: r.item_date, itemTime: r.item_time,
+    consultorId: r.consultor_id, notes: r.notes || "", done: r.done,
+    googleEventId: r.google_event_id, createdBy: r.created_by,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function agendaItemToDb(a) {
+  return {
+    id: a.id, title: a.title, type: a.type, item_date: a.itemDate, item_time: a.itemTime,
+    consultor_id: a.consultorId || null, notes: a.notes || "", done: !!a.done,
+    google_event_id: a.googleEventId || null, created_by: a.createdBy || null,
+  };
+}
+async function loadAgendaItems() {
+  const { data, error } = await supabase.from("agenda_items").select("*").order("item_date", { ascending: true });
+  if (error) { console.error("Erro ao carregar agenda:", error); return []; }
+  return data.map(agendaItemFromDb);
+}
+async function saveAgendaItemRemote(a) {
+  const { data, error } = await supabase.from("agenda_items").upsert(agendaItemToDb(a)).select().single();
+  if (error) { console.error("Erro ao salvar item da agenda:", error); return null; }
+  return agendaItemFromDb(data);
+}
+async function deleteAgendaItemRemote(id) {
+  const { error } = await supabase.from("agenda_items").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir item da agenda:", error);
+}
+
 function getFilteredCollaborators() {
   const status = document.getElementById("collab-filter-status").value;
   return collaborators.filter(c => !status || c.status === status);
@@ -4386,6 +4419,7 @@ function renderDashboardView() {
   renderDashboardAlertas();
   renderDashboardAtividade();
   renderDashCalendar();
+  renderDashAgendaDay();
   renderTeamMessagePanel();
   renderDashFollowupsPanel();
   renderDashFinanceiroVencidoPanel();
@@ -4711,8 +4745,10 @@ function renderDashboardAtividade() {
 
 /* ---- barra lateral do dashboard: calendário ---- */
 let dashCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let dashCalendarSelectedDate = new Date().toISOString().slice(0, 10);
 const DASH_CAL_DOW = ["D", "S", "T", "Q", "Q", "S", "S"];
 const DASH_CAL_MONTH_LABEL = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const AGENDA_TYPE_LABELS = { tarefa: "Tarefa", reuniao: "Reunião", aviso: "Aviso" };
 
 function renderDashCalendar() {
   const grid = document.getElementById("dash-calendar");
@@ -4720,7 +4756,11 @@ function renderDashCalendar() {
   const month = dashCalendarCursor.getMonth();
   const todayIso = new Date().toISOString().slice(0, 10);
 
-  const followUpDates = new Set(deals.filter(d => !isClosedStage(d.stage) && d.followUpAt).map(d => d.followUpAt));
+  const typesByDate = {};
+  agendaItems.forEach(a => {
+    if (!typesByDate[a.itemDate]) typesByDate[a.itemDate] = new Set();
+    typesByDate[a.itemDate].add(a.type);
+  });
 
   const firstOfMonth = new Date(year, month, 1);
   const startOffset = firstOfMonth.getDay();
@@ -4733,7 +4773,10 @@ function renderDashCalendar() {
   }
   for (let d = 1; d <= daysInMonth; d++) {
     const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    cells.push({ day: d, muted: false, iso, isToday: iso === todayIso, hasFollowUp: followUpDates.has(iso) });
+    cells.push({
+      day: d, muted: false, iso, isToday: iso === todayIso, isSelected: iso === dashCalendarSelectedDate,
+      types: typesByDate[iso] ? Array.from(typesByDate[iso]) : [],
+    });
   }
   let nextDay = 1;
   while (cells.length % 7 !== 0) {
@@ -4742,9 +4785,10 @@ function renderDashCalendar() {
 
   const dowHtml = DASH_CAL_DOW.map(d => `<div class="dash-cal-dow">${d}</div>`).join("");
   const daysHtml = cells.map(c => `
-    <div class="dash-cal-day${c.muted ? " is-muted" : ""}${c.isToday ? " is-today" : ""}">
-      ${c.day}${c.hasFollowUp ? '<span class="dash-cal-dot"></span>' : ""}
-    </div>`).join("");
+    <button type="button" class="dash-cal-day${c.muted ? " is-muted" : ""}${c.isToday ? " is-today" : ""}${c.isSelected ? " is-selected" : ""}" ${c.muted ? "disabled" : `data-date="${c.iso}"`}>
+      ${c.day}
+      ${c.types && c.types.length ? `<span class="dash-cal-dots">${c.types.map(t => `<span class="dash-cal-dot dot-${t}"></span>`).join("")}</span>` : ""}
+    </button>`).join("");
 
   grid.innerHTML = `
     <div class="dash-calendar-nav">
@@ -4752,7 +4796,12 @@ function renderDashCalendar() {
       <span class="dash-cal-label">${DASH_CAL_MONTH_LABEL[month]} de ${year}</span>
       <button type="button" id="dash-cal-next" aria-label="Próximo mês">&rsaquo;</button>
     </div>
-    <div class="dash-cal-grid">${dowHtml}${daysHtml}</div>`;
+    <div class="dash-cal-grid">${dowHtml}${daysHtml}</div>
+    <div class="dash-cal-legend">
+      <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-tarefa"></span>Tarefa</span>
+      <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-reuniao"></span>Reunião</span>
+      <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-aviso"></span>Aviso</span>
+    </div>`;
 
   document.getElementById("dash-cal-prev").addEventListener("click", () => {
     dashCalendarCursor = new Date(year, month - 1, 1);
@@ -4762,7 +4811,148 @@ function renderDashCalendar() {
     dashCalendarCursor = new Date(year, month + 1, 1);
     renderDashCalendar();
   });
+  grid.querySelectorAll(".dash-cal-day[data-date]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      dashCalendarSelectedDate = btn.dataset.date;
+      renderDashCalendar();
+      renderDashAgendaDay();
+      openAgendaModal(null, dashCalendarSelectedDate);
+    });
+  });
 }
+
+/* ---- barra lateral do dashboard: agenda do dia selecionado ---- */
+function renderDashAgendaDay() {
+  const label = document.getElementById("dash-agenda-day-label");
+  const todayIso = new Date().toISOString().slice(0, 10);
+  label.textContent = dashCalendarSelectedDate === todayIso
+    ? "Agenda de hoje"
+    : `Agenda de ${formatDate(dashCalendarSelectedDate)}`;
+
+  const items = agendaItems
+    .filter(a => a.itemDate === dashCalendarSelectedDate)
+    .sort((a, b) => (a.itemTime || "99:99").localeCompare(b.itemTime || "99:99"));
+
+  const list = document.getElementById("dash-agenda-day-list");
+  if (!items.length) {
+    list.innerHTML = `<p class="muted-note" style="padding:4px 0;">Nada agendado nesse dia.</p>`;
+    return;
+  }
+
+  list.innerHTML = items.map(a => {
+    const consultor = a.consultorId ? users.find(u => u.id === a.consultorId) : null;
+    const metaParts = [AGENDA_TYPE_LABELS[a.type] || a.type];
+    if (a.itemTime) metaParts.push(a.itemTime.slice(0, 5));
+    if (consultor) metaParts.push(consultor.name);
+    return `
+      <div class="dash-agenda-item" data-id="${a.id}">
+        <span class="dash-agenda-item-badge dot-${a.type}">${a.itemTime ? a.itemTime.slice(0, 5) : "—"}</span>
+        <div class="dash-agenda-item-body">
+          <div class="dash-agenda-item-title">${escapeHtml(a.title)}</div>
+          <div class="dash-agenda-item-meta">${escapeHtml(metaParts.join(" · "))}</div>
+        </div>
+      </div>`;
+  }).join("");
+
+  list.querySelectorAll(".dash-agenda-item").forEach(el => {
+    el.addEventListener("click", () => openAgendaModal(el.dataset.id));
+  });
+}
+
+/* ---- modal: novo compromisso / editar (tarefa, reunião, aviso) ---- */
+const agendaModalBackdrop = document.getElementById("agenda-modal-backdrop");
+const agendaForm = document.getElementById("agenda-form");
+const agendaBtnDelete = document.getElementById("agenda-btn-delete");
+const agendaFieldType = document.getElementById("agenda-field-type");
+
+function setAgendaType(type) {
+  agendaFieldType.value = type;
+  document.querySelectorAll(".agenda-type-btn").forEach(b => b.classList.toggle("active", b.dataset.type === type));
+}
+document.querySelectorAll(".agenda-type-btn").forEach(btn => {
+  btn.addEventListener("click", () => setAgendaType(btn.dataset.type));
+});
+
+function renderAgendaConsultorOptions(currentId) {
+  const sel = document.getElementById("agenda-field-consultor");
+  const consultants = users.filter(u => u.role === "Consultor");
+  sel.innerHTML = `<option value="">Sem consultor específico</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  if (currentId) sel.value = currentId;
+  else if (session && session.role === "Consultor") sel.value = session.id;
+}
+
+function openAgendaModal(id, presetDate) {
+  agendaForm.reset();
+  const existing = id ? agendaItems.find(a => a.id === id) : null;
+
+  if (existing) {
+    document.getElementById("agenda-modal-title").textContent = "Editar compromisso";
+    document.getElementById("agenda-id").value = existing.id;
+    document.getElementById("agenda-field-title").value = existing.title;
+    document.getElementById("agenda-field-date").value = existing.itemDate;
+    document.getElementById("agenda-field-time").value = existing.itemTime || "";
+    document.getElementById("agenda-field-notes").value = existing.notes || "";
+    renderAgendaConsultorOptions(existing.consultorId);
+    setAgendaType(existing.type);
+    agendaBtnDelete.style.display = "inline-block";
+  } else {
+    document.getElementById("agenda-modal-title").textContent = "Novo compromisso";
+    document.getElementById("agenda-id").value = "";
+    document.getElementById("agenda-field-date").value = presetDate || dashCalendarSelectedDate;
+    renderAgendaConsultorOptions(null);
+    setAgendaType("tarefa");
+    agendaBtnDelete.style.display = "none";
+  }
+
+  agendaModalBackdrop.classList.add("open");
+  document.getElementById("agenda-field-title").focus();
+}
+function closeAgendaModal() { agendaModalBackdrop.classList.remove("open"); }
+
+document.getElementById("agenda-modal-close").addEventListener("click", closeAgendaModal);
+document.getElementById("agenda-btn-cancel").addEventListener("click", closeAgendaModal);
+agendaModalBackdrop.addEventListener("click", e => { if (e.target === agendaModalBackdrop) closeAgendaModal(); });
+
+agendaForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("agenda-id").value;
+  const data = {
+    id: id || uid(),
+    title: document.getElementById("agenda-field-title").value.trim(),
+    type: agendaFieldType.value,
+    itemDate: document.getElementById("agenda-field-date").value,
+    itemTime: document.getElementById("agenda-field-time").value || null,
+    consultorId: document.getElementById("agenda-field-consultor").value || null,
+    notes: document.getElementById("agenda-field-notes").value.trim(),
+    done: false,
+    createdBy: session.id,
+  };
+
+  const saved = await saveAgendaItemRemote(data);
+  if (!saved) { alert("Não foi possível salvar o compromisso. Tente novamente."); return; }
+
+  if (id) {
+    const idx = agendaItems.findIndex(a => a.id === id);
+    if (idx >= 0) agendaItems[idx] = saved; else agendaItems.push(saved);
+  } else {
+    agendaItems.push(saved);
+  }
+
+  dashCalendarSelectedDate = saved.itemDate;
+  renderDashCalendar();
+  renderDashAgendaDay();
+  closeAgendaModal();
+});
+
+agendaBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("agenda-id").value;
+  if (!id || !confirm("Excluir este compromisso?")) return;
+  agendaItems = agendaItems.filter(a => a.id !== id);
+  renderDashCalendar();
+  renderDashAgendaDay();
+  closeAgendaModal();
+  await deleteAgendaItemRemote(id);
+});
 
 /* ---- barra lateral do dashboard: aviso do time (ADM edita) ---- */
 function renderTeamMessagePanel() {
@@ -5058,6 +5248,7 @@ document.addEventListener("keydown", e => {
   if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
   if (teamMessageModalBackdrop.classList.contains("open")) closeTeamMessageModal();
   if (formModalBackdrop.classList.contains("open")) closeFormModal();
+  if (agendaModalBackdrop.classList.contains("open")) closeAgendaModal();
   closeRowMenu();
 });
 
@@ -5073,7 +5264,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -5091,6 +5282,7 @@ document.addEventListener("keydown", e => {
     loadTeamAnnouncement(),
     loadForms(),
     loadFormSubmissions(),
+    loadAgendaItems(),
   ]);
 
   renderSessionChip();

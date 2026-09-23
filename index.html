@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790161623">
+<link rel="stylesheet" href="style.css?v=1790162213">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -169,6 +169,11 @@
             <div class="panel dash-calendar-panel">
               <div class="panel-header"><h2>Calendário</h2></div>
               <div class="dash-calendar" id="dash-calendar"></div>
+            </div>
+
+            <div class="panel dash-agenda-panel">
+              <div class="panel-header"><h2 id="dash-agenda-day-label">Agenda de hoje</h2></div>
+              <div id="dash-agenda-day-list"></div>
             </div>
 
             <div class="panel dash-aviso-panel" id="dash-aviso-team">
@@ -1052,6 +1057,48 @@
     </div>
   </div>
 
+  <!-- MODAL: NOVO COMPROMISSO NA AGENDA (tarefa / reunião / aviso) -->
+  <div class="modal-backdrop" id="agenda-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="agenda-modal-title">Novo compromisso</h2>
+        <button class="btn-icon" id="agenda-modal-close">&times;</button>
+      </div>
+      <form id="agenda-form">
+        <input type="hidden" id="agenda-id">
+        <div class="agenda-type-picker">
+          <button type="button" class="agenda-type-btn" data-type="tarefa">Tarefa</button>
+          <button type="button" class="agenda-type-btn" data-type="reuniao">Reunião</button>
+          <button type="button" class="agenda-type-btn" data-type="aviso">Aviso</button>
+        </div>
+        <input type="hidden" id="agenda-field-type" value="tarefa">
+        <label>Título
+          <input type="text" id="agenda-field-title" required placeholder="Ex: Ligar para o cliente">
+        </label>
+        <div class="grid-2">
+          <label>Data
+            <input type="date" id="agenda-field-date" required>
+          </label>
+          <label>Hora (opcional)
+            <input type="time" id="agenda-field-time">
+          </label>
+        </div>
+        <label>Consultor (opcional)
+          <select id="agenda-field-consultor"></select>
+        </label>
+        <label>Notas
+          <textarea id="agenda-field-notes" rows="3" placeholder="Detalhes (opcional)"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="agenda-btn-delete" style="display:none;">Excluir</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="agenda-btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: GERENCIAR COLUNAS DO PIPELINE (ADM) -->
   <div class="modal-backdrop" id="stages-modal-backdrop">
     <div class="modal">
@@ -1622,6 +1669,6 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="script.js?v=1790161623"></script>
+  <script src="script.js?v=1790162213"></script>
 </body>
 </html>
