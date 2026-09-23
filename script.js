@@ -852,7 +852,7 @@ const leadsTbody = document.getElementById("leads-tbody");
 const leadsEmpty = document.getElementById("leads-empty");
 
 function buildWhatsAppLink(digits) {
-  return `https://web.whatsapp.com/send?phone=${digits}`;
+  return `https://wa.me/${digits}`;
 }
 
 function renderLeadFormOptions(currentSource) {
@@ -1005,7 +1005,7 @@ function renderLeads() {
         <span class="cell-name-row">
           <span>${escapeHtml(lead.name)}</span>
           ${waDigits
-            ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp Web">${WPP_ICON_SVG}</a>`
+            ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp">${WPP_ICON_SVG}</a>`
             : `<span class="wpp-btn disabled" title="Preencha país, DDD e número do lead para liberar o WhatsApp">${WPP_ICON_SVG}</span>`}
           ${lead.active === false ? '<span class="badge badge-neutral">Inativo</span>' : ""}
         </span>
