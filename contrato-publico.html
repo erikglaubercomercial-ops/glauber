@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assinar contrato — Peregrinos Intercâmbio</title>
+<link rel="stylesheet" href="style.css?v=1790196977">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="public-page">
+    <div class="public-card">
+      <img class="public-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
+
+      <div id="pk-loading">
+        <p class="public-subtitle">Carregando...</p>
+      </div>
+
+      <div id="pk-error" style="display:none;">
+        <div class="public-message error">Não encontramos esse contrato. Verifique se o link está correto ou fale com seu consultor.</div>
+      </div>
+
+      <div id="pk-signed" style="display:none;">
+        <div class="public-message success">Este contrato já foi assinado. Se precisar de uma cópia, fale com seu consultor.</div>
+      </div>
+
+      <div id="pk-content" style="display:none;">
+        <h1 class="public-title" id="pk-title"></h1>
+        <p class="public-subtitle">Leia o contrato abaixo com atenção antes de assinar.</p>
+
+        <div class="public-message success" id="pk-success" style="display:none;">Contrato assinado com sucesso! Uma cópia foi salva com a equipe Peregrinos.</div>
+
+        <div class="contract-text-box" id="pk-contract-text"></div>
+
+        <form class="public-form" id="pk-form">
+          <div class="public-section-title">Seus dados</div>
+          <label>Nome completo *
+            <input type="text" id="pk-signer-name" required placeholder="Digite seu nome completo">
+          </label>
+          <label>CPF (opcional)
+            <input type="text" id="pk-signer-document" placeholder="000.000.000-00">
+          </label>
+
+          <div class="public-section-title">Assinatura</div>
+          <label>Desenhe sua assinatura abaixo *
+            <canvas class="sig-canvas" id="pk-signature-canvas" height="160"></canvas>
+          </label>
+          <div class="sig-actions">
+            <button type="button" class="btn btn-ghost btn-sm" id="pk-btn-clear-signature">Limpar assinatura</button>
+          </div>
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="pk-agree" required>
+            <span>Li e concordo com os termos do contrato acima.</span>
+          </label>
+
+          <button type="submit" class="btn btn-primary" id="pk-submit">Assinar contrato</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="contrato-publico.js?v=1790196977"></script>
+</body>
+</html>

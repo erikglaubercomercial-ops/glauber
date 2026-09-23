@@ -908,6 +908,17 @@ body {
 .public-radio-option input { width: auto; }
 .public-required { color: var(--danger); }
 
+.contract-text-box {
+  white-space: pre-wrap; font-size: 13px; line-height: 1.6; color: var(--text);
+  background: var(--content-bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; max-height: 320px; overflow-y: auto; margin-bottom: 18px;
+}
+.sig-canvas {
+  width: 100%; height: 160px; border: 1.5px dashed var(--border); border-radius: 10px;
+  background: #fff; touch-action: none; cursor: crosshair;
+}
+.sig-actions { display: flex; justify-content: flex-end; margin-top: 6px; }
+
 .quote-form-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
 .quote-form-body .f { display: flex; flex-direction: column; gap: 5px; }
 .quote-form-body .f > span {

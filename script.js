@@ -55,6 +55,7 @@ const VIEW_TITLES = {
   leads: "Leads",
   pipeline: "Pipeline",
   leadsparados: "Leads Parados",
+  contratos: "Contratos",
   cotacao: "Cotação",
   produtos: "Produtos",
   financeiro: "Financeiro",
@@ -1982,6 +1983,309 @@ async function addNewSource() {
 document.getElementById("sources-add-btn").addEventListener("click", addNewSource);
 sourcesNewInput.addEventListener("keydown", e => {
   if (e.key === "Enter") { e.preventDefault(); addNewSource(); }
+});
+
+/* ============================================================
+   CONTRATOS — gerado a partir de um lead, enviado por link público
+   pra assinatura eletrônica simples (desenho da assinatura + nome/
+   documento/data-hora/IP como prova) e o PDF assinado fica salvo
+   no bucket "contract-pdfs".
+   ============================================================ */
+const CONTRACT_STATUS_BADGE = {
+  "Rascunho": "badge-neutral",
+  "Aguardando assinatura": "badge-warn",
+  "Assinado": "badge-good",
+  "Cancelado": "badge-danger",
+};
+const CONTRACT_DEFAULT_TITLE = "Contrato de Prestação de Serviços";
+
+let contracts = [];
+
+function contractFromDb(r) {
+  return {
+    id: r.id, leadId: r.lead_id, title: r.title || CONTRACT_DEFAULT_TITLE, content: r.content || "",
+    value: Number(r.value) || 0, status: r.status,
+    signerName: r.signer_name || "", signerDocument: r.signer_document || "",
+    signedAt: r.signed_at ? new Date(r.signed_at).getTime() : null, signedIp: r.signed_ip || "",
+    pdfPath: r.pdf_path || null, publicToken: r.public_token,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function contractToDb(c) {
+  return {
+    id: c.id, lead_id: c.leadId || null, title: c.title, content: c.content, value: c.value, status: c.status,
+    updated_at: new Date().toISOString(),
+  };
+}
+async function loadContracts() {
+  const { data, error } = await supabase.from("contracts").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar contratos:", error); return []; }
+  return data.map(contractFromDb);
+}
+async function saveContractRemote(c) {
+  const { data, error } = await supabase.from("contracts").upsert(contractToDb(c)).select().single();
+  if (error) { console.error("Erro ao salvar contrato:", error); return null; }
+  return contractFromDb(data);
+}
+async function deleteContractRemote(id) {
+  const { error } = await supabase.from("contracts").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir contrato:", error);
+}
+function buildContractPublicUrl(token) {
+  return `${window.location.origin}/contrato-publico.html?token=${token}`;
+}
+
+function getFilteredContracts() {
+  const status = document.getElementById("contract-filter-status").value;
+  return contracts.filter(c => !status || c.status === status);
+}
+document.getElementById("contract-filter-status").addEventListener("change", renderContractsList);
+document.getElementById("contract-filter-clear").addEventListener("click", () => {
+  document.getElementById("contract-filter-status").value = "";
+  renderContractsList();
+});
+
+function renderContractsList() {
+  const filtered = getFilteredContracts();
+  const tbody = document.getElementById("contracts-tbody");
+  document.getElementById("contracts-empty").style.display = filtered.length === 0 ? "block" : "none";
+  tbody.innerHTML = filtered.map(c => {
+    const lead = c.leadId ? leads.find(l => l.id === c.leadId) : null;
+    return `
+      <tr data-id="${c.id}">
+        <td class="cell-primary">${escapeHtml(lead ? lead.name : "—")}</td>
+        <td class="cell-muted">${escapeHtml(c.title)}</td>
+        <td class="cell-muted">${currency(c.value)}</td>
+        <td><span class="badge ${CONTRACT_STATUS_BADGE[c.status] || "badge-neutral"}">${escapeHtml(c.status)}</span></td>
+        <td class="cell-actions">›</td>
+      </tr>`;
+  }).join("");
+  tbody.querySelectorAll("tr[data-id]").forEach(tr => {
+    tr.addEventListener("click", () => openContractModal(tr.dataset.id));
+  });
+}
+
+/* ---- lead search dentro do modal de contrato ---- */
+const contractLeadSearch = document.getElementById("contract-lead-search");
+const contractLeadResults = document.getElementById("contract-lead-results");
+const contractLeadIdField = document.getElementById("contract-field-lead-id");
+
+function renderContractLeadResults(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { contractLeadResults.classList.remove("open"); contractLeadResults.innerHTML = ""; return; }
+  const matches = leads.filter(l =>
+    (l.name && l.name.toLowerCase().includes(q)) || (l.email && l.email.toLowerCase().includes(q))
+  ).slice(0, 8);
+  contractLeadResults.innerHTML = matches.length
+    ? matches.map(l => `
+      <div class="enr-lead-result-item" data-id="${l.id}">
+        <div>${escapeHtml(l.name)}</div>
+        <div class="sub">${escapeHtml(l.email || l.phone || "sem contato")}</div>
+      </div>`).join("")
+    : `<div class="enr-lead-result-empty">Nenhum lead encontrado</div>`;
+  contractLeadResults.classList.add("open");
+}
+contractLeadSearch.addEventListener("input", () => {
+  contractLeadIdField.value = "";
+  renderContractLeadResults(contractLeadSearch.value);
+});
+contractLeadSearch.addEventListener("focus", () => {
+  if (contractLeadSearch.value.trim()) renderContractLeadResults(contractLeadSearch.value);
+});
+contractLeadSearch.addEventListener("blur", () => {
+  setTimeout(() => contractLeadResults.classList.remove("open"), 150);
+});
+contractLeadResults.addEventListener("mousedown", e => {
+  const item = e.target.closest(".enr-lead-result-item[data-id]");
+  if (!item) return;
+  const lead = leads.find(l => l.id === item.dataset.id);
+  if (!lead) return;
+  contractLeadIdField.value = lead.id;
+  contractLeadSearch.value = lead.name;
+  contractLeadResults.classList.remove("open");
+});
+
+/* ---- modal de contrato ---- */
+const contractModalBackdrop = document.getElementById("contract-modal-backdrop");
+const contractForm = document.getElementById("contract-form");
+let currentContract = null;
+
+function contractTemplateText(leadName, value) {
+  return `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE INTERCÂMBIO
+
+Pelo presente instrumento particular, de um lado PEREGRINOS INTERCÂMBIO, e de outro lado ${leadName || "[NOME DO CONTRATANTE]"}, doravante denominado CONTRATANTE, têm entre si justo e acordado o presente contrato de prestação de serviços, mediante as cláusulas e condições a seguir:
+
+1. OBJETO
+Prestação de serviços de assessoria e intermediação para programa de intercâmbio internacional.
+
+2. VALOR E FORMA DE PAGAMENTO
+O valor total dos serviços é de ${currency(value || 0)}, a ser pago conforme condições acordadas entre as partes.
+
+3. OBRIGAÇÕES DAS PARTES
+A CONTRATADA se compromete a prestar orientação e suporte durante todo o processo. O CONTRATANTE se compromete a fornecer as informações e documentos necessários dentro dos prazos solicitados.
+
+4. VIGÊNCIA
+Este contrato entra em vigor na data de sua assinatura eletrônica.
+
+5. ACEITE ELETRÔNICO
+As partes reconhecem como válida a assinatura eletrônica deste contrato, nos termos da legislação brasileira aplicável (MP 2.200-2/2001), com registro de nome, documento, data/hora e endereço IP como prova de aceite.
+
+E, por estarem de acordo, assinam o presente instrumento.`;
+}
+
+document.getElementById("contract-btn-template").addEventListener("click", () => {
+  const lead = leads.find(l => l.id === contractLeadIdField.value);
+  const value = parseFloat(document.getElementById("contract-field-value").value) || 0;
+  document.getElementById("contract-field-content").value = contractTemplateText(lead ? lead.name : "", value);
+});
+
+function setContractFieldsDisabled(disabled) {
+  contractLeadSearch.disabled = disabled;
+  document.getElementById("contract-field-title").disabled = disabled;
+  document.getElementById("contract-field-value").disabled = disabled;
+  document.getElementById("contract-field-content").disabled = disabled;
+  document.getElementById("contract-btn-template").style.display = disabled ? "none" : "";
+}
+
+function openContractModal(id) {
+  contractForm.reset();
+  currentContract = id ? contracts.find(c => c.id === id) : null;
+
+  const canManage = !!(session && ["ADM", "Gerente"].includes(session.role));
+  const btnDelete = document.getElementById("contract-btn-delete");
+  const btnDownload = document.getElementById("contract-btn-download-pdf");
+  const btnCopyLink = document.getElementById("contract-btn-copy-link");
+  const btnCancelContract = document.getElementById("contract-btn-cancel-contract");
+  const btnSend = document.getElementById("contract-btn-send");
+  const btnSave = document.getElementById("contract-btn-save");
+  const signedInfo = document.getElementById("contract-signed-info");
+  [btnDelete, btnDownload, btnCopyLink, btnCancelContract, btnSend].forEach(b => b.style.display = "none");
+  btnSave.style.display = "";
+  signedInfo.style.display = "none";
+
+  if (currentContract) {
+    const lead = currentContract.leadId ? leads.find(l => l.id === currentContract.leadId) : null;
+    document.getElementById("contract-modal-title").textContent = currentContract.title;
+    document.getElementById("contract-id").value = currentContract.id;
+    contractLeadIdField.value = currentContract.leadId || "";
+    contractLeadSearch.value = lead ? lead.name : "";
+    document.getElementById("contract-field-title").value = currentContract.title;
+    document.getElementById("contract-field-value").value = currentContract.value || "";
+    document.getElementById("contract-field-content").value = currentContract.content;
+
+    const isDraft = currentContract.status === "Rascunho";
+    setContractFieldsDisabled(!isDraft);
+    btnSave.style.display = isDraft ? "" : "none";
+    btnSend.style.display = isDraft ? "" : "none";
+    btnDelete.style.display = canManage ? "" : "none";
+
+    if (currentContract.status === "Aguardando assinatura") {
+      btnCopyLink.style.display = "";
+      btnCancelContract.style.display = "";
+    }
+    if (currentContract.status === "Assinado") {
+      btnDownload.style.display = "";
+      signedInfo.style.display = "block";
+      signedInfo.textContent = `Assinado por ${currentContract.signerName || "—"}${currentContract.signerDocument ? ` (documento: ${currentContract.signerDocument})` : ""} em ${currentContract.signedAt ? new Date(currentContract.signedAt).toLocaleString("pt-BR") : "—"}${currentContract.signedIp ? ` · IP ${currentContract.signedIp}` : ""}.`;
+    }
+  } else {
+    document.getElementById("contract-modal-title").textContent = "Novo contrato";
+    document.getElementById("contract-id").value = "";
+    document.getElementById("contract-field-title").value = CONTRACT_DEFAULT_TITLE;
+    setContractFieldsDisabled(false);
+    btnSend.style.display = "";
+  }
+
+  contractModalBackdrop.classList.add("open");
+}
+function closeContractModal() { contractModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-contract").addEventListener("click", () => openContractModal(null));
+document.getElementById("contract-modal-close").addEventListener("click", closeContractModal);
+document.getElementById("contract-btn-cancel").addEventListener("click", closeContractModal);
+contractModalBackdrop.addEventListener("click", e => { if (e.target === contractModalBackdrop) closeContractModal(); });
+
+function readContractFormData() {
+  return {
+    leadId: contractLeadIdField.value || null,
+    title: document.getElementById("contract-field-title").value.trim() || CONTRACT_DEFAULT_TITLE,
+    content: document.getElementById("contract-field-content").value.trim(),
+    value: parseFloat(document.getElementById("contract-field-value").value) || 0,
+  };
+}
+
+async function persistContract(statusOverride) {
+  const data = readContractFormData();
+  if (!data.leadId) { alert("Selecione um lead para o contrato."); return null; }
+  if (!data.content) { alert("Preencha o conteúdo do contrato."); return null; }
+
+  const id = document.getElementById("contract-id").value;
+  const payload = {
+    id: id || uid(),
+    ...data,
+    status: statusOverride || (currentContract ? currentContract.status : "Rascunho"),
+  };
+  const saved = await saveContractRemote(payload);
+  if (!saved) { alert("Não foi possível salvar o contrato. Tente novamente."); return null; }
+
+  if (id) {
+    const idx = contracts.findIndex(c => c.id === id);
+    if (idx >= 0) contracts[idx] = saved; else contracts.push(saved);
+  } else {
+    contracts.push(saved);
+  }
+  renderContractsList();
+  return saved;
+}
+
+contractForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const saved = await persistContract();
+  if (saved) closeContractModal();
+});
+
+document.getElementById("contract-btn-send").addEventListener("click", async () => {
+  if (!confirm("Enviar este contrato para assinatura? Depois de enviado, o conteúdo não poderá mais ser editado.")) return;
+  const saved = await persistContract("Aguardando assinatura");
+  if (!saved) return;
+  currentContract = saved;
+  navigator.clipboard.writeText(buildContractPublicUrl(saved.publicToken)).catch(() => {});
+  alert("Contrato enviado! O link de assinatura já foi copiado para a área de transferência.");
+  openContractModal(saved.id);
+});
+
+document.getElementById("contract-btn-copy-link").addEventListener("click", () => {
+  if (!currentContract) return;
+  navigator.clipboard.writeText(buildContractPublicUrl(currentContract.publicToken));
+  const btn = document.getElementById("contract-btn-copy-link");
+  btn.textContent = "Copiado!";
+  setTimeout(() => { btn.textContent = "Copiar link"; }, 1500);
+});
+
+document.getElementById("contract-btn-cancel-contract").addEventListener("click", async () => {
+  if (!currentContract || !confirm("Cancelar este contrato? O link de assinatura deixará de funcionar.")) return;
+  const saved = await saveContractRemote({ ...currentContract, status: "Cancelado" });
+  if (!saved) { alert("Não foi possível cancelar o contrato."); return; }
+  const idx = contracts.findIndex(c => c.id === saved.id);
+  if (idx >= 0) contracts[idx] = saved;
+  renderContractsList();
+  closeContractModal();
+});
+
+document.getElementById("contract-btn-delete").addEventListener("click", async () => {
+  const id = document.getElementById("contract-id").value;
+  if (!id || !confirm("Excluir este contrato? Essa ação não pode ser desfeita.")) return;
+  contracts = contracts.filter(c => c.id !== id);
+  renderContractsList();
+  closeContractModal();
+  await deleteContractRemote(id);
+});
+
+document.getElementById("contract-btn-download-pdf").addEventListener("click", async () => {
+  if (!currentContract || !currentContract.pdfPath) { alert("PDF ainda não disponível."); return; }
+  const { data, error } = await supabase.storage.from("contract-pdfs").createSignedUrl(currentContract.pdfPath, 300);
+  if (error || !data) { alert("Não foi possível gerar o link do PDF."); return; }
+  window.open(data.signedUrl, "_blank", "noopener");
 });
 
 /* ============================================================
@@ -5462,6 +5766,7 @@ document.addEventListener("keydown", e => {
   if (teamMessageModalBackdrop.classList.contains("open")) closeTeamMessageModal();
   if (formModalBackdrop.classList.contains("open")) closeFormModal();
   if (agendaModalBackdrop.classList.contains("open")) closeAgendaModal();
+  if (contractModalBackdrop.classList.contains("open")) closeContractModal();
   closeRowMenu();
 });
 
@@ -5477,7 +5782,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -5496,6 +5801,7 @@ document.addEventListener("keydown", e => {
     loadForms(),
     loadFormSubmissions(),
     loadAgendaItems(),
+    loadContracts(),
   ]);
 
   renderSessionChip();
@@ -5519,6 +5825,7 @@ document.addEventListener("keydown", e => {
   renderEnrollments();
   renderCollaborators();
   renderFormsList();
+  renderContractsList();
   if (session.role === "ADM") {
     renderUsers();
     renderPermissionsTable();
