@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790105340">
+<link rel="stylesheet" href="style.css?v=1790160305">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -656,16 +656,34 @@
 
       <!-- FORMULÁRIOS VIEW -->
       <section class="view" id="view-formularios">
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Formulários</h2>
-            <button type="button" class="btn btn-primary" id="btn-new-form" style="display:none;">+ Novo formulário</button>
+        <div class="subview active" id="subview-formularios-lista">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Formulários</h2>
+              <button type="button" class="btn btn-primary" id="btn-new-form" style="display:none;">+ Novo formulário</button>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Título</th><th>Subtítulo</th><th>Campos</th><th>Respostas</th><th></th></tr></thead>
+              <tbody id="forms-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="forms-empty" style="display:none;">Nenhum formulário criado ainda.</div>
           </div>
-          <table class="data-table">
-            <thead><tr><th>Título</th><th>Subtítulo</th><th>Campos</th><th>Respostas</th><th></th></tr></thead>
-            <tbody id="forms-tbody"></tbody>
-          </table>
-          <div class="empty-hint" id="forms-empty" style="display:none;">Nenhum formulário criado ainda.</div>
+        </div>
+
+        <div class="subview" id="subview-formularios-respostas">
+          <div class="quote-builder-topbar">
+            <button type="button" class="btn btn-ghost btn-sm" id="fr-btn-voltar">← Voltar para a lista</button>
+            <h2 id="fr-title">Respostas</h2>
+          </div>
+          <div class="panel">
+            <div class="table-scroll">
+              <table class="data-table" id="fr-table">
+                <thead id="fr-thead"></thead>
+                <tbody id="fr-tbody"></tbody>
+              </table>
+            </div>
+            <div class="empty-hint" id="fr-empty" style="display:none;">Nenhuma resposta recebida ainda.</div>
+          </div>
         </div>
       </section>
 
@@ -1604,6 +1622,6 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="script.js?v=1790105340"></script>
+  <script src="script.js?v=1790160305"></script>
 </body>
 </html>

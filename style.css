@@ -956,6 +956,17 @@ body {
 }
 .ff-delete { margin-left: auto; }
 
+/* respostas de formulário */
+.fr-convert-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fr-convert-cell select {
+  font-family: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--content-bg); border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px; max-width: 150px;
+}
+.fr-lead-badge {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: var(--good);
+  background: var(--good-bg); border-radius: 999px; padding: 4px 10px; cursor: pointer; border: none;
+}
+
 /* catálogo navegável (montagem de cotação) */
 .q-cat { margin-bottom: 20px; }
 .q-cat-h {

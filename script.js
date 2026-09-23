@@ -3966,7 +3966,7 @@ const FORM_FIELD_TYPES = [
 ];
 
 let forms = [];
-let formSubmissionCounts = {};
+let formSubmissions = [];
 
 function formFromDb(r) {
   return {
@@ -3987,12 +3987,20 @@ async function loadForms() {
   if (error) { console.error("Erro ao carregar formulários:", error); return []; }
   return data.map(formFromDb);
 }
-async function loadFormSubmissionCounts() {
-  const { data, error } = await supabase.from("form_submissions").select("form_id");
-  if (error) { console.error("Erro ao carregar respostas de formulários:", error); return {}; }
-  const counts = {};
-  data.forEach(r => { counts[r.form_id] = (counts[r.form_id] || 0) + 1; });
-  return counts;
+function formSubmissionFromDb(r) {
+  return {
+    id: r.id, formId: r.form_id, answers: r.answers || {}, leadId: r.lead_id,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+async function loadFormSubmissions() {
+  const { data, error } = await supabase.from("form_submissions").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar respostas de formulários:", error); return []; }
+  return data.map(formSubmissionFromDb);
+}
+async function markSubmissionLeadRemote(submissionId, leadId) {
+  const { error } = await supabase.from("form_submissions").update({ lead_id: leadId }).eq("id", submissionId);
+  if (error) console.error("Erro ao vincular lead à resposta:", error);
 }
 async function saveFormRemote(f) {
   const { data, error } = await supabase.from("forms").upsert(formToDb(f)).select().single();
@@ -4023,6 +4031,10 @@ function canManageForms() {
   return !!(session && ["ADM", "Gerente", "MKT"].includes(session.role));
 }
 
+function formSubmissionCount(formId) {
+  return formSubmissions.filter(s => s.formId === formId).length;
+}
+
 function renderFormsList() {
   document.getElementById("btn-new-form").style.display = canManageForms() ? "" : "none";
   const tbody = document.getElementById("forms-tbody");
@@ -4034,7 +4046,7 @@ function renderFormsList() {
       <td class="cell-primary">${escapeHtml(f.title)}</td>
       <td class="cell-muted">${escapeHtml(f.subtitle || "—")}</td>
       <td class="cell-muted">${f.fields.length}</td>
-      <td class="cell-muted">${formSubmissionCounts[f.id] || 0}</td>
+      <td><button type="button" class="btn btn-ghost btn-sm" data-act="responses">Respostas (${formSubmissionCount(f.id)})</button></td>
       <td class="cell-actions">
         <div class="cell-actions-row">
           <button type="button" class="cell-copy-btn" data-act="copy" title="Copiar link">${CELL_COPY_ICON_SVG}</button>
@@ -4049,6 +4061,10 @@ function renderFormsList() {
       const btn = e.currentTarget;
       btn.classList.add("copied");
       setTimeout(() => btn.classList.remove("copied"), 1500);
+    });
+    tr.querySelector('[data-act="responses"]').addEventListener("click", e => {
+      e.stopPropagation();
+      openFormResponses(f.id);
     });
     tbody.appendChild(tr);
   });
@@ -4214,6 +4230,136 @@ formBtnDelete.addEventListener("click", async () => {
   closeFormModal();
   await deleteFormRemote(id);
 });
+
+/* ---- tela de respostas de um formulário (por formulário) ---- */
+let formResponsesFormId = null;
+
+function openFormResponses(formId) {
+  formResponsesFormId = formId;
+  const form = forms.find(f => f.id === formId);
+  document.getElementById("fr-title").textContent = form ? `Respostas — ${form.title}` : "Respostas";
+  document.getElementById("subview-formularios-lista").classList.remove("active");
+  document.getElementById("subview-formularios-respostas").classList.add("active");
+  renderFormResponses();
+}
+function closeFormResponses() {
+  document.getElementById("subview-formularios-respostas").classList.remove("active");
+  document.getElementById("subview-formularios-lista").classList.add("active");
+  formResponsesFormId = null;
+}
+document.getElementById("fr-btn-voltar").addEventListener("click", closeFormResponses);
+
+function renderFormResponses() {
+  const form = forms.find(f => f.id === formResponsesFormId);
+  const thead = document.getElementById("fr-thead");
+  const tbody = document.getElementById("fr-tbody");
+  if (!form) { thead.innerHTML = ""; tbody.innerHTML = ""; return; }
+
+  const canConvert = hasModuleAccess(session.role, "leads");
+  const consultants = users.filter(u => u.role === "Consultor");
+
+  thead.innerHTML = `<tr>
+    ${form.fields.map(f => `<th>${escapeHtml(f.label)}</th>`).join("")}
+    <th>Recebido em</th>
+    <th>Lead</th>
+  </tr>`;
+
+  const rows = formSubmissions.filter(s => s.formId === form.id).sort((a, b) => b.createdAt - a.createdAt);
+  document.getElementById("fr-empty").style.display = rows.length === 0 ? "block" : "none";
+  document.getElementById("fr-table").style.display = rows.length === 0 ? "none" : "table";
+
+  tbody.innerHTML = rows.map(s => {
+    const cells = form.fields.map(f => {
+      const raw = s.answers ? s.answers[f.id] : "";
+      const value = f.type === "date" && raw ? formatDate(raw) : (raw || "—");
+      return `<td>${escapeHtml(value)}</td>`;
+    }).join("");
+    const when = new Date(s.createdAt).toLocaleString("pt-BR");
+
+    let leadCell;
+    if (s.leadId) {
+      leadCell = `<button type="button" class="fr-lead-badge" data-act="view-lead" data-lead-id="${s.leadId}">✓ Ver lead</button>`;
+    } else if (canConvert) {
+      leadCell = `
+        <div class="fr-convert-cell">
+          <select data-role="consultor">
+            <option value="">Sem consultor</option>
+            ${consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
+          </select>
+          <button type="button" class="btn btn-primary btn-sm" data-act="convert" data-submission-id="${s.id}">Transformar em lead</button>
+        </div>`;
+    } else {
+      leadCell = "—";
+    }
+
+    return `<tr>${cells}<td>${when}</td><td>${leadCell}</td></tr>`;
+  }).join("");
+
+  tbody.querySelectorAll('[data-act="convert"]').forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const row = btn.closest("tr");
+      const consultorSel = row.querySelector('[data-role="consultor"]');
+      btn.disabled = true;
+      btn.textContent = "Salvando…";
+      await convertSubmissionToLead(btn.dataset.submissionId, consultorSel.value || null);
+    });
+  });
+  tbody.querySelectorAll('[data-act="view-lead"]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!canAccessView("leads")) return;
+      switchView("leads");
+      openLeadModal(btn.dataset.leadId);
+    });
+  });
+}
+
+function buildLeadFromSubmission(form, submission) {
+  const answers = submission.answers || {};
+  let name = "", email = "", ddd = "", number = "", source = "Outro", notes = "";
+
+  form.fields.forEach(f => {
+    const val = (answers[f.id] || "").toString().trim();
+    if (f.type === "name") name = val;
+    else if (f.type === "email") email = val;
+    else if (f.type === "phone_br") {
+      const digits = val.replace(/\D/g, "");
+      ddd = digits.slice(0, 2);
+      number = digits.slice(2);
+    } else if (f.type === "source") {
+      source = val || "Outro";
+    } else if (val) {
+      notes += `${f.label}: ${val}\n`;
+    }
+  });
+
+  return {
+    id: uid(), name: name || "Lead sem nome", company: "", email,
+    countryCode: "BR", phoneDdd: ddd, phoneNumber: number,
+    phone: ddd && number ? `(${ddd}) ${number}` : "",
+    source, category: "Outro", status: "Novo", temperature: "Morno",
+    consultorId: null, active: true, notes: notes.trim(),
+    createdAt: Date.now(),
+  };
+}
+
+async function convertSubmissionToLead(submissionId, consultorId) {
+  const submission = formSubmissions.find(s => s.id === submissionId);
+  const form = forms.find(f => f.id === formResponsesFormId);
+  if (!submission || !form) return;
+
+  const lead = buildLeadFromSubmission(form, submission);
+  lead.consultorId = consultorId || null;
+
+  leads.push(lead);
+  await saveLeads();
+
+  submission.leadId = lead.id;
+  await markSubmissionLeadRemote(submission.id, lead.id);
+
+  renderFormResponses();
+  renderFormsList();
+  renderLeads();
+}
 
 /* ============================================================
    DASHBOARD — visão geral com funil, gráficos e alertas
@@ -4927,7 +5073,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissionCounts] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -4944,7 +5090,7 @@ document.addEventListener("keydown", e => {
     loadCollaborators(),
     loadTeamAnnouncement(),
     loadForms(),
-    loadFormSubmissionCounts(),
+    loadFormSubmissions(),
   ]);
 
   renderSessionChip();
