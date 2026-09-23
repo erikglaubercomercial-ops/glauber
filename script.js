@@ -686,6 +686,7 @@ stagesNewInput.addEventListener("keydown", e => {
    ============================================================ */
 const CATEGORIES = ["Intercâmbio de Idiomas", "High School", "Au Pair", "Work and Travel", "Graduação/Pós no Exterior", "Vistos e Documentação", "Outro"];
 const TEMPERATURES = ["Quente", "Morno", "Frio"];
+const STATUSES = ["Novo", "Em contato", "Qualificado", "Descartado"];
 
 async function loadSources() {
   const { data, error } = await supabase.from("lead_sources").select("name").order("ordem");
@@ -1030,30 +1031,30 @@ function renderLeads() {
       <td class="cell-primary">
         <span class="cell-name-row">
           <span>${escapeHtml(lead.name)}</span>
+          <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.name)}" title="Copiar nome">${CELL_COPY_ICON_SVG}</button>
+          ${lead.active === false ? '<span class="badge badge-neutral">Inativo</span>' : ""}
+        </span>
+        <div class="cell-meta-row">
+          <span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(lead.status)}</span>
+          <span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span>
           ${waDigits
             ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp">${WPP_ICON_SVG}</a>`
             : `<span class="wpp-btn disabled" title="Preencha país, DDD e número do lead para liberar o WhatsApp">${WPP_ICON_SVG}</span>`}
-          ${lead.active === false ? '<span class="badge badge-neutral">Inativo</span>' : ""}
-        </span>
-        ${lead.company ? `<div class="cell-sub">${escapeHtml(lead.company)}</div>` : ""}
+        </div>
+      </td>
+      <td class="cell-muted">
         ${lead.email ? `
           <div class="cell-email-row">
             <span>${escapeHtml(lead.email)}</span>
             <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.email)}" title="Copiar e-mail">${CELL_COPY_ICON_SVG}</button>
-          </div>` : ""}
-        <div class="cell-temp-row">
-          <span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(lead.status)}</span>
-          <span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span>
-        </div>
+          </div>` : "—"}
       </td>
-      <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : "—"}</td>
-      <td class="cell-muted">${escapeHtml(lead.category || "—")}</td>
       <td class="cell-muted">${originBadge(lead.source)}</td>
+      <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : "—"}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
     `;
 
-    const copyBtn = tr.querySelector(".cell-copy-btn");
-    if (copyBtn) {
+    tr.querySelectorAll(".cell-copy-btn").forEach(copyBtn => {
       copyBtn.addEventListener("click", async e => {
         e.stopPropagation();
         try {
@@ -1061,10 +1062,10 @@ function renderLeads() {
           copyBtn.classList.add("copied");
           setTimeout(() => copyBtn.classList.remove("copied"), 1200);
         } catch {
-          prompt("Copie o e-mail abaixo:", copyBtn.dataset.copy);
+          prompt("Copie o valor abaixo:", copyBtn.dataset.copy);
         }
       });
-    }
+    });
 
     const checkbox = tr.querySelector(".row-checkbox");
     checkbox.addEventListener("click", e => e.stopPropagation());
@@ -1128,6 +1129,7 @@ function updateBulkBar() {
   const count = selectedLeadIds.size;
   document.getElementById("leads-bulk-count").textContent = `${count} selecionado(s)`;
   bar.style.display = count > 0 ? "flex" : "none";
+  document.getElementById("leads-bulk-menu-trigger").disabled = count === 0;
 }
 
 document.getElementById("leads-bulk-clear").addEventListener("click", () => {
@@ -1157,7 +1159,9 @@ function toggleBulkMenu(triggerEl) {
   menu.style.left = `${Math.max(8, rect.right - 190)}px`;
   menu.innerHTML = `
     <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
+    <button type="button" class="row-menu-item" data-action="status">Mudar status</button>
     <button type="button" class="row-menu-item" data-action="temperature">Mudar temperatura</button>
+    <button type="button" class="row-menu-item" data-action="category">Mudar categoria</button>
     ${canEditLeadSource() ? '<button type="button" class="row-menu-item" data-action="source">Mudar origem</button>' : ""}
     <div class="row-menu-divider"></div>
     <button type="button" class="row-menu-item" data-action="deactivate">Desativar leads</button>
@@ -1170,9 +1174,17 @@ function toggleBulkMenu(triggerEl) {
     closeBulkMenu();
     openAssignModal(ids);
   });
+  menu.querySelector('[data-action="status"]').addEventListener("click", () => {
+    closeBulkMenu();
+    openQuickFieldModal(ids, "status");
+  });
   menu.querySelector('[data-action="temperature"]').addEventListener("click", () => {
     closeBulkMenu();
     openQuickFieldModal(ids, "temperature");
+  });
+  menu.querySelector('[data-action="category"]').addEventListener("click", () => {
+    closeBulkMenu();
+    openQuickFieldModal(ids, "category");
   });
   const sourceBtn = menu.querySelector('[data-action="source"]');
   if (sourceBtn) sourceBtn.addEventListener("click", () => {
@@ -1213,14 +1225,20 @@ const quickFieldForm = document.getElementById("quickfield-form");
 const quickFieldSelect = document.getElementById("quickfield-select");
 let quickFieldTarget = { ids: [], field: null };
 
+const QUICK_FIELD_CONFIG = {
+  temperature: { label: "Temperatura", title: "Mudar temperatura", options: () => TEMPERATURES },
+  source: { label: "Origem", title: "Mudar origem", options: () => SOURCES },
+  status: { label: "Status", title: "Mudar status", options: () => STATUSES },
+  category: { label: "Categoria", title: "Mudar categoria", options: () => CATEGORIES },
+};
+
 function openQuickFieldModal(ids, field) {
   quickFieldTarget = { ids, field };
-  const isTemp = field === "temperature";
-  const options = isTemp ? TEMPERATURES : SOURCES;
+  const config = QUICK_FIELD_CONFIG[field];
   document.getElementById("quickfield-modal-title").textContent =
-    (isTemp ? "Mudar temperatura" : "Mudar origem") + (ids.length > 1 ? ` (${ids.length} leads)` : "");
-  document.getElementById("quickfield-label-text").textContent = isTemp ? "Temperatura" : "Origem";
-  quickFieldSelect.innerHTML = options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
+    config.title + (ids.length > 1 ? ` (${ids.length} leads)` : "");
+  document.getElementById("quickfield-label-text").textContent = config.label;
+  quickFieldSelect.innerHTML = config.options().map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
   if (ids.length === 1) {
     const lead = leads.find(l => l.id === ids[0]);
     if (lead && lead[field]) quickFieldSelect.value = lead[field];
@@ -1285,7 +1303,9 @@ function toggleRowMenu(lead, triggerEl) {
   const isInactive = lead.active === false;
   menu.innerHTML = `
     <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
+    <button type="button" class="row-menu-item" data-action="status">Mudar status</button>
     <button type="button" class="row-menu-item" data-action="temperature">Mudar temperatura</button>
+    <button type="button" class="row-menu-item" data-action="category">Mudar categoria</button>
     ${canEditLeadSource() ? '<button type="button" class="row-menu-item" data-action="source">Mudar origem</button>' : ""}
     <button type="button" class="row-menu-item" data-action="email" ${lead.email ? "" : "disabled"}>Enviar e-mail</button>
     <button type="button" class="row-menu-item" data-action="quote">Ver cotação</button>
@@ -1300,9 +1320,17 @@ function toggleRowMenu(lead, triggerEl) {
     closeRowMenu();
     openAssignModal([lead.id]);
   });
+  menu.querySelector('[data-action="status"]').addEventListener("click", () => {
+    closeRowMenu();
+    openQuickFieldModal([lead.id], "status");
+  });
   menu.querySelector('[data-action="temperature"]').addEventListener("click", () => {
     closeRowMenu();
     openQuickFieldModal([lead.id], "temperature");
+  });
+  menu.querySelector('[data-action="category"]').addEventListener("click", () => {
+    closeRowMenu();
+    openQuickFieldModal([lead.id], "category");
   });
   const sourceBtn = menu.querySelector('[data-action="source"]');
   if (sourceBtn) sourceBtn.addEventListener("click", () => {

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790177841">
+<link rel="stylesheet" href="style.css?v=1790188357">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -224,6 +224,7 @@
           <div class="panel-header">
             <h2>Lista de Leads</h2>
             <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-ghost btn-sm" id="leads-bulk-menu-trigger" title="Ações em massa (selecione ao menos um lead)">⋮ Ações</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-sources">Gerenciar origens</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btn-import-leads">Importar CSV</button>
               <input type="file" id="import-file-input" accept=".csv,text/csv" style="display:none;">
@@ -250,19 +251,18 @@
           <div class="bulk-bar" id="leads-bulk-bar" style="display:none;">
             <span id="leads-bulk-count">0 selecionado(s)</span>
             <div class="spacer"></div>
-            <button type="button" class="btn-icon" id="leads-bulk-menu-trigger" title="Ações em massa">⋮</button>
             <button type="button" class="btn-icon" id="leads-bulk-clear" title="Limpar seleção">&times;</button>
           </div>
 
-          <div class="table-scroll">
+          <div class="table-scroll table-scroll-sticky">
             <table class="data-table data-table-list">
               <thead>
                 <tr>
                   <th class="cell-check"><input type="checkbox" id="leads-select-all"></th>
                   <th>Nome</th>
-                  <th>Consultor</th>
-                  <th>Categoria</th>
+                  <th>E-mail</th>
                   <th>Origem</th>
+                  <th>Consultor</th>
                   <th></th>
                 </tr>
               </thead>
@@ -1717,6 +1717,6 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="script.js?v=1790177841"></script>
+  <script src="script.js?v=1790188357"></script>
 </body>
 </html>

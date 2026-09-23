@@ -329,18 +329,22 @@ body {
 }
 .data-table-list thead th:first-child { border-top-left-radius: 10px; }
 .data-table-list thead th:last-child { border-top-right-radius: 10px; }
-.data-table-list td { padding: 17px 12px; }
+.data-table-list td { padding: 17px 12px; font-size: 14.5px; }
 .data-table-list tbody tr:nth-child(even) { background: var(--content-bg); }
 .data-table-list tbody tr:hover { background: var(--border); }
+
+/* rolagem interna com cabeçalho fixo (Leads) */
+.table-scroll-sticky { max-height: 65vh; overflow-y: auto; }
+.table-scroll-sticky thead th { position: sticky; top: 0; z-index: 2; }
 .cell-primary { font-weight: 700; }
 .cell-muted { color: var(--text-muted); }
 .cell-actions { text-align: right; }
 .cell-actions-row { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
-.cell-sub { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-top: 2px; }
+.cell-sub { font-size: 13px; font-weight: 500; color: var(--text-muted); margin-top: 2px; }
 
 .cell-email-row {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 500; color: var(--text-muted); margin-top: 2px;
+  font-size: 13px; font-weight: 500; color: var(--text-muted); margin-top: 2px;
 }
 .cell-copy-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -350,7 +354,8 @@ body {
 }
 .cell-copy-btn:hover { background: var(--content-bg); color: var(--text); }
 .cell-copy-btn.copied { color: var(--good); }
-.cell-temp-row { margin-top: 4px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.cell-meta-row { margin-top: 6px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.cell-meta-row .badge { font-size: 12.5px; }
 
 .badge {
   display: inline-block;
@@ -482,10 +487,7 @@ body {
   pointer-events: none;
 }
 
-/* botão de WhatsApp colado ao nome do lead, na lista */
-.cell-name-row { display: inline-flex; align-items: center; gap: 8px; }
-.cell-name-row .wpp-btn { width: 24px; height: 24px; }
-.cell-name-row .wpp-btn svg { width: 13px; height: 13px; }
+.cell-name-row { display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; }
 
 /* ===== ORIGIN BADGE (ícone + cor por origem do lead) ===== */
 .origin-badge {
@@ -513,6 +515,7 @@ body {
   font-family: inherit;
   transition: background 0.15s, border-color 0.15s, opacity 0.15s;
 }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn-sm { padding: 6px 12px; font-size: 12.5px; }
 .btn-primary { background: var(--primary); color: white; }
 .btn-primary:hover { background: var(--primary-hover); }
