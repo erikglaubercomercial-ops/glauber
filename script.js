@@ -2469,6 +2469,7 @@ function openQuoteBuilder(id) {
   document.getElementById("q-obs").value = "";
   document.getElementById("q-busca").value = "";
   quoteSelecionados = {};
+  quoteNavPath = [];
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
 
   document.getElementById("q-btn-excluir").style.display = id ? "inline-block" : "none";
@@ -2649,9 +2650,8 @@ function adminItemCardHtml(p, isAdmin) {
     </div>`;
 }
 
-/* ---- navegação por caixas: resolve em qual nível da árvore estamos ---- */
-function catalogNodeAtPath(path) {
-  const tree = buildCatalogTree(catalog.slice().sort((a, b) => a.ordem - b.ordem));
+/* ---- navegação por caixas: resolve em qual nível da árvore estamos (compartilhado entre Produtos e Cotação) ---- */
+function catalogNodeAtPath(tree, path) {
   if (path.length === 0) return { kind: "categoria", boxes: tree };
 
   const cat = tree.find(c => c.nome === path[0]);
@@ -2690,11 +2690,24 @@ function catalogCountItems(node, kind) {
   return node.itens.length;
 }
 
-function renderCatalogBreadcrumb() {
-  const items = [{ label: "Catálogo", idx: -1 }, ...catalogNavPath.map((name, i) => ({ label: name, idx: i }))];
+function renderCatalogBreadcrumb(navPath, rootLabel) {
+  const items = [{ label: rootLabel, idx: -1 }, ...navPath.map((name, i) => ({ label: name, idx: i }))];
   return `<div class="cat-breadcrumb">${items.map((it, i) => {
     const isLast = i === items.length - 1;
     return `${i > 0 ? '<span class="cat-crumb-sep">›</span>' : ""}<button type="button" class="cat-crumb${isLast ? " active" : ""}" data-idx="${it.idx}">${escapeHtml(it.label)}</button>`;
+  }).join("")}</div>`;
+}
+
+/* ---- grade de caixas clicáveis de um nível da árvore (compartilhado entre Produtos e Cotação) ---- */
+function catalogBoxGridHtml(boxes, kind, itemWord) {
+  return `<div class="cat-box-grid">${boxes.map(node => {
+    const count = catalogCountItems(node, kind);
+    return `
+      <button type="button" class="cat-box" data-nav="${escapeHtml(node.nome)}">
+        <span class="cat-box-icon">${CATALOG_ICONS[kind]}</span>
+        <span class="cat-box-name">${escapeHtml(node.nome)}</span>
+        <span class="cat-box-count">${count} ${count === 1 ? itemWord : itemWord + "s"}</span>
+      </button>`;
   }).join("")}</div>`;
 }
 
@@ -2708,25 +2721,16 @@ function renderCatalogList() {
     return;
   }
 
-  const view = catalogNodeAtPath(catalogNavPath);
+  const tree = buildCatalogTree(catalog.slice().sort((a, b) => a.ordem - b.ordem));
+  const view = catalogNodeAtPath(tree, catalogNavPath);
   if (view.invalid) { catalogNavPath = []; renderCatalogList(); return; }
 
-  let html = renderCatalogBreadcrumb();
+  let html = renderCatalogBreadcrumb(catalogNavPath, "Catálogo");
 
   if (view.kind === "itens") {
     const itens = view.itens.slice().sort((a, b) => a.ordem - b.ordem);
     html += `<div class="cat-items-grid">${itens.map(p => adminItemCardHtml(p, isAdmin)).join("")}</div>`;
   } else {
-    const boxesHtml = view.boxes.map(node => {
-      const count = catalogCountItems(node, view.kind);
-      return `
-        <button type="button" class="cat-box" data-nav="${escapeHtml(node.nome)}">
-          <span class="cat-box-icon">${CATALOG_ICONS[view.kind]}</span>
-          <span class="cat-box-name">${escapeHtml(node.nome)}</span>
-          <span class="cat-box-count">${count} ${count === 1 ? "produto" : "produtos"}</span>
-        </button>`;
-    }).join("");
-
     let looseHtml = "";
     if (view.looseItens && view.looseItens.length) {
       const itens = view.looseItens.slice().sort((a, b) => a.ordem - b.ordem);
@@ -2736,7 +2740,7 @@ function renderCatalogList() {
     if (!view.boxes.length && !looseHtml) {
       html += `<p class="muted-note">Nenhum item aqui ainda.</p>`;
     } else {
-      if (view.boxes.length) html += `<div class="cat-box-grid">${boxesHtml}</div>`;
+      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, "produto");
       html += looseHtml;
     }
   }
@@ -2917,9 +2921,7 @@ productBtnDelete.addEventListener("click", async () => {
    MONTADOR DE COTAÇÃO (dentro de Produtos › Nova Cotação)
    ============================================================ */
 let quoteSelecionados = {};   /* id -> quantidade */
-let quoteAbertos = {};        /* "categoria|destino|escola" -> aberto */
-let quoteCatAbertos = {};     /* categoria -> aberto */
-let quoteDestAbertos = {};    /* "categoria|destino" -> aberto */
+let quoteNavPath = [];        /* navegação por caixas, igual à tela de Produtos */
 
 function quoteAtivos() {
   return catalog.filter(p => p.ativo);
@@ -2954,23 +2956,10 @@ function quoteItemHtml(p) {
     </div>`;
 }
 
-function quoteFaixa(itens) {
-  const precos = itens.map(p => Number(p.preco) || 0);
-  const min = Math.min(...precos), max = Math.max(...precos);
-  const qtd = itens.length + (itens.length > 1 ? " opções" : " opção");
-  return qtd + (min === max ? " · " + currency(min) : " · " + currency(min) + "–" + currency(max));
-}
-
-function quoteTurnosHtml(turnos) {
-  return turnos.map(t => {
-    const itensHtml = t.itens.map(quoteItemHtml).join("");
-    if (!t.nome) return itensHtml;
-    return `<div class="q-turno"><div class="q-turno-h">${escapeHtml(t.nome)}</div>${itensHtml}</div>`;
-  }).join("");
-}
-
 const quoteCatalogEl = document.getElementById("quote-catalog");
 
+/* navegação por caixas clicáveis (Categoria › Destino › Escola › Turno › Itens),
+   igual à tela de Produtos — ao buscar, mostra os itens encontrados direto. */
 function quoteMontaCatalogo() {
   const filtro = document.getElementById("q-destino").value;
   const termo = (document.getElementById("q-busca").value || "").trim().toLowerCase();
@@ -2987,49 +2976,36 @@ function quoteMontaCatalogo() {
     return;
   }
 
-  let html = "";
-  buildCatalogTree(lista).forEach(cat => {
-    const todosItensCat = cat.destinos.flatMap(d => d.escolas.flatMap(e => e.turnos.flatMap(t => t.itens)));
-    const marcadosCat = todosItensCat.filter(p => Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id)).length;
-    const abertaCat = !!termo || marcadosCat > 0 || quoteCatAbertos[cat.nome] !== false;
-    html += `<div class="q-cat" data-catchave="${escapeHtml(cat.nome)}">
-      <button type="button" class="q-cat-h" data-role="toggle-cat" aria-expanded="${abertaCat}">
-        <span class="arrow">▶</span><span>${escapeHtml(cat.nome)}</span>
-      </button>
-      <div class="q-cat-body"${abertaCat ? "" : " hidden"}>`;
-    cat.destinos.forEach(dest => {
-      const todosItensDest = dest.escolas.flatMap(e => e.turnos.flatMap(t => t.itens));
-      const marcadosDest = todosItensDest.filter(p => Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id)).length;
-      const destChave = `${cat.nome}|${dest.nome}`;
-      const abertoDest = !!termo || marcadosDest > 0 || quoteDestAbertos[destChave] !== false;
-      html += `<div class="q-grp" data-destchave="${escapeHtml(destChave)}">
-        <button type="button" class="q-grp-h" data-role="toggle-dest" aria-expanded="${abertoDest}">
-          <span class="arrow">▶</span><span>${escapeHtml(dest.nome)}</span>
-        </button>
-        <div class="q-grp-body"${abertoDest ? "" : " hidden"}>`;
-      dest.escolas.forEach(esc => {
-        if (!esc.nome) {
-          html += `<div class="q-sub-flat">${quoteTurnosHtml(esc.turnos)}</div>`;
-          return;
-        }
-        const todosItens = esc.turnos.flatMap(t => t.itens);
-        const chave = `${cat.nome}|${dest.nome}|${esc.nome}`;
-        const marcados = todosItens.filter(p => Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id)).length;
-        const aberto = !!termo || marcados > 0 || quoteAbertos[chave] === true;
-        html += `
-          <div class="q-sub" data-chave="${escapeHtml(chave)}">
-            <button type="button" class="q-sub-h" data-role="toggle" aria-expanded="${aberto}">
-              <span class="arrow">▶</span>
-              <span>${escapeHtml(esc.nome)}${marcados ? `<span class="picked">${marcados} na cotação</span>` : ""}</span>
-              <span class="count">${quoteFaixa(todosItens)}</span>
-            </button>
-            <div class="q-sub-body"${aberto ? "" : " hidden"}>${quoteTurnosHtml(esc.turnos)}</div>
-          </div>`;
-      });
-      html += "</div></div>";
-    });
-    html += "</div></div>";
-  });
+  if (termo) {
+    const itens = lista.slice().sort((a, b) => a.ordem - b.ordem);
+    quoteCatalogEl.innerHTML = `<div class="q-items-stack">${itens.map(quoteItemHtml).join("")}</div>`;
+    quoteAtualizaPrevia();
+    return;
+  }
+
+  const view = catalogNodeAtPath(buildCatalogTree(lista), quoteNavPath);
+  if (view.invalid) { quoteNavPath = []; quoteMontaCatalogo(); return; }
+
+  let html = renderCatalogBreadcrumb(quoteNavPath, "Serviços");
+
+  if (view.kind === "itens") {
+    const itens = view.itens.slice().sort((a, b) => a.ordem - b.ordem);
+    html += `<div class="q-items-stack">${itens.map(quoteItemHtml).join("")}</div>`;
+  } else {
+    let looseHtml = "";
+    if (view.looseItens && view.looseItens.length) {
+      const itens = view.looseItens.slice().sort((a, b) => a.ordem - b.ordem);
+      looseHtml = `<div class="q-items-stack">${itens.map(quoteItemHtml).join("")}</div>`;
+    }
+
+    if (!view.boxes.length && !looseHtml) {
+      html += `<p class="muted-note">Nenhum item aqui ainda.</p>`;
+    } else {
+      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, "serviço");
+      html += looseHtml;
+    }
+  }
+
   quoteCatalogEl.innerHTML = html;
   quoteAtualizaPrevia();
 }
@@ -3067,34 +3043,17 @@ quoteCatalogEl.addEventListener("change", e => {
 });
 
 quoteCatalogEl.addEventListener("click", e => {
-  const toggleCat = e.target.closest('button[data-role="toggle-cat"]');
-  if (toggleCat) {
-    const caixaCat = toggleCat.closest(".q-cat");
-    const corpoCat = caixaCat.querySelector(".q-cat-body");
-    const abrirCat = corpoCat.hidden;
-    corpoCat.hidden = !abrirCat;
-    toggleCat.setAttribute("aria-expanded", String(abrirCat));
-    quoteCatAbertos[caixaCat.getAttribute("data-catchave")] = abrirCat;
+  const crumb = e.target.closest(".cat-crumb");
+  if (crumb) {
+    const idx = parseInt(crumb.dataset.idx, 10);
+    quoteNavPath = idx < 0 ? [] : quoteNavPath.slice(0, idx + 1);
+    quoteMontaCatalogo();
     return;
   }
-  const toggleDest = e.target.closest('button[data-role="toggle-dest"]');
-  if (toggleDest) {
-    const caixaDest = toggleDest.closest(".q-grp");
-    const corpoDest = caixaDest.querySelector(".q-grp-body");
-    const abrirDest = corpoDest.hidden;
-    corpoDest.hidden = !abrirDest;
-    toggleDest.setAttribute("aria-expanded", String(abrirDest));
-    quoteDestAbertos[caixaDest.getAttribute("data-destchave")] = abrirDest;
-    return;
-  }
-  const toggle = e.target.closest('button[data-role="toggle"]');
-  if (toggle) {
-    const caixa = toggle.closest(".q-sub");
-    const corpo = caixa.querySelector(".q-sub-body");
-    const abrir = corpo.hidden;
-    corpo.hidden = !abrir;
-    toggle.setAttribute("aria-expanded", String(abrir));
-    quoteAbertos[caixa.getAttribute("data-chave")] = abrir;
+  const box = e.target.closest(".cat-box");
+  if (box) {
+    quoteNavPath = [...quoteNavPath, box.dataset.nav];
+    quoteMontaCatalogo();
     return;
   }
   if (e.target.tagName === "INPUT" || e.target.tagName === "LABEL") return;
@@ -3106,7 +3065,7 @@ quoteCatalogEl.addEventListener("click", e => {
   chk.dispatchEvent(new Event("change", { bubbles: true }));
 });
 
-document.getElementById("q-destino").addEventListener("change", quoteMontaCatalogo);
+document.getElementById("q-destino").addEventListener("change", () => { quoteNavPath = []; quoteMontaCatalogo(); });
 
 let quoteBuscaTimer = null;
 document.getElementById("q-busca").addEventListener("input", () => {
@@ -3121,6 +3080,7 @@ document.getElementById("q-btn-limpar").addEventListener("click", () => {
   document.getElementById("q-lead-id").value = "";
   quoteLeadSearch.value = "";
   quoteSelecionados = {};
+  quoteNavPath = [];
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
   quoteMontaCatalogo();
   document.getElementById("q-nome").focus();
