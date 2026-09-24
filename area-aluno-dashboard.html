@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Área do Aluno — Peregrinos Intercâmbio</title>
+<link rel="stylesheet" href="style.css?v=1790259067">
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-group">
+          <span class="brand-mark">
+            <img src="assets/logo.png" alt="Logo Peregrino" width="28" height="28">
+          </span>
+          <span class="brand-name">PEREGRINOS</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-label">Área do aluno</div>
+
+        <button class="nav-item active" type="button">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" type="button">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+          <span>Pagamentos</span>
+        </button>
+        <button class="nav-item" type="button">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
+          <span>Documentos</span>
+        </button>
+        <button class="nav-item" type="button">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Mensagens</span>
+        </button>
+        <button class="nav-item" type="button">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+          <span>Calendário</span>
+        </button>
+        <button class="nav-item aluno-nav-soon" type="button">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>
+          <span style="flex:1;">Aulas de Inglês</span>
+          <span class="aluno-soon-badge" style="margin-left:0;">Em breve</span>
+        </button>
+      </nav>
+
+      <button class="sidebar-signout" type="button">
+        <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Sair</span>
+      </button>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="content">
+      <header class="content-topbar">
+        <h1>Olá, Ana Carolina</h1>
+        <div class="topbar-right">
+          <div class="user-chip">
+            <div class="avatar">AC</div>
+            <div class="user-meta">
+              <span class="user-name">Ana Carolina Reis</span>
+              <span class="user-email">Aluno(a)</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="view active">
+        <div class="dashboard-layout">
+          <div class="dashboard-main">
+
+            <!-- hero: progresso da jornada -->
+            <div class="panel aluno-hero" style="margin-bottom:18px;">
+              <div class="aluno-avatar-wrap">
+                <div class="aluno-avatar-ring" style="background: conic-gradient(var(--primary) 148deg, var(--border) 0deg);">
+                  <div class="aluno-avatar-ring-inner">
+                    <span class="aluno-avatar-initials">AC</span>
+                  </div>
+                </div>
+                <span class="aluno-avatar-badge">41%</span>
+              </div>
+
+              <div class="aluno-hero-info">
+                <div class="aluno-hero-name">Ana Carolina Reis</div>
+                <div class="aluno-hero-course">International — Academic Bridge · Dublin, Irlanda</div>
+                <div class="aluno-hero-dates">
+                  <div>
+                    <div class="aluno-date-label">Início do curso</div>
+                    <div class="aluno-date-value">10 jan 2026</div>
+                  </div>
+                  <div>
+                    <div class="aluno-date-label">Término previsto</div>
+                    <div class="aluno-date-value">10 dez 2026</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="aluno-days-chip">
+                <div class="n">138</div>
+                <div class="lbl">de 334 dias na jornada</div>
+              </div>
+            </div>
+
+            <!-- stat row -->
+            <div class="stat-row" style="margin-bottom:18px;">
+              <div class="stat-card">
+                <span class="stat-label">Dias até o embarque</span>
+                <span class="stat-value">47</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Valor pago</span>
+                <span class="stat-value">€ 2.100,00</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Valor pendente</span>
+                <span class="stat-value">€ 900,00</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Documentos enviados</span>
+                <span class="stat-value">3 / 4</span>
+              </div>
+            </div>
+
+            <!-- pagamentos -->
+            <div class="panel" style="margin-bottom:18px;">
+              <div class="panel-header">
+                <h2>Pagamentos</h2>
+                <button type="button" class="btn btn-primary btn-sm">+ Enviar comprovante</button>
+              </div>
+              <div style="padding:0 20px 18px;">
+                <div class="aluno-pay-bar"><div class="aluno-pay-bar-fill" style="width:70%;"></div></div>
+                <div class="aluno-pay-caption">€ 2.100,00 pagos de € 3.000,00 — faltam € 900,00</div>
+
+                <div class="aluno-receipt-row">
+                  <span class="aluno-receipt-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
+                  </span>
+                  <span class="aluno-receipt-body">
+                    <span class="aluno-receipt-name">comprovante-parcela-2.pdf</span>
+                    <span class="aluno-receipt-meta">Enviado em 12 set 2026 · € 1.100,00</span>
+                  </span>
+                  <span class="aluno-receipt-status">Confirmado</span>
+                </div>
+                <div class="aluno-receipt-row">
+                  <span class="aluno-receipt-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
+                  </span>
+                  <span class="aluno-receipt-body">
+                    <span class="aluno-receipt-name">comprovante-parcela-1.pdf</span>
+                    <span class="aluno-receipt-meta">Enviado em 15 ago 2026 · € 1.000,00</span>
+                  </span>
+                  <span class="aluno-receipt-status">Confirmado</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- documentos -->
+            <div class="panel" style="margin-bottom:18px;">
+              <div class="panel-header"><h2>Documentos de viagem</h2></div>
+              <div style="padding:0 20px 20px;">
+                <div class="aluno-doc-grid">
+                  <div class="aluno-doc-card">
+                    <div class="aluno-doc-card-head">
+                      <span class="aluno-doc-card-title">Passaporte</span>
+                      <span class="aluno-doc-status ok">Enviado</span>
+                    </div>
+                    <span class="aluno-doc-meta">passaporte-anacarolina.pdf</span>
+                    <a href="#">Ver arquivo enviado</a>
+                  </div>
+                  <div class="aluno-doc-card is-pending">
+                    <div class="aluno-doc-card-head">
+                      <span class="aluno-doc-card-title">Visto de estudante</span>
+                      <span class="aluno-doc-status pending">Pendente</span>
+                    </div>
+                    <span class="aluno-doc-meta">Nenhum arquivo enviado ainda.</span>
+                    <button type="button" class="btn btn-ghost btn-sm" style="align-self:flex-start;">Enviar arquivo</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- mensagem para o time -->
+            <div class="panel">
+              <div class="panel-header"><h2>Fale com nosso time</h2></div>
+              <div style="padding:0 20px 20px;">
+                <div class="aluno-msg-bubble">
+                  <span class="aluno-msg-author">Sua consultora Erik</span>
+                  <span class="aluno-msg-text">Seu visto já pode ser enviado por aqui assim que estiver pronto — qualquer dúvida me chama!</span>
+                  <span class="aluno-msg-time">há 2 dias</span>
+                </div>
+
+                <form class="aluno-msg-form">
+                  <label>Sua mensagem
+                    <textarea rows="3" placeholder="Escreva sua mensagem para a equipe Peregrinos..."></textarea>
+                  </label>
+                  <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+                    <button type="submit" class="btn btn-primary btn-sm">Enviar mensagem</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+          </div>
+
+          <aside class="dashboard-sidebar">
+            <div class="panel dash-calendar-panel">
+              <div class="panel-header"><h2>Calendário</h2></div>
+              <div class="dash-calendar">
+                <div class="dash-calendar-nav">
+                  <button type="button" aria-label="Mês anterior">&lsaquo;</button>
+                  <span class="dash-cal-label">Setembro de 2026</span>
+                  <button type="button" aria-label="Próximo mês">&rsaquo;</button>
+                </div>
+                <div class="dash-cal-grid">
+                  <div class="dash-cal-dow">D</div><div class="dash-cal-dow">S</div><div class="dash-cal-dow">T</div><div class="dash-cal-dow">Q</div><div class="dash-cal-dow">Q</div><div class="dash-cal-dow">S</div><div class="dash-cal-dow">S</div>
+                  <button type="button" class="dash-cal-day is-muted" disabled>30</button>
+                  <button type="button" class="dash-cal-day is-muted" disabled>31</button>
+                  <button type="button" class="dash-cal-day">1</button>
+                  <button type="button" class="dash-cal-day">2</button>
+                  <button type="button" class="dash-cal-day">3</button>
+                  <button type="button" class="dash-cal-day">4</button>
+                  <button type="button" class="dash-cal-day">5</button>
+                  <button type="button" class="dash-cal-day">6</button>
+                  <button type="button" class="dash-cal-day">7</button>
+                  <button type="button" class="dash-cal-day">8</button>
+                  <button type="button" class="dash-cal-day">9</button>
+                  <button type="button" class="dash-cal-day">10</button>
+                  <button type="button" class="dash-cal-day">11</button>
+                  <button type="button" class="dash-cal-day">12<span class="dash-cal-dots"><span class="dash-cal-dot dot-reuniao"></span></span></button>
+                  <button type="button" class="dash-cal-day">13</button>
+                  <button type="button" class="dash-cal-day">14</button>
+                  <button type="button" class="dash-cal-day">15</button>
+                  <button type="button" class="dash-cal-day">16</button>
+                  <button type="button" class="dash-cal-day">17</button>
+                  <button type="button" class="dash-cal-day">18</button>
+                  <button type="button" class="dash-cal-day">19</button>
+                  <button type="button" class="dash-cal-day">20<span class="dash-cal-dots"><span class="dash-cal-dot dot-aviso"></span></span></button>
+                  <button type="button" class="dash-cal-day">21</button>
+                  <button type="button" class="dash-cal-day">22</button>
+                  <button type="button" class="dash-cal-day is-today">23</button>
+                  <button type="button" class="dash-cal-day">24</button>
+                  <button type="button" class="dash-cal-day">25</button>
+                  <button type="button" class="dash-cal-day">26</button>
+                  <button type="button" class="dash-cal-day">27<span class="dash-cal-dots"><span class="dash-cal-dot dot-tarefa"></span></span></button>
+                  <button type="button" class="dash-cal-day">28</button>
+                  <button type="button" class="dash-cal-day">29</button>
+                  <button type="button" class="dash-cal-day">30</button>
+                  <button type="button" class="dash-cal-day is-muted" disabled>1</button>
+                  <button type="button" class="dash-cal-day is-muted" disabled>2</button>
+                  <button type="button" class="dash-cal-day is-muted" disabled>3</button>
+                </div>
+                <div class="dash-cal-legend">
+                  <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-tarefa"></span>Tarefa</span>
+                  <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-reuniao"></span>Reunião</span>
+                  <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-aviso"></span>Aviso</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel dash-agenda-panel">
+              <div class="panel-header"><h2>Próximos compromissos</h2></div>
+              <div>
+                <div class="dash-agenda-item">
+                  <span class="dash-agenda-item-badge dot-tarefa">12 NOV</span>
+                  <div class="dash-agenda-item-body">
+                    <div class="dash-agenda-item-title">Entrevista de visto</div>
+                    <div class="dash-agenda-item-meta">10h00 · online</div>
+                  </div>
+                </div>
+                <div class="dash-agenda-item">
+                  <span class="dash-agenda-item-badge dot-reuniao">20 NOV</span>
+                  <div class="dash-agenda-item-body">
+                    <div class="dash-agenda-item-title">Embarque para Dublin</div>
+                    <div class="dash-agenda-item-meta">Aeroporto de Guarulhos</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="aluno-english-teaser">
+              <div class="aluno-english-teaser-head">
+                <span class="aluno-english-teaser-icon">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>
+                </span>
+                <span class="aluno-english-teaser-title">Aulas de Inglês</span>
+                <span class="aluno-soon-badge">Em breve</span>
+              </div>
+              <span class="aluno-english-teaser-text">Aulas básicas para quem ainda está no Brasil se preparando para embarcar.</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    /* ainda só visual — sem autenticação/dados reais por trás */
+    document.querySelector(".aluno-msg-form").addEventListener("submit", e => e.preventDefault());
+  </script>
+</body>
+</html>

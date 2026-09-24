@@ -1307,6 +1307,90 @@ body {
   .sheet { width: 210mm; box-shadow: none; border-radius: 0; margin: 0; padding: 10mm 13mm 8mm; }
 }
 
+/* ===== ÁREA DO ALUNO: DASHBOARD ===== */
+.aluno-hero {
+  display: flex; align-items: center; gap: 26px; padding: 22px 26px;
+}
+.aluno-avatar-wrap { position: relative; width: 108px; height: 108px; flex-shrink: 0; }
+.aluno-avatar-ring {
+  width: 108px; height: 108px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+.aluno-avatar-ring-inner {
+  width: 96px; height: 96px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center;
+}
+.aluno-avatar-initials {
+  width: 84px; height: 84px; border-radius: 50%; background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800;
+}
+.aluno-avatar-badge {
+  position: absolute; right: -4px; bottom: -2px; background: var(--surface); border: 1.5px solid var(--primary); color: var(--primary);
+  font-size: 12px; font-weight: 800; border-radius: 999px; padding: 3px 8px; box-shadow: var(--shadow);
+}
+.aluno-hero-info { min-width: 0; flex: 1; }
+.aluno-hero-name { font-size: 19px; font-weight: 800; }
+.aluno-hero-course { font-size: 13.5px; color: var(--text-muted); margin-top: 3px; }
+.aluno-hero-dates { display: flex; gap: 22px; margin-top: 14px; }
+.aluno-date-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.aluno-date-value { font-size: 13.5px; font-weight: 700; margin-top: 2px; }
+.aluno-days-chip { flex-shrink: 0; background: var(--warn-bg); border-radius: 14px; padding: 14px 22px; text-align: center; }
+.aluno-days-chip .n { font-size: 24px; font-weight: 800; color: var(--warn); line-height: 1; }
+.aluno-days-chip .lbl { font-size: 11px; font-weight: 700; color: #b3701f; margin-top: 4px; }
+
+.aluno-pay-bar { height: 10px; border-radius: 999px; background: var(--content-bg); overflow: hidden; }
+.aluno-pay-bar-fill { height: 100%; border-radius: 999px; background: var(--primary); }
+.aluno-pay-caption { font-size: 12.5px; color: var(--text-muted); margin-top: 8px; }
+
+.aluno-receipt-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--border); }
+.aluno-receipt-icon {
+  width: 34px; height: 34px; border-radius: 10px; background: var(--cold-bg); color: var(--cold);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.aluno-receipt-body { flex: 1; min-width: 0; }
+.aluno-receipt-name { font-size: 13px; font-weight: 700; }
+.aluno-receipt-meta { font-size: 11.5px; color: var(--text-muted); }
+.aluno-receipt-status {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  background: var(--good-bg); color: var(--good); border-radius: 999px; padding: 4px 10px; white-space: nowrap;
+}
+
+.aluno-doc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.aluno-doc-card { border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.aluno-doc-card.is-pending { border-style: dashed; }
+.aluno-doc-card-head { display: flex; align-items: center; justify-content: space-between; }
+.aluno-doc-card-title { font-size: 13.5px; font-weight: 700; }
+.aluno-doc-status { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px; padding: 4px 9px; }
+.aluno-doc-status.ok { background: var(--good-bg); color: var(--good); }
+.aluno-doc-status.pending { background: var(--warn-bg); color: #b3701f; }
+.aluno-doc-meta { font-size: 11.5px; color: var(--text-muted); }
+
+.aluno-msg-bubble { background: var(--content-bg); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+.aluno-msg-author { display: block; font-size: 12px; font-weight: 700; color: var(--primary); }
+.aluno-msg-text { display: block; font-size: 13px; margin-top: 3px; }
+.aluno-msg-time { display: block; font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+.aluno-msg-form textarea {
+  font-family: inherit; font-size: 13.5px; color: var(--text); background: var(--content-bg);
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; resize: none; width: 100%;
+}
+.aluno-msg-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+
+.aluno-english-teaser {
+  background: var(--sidebar-bg); border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;
+}
+.aluno-english-teaser-head { display: flex; align-items: center; gap: 10px; }
+.aluno-english-teaser-icon {
+  width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.12); color: #fff;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.aluno-english-teaser-title { font-size: 14px; font-weight: 800; color: #fff; }
+.aluno-soon-badge {
+  margin-left: auto; font-size: 9px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  background: var(--warn); color: #fff; border-radius: 999px; padding: 3px 8px;
+}
+.aluno-english-teaser-text { font-size: 12.5px; color: #c3d2e6; line-height: 1.5; }
+
+.nav-item.aluno-nav-soon { color: var(--sidebar-text); cursor: default; }
+.nav-item.aluno-nav-soon:hover { background: none; }
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
   body { padding: 0; }
