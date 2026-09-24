@@ -895,6 +895,7 @@ body {
 }
 .public-message.success { background: var(--good-bg); color: var(--good); }
 .public-message.error { background: var(--danger-bg); color: var(--danger); }
+.public-message.info { background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); }
 @media (max-width: 640px) { .public-summary { grid-template-columns: 1fr; } }
 
 .public-form textarea {

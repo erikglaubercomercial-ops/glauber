@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Área do Aluno — Peregrinos Intercâmbio</title>
+<link rel="stylesheet" href="style.css?v=1790256030">
+</head>
+<body class="auth-body">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <img class="auth-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
+    </div>
+
+    <h1 class="auth-title">Área do Aluno</h1>
+    <p class="auth-subtitle">Entre para acompanhar sua jornada de intercâmbio com a Peregrinos.</p>
+
+    <form id="aluno-login-form" class="auth-form">
+      <label>E-mail
+        <input type="email" id="aluno-login-email" required placeholder="voce@email.com" autocomplete="username">
+      </label>
+      <label>Senha
+        <input type="password" id="aluno-login-password" required placeholder="••••••••" autocomplete="current-password">
+      </label>
+
+      <div class="public-message info" id="aluno-login-info" style="display:none;"></div>
+
+      <button type="submit" class="btn btn-primary auth-submit">Entrar</button>
+      <button type="button" class="auth-forgot-link" id="aluno-login-forgot-toggle">Esqueci minha senha</button>
+    </form>
+
+    <form id="aluno-forgot-form" class="auth-form" style="display:none;">
+      <p class="auth-subtitle" style="margin:0;">Informe seu e-mail para receber o link de redefinição de senha.</p>
+      <label>E-mail
+        <input type="email" id="aluno-forgot-email" required placeholder="voce@email.com" autocomplete="username">
+      </label>
+      <div class="public-message info" id="aluno-forgot-info" style="display:none;"></div>
+      <button type="submit" class="btn btn-primary auth-submit">Enviar link</button>
+      <button type="button" class="auth-forgot-link" id="aluno-login-forgot-back">Voltar para o login</button>
+    </form>
+
+    <p class="auth-forgot-link" style="cursor:default; margin-top:14px;">Ainda não tem acesso? Fale com seu consultor.</p>
+  </div>
+
+  <script src="area-aluno-login.js?v=1790256030"></script>
+</body>
+</html>
