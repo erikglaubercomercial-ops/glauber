@@ -486,6 +486,13 @@ function moveDeal(id, newStage) {
   if (!deal || deal.stage === newStage) return;
   deal.stage = newStage;
   deal.closedAt = isClosedStage(newStage) ? Date.now() : null;
+  if (deal.leadId && STAGES.length && newStage !== STAGES[0].id) {
+    const lead = leads.find(l => l.id === deal.leadId);
+    if (lead && lead.status === "Novo") {
+      lead.status = "Em contato";
+      saveLeads();
+    }
+  }
   saveDeals();
   renderBoard();
   renderLeads();
