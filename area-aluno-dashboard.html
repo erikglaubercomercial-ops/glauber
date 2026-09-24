@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Área do Aluno — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1790259067">
+<link rel="stylesheet" href="style.css?v=1790274064">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -50,7 +51,7 @@
         </button>
       </nav>
 
-      <button class="sidebar-signout" type="button">
+      <button class="sidebar-signout" type="button" id="aluno-btn-signout">
         <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         <span>Sair</span>
       </button>
@@ -59,12 +60,12 @@
     <!-- MAIN CONTENT -->
     <main class="content">
       <header class="content-topbar">
-        <h1>Olá, Ana Carolina</h1>
+        <h1>Olá, <span data-aluno-firstname>Aluno(a)</span></h1>
         <div class="topbar-right">
           <div class="user-chip">
-            <div class="avatar">AC</div>
+            <div class="avatar" data-aluno-initials>--</div>
             <div class="user-meta">
-              <span class="user-name">Ana Carolina Reis</span>
+              <span class="user-name" data-aluno-name>—</span>
               <span class="user-email">Aluno(a)</span>
             </div>
           </div>
@@ -80,14 +81,14 @@
               <div class="aluno-avatar-wrap">
                 <div class="aluno-avatar-ring" style="background: conic-gradient(var(--primary) 148deg, var(--border) 0deg);">
                   <div class="aluno-avatar-ring-inner">
-                    <span class="aluno-avatar-initials">AC</span>
+                    <span class="aluno-avatar-initials" data-aluno-initials>--</span>
                   </div>
                 </div>
                 <span class="aluno-avatar-badge">41%</span>
               </div>
 
               <div class="aluno-hero-info">
-                <div class="aluno-hero-name">Ana Carolina Reis</div>
+                <div class="aluno-hero-name" data-aluno-name>—</div>
                 <div class="aluno-hero-course">International — Academic Bridge · Dublin, Irlanda</div>
                 <div class="aluno-hero-dates">
                   <div>
@@ -299,9 +300,7 @@
     </main>
   </div>
 
-  <script>
-    /* ainda só visual — sem autenticação/dados reais por trás */
-    document.querySelector(".aluno-msg-form").addEventListener("submit", e => e.preventDefault());
-  </script>
+  <script src="config.js"></script>
+  <script src="area-aluno-dashboard.js?v=1790274064"></script>
 </body>
 </html>

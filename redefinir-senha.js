@@ -10,6 +10,10 @@ const successEl = document.getElementById("rs-success");
 const form = document.getElementById("rs-form");
 const errorEl = document.getElementById("rs-error");
 
+const isAluno = new URLSearchParams(window.location.search).get("dest") === "aluno";
+const loginUrl = isAluno ? "area-aluno-login.html" : "login.html";
+document.getElementById("rs-invalid-link").href = loginUrl;
+
 function showError(msg) {
   errorEl.textContent = msg;
   errorEl.style.display = "block";
@@ -63,5 +67,5 @@ form.addEventListener("submit", async e => {
   formWrapEl.style.display = "none";
   successEl.style.display = "block";
   await supabase.auth.signOut();
-  setTimeout(() => { window.location.href = "login.html"; }, 2000);
+  setTimeout(() => { window.location.href = loginUrl; }, 2000);
 });

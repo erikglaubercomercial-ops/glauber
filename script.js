@@ -3806,7 +3806,7 @@ function enrollmentFromDb(r) {
     school: r.school || "", turno: r.turno || "",
     courseValue: Number(r.course_value) || 0,
     arrivalDate: r.arrival_date, classStartDate: r.class_start_date,
-    status: r.status, publicToken: r.public_token,
+    status: r.status, publicToken: r.public_token, studentUserId: r.student_user_id || null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
 }
@@ -3823,9 +3823,68 @@ function enrollmentToDb(e) {
     school: e.school, turno: e.turno,
     course_value: e.courseValue,
     arrival_date: e.arrivalDate || null, class_start_date: e.classStartDate || null,
-    status: e.status,
+    status: e.status, student_user_id: e.studentUserId || null,
   };
 }
+
+/* ---- acesso do aluno: cria login real (Supabase Auth) quando a matrícula
+   tem e-mail e ainda não tem login vinculado. Usa um cliente isolado pra
+   não trocar a sessão de quem está usando o CRM. ---- */
+function generateStudentPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = new Uint32Array(10);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => chars[b % chars.length]).join("");
+}
+
+async function provisionStudentAccess(enr) {
+  if (!enr.email || enr.studentUserId) return null;
+  const authClient = window.createIsolatedSupabaseClient();
+  const password = generateStudentPassword();
+  const { data, error } = await authClient.auth.signUp({
+    email: enr.email,
+    password,
+    options: { data: { app_role: "aluno", name: enr.name || "" } },
+  });
+  if (error) {
+    console.error("Erro ao criar acesso do aluno:", error);
+    return { error: true };
+  }
+  if (!data.user || (data.user.identities && data.user.identities.length === 0)) {
+    return { alreadyExists: true };
+  }
+  enr.studentUserId = data.user.id;
+  await saveEnrollmentRemote(enr);
+  return { password };
+}
+
+function buildAlunoLoginUrl() {
+  return `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}area-aluno-login.html`;
+}
+
+const studentAccessModalBackdrop = document.getElementById("student-access-modal-backdrop");
+function openStudentAccessModal(enr, password) {
+  document.getElementById("student-access-link").value = buildAlunoLoginUrl();
+  document.getElementById("student-access-email").value = enr.email;
+  document.getElementById("student-access-password").value = password;
+  studentAccessModalBackdrop.classList.add("open");
+}
+function closeStudentAccessModal() { studentAccessModalBackdrop.classList.remove("open"); }
+document.getElementById("student-access-modal-close").addEventListener("click", closeStudentAccessModal);
+document.getElementById("student-access-btn-close").addEventListener("click", closeStudentAccessModal);
+studentAccessModalBackdrop.addEventListener("click", e => { if (e.target === studentAccessModalBackdrop) closeStudentAccessModal(); });
+document.getElementById("student-access-btn-copy").addEventListener("click", async e => {
+  const text = `Acesse sua Área do Aluno: ${document.getElementById("student-access-link").value}\nE-mail: ${document.getElementById("student-access-email").value}\nSenha: ${document.getElementById("student-access-password").value}`;
+  const btn = e.currentTarget;
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    btn.textContent = "Copiado!";
+  } catch {
+    prompt("Copie os dados abaixo:", text);
+  }
+  setTimeout(() => { btn.textContent = original; }, 1500);
+});
 
 async function loadEnrollments() {
   const { data, error } = await supabase.from("enrollments").select("*").order("created_at", { ascending: false });
@@ -4116,6 +4175,14 @@ enrollmentForm.addEventListener("submit", async e => {
   renderEnrollments();
   closeEnrollmentModal();
   await saveEnrollmentRemote(enr);
+
+  if (enr.email && !enr.studentUserId) {
+    const result = await provisionStudentAccess(enr);
+    if (result && result.password) {
+      renderEnrollments();
+      openStudentAccessModal(enr, result.password);
+    }
+  }
 });
 
 enrBtnDelete.addEventListener("click", async () => {
@@ -5730,6 +5797,7 @@ document.addEventListener("keydown", e => {
   if (formModalBackdrop.classList.contains("open")) closeFormModal();
   if (agendaModalBackdrop.classList.contains("open")) closeAgendaModal();
   if (contractModalBackdrop.classList.contains("open")) closeContractModal();
+  if (studentAccessModalBackdrop.classList.contains("open")) closeStudentAccessModal();
   closeRowMenu();
 });
 

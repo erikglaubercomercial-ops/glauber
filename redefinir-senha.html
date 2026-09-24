@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Redefinir senha — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1790259067">
+<link rel="stylesheet" href="style.css?v=1790274064">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body class="auth-body">
@@ -20,12 +20,12 @@
     <div id="rs-invalid" style="display:none;">
       <h1 class="auth-title">Link inválido ou expirado</h1>
       <p class="auth-subtitle">Peça um novo link de redefinição de senha e tente novamente.</p>
-      <a class="btn btn-primary auth-submit" href="login.html" style="display:block; text-align:center; text-decoration:none; box-sizing:border-box;">Voltar para o login</a>
+      <a class="btn btn-primary auth-submit" href="login.html" id="rs-invalid-link" style="display:block; text-align:center; text-decoration:none; box-sizing:border-box;">Voltar para o login</a>
     </div>
 
     <div id="rs-form-wrap" style="display:none;">
       <h1 class="auth-title">Defina sua nova senha</h1>
-      <p class="auth-subtitle">Escolha uma senha nova para acessar o CRM.</p>
+      <p class="auth-subtitle">Escolha uma senha nova para acessar sua conta.</p>
       <form id="rs-form" class="auth-form">
         <label>Nova senha
           <input type="password" id="rs-password" required minlength="6" placeholder="••••••••" autocomplete="new-password">

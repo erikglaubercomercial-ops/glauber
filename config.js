@@ -6,4 +6,13 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
    biblioteca (com .createClient). Sobrescrevemos essa mesma variável global
    com a instância do cliente — todo o resto do app usa `supabase.from(...)`
    e `supabase.auth...` normalmente a partir daqui. */
-window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseLib = window.supabase;
+window.supabase = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* cliente isolado (não persiste sessão) — usado quando o CRM precisa criar
+   um login para outra pessoa (ex.: acesso do aluno na matrícula) sem trocar
+   a sessão de quem está logado no momento. */
+window.createIsolatedSupabaseClient = () =>
+  supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });

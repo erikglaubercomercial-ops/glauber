@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790264875">
+<link rel="stylesheet" href="style.css?v=1790274064">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1184,6 +1184,33 @@
     </div>
   </div>
 
+  <!-- MODAL: ACESSO DO ALUNO (mostrado uma vez, ao criar o login) -->
+  <div class="modal-backdrop" id="student-access-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Acesso do aluno criado</h2>
+        <button class="btn-icon" id="student-access-modal-close">&times;</button>
+      </div>
+      <div style="padding:0 24px 24px;">
+        <p class="muted-note" style="margin-top:0;">Envie esses dados para o aluno acessar a Área do Aluno:</p>
+        <label class="f"><span>Link de acesso</span>
+          <input type="text" id="student-access-link" readonly>
+        </label>
+        <label class="f"><span>E-mail</span>
+          <input type="text" id="student-access-email" readonly>
+        </label>
+        <label class="f"><span>Senha</span>
+          <input type="text" id="student-access-password" readonly>
+        </label>
+        <p class="muted-note">Essa senha não fica salva em lugar nenhum — anote agora. Se perder, o aluno pode redefinir a própria senha a qualquer momento pela tela de login ("Esqueci minha senha").</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="student-access-btn-copy">Copiar tudo</button>
+        <button type="button" class="btn btn-primary" id="student-access-btn-close">Entendi</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: CONTRATO (criar/editar/enviar/acompanhar assinatura) -->
   <div class="modal-backdrop" id="contract-modal-backdrop">
     <div class="modal modal-lg">
@@ -1778,6 +1805,6 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="script.js?v=1790259067"></script>
+  <script src="script.js?v=1790274064"></script>
 </body>
 </html>
