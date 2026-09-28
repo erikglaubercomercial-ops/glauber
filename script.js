@@ -260,7 +260,21 @@ async function recordFirstInteraction(deal) {
   await saveDeals();
 }
 
+/* tira o lead da lista de "Leads Parados" assim que alguém interage com ele
+   (clique no WhatsApp) — independe de existir negócio vinculado no pipeline,
+   porque leads convertidos de formulário público não ganham negócio sozinhos */
+function unstickLeadIfNew(leadId) {
+  if (!leadId) return;
+  const lead = leads.find(l => l.id === leadId);
+  if (!lead || lead.status !== "Novo") return;
+  lead.status = "Em contato";
+  renderLeads();
+  saveLeads();
+  refreshStuckLeadsAfterReassign([leadId]);
+}
+
 function advanceLeadPipelineStage(leadId) {
+  unstickLeadIfNew(leadId);
   const deal = deals.find(d => d.leadId === leadId);
   if (!deal) return;
   recordFirstInteraction(deal);
@@ -437,6 +451,7 @@ function renderCard(deal) {
   if (wppLink) wppLink.addEventListener("click", e => {
     e.stopPropagation();
     recordFirstInteraction(deal);
+    unstickLeadIfNew(deal.leadId);
   });
   card.querySelector('[data-act="followup"]').addEventListener("click", e => {
     e.stopPropagation();
