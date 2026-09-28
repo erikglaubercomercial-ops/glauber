@@ -47,20 +47,20 @@ form.addEventListener("submit", async e => {
   const pw = document.getElementById("rs-password").value;
   const pwConfirm = document.getElementById("rs-password-confirm").value;
 
-  if (pw.length < 6) { showError("A senha precisa ter pelo menos 6 caracteres."); return; }
-  if (pw !== pwConfirm) { showError("As senhas não coincidem."); return; }
+  if (pw.length < 6) { showError(t("auth.passwordMinLength")); return; }
+  if (pw !== pwConfirm) { showError(t("auth.passwordMismatch")); return; }
 
   const submitBtn = form.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
-  submitBtn.textContent = "Salvando…";
+  submitBtn.textContent = t("auth.saving");
 
   const { error } = await supabase.auth.updateUser({ password: pw });
 
   submitBtn.disabled = false;
-  submitBtn.textContent = "Salvar nova senha";
+  submitBtn.textContent = t("auth.saveNewPassword");
 
   if (error) {
-    showError("Não foi possível salvar a nova senha. Peça um novo link e tente de novo.");
+    showError(t("auth.savePasswordError"));
     return;
   }
 

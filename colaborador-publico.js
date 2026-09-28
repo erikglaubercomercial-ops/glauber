@@ -17,7 +17,7 @@ const DOC_UPLOADS = [
 form.addEventListener("submit", async e => {
   e.preventDefault();
   submitBtn.disabled = true;
-  submitBtn.textContent = "Enviando…";
+  submitBtn.textContent = t("auth.sending");
   successEl.style.display = "none";
 
   const collabId = crypto.randomUUID();
@@ -47,18 +47,18 @@ form.addEventListener("submit", async e => {
     const file = document.getElementById(doc.input).files[0];
     if (!file) continue;
     if (file.size > 8 * 1024 * 1024) {
-      alert("Cada arquivo precisa ter até 8MB.");
+      alert(t("colab.fileTooBig"));
       submitBtn.disabled = false;
-      submitBtn.textContent = "Enviar meus dados";
+      submitBtn.textContent = t("common.sendMyData");
       return;
     }
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${collabId}/${doc.slug}-${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from("collaborator-documents").upload(path, file);
     if (uploadError) {
-      alert("Não foi possível enviar um dos arquivos. Tente novamente.");
+      alert(t("colab.uploadError"));
       submitBtn.disabled = false;
-      submitBtn.textContent = "Enviar meus dados";
+      submitBtn.textContent = t("common.sendMyData");
       return;
     }
     payload[doc.field] = path;
@@ -67,10 +67,10 @@ form.addEventListener("submit", async e => {
   const { error } = await supabase.rpc("create_collaborator_public", { p_id: collabId, p_data: payload });
 
   submitBtn.disabled = false;
-  submitBtn.textContent = "Enviar meus dados";
+  submitBtn.textContent = t("common.sendMyData");
 
   if (error) {
-    alert("Não foi possível salvar seus dados. Tente novamente em instantes.");
+    alert(t("colab.saveError"));
     return;
   }
   form.reset();

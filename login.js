@@ -12,15 +12,11 @@ function showError(msg) {
   if (existing) window.location.href = "index.html";
 })();
 
-const LOGIN_ERROR_MESSAGES = {
-  "Invalid login credentials": "E-mail ou senha inválidos.",
-};
-
 form.addEventListener("submit", async e => {
   e.preventDefault();
   errorEl.style.display = "none";
   submitBtn.disabled = true;
-  submitBtn.textContent = "Entrando…";
+  submitBtn.textContent = t("auth.signingIn");
 
   const email = document.getElementById("login-email").value.trim().toLowerCase();
   const password = document.getElementById("login-password").value;
@@ -28,18 +24,18 @@ form.addEventListener("submit", async e => {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    showError(LOGIN_ERROR_MESSAGES[error.message] || "Não consegui entrar. Tente novamente.");
+    showError(error.message === "Invalid login credentials" ? t("auth.invalidCredentials") : t("auth.genericSignInError"));
     submitBtn.disabled = false;
-    submitBtn.textContent = "Entrar";
+    submitBtn.textContent = t("auth.signIn");
     return;
   }
 
   const session = await getSession();
   if (!session) {
-    showError("Este usuário está desativado. Fale com o administrador.");
+    showError(t("auth.userDisabled"));
     await supabase.auth.signOut();
     submitBtn.disabled = false;
-    submitBtn.textContent = "Entrar";
+    submitBtn.textContent = t("auth.signIn");
     return;
   }
 
@@ -72,17 +68,17 @@ forgotForm.addEventListener("submit", async e => {
   const email = document.getElementById("forgot-email").value.trim().toLowerCase();
   const forgotSubmitBtn = forgotForm.querySelector('button[type="submit"]');
   forgotSubmitBtn.disabled = true;
-  forgotSubmitBtn.textContent = "Enviando…";
+  forgotSubmitBtn.textContent = t("auth.sending");
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}${window.location.pathname.replace(/login\.html$/, "")}redefinir-senha.html`,
   });
 
   forgotSubmitBtn.disabled = false;
-  forgotSubmitBtn.textContent = "Enviar link";
+  forgotSubmitBtn.textContent = t("auth.sendLink");
 
   if (error) {
-    forgotErrorEl.textContent = "Não foi possível enviar o link. Verifique o e-mail e tente novamente.";
+    forgotErrorEl.textContent = t("auth.sendLinkError");
     forgotErrorEl.style.display = "block";
     return;
   }

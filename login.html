@@ -4,46 +4,48 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Entrar — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1790274064">
+<link rel="stylesheet" href="style.css?v=1790582217">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body class="auth-body">
+  <div class="lang-switcher"></div>
   <div class="auth-card">
     <div class="auth-brand">
       <img class="auth-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
     </div>
 
-    <h1 class="auth-title">Bem-vindo de volta</h1>
-    <p class="auth-subtitle">Entre com sua conta para acessar o CRM.</p>
+    <h1 class="auth-title" data-i18n="auth.welcomeBack">Bem-vindo de volta</h1>
+    <p class="auth-subtitle" data-i18n="auth.signInToCrm">Entre com sua conta para acessar o CRM.</p>
 
     <form id="login-form" class="auth-form">
-      <label>E-mail
+      <label><span data-i18n="auth.email">E-mail</span>
         <input type="email" id="login-email" required placeholder="voce@empresa.com" autocomplete="username">
       </label>
-      <label>Senha
+      <label><span data-i18n="auth.password">Senha</span>
         <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
       </label>
 
       <div class="auth-error" id="login-error" style="display:none;"></div>
 
-      <button type="submit" class="btn btn-primary auth-submit">Entrar</button>
-      <button type="button" class="auth-forgot-link" id="login-forgot-toggle">Esqueci minha senha</button>
+      <button type="submit" class="btn btn-primary auth-submit" data-i18n="auth.signIn">Entrar</button>
+      <button type="button" class="auth-forgot-link" id="login-forgot-toggle" data-i18n="auth.forgotPassword">Esqueci minha senha</button>
     </form>
 
     <form id="forgot-form" class="auth-form" style="display:none;">
-      <p class="auth-subtitle" style="margin:0;">Informe seu e-mail para receber o link de redefinição de senha.</p>
-      <label>E-mail
+      <p class="auth-subtitle" style="margin:0;" data-i18n="auth.forgotInstructions">Informe seu e-mail para receber o link de redefinição de senha.</p>
+      <label><span data-i18n="auth.email">E-mail</span>
         <input type="email" id="forgot-email" required placeholder="voce@empresa.com" autocomplete="username">
       </label>
       <div class="auth-error" id="forgot-error" style="display:none;"></div>
-      <div class="public-message success" id="forgot-success" style="display:none;">Link enviado! Confira seu e-mail.</div>
-      <button type="submit" class="btn btn-primary auth-submit">Enviar link</button>
-      <button type="button" class="auth-forgot-link" id="login-forgot-back">Voltar para o login</button>
+      <div class="public-message success" id="forgot-success" style="display:none;" data-i18n="auth.linkSent">Link enviado! Confira seu e-mail.</div>
+      <button type="submit" class="btn btn-primary auth-submit" data-i18n="auth.sendLink">Enviar link</button>
+      <button type="button" class="auth-forgot-link" id="login-forgot-back" data-i18n="auth.backToLogin">Voltar para o login</button>
     </form>
   </div>
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js"></script>
+  <script src="i18n.js?v=1790582217"></script>
   <script src="login.js"></script>
 </body>
 </html>

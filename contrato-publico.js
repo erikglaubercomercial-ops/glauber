@@ -143,12 +143,12 @@ function buildSignedPdfBlob(signerName, signerDocument, signatureDataUrl) {
 form.addEventListener("submit", async e => {
   e.preventDefault();
   if (!hasSignature) {
-    alert("Desenhe sua assinatura antes de continuar.");
+    alert(t("contract.pleaseDraw"));
     return;
   }
 
   submitBtn.disabled = true;
-  submitBtn.textContent = "Enviando…";
+  submitBtn.textContent = t("auth.sending");
 
   const signerName = document.getElementById("pk-signer-name").value.trim();
   const signerDocument = document.getElementById("pk-signer-document").value.trim();
@@ -174,8 +174,8 @@ form.addEventListener("submit", async e => {
     successEl.style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (err) {
-    alert("Não foi possível registrar sua assinatura. Tente novamente em instantes.");
+    alert(t("contract.signError"));
     submitBtn.disabled = false;
-    submitBtn.textContent = "Assinar contrato";
+    submitBtn.textContent = t("contract.signButton");
   }
 });

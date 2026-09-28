@@ -236,6 +236,21 @@ body {
 }
 .icon-btn:hover { color: var(--text); }
 
+/* seletor de idioma (bandeiras) */
+.lang-switcher {
+  display: flex; align-items: center; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 3px;
+}
+.lang-flag {
+  border: none; background: none; cursor: pointer; font-size: 16px; line-height: 1;
+  padding: 5px 7px; border-radius: 7px; opacity: 0.45; transition: opacity 0.15s, background 0.15s;
+  filter: grayscale(60%);
+}
+.lang-flag:hover { opacity: 0.8; }
+.lang-flag.active { opacity: 1; background: var(--content-bg); filter: none; }
+.auth-body .lang-switcher,
+.public-page .lang-switcher { position: fixed; top: 18px; right: 18px; }
+
 .user-chip { display: flex; align-items: center; gap: 9px; }
 .avatar {
   width: 36px; height: 36px;

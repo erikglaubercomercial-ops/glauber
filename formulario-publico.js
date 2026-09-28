@@ -38,13 +38,13 @@ function fieldInputHtml(f) {
       return `<label>${label}<textarea name="${f.id}" rows="3" ${req}></textarea></label>`;
     case "boolean":
       return `<label>${label}<span class="public-radio-group">
-        <span class="public-radio-option"><input type="radio" name="${f.id}" value="Sim" ${req}> Sim</span>
-        <span class="public-radio-option"><input type="radio" name="${f.id}" value="Não" ${req}> Não</span>
+        <span class="public-radio-option"><input type="radio" name="${f.id}" value="Sim" ${req}> ${t("form.yes")}</span>
+        <span class="public-radio-option"><input type="radio" name="${f.id}" value="Não" ${req}> ${t("form.no")}</span>
       </span></label>`;
     case "select":
     case "source": {
       const opts = (f.options || []).map(o => `<option value="${escapeHtmlPublic(o)}">${escapeHtmlPublic(o)}</option>`).join("");
-      return `<label>${label}<select name="${f.id}" ${req}><option value="">Selecione</option>${opts}</select></label>`;
+      return `<label>${label}<select name="${f.id}" ${req}><option value="">${t("common.select")}</option>${opts}</select></label>`;
     }
     case "name":
     case "text":
@@ -81,11 +81,11 @@ function formatPhoneInput(input) {
   }
 
   currentFields = data.fields || [];
-  document.getElementById("pf-title").textContent = data.title || "Formulário";
+  document.getElementById("pf-title").textContent = data.title || t("form.title");
   document.getElementById("pf-subtitle").textContent = data.subtitle || "";
-  document.title = `${data.title || "Formulário"} — Peregrinos Intercâmbio`;
+  document.title = `${data.title || t("form.title")} — Peregrinos Intercâmbio`;
 
-  form.innerHTML = currentFields.map(fieldInputHtml).join("") + `<button type="submit" class="btn btn-primary" id="pf-submit">Enviar</button>`;
+  form.innerHTML = currentFields.map(fieldInputHtml).join("") + `<button type="submit" class="btn btn-primary" id="pf-submit">${t("form.submit")}</button>`;
   form.querySelectorAll('input[type="tel"]').forEach(formatPhoneInput);
 
   loadingEl.style.display = "none";
@@ -96,7 +96,7 @@ form.addEventListener("submit", async e => {
   e.preventDefault();
   const submitBtn = document.getElementById("pf-submit");
   submitBtn.disabled = true;
-  submitBtn.textContent = "Enviando…";
+  submitBtn.textContent = t("auth.sending");
 
   const answers = {};
   currentFields.forEach(f => {
@@ -112,9 +112,9 @@ form.addEventListener("submit", async e => {
   const { error } = await supabase.rpc("submit_form_public", { p_slug: slug, p_answers: answers });
 
   if (error) {
-    alert("Não foi possível enviar. Confira os campos e tente novamente.");
+    alert(t("form.sendError"));
     submitBtn.disabled = false;
-    submitBtn.textContent = "Enviar";
+    submitBtn.textContent = t("form.submit");
     return;
   }
 

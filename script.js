@@ -50,22 +50,7 @@ function initSidebarToggle() {
 /* ============================================================
    NAVIGATION
    ============================================================ */
-const VIEW_TITLES = {
-  dashboard: "Dashboard",
-  leads: "Leads",
-  pipeline: "Pipeline",
-  leadsparados: "Leads Parados",
-  contratos: "Contratos",
-  cotacao: "Cotação",
-  produtos: "Produtos",
-  financeiro: "Financeiro",
-  matriculas: "Matrículas",
-  colaboradores: "Time",
-  formularios: "Formulários",
-  templates: "Templates",
-  areaaluno: "Área do Aluno",
-  usuarios: "Usuários",
-};
+let currentView = "dashboard";
 
 function initNavigation() {
   const navItems = document.querySelectorAll(".nav-item[data-view]");
@@ -91,13 +76,14 @@ function initNavigation() {
 function switchView(view) {
   if (!canAccessView(view)) return;
   closeRowMenu();
+  currentView = view;
   document.querySelectorAll(".nav-item[data-view]").forEach(item => {
     item.classList.toggle("active", item.dataset.view === view);
   });
   document.querySelectorAll(".view").forEach(section => {
     section.classList.toggle("active", section.id === `view-${view}`);
   });
-  document.getElementById("view-title").textContent = VIEW_TITLES[view] || "";
+  document.getElementById("view-title").textContent = t(`nav.${view}`);
   if (view === "dashboard") renderDashboardView();
   if (view === "leadsparados") {
     document.getElementById("subview-stuck-detalhe").classList.remove("active");
@@ -105,6 +91,13 @@ function switchView(view) {
     renderStuckOverview();
   }
 }
+
+/* refaz o título da tela e os textos gerados por JS quando o idioma muda */
+document.addEventListener("langchange", () => {
+  const titleEl = document.getElementById("view-title");
+  if (titleEl) titleEl.textContent = t(`nav.${currentView}`);
+  if (currentView === "dashboard" && session) renderDashboardView();
+});
 
 function currency(v) {
   return (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "EUR" });
@@ -4987,9 +4980,9 @@ function renderDashboardStatCards() {
   const conversion = closedDeals.length === 0 ? 0 : Math.round((wonDeals.length / closedDeals.length) * 100);
 
   const cards = [
-    { label: "Leads novos (7 dias)", value: String(newLeads) },
-    { label: "Negócios em aberto", value: `${openDeals.length} · ${currency(openValue)}` },
-    { label: "Taxa de conversão", value: `${conversion}%`, good: true },
+    { label: t("dash.statNewLeads"), value: String(newLeads) },
+    { label: t("dash.statOpenDeals"), value: `${openDeals.length} · ${currency(openValue)}` },
+    { label: t("dash.statConversion"), value: `${conversion}%`, good: true },
   ];
 
   if (hasModuleAccess(session.role, "financeiro")) {
@@ -5000,13 +4993,13 @@ function renderDashboardStatCards() {
       .filter(d => isWonStage(d.stage) && d.closedAt >= monthStart && d.closedAt < monthEnd)
       .reduce((s, d) => s + (Number(d.value) || 0), 0);
     const pendingReceivable = receivables.filter(r => !r.paid).reduce((s, r) => s + (Number(r.amount) || 0), 0);
-    cards.push({ label: "Faturamento (mês)", value: currency(revenue), good: true });
-    cards.push({ label: "A receber pendente", value: currency(pendingReceivable) });
+    cards.push({ label: t("dash.statRevenue"), value: currency(revenue), good: true });
+    cards.push({ label: t("dash.statReceivable"), value: currency(pendingReceivable) });
   }
 
   if (hasModuleAccess(session.role, "matriculas")) {
     const waiting = enrollments.filter(e => e.status === "Aguardando aluno").length;
-    cards.push({ label: "Matrículas aguardando aluno", value: String(waiting) });
+    cards.push({ label: t("dash.statEnrollWaiting"), value: String(waiting) });
   }
 
   document.getElementById("dash-stat-row").innerHTML = cards.map(c => `

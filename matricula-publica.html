@@ -4,75 +4,77 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Complete sua matrícula — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1790274064">
+<link rel="stylesheet" href="style.css?v=1790582217">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
+  <div class="lang-switcher"></div>
   <div class="public-page">
     <div class="public-card">
       <img class="public-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
 
       <div id="pm-loading">
-        <p class="public-subtitle">Carregando...</p>
+        <p class="public-subtitle" data-i18n="common.loading">Carregando...</p>
       </div>
 
       <div id="pm-error" style="display:none;">
-        <div class="public-message error">Não encontramos essa matrícula. Verifique se o link está correto ou fale com seu consultor.</div>
+        <div class="public-message error" data-i18n="matricula.notFound">Não encontramos essa matrícula. Verifique se o link está correto ou fale com seu consultor.</div>
       </div>
 
       <div id="pm-content" style="display:none;">
-        <h1 class="public-title">Complete sua matrícula</h1>
-        <p class="public-subtitle">Confira os dados do seu curso e preencha as informações abaixo.</p>
+        <h1 class="public-title" data-i18n="matricula.title">Complete sua matrícula</h1>
+        <p class="public-subtitle" data-i18n="matricula.subtitle">Confira os dados do seu curso e preencha as informações abaixo.</p>
 
         <div class="public-summary" id="pm-summary"></div>
 
-        <div class="public-message success" id="pm-success" style="display:none;">Dados enviados! Você pode voltar a essa página a qualquer momento para atualizar suas informações.</div>
+        <div class="public-message success" id="pm-success" style="display:none;" data-i18n="matricula.success">Dados enviados! Você pode voltar a essa página a qualquer momento para atualizar suas informações.</div>
 
         <form class="public-form" id="pm-form">
-          <div class="public-section-title">Contato de emergência e documentos</div>
-          <label>Nome e telefone de um contato de emergência
-            <input type="text" id="pm-emergency" placeholder="Ex: Maria Silva (mãe) — (11) 99999-0000">
+          <div class="public-section-title" data-i18n="matricula.sectionDocs">Contato de emergência e documentos</div>
+          <label><span data-i18n="matricula.emergencyLabel">Nome e telefone de um contato de emergência</span>
+            <input type="text" id="pm-emergency" placeholder="Ex: Maria Silva (mãe) — (11) 99999-0000" data-i18n-placeholder="matricula.emergencyPlaceholder">
           </label>
-          <label>CPF
+          <label><span data-i18n="matricula.cpf">CPF</span>
             <input type="text" id="pm-cpf" placeholder="000.000.000-00">
           </label>
-          <label>Número do passaporte
+          <label><span data-i18n="matricula.passportNumber">Número do passaporte</span>
             <input type="text" id="pm-passport-number">
           </label>
-          <label>Foto do passaporte (página com sua foto)
+          <label><span data-i18n="matricula.passportPhoto">Foto do passaporte (página com sua foto)</span>
             <input type="file" id="pm-passport-photo" accept="image/*">
           </label>
 
-          <div class="public-section-title">Endereço no Brasil</div>
-          <label>Rua
+          <div class="public-section-title" data-i18n="matricula.sectionAddressBR">Endereço no Brasil</div>
+          <label><span data-i18n="addr.street">Rua</span>
             <input type="text" id="pm-street">
           </label>
-          <label>Número
+          <label><span data-i18n="addr.number">Número</span>
             <input type="text" id="pm-number">
           </label>
-          <label>Complemento
-            <input type="text" id="pm-complement" placeholder="Apto, bloco... (opcional)">
+          <label><span data-i18n="addr.complement">Complemento</span>
+            <input type="text" id="pm-complement" placeholder="Apto, bloco... (opcional)" data-i18n-placeholder="addr.complementPlaceholder">
           </label>
-          <label>Bairro
+          <label><span data-i18n="addr.neighborhood">Bairro</span>
             <input type="text" id="pm-neighborhood">
           </label>
-          <label>Cidade
+          <label><span data-i18n="addr.city">Cidade</span>
             <input type="text" id="pm-city">
           </label>
-          <label>Estado
+          <label><span data-i18n="addr.state">Estado</span>
             <input type="text" id="pm-state" maxlength="2" placeholder="Ex: SP">
           </label>
-          <label>CEP
+          <label><span data-i18n="addr.zip">CEP</span>
             <input type="text" id="pm-zip" placeholder="00000-000">
           </label>
 
-          <button type="submit" class="btn btn-primary" id="pm-submit">Enviar meus dados</button>
+          <button type="submit" class="btn btn-primary" id="pm-submit" data-i18n="common.sendMyData">Enviar meus dados</button>
         </form>
       </div>
     </div>
   </div>
 
   <script src="config.js"></script>
+  <script src="i18n.js?v=1790582217"></script>
   <script src="matricula-publica.js"></script>
 </body>
 </html>

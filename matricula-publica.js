@@ -42,12 +42,12 @@ let enrollment = null;
 
   enrollment = data;
   summaryEl.innerHTML = `
-    <div>Nome<b>${enrollment.name || "—"}</b></div>
-    <div>Escola<b>${enrollment.school || "—"}</b></div>
-    <div>Turno<b>${enrollment.turno || "—"}</b></div>
-    <div>Valor do curso<b>${currencyEUR(enrollment.course_value)}</b></div>
-    <div>Chegada<b>${formatDateBR(enrollment.arrival_date)}</b></div>
-    <div>Início das aulas<b>${formatDateBR(enrollment.class_start_date)}</b></div>
+    <div>${t("matricula.summaryName")}<b>${enrollment.name || "—"}</b></div>
+    <div>${t("matricula.summarySchool")}<b>${enrollment.school || "—"}</b></div>
+    <div>${t("matricula.summaryTurno")}<b>${enrollment.turno || "—"}</b></div>
+    <div>${t("matricula.summaryCourseValue")}<b>${currencyEUR(enrollment.course_value)}</b></div>
+    <div>${t("matricula.summaryArrival")}<b>${formatDateBR(enrollment.arrival_date)}</b></div>
+    <div>${t("matricula.summaryClassStart")}<b>${formatDateBR(enrollment.class_start_date)}</b></div>
   `;
 
   document.getElementById("pm-emergency").value = enrollment.emergency_phone || "";
@@ -68,25 +68,25 @@ let enrollment = null;
 form.addEventListener("submit", async e => {
   e.preventDefault();
   submitBtn.disabled = true;
-  submitBtn.textContent = "Enviando…";
+  submitBtn.textContent = t("auth.sending");
   successEl.style.display = "none";
 
   let photoPath = null;
   const file = document.getElementById("pm-passport-photo").files[0];
   if (file) {
     if (file.size > 8 * 1024 * 1024) {
-      alert("A foto precisa ter até 8MB.");
+      alert(t("matricula.photoTooBig"));
       submitBtn.disabled = false;
-      submitBtn.textContent = "Enviar meus dados";
+      submitBtn.textContent = t("common.sendMyData");
       return;
     }
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${enrollment.id}/passaporte-${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from("passport-photos").upload(path, file);
     if (uploadError) {
-      alert("Não foi possível enviar a foto do passaporte. Tente novamente.");
+      alert(t("matricula.photoUploadError"));
       submitBtn.disabled = false;
-      submitBtn.textContent = "Enviar meus dados";
+      submitBtn.textContent = t("common.sendMyData");
       return;
     }
     photoPath = path;
@@ -109,10 +109,10 @@ form.addEventListener("submit", async e => {
   const { error } = await supabase.rpc("update_enrollment_by_token", { p_token: token, p_data: payload });
 
   submitBtn.disabled = false;
-  submitBtn.textContent = "Enviar meus dados";
+  submitBtn.textContent = t("common.sendMyData");
 
   if (error) {
-    alert("Não foi possível salvar seus dados. Tente novamente em instantes.");
+    alert(t("matricula.saveError"));
     return;
   }
   successEl.style.display = "block";

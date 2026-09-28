@@ -26,15 +26,11 @@ const isPreview = new URLSearchParams(window.location.search).get("preview") ===
   if (session) window.location.href = "area-aluno-dashboard.html";
 })();
 
-const LOGIN_ERROR_MESSAGES = {
-  "Invalid login credentials": "E-mail ou senha inválidos.",
-};
-
 form.addEventListener("submit", async e => {
   e.preventDefault();
   infoEl.style.display = "none";
   submitBtn.disabled = true;
-  submitBtn.textContent = "Entrando…";
+  submitBtn.textContent = t("auth.signingIn");
 
   const email = document.getElementById("aluno-login-email").value.trim().toLowerCase();
   const password = document.getElementById("aluno-login-password").value;
@@ -42,10 +38,10 @@ form.addEventListener("submit", async e => {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   submitBtn.disabled = false;
-  submitBtn.textContent = "Entrar";
+  submitBtn.textContent = t("auth.signIn");
 
   if (error) {
-    showLoginMessage(LOGIN_ERROR_MESSAGES[error.message] || "Não consegui entrar. Tente novamente.", "error");
+    showLoginMessage(error.message === "Invalid login credentials" ? t("auth.invalidCredentials") : t("auth.genericSignInError"), "error");
     return;
   }
 
@@ -76,22 +72,22 @@ forgotForm.addEventListener("submit", async e => {
   const email = document.getElementById("aluno-forgot-email").value.trim().toLowerCase();
   const forgotSubmitBtn = forgotForm.querySelector('button[type="submit"]');
   forgotSubmitBtn.disabled = true;
-  forgotSubmitBtn.textContent = "Enviando…";
+  forgotSubmitBtn.textContent = t("auth.sending");
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}${window.location.pathname.replace(/area-aluno-login\.html$/, "")}redefinir-senha.html?dest=aluno`,
   });
 
   forgotSubmitBtn.disabled = false;
-  forgotSubmitBtn.textContent = "Enviar link";
+  forgotSubmitBtn.textContent = t("auth.sendLink");
 
   if (error) {
-    forgotInfoEl.textContent = "Não foi possível enviar o link. Verifique o e-mail e tente novamente.";
+    forgotInfoEl.textContent = t("auth.sendLinkError");
     forgotInfoEl.className = "public-message error";
     forgotInfoEl.style.display = "block";
     return;
   }
-  forgotInfoEl.textContent = "Link enviado! Confira seu e-mail.";
+  forgotInfoEl.textContent = t("auth.linkSent");
   forgotInfoEl.className = "public-message success";
   forgotInfoEl.style.display = "block";
 });

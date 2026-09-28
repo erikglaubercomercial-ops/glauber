@@ -4,27 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Formulário — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1790274064">
+<link rel="stylesheet" href="style.css?v=1790582217">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
+  <div class="lang-switcher"></div>
   <div class="public-page">
     <div class="public-card">
       <img class="public-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
 
       <div id="pf-loading">
-        <p class="public-subtitle">Carregando...</p>
+        <p class="public-subtitle" data-i18n="common.loading">Carregando...</p>
       </div>
 
       <div id="pf-error" style="display:none;">
-        <div class="public-message error">Não encontramos esse formulário. Verifique se o link está correto.</div>
+        <div class="public-message error" data-i18n="form.notFound">Não encontramos esse formulário. Verifique se o link está correto.</div>
       </div>
 
       <div id="pf-content" style="display:none;">
         <h1 class="public-title" id="pf-title"></h1>
         <p class="public-subtitle" id="pf-subtitle"></p>
 
-        <div class="public-message success" id="pf-success" style="display:none;">Recebemos suas informações! Em breve alguém da nossa equipe vai entrar em contato.</div>
+        <div class="public-message success" id="pf-success" style="display:none;" data-i18n="form.thankYou">Recebemos suas informações! Em breve alguém da nossa equipe vai entrar em contato.</div>
 
         <form class="public-form" id="pf-form"></form>
       </div>
@@ -32,6 +33,7 @@
   </div>
 
   <script src="config.js"></script>
+  <script src="i18n.js?v=1790582217"></script>
   <script src="formulario-publico.js"></script>
 </body>
 </html>
