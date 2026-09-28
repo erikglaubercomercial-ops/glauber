@@ -104,6 +104,271 @@ document.addEventListener("langchange", () => {
   if (currentView === "dashboard" && session) renderDashboardView();
 });
 
+/* ============================================================
+   MENU LATERAL — ordem/submenus configuráveis pelo ADM, salvos
+   numa linha única (menu_config) e valendo pra todo mundo.
+   Não altera função nenhuma: só reordena os nós já existentes
+   na sidebar (ícones e textos continuam vindo do HTML/i18n).
+   ============================================================ */
+const DEFAULT_MENU_STRUCTURE = {
+  sections: [
+    { id: "geral", items: [
+      { id: "dashboard" },
+      { id: "leads", children: ["leadsparados"] },
+      { id: "pipeline" },
+      { id: "cotacao" },
+      { id: "contratos" },
+      { id: "produtos" },
+      { id: "financeiro" },
+      { id: "matriculas" },
+      { id: "colaboradores" },
+      { id: "formularios" },
+      { id: "templates" },
+      { id: "areaaluno", children: ["areaaluno-preview-link"] },
+    ] },
+    { id: "administracao", items: [
+      { id: "usuarios" },
+    ] },
+  ],
+};
+
+let menuConfig = DEFAULT_MENU_STRUCTURE;
+
+async function loadMenuConfig() {
+  const { data, error } = await supabase.from("menu_config").select("structure").eq("id", 1).single();
+  if (error || !data || !data.structure || !Array.isArray(data.structure.sections)) return DEFAULT_MENU_STRUCTURE;
+  return data.structure;
+}
+async function saveMenuConfigRemote(structure) {
+  const { error } = await supabase.from("menu_config")
+    .update({ structure, updated_by_name: session.name || "", updated_at: new Date().toISOString() })
+    .eq("id", 1);
+  if (error) console.error("Erro ao salvar menu:", error);
+  return !error;
+}
+
+function navIdOf(el) {
+  return el ? (el.dataset.navId || el.dataset.view || null) : null;
+}
+function navElementFor(id) {
+  return document.querySelector(`#sidebar-nav [data-nav-id="${id}"]`) || document.querySelector(`#sidebar-nav [data-view="${id}"]`);
+}
+
+function applyMenuStructure(structure) {
+  const nav = document.getElementById("sidebar-nav");
+  (structure.sections || []).forEach(section => {
+    const label = document.querySelector(`#sidebar-nav .nav-label[data-nav-section="${section.id}"]`);
+    if (!label) return;
+    let anchor = label;
+    (section.items || []).forEach(item => {
+      const el = navElementFor(item.id);
+      if (!el) return;
+      el.classList.remove("nav-item-sub");
+      delete el.dataset.parent;
+      nav.insertBefore(el, anchor.nextSibling);
+      anchor = el;
+      (item.children || []).forEach(childId => {
+        const childEl = navElementFor(childId);
+        if (!childEl) return;
+        childEl.classList.add("nav-item-sub");
+        childEl.dataset.parent = item.id;
+        nav.insertBefore(childEl, anchor.nextSibling);
+        anchor = childEl;
+      });
+    });
+  });
+}
+
+function serializeMenuStructure() {
+  const nav = document.getElementById("sidebar-nav");
+  const sections = [];
+  let currentSection = null;
+  let currentTopItem = null;
+  Array.from(nav.children).forEach(el => {
+    if (el.matches(".nav-label")) {
+      currentSection = { id: el.dataset.navSection, items: [] };
+      sections.push(currentSection);
+      currentTopItem = null;
+      return;
+    }
+    if (el.classList.contains("nav-drag-handle") || !currentSection) return;
+    const id = navIdOf(el);
+    if (!id) return;
+    if (el.classList.contains("nav-item-sub")) {
+      if (currentTopItem) {
+        currentTopItem.children = currentTopItem.children || [];
+        currentTopItem.children.push(id);
+      }
+      return;
+    }
+    currentTopItem = { id };
+    currentSection.items.push(currentTopItem);
+  });
+  return { sections };
+}
+
+function clearMenuDropMarkers() {
+  document.querySelectorAll("#sidebar-nav [data-drop]").forEach(el => el.removeAttribute("data-drop"));
+}
+
+function setMenuDragHandles(on) {
+  document.querySelectorAll("#sidebar-nav .nav-item, #sidebar-nav .nav-subitem").forEach(el => {
+    let handle = el.querySelector(".nav-drag-handle");
+    if (on) {
+      if (!handle) {
+        handle = document.createElement("span");
+        handle.className = "nav-drag-handle";
+        handle.textContent = "⠿";
+        el.insertBefore(handle, el.firstChild);
+      }
+      el.draggable = true;
+    } else {
+      if (handle) handle.remove();
+      el.removeAttribute("draggable");
+    }
+  });
+}
+
+/* bloqueia clique/navegação enquanto o menu está em modo de edição
+   (arrastar não pode disparar troca de tela nem abrir o link externo) */
+function menuEditClickBlocker(e) {
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+let menuEditBackupHtml = null;
+
+function initMenuEditor() {
+  const nav = document.getElementById("sidebar-nav");
+  const editBtn = document.getElementById("btn-edit-menu");
+  const editBar = document.getElementById("sidebar-nav-edit-bar");
+  const cancelBtn = document.getElementById("btn-menu-cancel");
+  const saveBtn = document.getElementById("btn-menu-save");
+  if (!editBtn) return;
+
+  editBtn.style.display = session && session.role === "ADM" ? "flex" : "none";
+  if (!(session && session.role === "ADM")) return;
+
+  function enterEditMode() {
+    menuEditBackupHtml = nav.innerHTML;
+    nav.classList.add("edit-mode");
+    nav.addEventListener("click", menuEditClickBlocker, true);
+    editBtn.classList.add("active");
+    editBar.style.display = "flex";
+    setMenuDragHandles(true);
+  }
+  function exitEditMode() {
+    nav.classList.remove("edit-mode");
+    nav.removeEventListener("click", menuEditClickBlocker, true);
+    editBtn.classList.remove("active");
+    editBar.style.display = "none";
+    setMenuDragHandles(false);
+    clearMenuDropMarkers();
+  }
+
+  editBtn.addEventListener("click", () => {
+    if (nav.classList.contains("edit-mode")) exitEditMode();
+    else enterEditMode();
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    nav.innerHTML = menuEditBackupHtml;
+    exitEditMode();
+    initNavigation();
+  });
+
+  saveBtn.addEventListener("click", async () => {
+    const structure = serializeMenuStructure();
+    saveBtn.disabled = true;
+    const original = saveBtn.textContent;
+    saveBtn.textContent = t("nav.savingMenu");
+    const ok = await saveMenuConfigRemote(structure);
+    saveBtn.disabled = false;
+    saveBtn.textContent = original;
+    if (!ok) { alert(t("nav.saveMenuError")); return; }
+    menuConfig = structure;
+    exitEditMode();
+  });
+
+  let draggedEl = null;
+
+  nav.addEventListener("dragstart", e => {
+    const el = e.target.closest(".nav-item, .nav-subitem");
+    if (!el || !nav.classList.contains("edit-mode")) return;
+    draggedEl = el;
+    e.dataTransfer.effectAllowed = "move";
+    requestAnimationFrame(() => el.classList.add("dragging"));
+  });
+  nav.addEventListener("dragend", () => {
+    if (draggedEl) draggedEl.classList.remove("dragging");
+    draggedEl = null;
+    clearMenuDropMarkers();
+  });
+  nav.addEventListener("dragover", e => {
+    if (!draggedEl || !nav.classList.contains("edit-mode")) return;
+    const target = e.target.closest(".nav-item, .nav-subitem, .nav-label");
+    clearMenuDropMarkers();
+    if (!target || target === draggedEl) return;
+    e.preventDefault();
+    const draggedId = navIdOf(draggedEl);
+    if (target.matches(".nav-label")) {
+      target.dataset.drop = "label";
+      return;
+    }
+    const rect = target.getBoundingClientRect();
+    const offset = (e.clientY - rect.top) / rect.height;
+    const targetIsChildOfDragged = target.dataset.parent === draggedId;
+    const canNest = target.matches(".nav-item") && !target.classList.contains("nav-item-sub") && !targetIsChildOfDragged;
+    if (canNest && offset > 0.3 && offset < 0.7) {
+      target.dataset.drop = "nest";
+    } else if (offset < 0.5) {
+      target.dataset.drop = "before";
+    } else {
+      target.dataset.drop = "after";
+    }
+  });
+  nav.addEventListener("drop", e => {
+    if (!draggedEl || !nav.classList.contains("edit-mode")) return;
+    const target = e.target.closest(".nav-item, .nav-subitem, .nav-label");
+    if (!target || target === draggedEl) { clearMenuDropMarkers(); return; }
+    e.preventDefault();
+    const draggedId = navIdOf(draggedEl);
+    const dropMode = target.dataset.drop;
+    const targetIsChildOfDragged = target.dataset.parent === draggedId;
+
+    draggedEl.classList.remove("nav-item-sub");
+    delete draggedEl.dataset.parent;
+
+    if (target.matches(".nav-label")) {
+      nav.insertBefore(draggedEl, target.nextSibling);
+    } else if (dropMode === "nest" && !targetIsChildOfDragged) {
+      let insertAfterEl = target;
+      let next = target.nextElementSibling;
+      const targetId = navIdOf(target);
+      while (next && next.classList.contains("nav-item-sub") && next.dataset.parent === targetId) {
+        insertAfterEl = next;
+        next = next.nextElementSibling;
+      }
+      draggedEl.classList.add("nav-item-sub");
+      draggedEl.dataset.parent = targetId;
+      nav.insertBefore(draggedEl, insertAfterEl.nextSibling);
+    } else if (dropMode === "before") {
+      if (target.classList.contains("nav-item-sub") && !targetIsChildOfDragged) {
+        draggedEl.classList.add("nav-item-sub");
+        draggedEl.dataset.parent = target.dataset.parent;
+      }
+      nav.insertBefore(draggedEl, target);
+    } else {
+      if (target.classList.contains("nav-item-sub") && !targetIsChildOfDragged) {
+        draggedEl.classList.add("nav-item-sub");
+        draggedEl.dataset.parent = target.dataset.parent;
+      }
+      nav.insertBefore(draggedEl, target.nextSibling);
+    }
+    clearMenuDropMarkers();
+  });
+}
+
 function currency(v) {
   return (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "EUR" });
 }
@@ -5858,7 +6123,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -5878,11 +6143,14 @@ document.addEventListener("keydown", e => {
     loadFormSubmissions(),
     loadAgendaItems(),
     loadContracts(),
+    loadMenuConfig(),
   ]);
 
   renderSessionChip();
   initSidebarToggle();
+  applyMenuStructure(menuConfig);
   initNavigation();
+  initMenuEditor();
   renderStageOptions();
   renderPipelineFilterOptions();
   renderBoard();
