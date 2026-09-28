@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790582217">
+<link rel="stylesheet" href="style.css?v=1790589793">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -194,7 +194,7 @@
             <div class="panel dash-aviso-panel" id="dash-aviso-team">
               <div class="panel-header">
                 <h2 data-i18n="dash.teamNotice">Aviso do time</h2>
-                <button type="button" class="btn-icon" id="btn-edit-team-message" title="Editar aviso" style="display:none;">
+                <button type="button" class="btn-icon" id="btn-edit-team-message" title="Editar aviso" data-i18n-title="dash.editNotice" style="display:none;">
                   <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
               </div>
@@ -217,51 +217,51 @@
       <section class="view" id="view-leads">
         <div class="stat-row">
           <div class="stat-card">
-            <span class="stat-label">Total de leads</span>
+            <span class="stat-label" data-i18n="leads.statTotal">Total de leads</span>
             <span class="stat-value" id="leads-stat-total">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Novos (7 dias)</span>
+            <span class="stat-label" data-i18n="leads.statNew7d">Novos (7 dias)</span>
             <span class="stat-value" id="leads-stat-new">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Qualificados</span>
+            <span class="stat-label" data-i18n="leads.statQualified">Qualificados</span>
             <span class="stat-value stat-good" id="leads-stat-qualified">0</span>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
-            <h2>Lista de Leads</h2>
+            <h2 data-i18n="leads.listTitle">Lista de Leads</h2>
             <div style="display:flex; gap:8px;">
-              <button type="button" class="btn btn-ghost btn-sm" id="leads-bulk-menu-trigger" title="Ações em massa (selecione ao menos um lead)">⋮ Ações</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-sources">Gerenciar origens</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="btn-import-leads">Importar CSV</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="leads-bulk-menu-trigger" title="Ações em massa (selecione ao menos um lead)" data-i18n-title="leads.bulkActionsTitle" data-i18n="leads.bulkActions">⋮ Ações</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-sources" data-i18n="leads.manageSources">Gerenciar origens</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-import-leads" data-i18n="leads.importCsv">Importar CSV</button>
               <input type="file" id="import-file-input" accept=".csv,text/csv" style="display:none;">
-              <button class="btn btn-primary" id="btn-new-lead">+ Novo lead</button>
+              <button class="btn btn-primary" id="btn-new-lead" data-i18n="leads.newLead">+ Novo lead</button>
             </div>
           </div>
 
           <div class="filter-bar">
             <div class="enr-lead-search-wrap filter-lead-search" id="leads-search-wrap">
               <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" id="leads-search-input" placeholder="Buscar por nome ou e-mail" autocomplete="off">
+              <input type="text" id="leads-search-input" placeholder="Buscar por nome ou e-mail" autocomplete="off" data-i18n-placeholder="leads.searchPlaceholder">
               <div class="enr-lead-results" id="leads-search-results"></div>
             </div>
-            <select id="filter-category"><option value="">Categoria (todas)</option></select>
-            <select id="filter-source"><option value="">Origem (todas)</option></select>
-            <select id="filter-consultor"><option value="">Consultor (todos)</option></select>
-            <input type="date" id="filter-date-from" title="Data inicial">
-            <span class="filter-sep">até</span>
-            <input type="date" id="filter-date-to" title="Data final">
-            <label class="filter-check"><input type="checkbox" id="filter-show-inactive"> Mostrar inativos</label>
-            <button type="button" class="btn btn-ghost btn-sm" id="filter-clear">Limpar filtros</button>
+            <select id="filter-category"><option value="" data-i18n="leads.categoryAll">Categoria (todas)</option></select>
+            <select id="filter-source"><option value="" data-i18n="leads.sourceAll">Origem (todas)</option></select>
+            <select id="filter-consultor"><option value="" data-i18n="leads.consultorAll">Consultor (todos)</option></select>
+            <input type="date" id="filter-date-from" title="Data inicial" data-i18n-title="common.dateFrom">
+            <span class="filter-sep" data-i18n="common.until">até</span>
+            <input type="date" id="filter-date-to" title="Data final" data-i18n-title="common.dateTo">
+            <label class="filter-check"><input type="checkbox" id="filter-show-inactive"> <span data-i18n="leads.showInactive">Mostrar inativos</span></label>
+            <button type="button" class="btn btn-ghost btn-sm" id="filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
           </div>
 
           <div class="bulk-bar" id="leads-bulk-bar" style="display:none;">
             <span id="leads-bulk-count">0 selecionado(s)</span>
             <div class="spacer"></div>
-            <button type="button" class="btn-icon" id="leads-bulk-clear" title="Limpar seleção">&times;</button>
+            <button type="button" class="btn-icon" id="leads-bulk-clear" title="Limpar seleção" data-i18n-title="common.clearSelection">&times;</button>
           </div>
 
           <div class="table-scroll table-scroll-sticky">
@@ -269,17 +269,17 @@
               <thead>
                 <tr>
                   <th class="cell-check"><input type="checkbox" id="leads-select-all"></th>
-                  <th>Nome</th>
-                  <th>E-mail</th>
-                  <th>Origem</th>
-                  <th>Consultor</th>
+                  <th data-i18n="common.name">Nome</th>
+                  <th data-i18n="common.email">E-mail</th>
+                  <th data-i18n="common.source">Origem</th>
+                  <th data-i18n="common.consultant">Consultor</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody id="leads-tbody"></tbody>
             </table>
           </div>
-          <div class="empty-hint" id="leads-empty" style="display:none;">Nenhum lead cadastrado ainda.</div>
+          <div class="empty-hint" id="leads-empty" style="display:none;" data-i18n="leads.emptyHint">Nenhum lead cadastrado ainda.</div>
         </div>
       </section>
 
@@ -287,36 +287,36 @@
       <section class="view" id="view-pipeline">
         <div class="stat-row">
           <div class="stat-card">
-            <span class="stat-label">Negócios abertos</span>
+            <span class="stat-label" data-i18n="pipeline.statOpenDeals">Negócios abertos</span>
             <span class="stat-value" id="stat-open">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Valor em pipeline</span>
+            <span class="stat-label" data-i18n="pipeline.statPipelineValue">Valor em pipeline</span>
             <span class="stat-value" id="stat-pipeline-value">€ 0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Ganhos (mês)</span>
+            <span class="stat-label" data-i18n="pipeline.statWonMonth">Ganhos (mês)</span>
             <span class="stat-value stat-good" id="stat-won">€ 0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Taxa de conversão</span>
+            <span class="stat-label" data-i18n="dash.statConversion">Taxa de conversão</span>
             <span class="stat-value" id="stat-conversion">0%</span>
           </div>
         </div>
 
         <div class="panel" style="margin-bottom:16px;">
           <div class="filter-bar" style="border-bottom:none; padding:14px 20px;">
-            <span class="filter-sep" style="font-weight:600; color:var(--text);">Performance por consultor:</span>
-            <select id="pipeline-filter-consultor"><option value="">Todos os consultores</option></select>
-            <button type="button" class="btn btn-ghost btn-sm" id="pipeline-filter-clear">Limpar filtro</button>
+            <span class="filter-sep" style="font-weight:600; color:var(--text);" data-i18n="pipeline.performanceByConsultor">Performance por consultor:</span>
+            <select id="pipeline-filter-consultor"><option value="" data-i18n="pipeline.allConsultants">Todos os consultores</option></select>
+            <button type="button" class="btn btn-ghost btn-sm" id="pipeline-filter-clear" data-i18n="pipeline.clearFilter">Limpar filtro</button>
           </div>
         </div>
 
         <div class="panel-header board-header">
-          <h2>Funil de Negócios</h2>
+          <h2 data-i18n="pipeline.dealsFunnel">Funil de Negócios</h2>
           <div style="display:flex; gap:8px;">
-            <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-stages" style="display:none;">Gerenciar colunas</button>
-            <button class="btn btn-primary" id="btn-new">+ Novo negócio</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-stages" style="display:none;" data-i18n="pipeline.manageColumns">Gerenciar colunas</button>
+            <button class="btn btn-primary" id="btn-new" data-i18n="pipeline.newDeal">+ Novo negócio</button>
           </div>
         </div>
         <div class="board" id="board"></div>
@@ -327,41 +327,41 @@
         <div class="subview active" id="subview-stuck-overview">
           <div class="panel">
             <div class="panel-header">
-              <h2>Leads parados por consultor</h2>
+              <h2 data-i18n="stuck.title">Leads parados por consultor</h2>
             </div>
-            <p class="muted-note" id="stuck-overview-empty" style="display:none;">Nenhum lead parado no momento — tudo em dia por aqui.</p>
+            <p class="muted-note" id="stuck-overview-empty" style="display:none;" data-i18n="stuck.allCaughtUp">Nenhum lead parado no momento — tudo em dia por aqui.</p>
             <div class="stuck-cards-grid" id="stuck-cards-grid"></div>
           </div>
         </div>
 
         <div class="subview" id="subview-stuck-detalhe">
           <div class="quote-builder-topbar">
-            <button type="button" class="btn btn-ghost btn-sm" id="stuck-btn-voltar">← Voltar</button>
-            <h2 id="stuck-detalhe-title">Leads parados</h2>
+            <button type="button" class="btn btn-ghost btn-sm" id="stuck-btn-voltar" data-i18n="common.backArrow">← Voltar</button>
+            <h2 id="stuck-detalhe-title" data-i18n="stuck.title2">Leads parados</h2>
           </div>
           <div class="panel">
             <div class="bulk-bar" id="stuck-bulk-bar" style="display:none;">
               <span id="stuck-bulk-count">0 selecionado(s)</span>
               <div class="spacer"></div>
-              <button type="button" class="btn btn-primary btn-sm" id="stuck-btn-reassign">Direcionar para outro consultor</button>
-              <button type="button" class="btn-icon" id="stuck-bulk-clear" title="Limpar seleção">&times;</button>
+              <button type="button" class="btn btn-primary btn-sm" id="stuck-btn-reassign" data-i18n="stuck.reassign">Direcionar para outro consultor</button>
+              <button type="button" class="btn-icon" id="stuck-bulk-clear" title="Limpar seleção" data-i18n-title="common.clearSelection">&times;</button>
             </div>
             <div class="table-scroll">
               <table class="data-table data-table-list">
                 <thead>
                   <tr>
                     <th class="cell-check"><input type="checkbox" id="stuck-select-all"></th>
-                    <th>Nome</th>
-                    <th>Contato</th>
-                    <th>Origem</th>
-                    <th>Temperatura</th>
-                    <th>Parado há</th>
+                    <th data-i18n="common.name">Nome</th>
+                    <th data-i18n="common.contact">Contato</th>
+                    <th data-i18n="common.source">Origem</th>
+                    <th data-i18n="common.temperature">Temperatura</th>
+                    <th data-i18n="stuck.stalledFor">Parado há</th>
                   </tr>
                 </thead>
                 <tbody id="stuck-detalhe-tbody"></tbody>
               </table>
             </div>
-            <div class="empty-hint" id="stuck-detalhe-empty" style="display:none;">Nenhum lead parado para esse consultor.</div>
+            <div class="empty-hint" id="stuck-detalhe-empty" style="display:none;" data-i18n="stuck.emptyForConsultant">Nenhum lead parado para esse consultor.</div>
           </div>
         </div>
       </section>
@@ -370,26 +370,26 @@
       <section class="view" id="view-contratos">
         <div class="panel">
           <div class="panel-header">
-            <h2>Contratos</h2>
-            <button type="button" class="btn btn-primary" id="btn-new-contract">+ Novo contrato</button>
+            <h2 data-i18n="nav.contratos">Contratos</h2>
+            <button type="button" class="btn btn-primary" id="btn-new-contract" data-i18n="contracts.new">+ Novo contrato</button>
           </div>
           <div class="filter-bar">
             <select id="contract-filter-status">
-              <option value="">Status (todos)</option>
-              <option value="Rascunho">Rascunho</option>
-              <option value="Aguardando assinatura">Aguardando assinatura</option>
-              <option value="Assinado">Assinado</option>
-              <option value="Cancelado">Cancelado</option>
+              <option value="" data-i18n="common.statusAll">Status (todos)</option>
+              <option value="Rascunho" data-i18n="status.rascunho">Rascunho</option>
+              <option value="Aguardando assinatura" data-i18n="status.aguardandoAssinatura">Aguardando assinatura</option>
+              <option value="Assinado" data-i18n="status.assinado">Assinado</option>
+              <option value="Cancelado" data-i18n="status.cancelado">Cancelado</option>
             </select>
-            <button type="button" class="btn btn-ghost btn-sm" id="contract-filter-clear">Limpar filtros</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="contract-filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
           </div>
           <table class="data-table data-table-list">
             <thead>
-              <tr><th>Lead</th><th>Título</th><th>Valor</th><th>Status</th><th></th></tr>
+              <tr><th data-i18n="common.lead">Lead</th><th data-i18n="common.titleField">Título</th><th data-i18n="common.value">Valor</th><th data-i18n="common.status">Status</th><th></th></tr>
             </thead>
             <tbody id="contracts-tbody"></tbody>
           </table>
-          <div class="empty-hint" id="contracts-empty" style="display:none;">Nenhum contrato criado ainda.</div>
+          <div class="empty-hint" id="contracts-empty" style="display:none;" data-i18n="contracts.emptyHint">Nenhum contrato criado ainda.</div>
         </div>
       </section>
 
@@ -399,122 +399,122 @@
         <div class="subview active" id="subview-cotacao-lista">
           <div class="stat-row">
             <div class="stat-card">
-              <span class="stat-label">Cotações abertas</span>
+              <span class="stat-label" data-i18n="quotes.statOpen">Cotações abertas</span>
               <span class="stat-value" id="quotes-stat-open">0</span>
             </div>
             <div class="stat-card">
-              <span class="stat-label">Valor cotado</span>
+              <span class="stat-label" data-i18n="quotes.statValue">Valor cotado</span>
               <span class="stat-value" id="quotes-stat-value">€ 0</span>
             </div>
             <div class="stat-card">
-              <span class="stat-label">Ganhas</span>
+              <span class="stat-label" data-i18n="quotes.statWon">Ganhas</span>
               <span class="stat-value stat-good" id="quotes-stat-approved">0</span>
             </div>
             <div class="stat-card">
-              <span class="stat-label">Perdidas</span>
+              <span class="stat-label" data-i18n="quotes.statLost">Perdidas</span>
               <span class="stat-value stat-bad" id="quotes-stat-lost">0</span>
             </div>
           </div>
 
           <div class="panel">
             <div class="panel-header">
-              <h2>Cotações</h2>
-              <button type="button" class="btn btn-primary" id="btn-new-quote">+ Nova cotação</button>
+              <h2 data-i18n="quotes.title">Cotações</h2>
+              <button type="button" class="btn btn-primary" id="btn-new-quote" data-i18n="quotes.new">+ Nova cotação</button>
             </div>
             <div class="filter-bar">
-              <input type="text" id="quotes-filter-search" placeholder="Buscar por nome ou e-mail do cliente">
+              <input type="text" id="quotes-filter-search" placeholder="Buscar por nome ou e-mail do cliente" data-i18n-placeholder="quotes.searchPlaceholder">
               <select id="quotes-filter-status">
-                <option value="">Status (todas)</option>
-                <option value="ganha">Somente ganhas</option>
-                <option value="perdida">Somente perdidas</option>
+                <option value="" data-i18n="common.statusAllFem">Status (todas)</option>
+                <option value="ganha" data-i18n="quotes.onlyWon">Somente ganhas</option>
+                <option value="perdida" data-i18n="quotes.onlyLost">Somente perdidas</option>
               </select>
               <select id="quotes-filter-consultor"></select>
-              <button type="button" class="btn btn-ghost btn-sm" id="quotes-filter-clear">Limpar filtros</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="quotes-filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
             </div>
             <div class="filter-chip-row" id="quotes-filter-chip-row" style="display:none;">
-              <span>Mostrando cotações de: <strong id="quotes-filter-chip-label"></strong></span>
-              <button type="button" class="btn-icon" id="quotes-filter-chip-clear" title="Limpar filtro">&times;</button>
+              <span><span data-i18n="quotes.showingFrom">Mostrando cotações de:</span> <strong id="quotes-filter-chip-label"></strong></span>
+              <button type="button" class="btn-icon" id="quotes-filter-chip-clear" title="Limpar filtro" data-i18n-title="pipeline.clearFilter">&times;</button>
             </div>
             <table class="data-table">
               <thead>
-                <tr><th>Cliente</th><th>E-mail</th><th>Itens</th><th>Consultor</th><th>Validade</th><th>Status</th><th>Valor</th><th></th></tr>
+                <tr><th data-i18n="common.client">Cliente</th><th data-i18n="common.email">E-mail</th><th data-i18n="quotes.items">Itens</th><th data-i18n="common.consultant">Consultor</th><th data-i18n="quotes.validity">Validade</th><th data-i18n="common.status">Status</th><th data-i18n="common.value">Valor</th><th></th></tr>
               </thead>
               <tbody id="quotes-tbody"></tbody>
             </table>
-            <div class="empty-hint" id="quotes-empty" style="display:none;">Nenhuma cotação cadastrada ainda.</div>
+            <div class="empty-hint" id="quotes-empty" style="display:none;" data-i18n="quotes.emptyHint">Nenhuma cotação cadastrada ainda.</div>
           </div>
         </div>
 
         <!-- CONSTRUTOR DE COTAÇÃO -->
         <div class="subview" id="subview-cotacao-builder">
           <div class="quote-builder-topbar">
-            <button type="button" class="btn btn-ghost btn-sm" id="q-btn-voltar">← Voltar para a lista</button>
-            <h2 id="quote-builder-title">Nova cotação</h2>
+            <button type="button" class="btn btn-ghost btn-sm" id="q-btn-voltar" data-i18n="quotes.backToList">← Voltar para a lista</button>
+            <h2 id="quote-builder-title" data-i18n="quotes.newTitle">Nova cotação</h2>
           </div>
 
           <div class="panel" style="margin-bottom:16px;">
-            <div class="panel-header"><h2>Dados do estudante</h2></div>
+            <div class="panel-header"><h2 data-i18n="quotes.studentData">Dados do estudante</h2></div>
             <div class="quote-form-body">
               <input type="hidden" id="q-id">
-              <label class="f"><span>Puxar dados de um lead existente (opcional)</span>
+              <label class="f"><span data-i18n="quotes.pullFromLead">Puxar dados de um lead existente (opcional)</span>
                 <div class="enr-lead-search-wrap">
                   <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input type="text" id="quote-lead-search" placeholder="Buscar por nome ou e-mail" autocomplete="off">
+                  <input type="text" id="quote-lead-search" placeholder="Buscar por nome ou e-mail" autocomplete="off" data-i18n-placeholder="leads.searchPlaceholder">
                   <div class="enr-lead-results" id="quote-lead-results"></div>
                 </div>
                 <input type="hidden" id="q-lead-id">
               </label>
               <div class="grid-2">
-                <label class="f"><span>Nome do estudante *</span><input type="text" id="q-nome" placeholder="Mariah Luísa"></label>
-                <label class="f"><span>E-mail do estudante *</span><input type="email" id="q-email" placeholder="nome@email.com"></label>
-                <label class="f"><span>Status</span>
+                <label class="f"><span data-i18n="quotes.studentName">Nome do estudante *</span><input type="text" id="q-nome" placeholder="Mariah Luísa"></label>
+                <label class="f"><span data-i18n="quotes.studentEmail">E-mail do estudante *</span><input type="email" id="q-email" placeholder="nome@email.com"></label>
+                <label class="f"><span data-i18n="common.status">Status</span>
                   <select id="q-status">
-                    <option>Enviada</option>
-                    <option>Em negociação</option>
-                    <option>Aprovada</option>
-                    <option>Recusada</option>
+                    <option data-i18n="status.enviada">Enviada</option>
+                    <option data-i18n="status.emNegociacao">Em negociação</option>
+                    <option data-i18n="status.aprovada">Aprovada</option>
+                    <option data-i18n="status.recusada">Recusada</option>
                   </select>
                 </label>
-                <label class="f"><span>Destino</span><select id="q-destino"></select></label>
+                <label class="f"><span data-i18n="common.destination">Destino</span><select id="q-destino"></select></label>
               </div>
             </div>
           </div>
 
           <div class="panel" style="margin-bottom:16px;">
-            <div class="panel-header"><h2>Consultor</h2></div>
+            <div class="panel-header"><h2 data-i18n="common.consultant">Consultor</h2></div>
             <div class="quote-form-body">
               <div class="grid-2">
-                <label class="f"><span>Nome do consultor *</span><input type="text" id="q-consultor" placeholder="Erik"></label>
-                <label class="f"><span>E-mail do consultor *</span><input type="email" id="q-consultor-email" placeholder="nome@peregrinosintercambio.com"></label>
+                <label class="f"><span data-i18n="quotes.consultorName">Nome do consultor *</span><input type="text" id="q-consultor" placeholder="Erik"></label>
+                <label class="f"><span data-i18n="quotes.consultorEmail">E-mail do consultor *</span><input type="email" id="q-consultor-email" placeholder="nome@peregrinosintercambio.com"></label>
               </div>
             </div>
           </div>
 
           <div class="panel" style="margin-bottom:16px;">
-            <div class="panel-header"><h2>Serviços</h2></div>
+            <div class="panel-header"><h2 data-i18n="quotes.services">Serviços</h2></div>
             <div class="quote-form-body" style="padding-bottom:0;">
-              <label class="f"><span>Buscar serviço</span><input type="text" id="q-busca" placeholder="Ex.: renewal, acomodação, Mon to Friday"></label>
+              <label class="f"><span data-i18n="quotes.searchService">Buscar serviço</span><input type="text" id="q-busca" placeholder="Ex.: renewal, acomodação, Mon to Friday"></label>
             </div>
-            <div id="quote-catalog" class="catalog-admin-list"><p class="muted-note">Carregando catálogo…</p></div>
+            <div id="quote-catalog" class="catalog-admin-list"><p class="muted-note" data-i18n="common.loadingCatalog">Carregando catálogo…</p></div>
           </div>
 
           <div class="panel" style="margin-bottom:16px;">
-            <div class="panel-header"><h2>Validade e observações</h2></div>
+            <div class="panel-header"><h2 data-i18n="quotes.validityNotes">Validade e observações</h2></div>
             <div class="quote-form-body">
               <div class="grid-2">
-                <label class="f"><span>Emitida em</span><input type="date" id="q-emissao"></label>
-                <label class="f"><span>Válida até</span><input type="date" id="q-validade"></label>
+                <label class="f"><span data-i18n="quotes.issuedOn">Emitida em</span><input type="date" id="q-emissao"></label>
+                <label class="f"><span data-i18n="quotes.validUntil">Válida até</span><input type="date" id="q-validade"></label>
               </div>
-              <label class="f" style="margin-top:14px;"><span>Observações (opcional)</span><textarea id="q-obs" rows="3" placeholder="Ex.: valores sujeitos a alteração de câmbio; pagamento em 3 parcelas."></textarea></label>
+              <label class="f" style="margin-top:14px;"><span data-i18n="quotes.notesOptional">Observações (opcional)</span><textarea id="q-obs" rows="3" placeholder="Ex.: valores sujeitos a alteração de câmbio; pagamento em 3 parcelas."></textarea></label>
             </div>
           </div>
 
           <div class="quote-summary-bar">
-            <div class="sum">Total da cotação<b id="quote-preview-total">€0,00</b></div>
-            <button type="button" class="btn btn-danger" id="q-btn-excluir" style="display:none;">Excluir cotação</button>
-            <button type="button" class="btn btn-ghost" id="q-btn-limpar">Limpar</button>
-            <button type="button" class="btn btn-ghost" id="q-btn-salvar">Salvar</button>
-            <button type="button" class="btn btn-primary" id="q-btn-gerar">Gerar cotação (PDF)</button>
+            <div class="sum"><span data-i18n="quotes.total">Total da cotação</span><b id="quote-preview-total">€0,00</b></div>
+            <button type="button" class="btn btn-danger" id="q-btn-excluir" style="display:none;" data-i18n="quotes.delete">Excluir cotação</button>
+            <button type="button" class="btn btn-ghost" id="q-btn-limpar" data-i18n="common.clear">Limpar</button>
+            <button type="button" class="btn btn-ghost" id="q-btn-salvar" data-i18n="common.save">Salvar</button>
+            <button type="button" class="btn btn-primary" id="q-btn-gerar" data-i18n="quotes.generate">Gerar cotação (PDF)</button>
           </div>
         </div>
       </section>
@@ -523,23 +523,23 @@
       <section class="view" id="view-produtos">
         <div class="stat-row">
           <div class="stat-card">
-            <span class="stat-label">Produtos no catálogo</span>
+            <span class="stat-label" data-i18n="products.statTotal">Produtos no catálogo</span>
             <span class="stat-value" id="products-stat-total">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Visíveis para consultores</span>
+            <span class="stat-label" data-i18n="products.statVisible">Visíveis para consultores</span>
             <span class="stat-value stat-good" id="products-stat-active">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Destinos cadastrados</span>
+            <span class="stat-label" data-i18n="products.statDestinations">Destinos cadastrados</span>
             <span class="stat-value" id="products-stat-destinos">0</span>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
-            <h2>Catálogo de Produtos</h2>
-            <button type="button" class="btn btn-primary btn-sm" id="btn-new-catalog-item">+ Novo produto</button>
+            <h2 data-i18n="products.catalogTitle">Catálogo de Produtos</h2>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-new-catalog-item" data-i18n="products.new">+ Novo produto</button>
           </div>
           <div id="catalog-list" class="catalog-admin-list"></div>
         </div>
@@ -549,39 +549,39 @@
       <section class="view" id="view-financeiro">
         <div class="stat-row">
           <div class="stat-card">
-            <span class="stat-label">Faturamento (mês)</span>
+            <span class="stat-label" data-i18n="dash.statRevenue">Faturamento (mês)</span>
             <span class="stat-value stat-good" id="fin-stat-revenue">€ 0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Despesas (mês)</span>
+            <span class="stat-label" data-i18n="fin.statExpenses">Despesas (mês)</span>
             <span class="stat-value" id="fin-stat-expenses">€ 0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Lucro líquido (mês)</span>
+            <span class="stat-label" data-i18n="fin.statProfit">Lucro líquido (mês)</span>
             <span class="stat-value" id="fin-stat-profit">€ 0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">A receber (pendente)</span>
+            <span class="stat-label" data-i18n="fin.statReceivable">A receber (pendente)</span>
             <span class="stat-value" id="fin-stat-receivable">€ 0</span>
           </div>
         </div>
 
         <div class="subtabs" id="financeiro-subtabs">
-          <button type="button" class="subtab active" data-fin-subtab="overview">Visão Geral</button>
-          <button type="button" class="subtab" data-fin-subtab="receivables">Contas a Receber</button>
-          <button type="button" class="subtab" data-fin-subtab="expenses">Despesas</button>
-          <button type="button" class="subtab" data-fin-subtab="commissions">Comissões</button>
+          <button type="button" class="subtab active" data-fin-subtab="overview" data-i18n="fin.tabOverview">Visão Geral</button>
+          <button type="button" class="subtab" data-fin-subtab="receivables" data-i18n="fin.tabReceivables">Contas a Receber</button>
+          <button type="button" class="subtab" data-fin-subtab="expenses" data-i18n="fin.tabExpenses">Despesas</button>
+          <button type="button" class="subtab" data-fin-subtab="commissions" data-i18n="fin.tabCommissions">Comissões</button>
         </div>
 
         <!-- VISÃO GERAL -->
         <div class="subview active" id="subview-fin-overview">
           <div class="panel">
-            <div class="panel-header"><h2>Negócios fechados recentemente</h2></div>
+            <div class="panel-header"><h2 data-i18n="fin.recentDeals">Negócios fechados recentemente</h2></div>
             <table class="data-table">
-              <thead><tr><th>Negócio</th><th>Resultado</th><th>Valor</th><th>Data</th></tr></thead>
+              <thead><tr><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.result">Resultado</th><th data-i18n="common.value">Valor</th><th data-i18n="common.date">Data</th></tr></thead>
               <tbody id="fin-overview-tbody"></tbody>
             </table>
-            <div class="empty-hint" id="fin-overview-empty" style="display:none;">Nenhum negócio fechado ainda.</div>
+            <div class="empty-hint" id="fin-overview-empty" style="display:none;" data-i18n="fin.noClosedDeals">Nenhum negócio fechado ainda.</div>
           </div>
         </div>
 
@@ -589,21 +589,21 @@
         <div class="subview" id="subview-fin-receivables">
           <div class="panel">
             <div class="panel-header">
-              <h2>Contas a Receber</h2>
+              <h2 data-i18n="fin.tabReceivables">Contas a Receber</h2>
             </div>
             <div class="filter-bar">
               <select id="fin-rec-filter-status">
-                <option value="">Status (todos)</option>
-                <option value="pendente">Pendente</option>
-                <option value="pago">Pago</option>
+                <option value="" data-i18n="common.statusAll">Status (todos)</option>
+                <option value="pendente" data-i18n="status.pendente">Pendente</option>
+                <option value="pago" data-i18n="status.pago">Pago</option>
               </select>
-              <button type="button" class="btn btn-ghost btn-sm" id="fin-rec-filter-clear">Limpar filtros</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="fin-rec-filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
             </div>
             <table class="data-table">
-              <thead><tr><th>Cliente</th><th>Negócio</th><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th data-i18n="common.client">Cliente</th><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.installment">Parcela</th><th data-i18n="common.value">Valor</th><th data-i18n="fin.dueDate">Vencimento</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
               <tbody id="fin-receivables-tbody"></tbody>
             </table>
-            <div class="empty-hint" id="fin-receivables-empty" style="display:none;">Nenhuma conta a receber cadastrada ainda.</div>
+            <div class="empty-hint" id="fin-receivables-empty" style="display:none;" data-i18n="fin.noReceivables">Nenhuma conta a receber cadastrada ainda.</div>
           </div>
         </div>
 
@@ -611,26 +611,26 @@
         <div class="subview" id="subview-fin-expenses">
           <div class="panel">
             <div class="panel-header">
-              <h2>Despesas</h2>
+              <h2 data-i18n="fin.tabExpenses">Despesas</h2>
               <div style="display:flex; gap:8px;">
-                <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-expense-categories">Gerenciar categorias</button>
-                <button type="button" class="btn btn-primary btn-sm" id="btn-new-expense">+ Nova despesa</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-expense-categories" data-i18n="fin.manageCategories">Gerenciar categorias</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-new-expense" data-i18n="fin.newExpense">+ Nova despesa</button>
               </div>
             </div>
             <div class="filter-bar">
-              <select id="fin-exp-filter-category"><option value="">Categoria (todas)</option></select>
+              <select id="fin-exp-filter-category"><option value="" data-i18n="leads.categoryAll">Categoria (todas)</option></select>
               <select id="fin-exp-filter-status">
-                <option value="">Status (todos)</option>
-                <option value="pendente">Pendente</option>
-                <option value="pago">Pago</option>
+                <option value="" data-i18n="common.statusAll">Status (todos)</option>
+                <option value="pendente" data-i18n="status.pendente">Pendente</option>
+                <option value="pago" data-i18n="status.pago">Pago</option>
               </select>
-              <button type="button" class="btn btn-ghost btn-sm" id="fin-exp-filter-clear">Limpar filtros</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="fin-exp-filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
             </div>
             <table class="data-table">
-              <thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th data-i18n="fin.description">Descrição</th><th data-i18n="common.category">Categoria</th><th data-i18n="common.value">Valor</th><th data-i18n="fin.dueDate">Vencimento</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
               <tbody id="fin-expenses-tbody"></tbody>
             </table>
-            <div class="empty-hint" id="fin-expenses-empty" style="display:none;">Nenhuma despesa cadastrada ainda.</div>
+            <div class="empty-hint" id="fin-expenses-empty" style="display:none;" data-i18n="fin.noExpenses">Nenhuma despesa cadastrada ainda.</div>
           </div>
         </div>
 
@@ -638,19 +638,19 @@
         <div class="subview" id="subview-fin-commissions">
           <div class="panel">
             <div class="panel-header">
-              <h2>Comissões dos Consultores</h2>
+              <h2 data-i18n="fin.consultantCommissions">Comissões dos Consultores</h2>
               <div class="fin-commission-setting" id="fin-commission-setting-wrap" style="display:none;">
-                <label>Comissão padrão (%)
+                <label><span data-i18n="fin.defaultCommission">Comissão padrão (%)</span>
                   <input type="number" id="fin-commission-pct" min="0" max="100" step="0.1" style="width:80px;">
                 </label>
-                <button type="button" class="btn btn-ghost btn-sm" id="fin-commission-pct-save">Salvar</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="fin-commission-pct-save" data-i18n="common.save">Salvar</button>
               </div>
             </div>
             <table class="data-table">
-              <thead><tr><th>Consultor</th><th>Negócio</th><th>Valor do negócio</th><th>%</th><th>Comissão</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th data-i18n="common.consultant">Consultor</th><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.dealValue">Valor do negócio</th><th>%</th><th data-i18n="fin.commission">Comissão</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
               <tbody id="fin-commissions-tbody"></tbody>
             </table>
-            <div class="empty-hint" id="fin-commissions-empty" style="display:none;">Nenhuma comissão gerada ainda.</div>
+            <div class="empty-hint" id="fin-commissions-empty" style="display:none;" data-i18n="fin.noCommissions">Nenhuma comissão gerada ainda.</div>
           </div>
         </div>
       </section>
@@ -659,42 +659,42 @@
       <section class="view" id="view-matriculas">
         <div class="stat-row">
           <div class="stat-card">
-            <span class="stat-label">Total de matrículas</span>
+            <span class="stat-label" data-i18n="enr.statTotal">Total de matrículas</span>
             <span class="stat-value" id="enr-stat-total">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Aguardando aluno</span>
+            <span class="stat-label" data-i18n="status.aguardandoAluno">Aguardando aluno</span>
             <span class="stat-value" id="enr-stat-waiting">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Preenchidas pelo aluno</span>
+            <span class="stat-label" data-i18n="enr.statFilled">Preenchidas pelo aluno</span>
             <span class="stat-value stat-good" id="enr-stat-filled">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Completas</span>
+            <span class="stat-label" data-i18n="enr.statComplete">Completas</span>
             <span class="stat-value stat-good" id="enr-stat-complete">0</span>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
-            <h2>Matrículas</h2>
-            <button type="button" class="btn btn-primary" id="btn-new-enrollment">+ Nova matrícula</button>
+            <h2 data-i18n="nav.matriculas">Matrículas</h2>
+            <button type="button" class="btn btn-primary" id="btn-new-enrollment" data-i18n="enr.new">+ Nova matrícula</button>
           </div>
           <div class="filter-bar">
             <select id="enr-filter-status">
-              <option value="">Status (todos)</option>
-              <option value="Aguardando aluno">Aguardando aluno</option>
-              <option value="Preenchido pelo aluno">Preenchido pelo aluno</option>
-              <option value="Completo">Completo</option>
+              <option value="" data-i18n="common.statusAll">Status (todos)</option>
+              <option value="Aguardando aluno" data-i18n="status.aguardandoAluno">Aguardando aluno</option>
+              <option value="Preenchido pelo aluno" data-i18n="status.preenchidoPeloAluno">Preenchido pelo aluno</option>
+              <option value="Completo" data-i18n="status.completo">Completo</option>
             </select>
-            <button type="button" class="btn btn-ghost btn-sm" id="enr-filter-clear">Limpar filtros</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="enr-filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
           </div>
           <table class="data-table data-table-list">
-            <thead><tr><th>Nome</th><th>Escola</th><th>Turno</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th data-i18n="common.name">Nome</th><th data-i18n="enr.school">Escola</th><th data-i18n="enr.shift">Turno</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
             <tbody id="enrollments-tbody"></tbody>
           </table>
-          <div class="empty-hint" id="enrollments-empty" style="display:none;">Nenhuma matrícula cadastrada ainda.</div>
+          <div class="empty-hint" id="enrollments-empty" style="display:none;" data-i18n="enr.emptyHint">Nenhuma matrícula cadastrada ainda.</div>
         </div>
       </section>
 
@@ -702,45 +702,45 @@
       <section class="view" id="view-colaboradores">
         <div class="stat-row">
           <div class="stat-card">
-            <span class="stat-label">Total no time</span>
+            <span class="stat-label" data-i18n="team.statTotal">Total no time</span>
             <span class="stat-value" id="collab-stat-total">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Aguardando colaborador</span>
+            <span class="stat-label" data-i18n="status.aguardandoColaborador">Aguardando colaborador</span>
             <span class="stat-value" id="collab-stat-waiting">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Preenchidos</span>
+            <span class="stat-label" data-i18n="team.statFilled">Preenchidos</span>
             <span class="stat-value stat-good" id="collab-stat-filled">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Completos</span>
+            <span class="stat-label" data-i18n="enr.statComplete">Completos</span>
             <span class="stat-value stat-good" id="collab-stat-complete">0</span>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
-            <h2>Time</h2>
+            <h2 data-i18n="nav.colaboradores">Time</h2>
             <div style="display:flex; gap:8px;">
-              <button type="button" class="btn btn-ghost" id="btn-copy-collaborator-signup-link">Copiar link de cadastro</button>
-              <button type="button" class="btn btn-primary" id="btn-new-collaborator">+ Novo colaborador</button>
+              <button type="button" class="btn btn-ghost" id="btn-copy-collaborator-signup-link" data-i18n="team.copySignupLink">Copiar link de cadastro</button>
+              <button type="button" class="btn btn-primary" id="btn-new-collaborator" data-i18n="team.new">+ Novo colaborador</button>
             </div>
           </div>
           <div class="filter-bar">
             <select id="collab-filter-status">
-              <option value="">Status (todos)</option>
-              <option value="Aguardando colaborador">Aguardando colaborador</option>
-              <option value="Preenchido pelo colaborador">Preenchido pelo colaborador</option>
-              <option value="Completo">Completo</option>
+              <option value="" data-i18n="common.statusAll">Status (todos)</option>
+              <option value="Aguardando colaborador" data-i18n="status.aguardandoColaborador">Aguardando colaborador</option>
+              <option value="Preenchido pelo colaborador" data-i18n="status.preenchidoPeloColaborador">Preenchido pelo colaborador</option>
+              <option value="Completo" data-i18n="status.completo">Completo</option>
             </select>
-            <button type="button" class="btn btn-ghost btn-sm" id="collab-filter-clear">Limpar filtros</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="collab-filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
           </div>
           <table class="data-table data-table-list">
-            <thead><tr><th>Nome</th><th>Cargo</th><th>Departamento</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th data-i18n="common.name">Nome</th><th data-i18n="team.role">Cargo</th><th data-i18n="team.department">Departamento</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
             <tbody id="collaborators-tbody"></tbody>
           </table>
-          <div class="empty-hint" id="collaborators-empty" style="display:none;">Nenhum membro do time cadastrado ainda.</div>
+          <div class="empty-hint" id="collaborators-empty" style="display:none;" data-i18n="team.emptyHint">Nenhum membro do time cadastrado ainda.</div>
         </div>
       </section>
 
@@ -749,21 +749,21 @@
         <div class="subview active" id="subview-formularios-lista">
           <div class="panel">
             <div class="panel-header">
-              <h2>Formulários</h2>
-              <button type="button" class="btn btn-primary" id="btn-new-form" style="display:none;">+ Novo formulário</button>
+              <h2 data-i18n="nav.formularios">Formulários</h2>
+              <button type="button" class="btn btn-primary" id="btn-new-form" style="display:none;" data-i18n="forms.new">+ Novo formulário</button>
             </div>
             <table class="data-table data-table-list">
-              <thead><tr><th>Título</th><th>Subtítulo</th><th>Campos</th><th>Respostas</th><th></th></tr></thead>
+              <thead><tr><th data-i18n="common.titleField">Título</th><th data-i18n="forms.subtitle">Subtítulo</th><th data-i18n="forms.fields">Campos</th><th data-i18n="forms.responses">Respostas</th><th></th></tr></thead>
               <tbody id="forms-tbody"></tbody>
             </table>
-            <div class="empty-hint" id="forms-empty" style="display:none;">Nenhum formulário criado ainda.</div>
+            <div class="empty-hint" id="forms-empty" style="display:none;" data-i18n="forms.emptyHint">Nenhum formulário criado ainda.</div>
           </div>
         </div>
 
         <div class="subview" id="subview-formularios-respostas">
           <div class="quote-builder-topbar">
-            <button type="button" class="btn btn-ghost btn-sm" id="fr-btn-voltar">← Voltar para a lista</button>
-            <h2 id="fr-title">Respostas</h2>
+            <button type="button" class="btn btn-ghost btn-sm" id="fr-btn-voltar" data-i18n="quotes.backToList">← Voltar para a lista</button>
+            <h2 id="fr-title" data-i18n="forms.responses">Respostas</h2>
           </div>
           <div class="panel">
             <div class="table-scroll">
@@ -772,7 +772,7 @@
                 <tbody id="fr-tbody"></tbody>
               </table>
             </div>
-            <div class="empty-hint" id="fr-empty" style="display:none;">Nenhuma resposta recebida ainda.</div>
+            <div class="empty-hint" id="fr-empty" style="display:none;" data-i18n="forms.noResponses">Nenhuma resposta recebida ainda.</div>
           </div>
         </div>
       </section>
@@ -780,16 +780,16 @@
       <!-- TEMPLATES VIEW (em construção) -->
       <section class="view" id="view-templates">
         <div class="panel">
-          <div class="panel-header"><h2>Templates</h2></div>
-          <div class="empty-hint">Em construção — em breve você vai poder criar e gerenciar templates por aqui.</div>
+          <div class="panel-header"><h2 data-i18n="nav.templates">Templates</h2></div>
+          <div class="empty-hint" data-i18n="templates.comingSoon">Em construção — em breve você vai poder criar e gerenciar templates por aqui.</div>
         </div>
       </section>
 
       <!-- ÁREA DO ALUNO VIEW (em construção) -->
       <section class="view" id="view-areaaluno">
         <div class="panel">
-          <div class="panel-header"><h2>Área do Aluno</h2></div>
-          <div class="empty-hint">Em construção — em breve os alunos vão poder acessar essa área.</div>
+          <div class="panel-header"><h2 data-i18n="nav.areaaluno">Área do Aluno</h2></div>
+          <div class="empty-hint" data-i18n="areaalunoAdmin.comingSoon">Em construção — em breve os alunos vão poder acessar essa área.</div>
         </div>
       </section>
 
@@ -797,51 +797,51 @@
       <section class="view" id="view-usuarios">
         <div class="stat-row">
           <div class="stat-card">
-            <span class="stat-label">Total de usuários</span>
+            <span class="stat-label" data-i18n="users.statTotal">Total de usuários</span>
             <span class="stat-value" id="users-stat-total">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Ativos</span>
+            <span class="stat-label" data-i18n="users.statActive">Ativos</span>
             <span class="stat-value stat-good" id="users-stat-active">0</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Administradores</span>
+            <span class="stat-label" data-i18n="users.statAdmins">Administradores</span>
             <span class="stat-value" id="users-stat-adm">0</span>
           </div>
         </div>
 
         <div class="panel" style="margin-bottom:20px;">
           <div class="panel-header">
-            <h2>Usuários do CRM</h2>
-            <button class="btn btn-primary" id="btn-new-user">+ Novo usuário ↗</button>
+            <h2 data-i18n="users.title">Usuários do CRM</h2>
+            <button class="btn btn-primary" id="btn-new-user" data-i18n="users.new">+ Novo usuário ↗</button>
           </div>
           <table class="data-table data-table-list">
             <thead>
-              <tr><th>Nome</th><th>E-mail</th><th>Função</th><th>Status</th><th></th></tr>
+              <tr><th data-i18n="common.name">Nome</th><th data-i18n="common.email">E-mail</th><th data-i18n="users.role">Função</th><th data-i18n="common.status">Status</th><th></th></tr>
             </thead>
             <tbody id="users-tbody"></tbody>
           </table>
-          <div class="empty-hint" id="users-empty" style="display:none;">Nenhum usuário cadastrado ainda.</div>
+          <div class="empty-hint" id="users-empty" style="display:none;" data-i18n="users.emptyHint">Nenhum usuário cadastrado ainda.</div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
-            <h2>Permissões por Função</h2>
+            <h2 data-i18n="users.permissionsTitle">Permissões por Função</h2>
           </div>
-          <div class="perm-hint">Marque os módulos que cada função pode acessar. O ADM sempre tem acesso total.</div>
+          <div class="perm-hint" data-i18n="users.permissionsHint">Marque os módulos que cada função pode acessar. O ADM sempre tem acesso total.</div>
           <div class="table-scroll">
             <table class="data-table perm-table">
               <thead>
                 <tr>
-                  <th>Função</th>
-                  <th>Leads</th>
-                  <th>Pipeline</th>
-                  <th>Cotação</th>
-                  <th>Produtos</th>
-                  <th>Financeiro</th>
-                  <th>Matrículas</th>
-                  <th>Time</th>
-                  <th>Contratos</th>
+                  <th data-i18n="users.role">Função</th>
+                  <th data-i18n="nav.leads">Leads</th>
+                  <th data-i18n="nav.pipeline">Pipeline</th>
+                  <th data-i18n="nav.cotacao">Cotação</th>
+                  <th data-i18n="nav.produtos">Produtos</th>
+                  <th data-i18n="nav.financeiro">Financeiro</th>
+                  <th data-i18n="nav.matriculas">Matrículas</th>
+                  <th data-i18n="nav.colaboradores">Time</th>
+                  <th data-i18n="nav.contratos">Contratos</th>
                 </tr>
               </thead>
               <tbody id="permissions-tbody"></tbody>
@@ -857,42 +857,42 @@
   <div class="modal-backdrop" id="modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2 id="modal-title">Novo negócio</h2>
+        <h2 id="modal-title" data-i18n="deal.newTitle">Novo negócio</h2>
         <button class="btn-icon" id="modal-close">&times;</button>
       </div>
       <form id="deal-form">
         <input type="hidden" id="deal-id">
-        <label>Cliente / Empresa
+        <label><span data-i18n="deal.clientCompany">Cliente / Empresa</span>
           <input type="text" id="field-name" required placeholder="Ex: Padaria Bom Pão">
         </label>
         <div class="grid-2">
-          <label>Origem
+          <label><span data-i18n="common.source">Origem</span>
             <input type="text" id="field-source" disabled>
           </label>
-          <label>Consultor
+          <label><span data-i18n="common.consultant">Consultor</span>
             <input type="text" id="field-consultor-display" disabled>
           </label>
         </div>
-        <label>Contato
+        <label><span data-i18n="common.contact">Contato</span>
           <input type="text" id="field-contact" placeholder="Ex: Maria Silva">
         </label>
-        <label>Telefone / E-mail
+        <label><span data-i18n="deal.phoneEmail">Telefone / E-mail</span>
           <input type="text" id="field-info" placeholder="Ex: (11) 99999-0000">
         </label>
-        <label>Primeira interação
+        <label><span data-i18n="deal.firstInteraction">Primeira interação</span>
           <input type="text" id="field-first-interaction" disabled>
         </label>
-        <label style="display:none;">Estágio
+        <label style="display:none;"><span data-i18n="deal.stage">Estágio</span>
           <select id="field-stage"></select>
         </label>
-        <label>Notas
+        <label><span data-i18n="common.notes">Notas</span>
           <textarea id="field-notes" rows="3" placeholder="Detalhes, próxima ação, objeções..."></textarea>
         </label>
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="btn-delete" style="display:none;">Excluir</button>
+          <button type="button" class="btn btn-danger" id="btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -902,60 +902,60 @@
   <div class="modal-backdrop" id="lead-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2 id="lead-modal-title">Novo lead</h2>
+        <h2 id="lead-modal-title" data-i18n="lead.newTitle">Novo lead</h2>
         <button class="btn-icon" id="lead-modal-close">&times;</button>
       </div>
       <form id="lead-form">
         <input type="hidden" id="lead-id">
-        <label>Nome
+        <label><span data-i18n="common.name">Nome</span>
           <input type="text" id="lead-field-name" required placeholder="Ex: João Pereira">
         </label>
-        <label>Empresa
+        <label><span data-i18n="lead.company">Empresa</span>
           <input type="text" id="lead-field-company" placeholder="Ex: Mercado Central">
         </label>
-        <label>País (bandeira / DDI)
+        <label><span data-i18n="lead.country">País (bandeira / DDI)</span>
           <select id="lead-field-country" required></select>
         </label>
         <div class="lead-phone-row">
-          <label class="lead-phone-ddd">DDD
+          <label class="lead-phone-ddd"><span data-i18n="lead.ddd">DDD</span>
             <input type="text" id="lead-field-ddd" required inputmode="numeric" maxlength="4" placeholder="11">
           </label>
-          <label class="lead-phone-number">Número (WhatsApp)
+          <label class="lead-phone-number"><span data-i18n="lead.phoneNumber">Número (WhatsApp)</span>
             <input type="text" id="lead-field-phone" required inputmode="numeric" placeholder="99999-0000">
           </label>
         </div>
-        <label>E-mail
+        <label><span data-i18n="common.email">E-mail</span>
           <input type="email" id="lead-field-email" placeholder="Ex: joao@empresa.com">
         </label>
-        <label>Categoria
+        <label><span data-i18n="common.category">Categoria</span>
           <select id="lead-field-category"></select>
         </label>
-        <label>Origem
+        <label><span data-i18n="common.source">Origem</span>
           <select id="lead-field-source"></select>
         </label>
-        <label>Temperatura
+        <label><span data-i18n="common.temperature">Temperatura</span>
           <select id="lead-field-temperature"></select>
         </label>
-        <label>Status
+        <label><span data-i18n="common.status">Status</span>
           <select id="lead-field-status">
-            <option value="Novo">Novo</option>
-            <option value="Em contato">Em contato</option>
-            <option value="Qualificado">Qualificado</option>
-            <option value="Descartado">Descartado</option>
+            <option value="Novo" data-i18n="status.novo">Novo</option>
+            <option value="Em contato" data-i18n="status.emContato">Em contato</option>
+            <option value="Qualificado" data-i18n="status.qualificado">Qualificado</option>
+            <option value="Descartado" data-i18n="status.descartado">Descartado</option>
           </select>
         </label>
-        <label>Notas
+        <label><span data-i18n="common.notes">Notas</span>
           <textarea id="lead-field-notes" rows="3" placeholder="Detalhes adicionais (ex: respostas de formulário)"></textarea>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="lead-field-active" checked>
-          <span>Lead ativo</span>
+          <span data-i18n="lead.active">Lead ativo</span>
         </label>
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="lead-btn-delete" style="display:none;">Excluir</button>
+          <button type="button" class="btn btn-danger" id="lead-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="lead-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="lead-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -965,22 +965,22 @@
   <div class="modal-backdrop" id="import-modal-backdrop">
     <div class="modal modal-lg">
       <div class="modal-header">
-        <h2>Importar leads via CSV</h2>
+        <h2 data-i18n="importModal.title">Importar leads via CSV</h2>
         <button class="btn-icon" id="import-modal-close">&times;</button>
       </div>
       <div class="import-body">
         <p class="muted-note" id="import-summary"></p>
-        <p class="muted-note">Escolha, para cada coluna do seu arquivo, qual campo do CRM ela representa. Colunas sem mapeamento não serão importadas.</p>
+        <p class="muted-note" data-i18n="importModal.hint">Escolha, para cada coluna do seu arquivo, qual campo do CRM ela representa. Colunas sem mapeamento não serão importadas.</p>
         <div class="table-scroll">
           <table class="data-table">
-            <thead><tr><th>Coluna do CSV</th><th>Exemplo</th><th>Campo no CRM</th></tr></thead>
+            <thead><tr><th data-i18n="importModal.csvColumn">Coluna do CSV</th><th data-i18n="importModal.example">Exemplo</th><th data-i18n="importModal.crmField">Campo no CRM</th></tr></thead>
             <tbody id="import-mapping-tbody"></tbody>
           </table>
         </div>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="import-btn-cancel">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="import-btn-confirm">Importar</button>
+          <button type="button" class="btn btn-ghost" id="import-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="import-btn-confirm" data-i18n="importModal.import">Importar</button>
         </div>
       </div>
     </div>
@@ -990,19 +990,19 @@
   <div class="modal-backdrop" id="sources-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>Gerenciar origens de leads</h2>
+        <h2 data-i18n="leads.manageSourcesTitle">Gerenciar origens de leads</h2>
         <button class="btn-icon" id="sources-modal-close">&times;</button>
       </div>
       <div class="sources-body">
-        <p class="muted-note">Essas são as opções que aparecem no campo "Origem" ao cadastrar um lead. Renomear uma origem atualiza os leads que já a usam.</p>
+        <p class="muted-note" data-i18n="leads.manageSourcesHint">Essas são as opções que aparecem no campo "Origem" ao cadastrar um lead. Renomear uma origem atualiza os leads que já a usam.</p>
         <div id="sources-list"></div>
         <div class="sources-add-row">
-          <input type="text" id="sources-new-input" placeholder="Nova origem">
-          <button type="button" class="btn btn-primary btn-sm" id="sources-add-btn">+ Adicionar</button>
+          <input type="text" id="sources-new-input" placeholder="Nova origem" data-i18n-placeholder="leads.newSource">
+          <button type="button" class="btn btn-primary btn-sm" id="sources-add-btn" data-i18n="common.add">+ Adicionar</button>
         </div>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-primary" id="sources-btn-done">Concluído</button>
+          <button type="button" class="btn btn-primary" id="sources-btn-done" data-i18n="common.done">Concluído</button>
         </div>
       </div>
     </div>
@@ -1012,17 +1012,17 @@
   <div class="modal-backdrop" id="assign-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2 id="assign-modal-title">Atribuir consultor</h2>
+        <h2 id="assign-modal-title" data-i18n="leads.assignConsultant">Atribuir consultor</h2>
         <button class="btn-icon" id="assign-modal-close">&times;</button>
       </div>
       <form id="assign-form">
-        <label>Consultor
+        <label><span data-i18n="common.consultant">Consultor</span>
           <select id="assign-field-consultor"></select>
         </label>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="assign-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="assign-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1032,17 +1032,17 @@
   <div class="modal-backdrop" id="quickfield-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2 id="quickfield-modal-title">Alterar</h2>
+        <h2 id="quickfield-modal-title" data-i18n="common.change">Alterar</h2>
         <button class="btn-icon" id="quickfield-modal-close">&times;</button>
       </div>
       <form id="quickfield-form">
-        <label><span id="quickfield-label-text">Valor</span>
+        <label><span id="quickfield-label-text" data-i18n="common.valueField">Valor</span>
           <select id="quickfield-select"></select>
         </label>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="quickfield-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="quickfield-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1052,18 +1052,18 @@
   <div class="modal-backdrop" id="followup-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>Follow-up</h2>
+        <h2 data-i18n="deal.followup">Follow-up</h2>
         <button class="btn-icon" id="followup-modal-close">&times;</button>
       </div>
       <form id="followup-form">
-        <label>Próximo follow-up
+        <label><span data-i18n="deal.nextFollowup">Próximo follow-up</span>
           <input type="date" id="followup-field-date">
         </label>
-        <p class="muted-note">Deixe em branco e salve para remover o follow-up marcado.</p>
+        <p class="muted-note" data-i18n="deal.followupHint">Deixe em branco e salve para remover o follow-up marcado.</p>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="followup-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="followup-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1073,17 +1073,17 @@
   <div class="modal-backdrop" id="notes-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>Notas</h2>
+        <h2 data-i18n="deal.notes">Notas</h2>
         <button class="btn-icon" id="notes-modal-close">&times;</button>
       </div>
       <form id="notes-form">
-        <label>Anotações
+        <label><span data-i18n="deal.annotations">Anotações</span>
           <textarea id="notes-field-text" rows="6" placeholder="Anote algo pontual sobre esse negócio..."></textarea>
         </label>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="notes-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="notes-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1093,18 +1093,18 @@
   <div class="modal-backdrop" id="team-message-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>Aviso do time</h2>
+        <h2 data-i18n="dash.teamNotice">Aviso do time</h2>
         <button class="btn-icon" id="team-message-modal-close">&times;</button>
       </div>
       <form id="team-message-form">
-        <label>Mensagem para o time
+        <label><span data-i18n="dash.messageForTeam">Mensagem para o time</span>
           <textarea id="team-message-field-text" rows="6" placeholder="Escreva um aviso para toda a equipe..."></textarea>
         </label>
-        <p class="muted-note">Deixe em branco e salve para remover o aviso.</p>
+        <p class="muted-note" data-i18n="dash.teamNoticeHint">Deixe em branco e salve para remover o aviso.</p>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="team-message-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="team-message-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1114,30 +1114,30 @@
   <div class="modal-backdrop" id="form-modal-backdrop">
     <div class="modal modal-lg">
       <div class="modal-header">
-        <h2 id="form-modal-title">Novo formulário</h2>
+        <h2 id="form-modal-title" data-i18n="forms.newTitle">Novo formulário</h2>
         <button class="btn-icon" id="form-modal-close">&times;</button>
       </div>
       <form id="form-builder-form">
         <input type="hidden" id="form-id">
-        <label>Título
+        <label><span data-i18n="common.titleField">Título</span>
           <input type="text" id="form-field-title" required placeholder="Ex: Somos todos Peregrinos">
         </label>
-        <label>Subtítulo
+        <label><span data-i18n="forms.subtitle">Subtítulo</span>
           <input type="text" id="form-field-subtitle" placeholder="Ex: Rumo à Irlanda">
         </label>
 
         <div class="form-builder-fields-header">
-          <span>Campos do formulário</span>
-          <button type="button" class="btn btn-ghost btn-sm" id="form-btn-add-field">+ Adicionar campo</button>
+          <span data-i18n="forms.fields">Campos do formulário</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="form-btn-add-field" data-i18n="forms.addField">+ Adicionar campo</button>
         </div>
         <div id="form-builder-fields"></div>
 
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="form-btn-delete" style="display:none;">Excluir formulário</button>
+          <button type="button" class="btn btn-danger" id="form-btn-delete" style="display:none;" data-i18n="forms.deleteForm">Excluir formulário</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="form-btn-copy-link" style="display:none;">Copiar link</button>
-          <button type="button" class="btn btn-ghost" id="form-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="form-btn-copy-link" style="display:none;" data-i18n="common.copyLink">Copiar link</button>
+          <button type="button" class="btn btn-ghost" id="form-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1147,39 +1147,39 @@
   <div class="modal-backdrop" id="agenda-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2 id="agenda-modal-title">Novo compromisso</h2>
+        <h2 id="agenda-modal-title" data-i18n="agenda.newTitle">Novo compromisso</h2>
         <button class="btn-icon" id="agenda-modal-close">&times;</button>
       </div>
       <form id="agenda-form">
         <input type="hidden" id="agenda-id">
         <div class="agenda-type-picker">
-          <button type="button" class="agenda-type-btn" data-type="tarefa">Tarefa</button>
-          <button type="button" class="agenda-type-btn" data-type="reuniao">Reunião</button>
-          <button type="button" class="agenda-type-btn" data-type="aviso">Aviso</button>
+          <button type="button" class="agenda-type-btn" data-type="tarefa" data-i18n="aluno.legendTask">Tarefa</button>
+          <button type="button" class="agenda-type-btn" data-type="reuniao" data-i18n="aluno.legendMeeting">Reunião</button>
+          <button type="button" class="agenda-type-btn" data-type="aviso" data-i18n="aluno.legendNotice">Aviso</button>
         </div>
         <input type="hidden" id="agenda-field-type" value="tarefa">
-        <label>Título
+        <label><span data-i18n="common.titleField">Título</span>
           <input type="text" id="agenda-field-title" required placeholder="Ex: Ligar para o cliente">
         </label>
         <div class="grid-2">
-          <label>Data
+          <label><span data-i18n="common.date">Data</span>
             <input type="date" id="agenda-field-date" required>
           </label>
-          <label>Hora (opcional)
+          <label><span data-i18n="agenda.timeOptional">Hora (opcional)</span>
             <input type="time" id="agenda-field-time">
           </label>
         </div>
-        <label>Consultor (opcional)
+        <label><span data-i18n="agenda.consultorOptional">Consultor (opcional)</span>
           <select id="agenda-field-consultor"></select>
         </label>
-        <label>Notas
+        <label><span data-i18n="common.notes">Notas</span>
           <textarea id="agenda-field-notes" rows="3" placeholder="Detalhes (opcional)"></textarea>
         </label>
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="agenda-btn-delete" style="display:none;">Excluir</button>
+          <button type="button" class="btn btn-danger" id="agenda-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="agenda-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="agenda-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1189,25 +1189,25 @@
   <div class="modal-backdrop" id="student-access-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>Acesso do aluno criado</h2>
+        <h2 data-i18n="studentAccess.title">Acesso do aluno criado</h2>
         <button class="btn-icon" id="student-access-modal-close">&times;</button>
       </div>
       <div style="padding:0 24px 24px;">
-        <p class="muted-note" style="margin-top:0;">Envie esses dados para o aluno acessar a Área do Aluno:</p>
-        <label class="f"><span>Link de acesso</span>
+        <p class="muted-note" style="margin-top:0;" data-i18n="studentAccess.instructions">Envie esses dados para o aluno acessar a Área do Aluno:</p>
+        <label class="f"><span data-i18n="studentAccess.link">Link de acesso</span>
           <input type="text" id="student-access-link" readonly>
         </label>
-        <label class="f"><span>E-mail</span>
+        <label class="f"><span data-i18n="common.email">E-mail</span>
           <input type="text" id="student-access-email" readonly>
         </label>
-        <label class="f"><span>Senha</span>
+        <label class="f"><span data-i18n="auth.password">Senha</span>
           <input type="text" id="student-access-password" readonly>
         </label>
-        <p class="muted-note">Essa senha não fica salva em lugar nenhum — anote agora. Se perder, o aluno pode redefinir a própria senha a qualquer momento pela tela de login ("Esqueci minha senha").</p>
+        <p class="muted-note" data-i18n="studentAccess.passwordHint">Essa senha não fica salva em lugar nenhum — anote agora. Se perder, o aluno pode redefinir a própria senha a qualquer momento pela tela de login ("Esqueci minha senha").</p>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn btn-ghost" id="student-access-btn-copy">Copiar tudo</button>
-        <button type="button" class="btn btn-primary" id="student-access-btn-close">Entendi</button>
+        <button type="button" class="btn btn-ghost" id="student-access-btn-copy" data-i18n="common.copyAll">Copiar tudo</button>
+        <button type="button" class="btn btn-primary" id="student-access-btn-close" data-i18n="common.understood">Entendi</button>
       </div>
     </div>
   </div>
@@ -1216,30 +1216,30 @@
   <div class="modal-backdrop" id="contract-modal-backdrop">
     <div class="modal modal-lg">
       <div class="modal-header">
-        <h2 id="contract-modal-title">Novo contrato</h2>
+        <h2 id="contract-modal-title" data-i18n="contracts.newTitle">Novo contrato</h2>
         <button class="btn-icon" id="contract-modal-close">&times;</button>
       </div>
       <form id="contract-form">
         <input type="hidden" id="contract-id">
-        <label>Lead
+        <label><span data-i18n="common.lead">Lead</span>
           <div class="enr-lead-search-wrap" id="contract-lead-search-wrap">
             <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="contract-lead-search" placeholder="Buscar por nome ou e-mail" autocomplete="off">
+            <input type="text" id="contract-lead-search" placeholder="Buscar por nome ou e-mail" autocomplete="off" data-i18n-placeholder="leads.searchPlaceholder">
             <div class="enr-lead-results" id="contract-lead-results"></div>
           </div>
           <input type="hidden" id="contract-field-lead-id">
         </label>
 
-        <label>Título
+        <label><span data-i18n="common.titleField">Título</span>
           <input type="text" id="contract-field-title" required placeholder="Ex: Contrato de Prestação de Serviços">
         </label>
-        <label>Valor (€)
+        <label><span data-i18n="contracts.valueEur">Valor (€)</span>
           <input type="number" id="contract-field-value" min="0" step="0.01" placeholder="0,00">
         </label>
         <label>
           <span style="display:flex; align-items:center; justify-content:space-between;">
-            <span>Conteúdo do contrato</span>
-            <button type="button" class="btn btn-ghost btn-sm" id="contract-btn-template">Usar modelo padrão</button>
+            <span data-i18n="contracts.content">Conteúdo do contrato</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="contract-btn-template" data-i18n="contracts.useTemplate">Usar modelo padrão</button>
           </span>
           <textarea id="contract-field-content" rows="10" required placeholder="Texto completo do contrato..."></textarea>
         </label>
@@ -1247,14 +1247,14 @@
         <div id="contract-signed-info" class="muted-note" style="display:none;"></div>
 
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="contract-btn-delete" style="display:none;">Excluir</button>
+          <button type="button" class="btn btn-danger" id="contract-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="contract-btn-download-pdf" style="display:none;">Baixar PDF assinado</button>
-          <button type="button" class="btn btn-ghost" id="contract-btn-copy-link" style="display:none;">Copiar link</button>
-          <button type="button" class="btn btn-ghost" id="contract-btn-cancel-contract" style="display:none;">Cancelar contrato</button>
-          <button type="button" class="btn btn-ghost" id="contract-btn-send" style="display:none;">Enviar p/ assinatura</button>
-          <button type="button" class="btn btn-ghost" id="contract-btn-cancel">Fechar</button>
-          <button type="submit" class="btn btn-primary" id="contract-btn-save">Salvar rascunho</button>
+          <button type="button" class="btn btn-ghost" id="contract-btn-download-pdf" style="display:none;" data-i18n="contracts.downloadPdf">Baixar PDF assinado</button>
+          <button type="button" class="btn btn-ghost" id="contract-btn-copy-link" style="display:none;" data-i18n="common.copyLink">Copiar link</button>
+          <button type="button" class="btn btn-ghost" id="contract-btn-cancel-contract" style="display:none;" data-i18n="contracts.cancelContract">Cancelar contrato</button>
+          <button type="button" class="btn btn-ghost" id="contract-btn-send" style="display:none;" data-i18n="contracts.sendForSignature">Enviar p/ assinatura</button>
+          <button type="button" class="btn btn-ghost" id="contract-btn-cancel" data-i18n="common.close">Fechar</button>
+          <button type="submit" class="btn btn-primary" id="contract-btn-save" data-i18n="contracts.saveDraft">Salvar rascunho</button>
         </div>
       </form>
     </div>
@@ -1264,19 +1264,19 @@
   <div class="modal-backdrop" id="stages-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>Gerenciar colunas do pipeline</h2>
+        <h2 data-i18n="pipeline.manageColumnsTitle">Gerenciar colunas do pipeline</h2>
         <button class="btn-icon" id="stages-modal-close">&times;</button>
       </div>
       <div class="sources-body">
-        <p class="muted-note">Essas são as colunas do funil de negócios. "Ganho" e "Perdido" são colunas especiais e não podem ser excluídas.</p>
+        <p class="muted-note" data-i18n="pipeline.manageColumnsHint">Essas são as colunas do funil de negócios. "Ganho" e "Perdido" são colunas especiais e não podem ser excluídas.</p>
         <div id="stages-list"></div>
         <div class="sources-add-row">
-          <input type="text" id="stages-new-input" placeholder="Nova coluna">
-          <button type="button" class="btn btn-primary btn-sm" id="stages-add-btn">+ Adicionar</button>
+          <input type="text" id="stages-new-input" placeholder="Nova coluna" data-i18n-placeholder="pipeline.newColumn">
+          <button type="button" class="btn btn-primary btn-sm" id="stages-add-btn" data-i18n="common.add">+ Adicionar</button>
         </div>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-primary" id="stages-btn-done">Concluído</button>
+          <button type="button" class="btn btn-primary" id="stages-btn-done" data-i18n="common.done">Concluído</button>
         </div>
       </div>
     </div>
@@ -1286,39 +1286,39 @@
   <div class="modal-backdrop" id="expense-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2 id="expense-modal-title">Nova despesa</h2>
+        <h2 id="expense-modal-title" data-i18n="fin.newExpenseTitle">Nova despesa</h2>
         <button class="btn-icon" id="expense-modal-close">&times;</button>
       </div>
       <form id="expense-form">
         <input type="hidden" id="expense-id">
-        <label>Descrição
+        <label><span data-i18n="fin.description">Descrição</span>
           <input type="text" id="expense-field-description" required placeholder="Ex: Aluguel do escritório">
         </label>
-        <label>Categoria
+        <label><span data-i18n="common.category">Categoria</span>
           <select id="expense-field-category"></select>
         </label>
-        <label>Valor (€)
+        <label><span data-i18n="contracts.valueEur">Valor (€)</span>
           <input type="number" id="expense-field-amount" min="0" step="0.01" placeholder="0,00">
         </label>
-        <label>Vencimento
+        <label><span data-i18n="fin.dueDate">Vencimento</span>
           <input type="date" id="expense-field-due-date">
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="expense-field-paid">
-          <span>Já paga</span>
+          <span data-i18n="fin.alreadyPaid">Já paga</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="expense-field-recurring">
-          <span>Despesa recorrente (mensal)</span>
+          <span data-i18n="fin.recurringExpense">Despesa recorrente (mensal)</span>
         </label>
-        <label>Notas
+        <label><span data-i18n="common.notes">Notas</span>
           <textarea id="expense-field-notes" rows="2" placeholder="Detalhes (opcional)"></textarea>
         </label>
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="expense-btn-delete" style="display:none;">Excluir</button>
+          <button type="button" class="btn btn-danger" id="expense-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="expense-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="expense-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1328,18 +1328,18 @@
   <div class="modal-backdrop" id="expense-categories-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>Gerenciar categorias de despesa</h2>
+        <h2 data-i18n="fin.manageCategoriesTitle">Gerenciar categorias de despesa</h2>
         <button class="btn-icon" id="expense-categories-modal-close">&times;</button>
       </div>
       <div class="sources-body">
         <div id="expense-categories-list"></div>
         <div class="sources-add-row">
-          <input type="text" id="expense-categories-new-input" placeholder="Nova categoria">
-          <button type="button" class="btn btn-primary btn-sm" id="expense-categories-add-btn">+ Adicionar</button>
+          <input type="text" id="expense-categories-new-input" placeholder="Nova categoria" data-i18n-placeholder="fin.newCategory">
+          <button type="button" class="btn btn-primary btn-sm" id="expense-categories-add-btn" data-i18n="common.add">+ Adicionar</button>
         </div>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-primary" id="expense-categories-btn-done">Concluído</button>
+          <button type="button" class="btn btn-primary" id="expense-categories-btn-done" data-i18n="common.done">Concluído</button>
         </div>
       </div>
     </div>
@@ -1349,24 +1349,24 @@
   <div class="modal-backdrop" id="receivable-setup-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>Configurar recebimento</h2>
+        <h2 data-i18n="fin.setupReceivable">Configurar recebimento</h2>
         <button class="btn-icon" id="receivable-setup-modal-close">&times;</button>
       </div>
       <form id="receivable-setup-form">
-        <p class="muted-note">Negócio marcado como Ganho. Configure como esse pagamento vai ser recebido, para controlar no Financeiro.</p>
-        <label>Valor total (€)
+        <p class="muted-note" data-i18n="fin.setupReceivableHint">Negócio marcado como Ganho. Configure como esse pagamento vai ser recebido, para controlar no Financeiro.</p>
+        <label><span data-i18n="fin.totalValue">Valor total (€)</span>
           <input type="number" id="rec-setup-total" min="0" step="0.01">
         </label>
-        <label>Número de parcelas
+        <label><span data-i18n="fin.installmentCount">Número de parcelas</span>
           <input type="number" id="rec-setup-installments" min="1" step="1" value="1">
         </label>
-        <label>Vencimento da 1ª parcela
+        <label><span data-i18n="fin.firstDueDate">Vencimento da 1ª parcela</span>
           <input type="date" id="rec-setup-first-due">
         </label>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="receivable-setup-btn-skip">Pular</button>
-          <button type="submit" class="btn btn-primary">Criar contas a receber</button>
+          <button type="button" class="btn btn-ghost" id="receivable-setup-btn-skip" data-i18n="common.skip">Pular</button>
+          <button type="submit" class="btn btn-primary" data-i18n="fin.createReceivables">Criar contas a receber</button>
         </div>
       </form>
     </div>
@@ -1376,23 +1376,23 @@
   <div class="modal-backdrop" id="enrollment-new-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>Nova matrícula</h2>
+        <h2 data-i18n="enr.newTitle">Nova matrícula</h2>
         <button class="btn-icon" id="enrollment-new-modal-close">&times;</button>
       </div>
       <form id="enrollment-new-form">
-        <label>Puxar dados de um lead existente (opcional)
+        <label><span data-i18n="quotes.pullFromLead">Puxar dados de um lead existente (opcional)</span>
           <div class="enr-lead-search-wrap">
             <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="enrollment-lead-search" placeholder="Buscar por nome ou e-mail" autocomplete="off">
+            <input type="text" id="enrollment-lead-search" placeholder="Buscar por nome ou e-mail" autocomplete="off" data-i18n-placeholder="leads.searchPlaceholder">
             <div class="enr-lead-results" id="enrollment-lead-results"></div>
           </div>
           <input type="hidden" id="enrollment-new-lead-id">
         </label>
-        <p class="muted-note">Deixe em branco para começar uma matrícula do zero.</p>
+        <p class="muted-note" data-i18n="enr.blankHint">Deixe em branco para começar uma matrícula do zero.</p>
         <div class="modal-actions">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="enrollment-new-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Continuar</button>
+          <button type="button" class="btn btn-ghost" id="enrollment-new-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.continue">Continuar</button>
         </div>
       </form>
     </div>
@@ -1402,92 +1402,92 @@
   <div class="modal-backdrop" id="enrollment-modal-backdrop">
     <div class="modal modal-lg">
       <div class="modal-header">
-        <h2 id="enrollment-modal-title">Matrícula</h2>
+        <h2 id="enrollment-modal-title" data-i18n="nav.matriculas">Matrícula</h2>
         <button class="btn-icon" id="enrollment-modal-close">&times;</button>
       </div>
       <form id="enrollment-form">
         <input type="hidden" id="enr-id">
 
         <div class="enr-link-row" id="enr-link-row" style="display:none;">
-          <span>Link para o aluno preencher:</span>
+          <span data-i18n="enr.linkForStudent">Link para o aluno preencher:</span>
           <input type="text" id="enr-public-link" readonly>
-          <button type="button" class="btn btn-ghost btn-sm" id="enr-copy-link">Copiar link</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="enr-copy-link" data-i18n="common.copyLink">Copiar link</button>
         </div>
 
         <div class="grid-2">
-          <label>Nome
+          <label><span data-i18n="common.name">Nome</span>
             <input type="text" id="enr-field-name" required>
           </label>
-          <label>Status
+          <label><span data-i18n="common.status">Status</span>
             <select id="enr-field-status">
-              <option value="Aguardando aluno">Aguardando aluno</option>
-              <option value="Preenchido pelo aluno">Preenchido pelo aluno</option>
-              <option value="Completo">Completo</option>
+              <option value="Aguardando aluno" data-i18n="status.aguardandoAluno">Aguardando aluno</option>
+              <option value="Preenchido pelo aluno" data-i18n="status.preenchidoPeloAluno">Preenchido pelo aluno</option>
+              <option value="Completo" data-i18n="status.completo">Completo</option>
             </select>
           </label>
-          <label>Telefone
+          <label><span data-i18n="common.phone">Telefone</span>
             <input type="text" id="enr-field-phone">
           </label>
-          <label>E-mail
+          <label><span data-i18n="common.email">E-mail</span>
             <input type="email" id="enr-field-email">
           </label>
-          <label>Número de emergência
+          <label><span data-i18n="enr.emergencyNumber">Número de emergência</span>
             <input type="text" id="enr-field-emergency">
           </label>
-          <label>CPF
+          <label><span data-i18n="matricula.cpf">CPF</span>
             <input type="text" id="enr-field-cpf">
           </label>
-          <label>Número do passaporte
+          <label><span data-i18n="matricula.passportNumber">Número do passaporte</span>
             <input type="text" id="enr-field-passport-number">
           </label>
-          <label>Foto do passaporte
+          <label><span data-i18n="enr.passportPhoto">Foto do passaporte</span>
             <div class="enr-photo-row">
               <input type="file" id="enr-field-passport-photo" accept="image/*">
-              <a href="#" id="enr-photo-view-link" target="_blank" rel="noopener" style="display:none;">Ver foto atual</a>
+              <a href="#" id="enr-photo-view-link" target="_blank" rel="noopener" style="display:none;" data-i18n="enr.viewCurrentPhoto">Ver foto atual</a>
             </div>
           </label>
         </div>
 
-        <div class="enr-section-title">Endereço no Brasil</div>
+        <div class="enr-section-title" data-i18n="matricula.sectionAddressBR">Endereço no Brasil</div>
         <div class="grid-2">
-          <label>Rua
+          <label><span data-i18n="addr.street">Rua</span>
             <input type="text" id="enr-field-street">
           </label>
-          <label>Número
+          <label><span data-i18n="addr.number">Número</span>
             <input type="text" id="enr-field-number">
           </label>
-          <label>Complemento
+          <label><span data-i18n="addr.complement">Complemento</span>
             <input type="text" id="enr-field-complement">
           </label>
-          <label>Bairro
+          <label><span data-i18n="addr.neighborhood">Bairro</span>
             <input type="text" id="enr-field-neighborhood">
           </label>
-          <label>Cidade
+          <label><span data-i18n="addr.city">Cidade</span>
             <input type="text" id="enr-field-city">
           </label>
-          <label>Estado
+          <label><span data-i18n="addr.state">Estado</span>
             <input type="text" id="enr-field-state" maxlength="2" placeholder="Ex: SP">
           </label>
-          <label>CEP
+          <label><span data-i18n="addr.zip">CEP</span>
             <input type="text" id="enr-field-zip">
           </label>
         </div>
 
-        <div class="enr-section-title">Curso</div>
+        <div class="enr-section-title" data-i18n="enr.course">Curso</div>
         <div class="grid-2">
-          <label>Escola escolhida
+          <label><span data-i18n="enr.chosenSchool">Escola escolhida</span>
             <input type="text" id="enr-field-school" list="enr-schools-list">
           </label>
-          <label>Turno escolhido
+          <label><span data-i18n="enr.chosenShift">Turno escolhido</span>
             <input type="text" id="enr-field-turno" list="enr-turnos-list">
           </label>
-          <label>Valor do curso (€)
+          <label><span data-i18n="enr.courseValueEur">Valor do curso (€)</span>
             <input type="number" id="enr-field-course-value" min="0" step="0.01">
           </label>
-          <label>Data de chegada
+          <label><span data-i18n="enr.arrivalDate">Data de chegada</span>
             <input type="date" id="enr-field-arrival">
           </label>
-          <label>Data de início de aula
+          <label><span data-i18n="enr.classStartDate">Data de início de aula</span>
             <input type="date" id="enr-field-class-start">
           </label>
         </div>
@@ -1495,10 +1495,10 @@
         <datalist id="enr-turnos-list"></datalist>
 
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="enr-btn-delete" style="display:none;">Excluir</button>
+          <button type="button" class="btn btn-danger" id="enr-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="enr-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="enr-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1508,135 +1508,135 @@
   <div class="modal-backdrop" id="collaborator-modal-backdrop">
     <div class="modal modal-lg">
       <div class="modal-header">
-        <h2 id="collaborator-modal-title">Colaborador</h2>
+        <h2 id="collaborator-modal-title" data-i18n="team.collaborator">Colaborador</h2>
         <button class="btn-icon" id="collaborator-modal-close">&times;</button>
       </div>
       <form id="collaborator-form">
         <input type="hidden" id="collab-id">
 
-        <div class="enr-section-title">Dados profissionais</div>
+        <div class="enr-section-title" data-i18n="team.professionalData">Dados profissionais</div>
         <div class="grid-2">
-          <label>Nome completo *
+          <label><span data-i18n="colab.fullName">Nome completo *</span>
             <input type="text" id="collab-field-name" required placeholder="Ex: João Pereira">
           </label>
-          <label>Status
+          <label><span data-i18n="common.status">Status</span>
             <select id="collab-field-status">
-              <option value="Aguardando colaborador">Aguardando colaborador</option>
-              <option value="Preenchido pelo colaborador">Preenchido pelo colaborador</option>
-              <option value="Completo">Completo</option>
+              <option value="Aguardando colaborador" data-i18n="status.aguardandoColaborador">Aguardando colaborador</option>
+              <option value="Preenchido pelo colaborador" data-i18n="status.preenchidoPeloColaborador">Preenchido pelo colaborador</option>
+              <option value="Completo" data-i18n="status.completo">Completo</option>
             </select>
           </label>
-          <label>E-mail corporativo
+          <label><span data-i18n="team.workEmail">E-mail corporativo</span>
             <input type="email" id="collab-field-work-email" placeholder="nome@peregrinosintercambio.com">
           </label>
-          <label>Cargo / função
+          <label><span data-i18n="team.role">Cargo / função</span>
             <input type="text" id="collab-field-role-title" placeholder="Ex: Consultor de vendas">
           </label>
-          <label>Departamento
+          <label><span data-i18n="team.department">Departamento</span>
             <input type="text" id="collab-field-department" placeholder="Ex: Comercial">
           </label>
-          <label>Tipo de contrato
+          <label><span data-i18n="team.contractType">Tipo de contrato</span>
             <select id="collab-field-contract-type">
-              <option value="">Selecione</option>
+              <option value="" data-i18n="common.select">Selecione</option>
               <option value="CLT">CLT</option>
               <option value="PJ">PJ</option>
-              <option value="Estágio">Estágio</option>
+              <option value="Estágio" data-i18n="team.intern">Estágio</option>
             </select>
           </label>
-          <label>Data de início
+          <label><span data-i18n="team.startDate">Data de início</span>
             <input type="date" id="collab-field-start-date">
           </label>
-          <label>Gestor responsável
+          <label><span data-i18n="team.manager">Gestor responsável</span>
             <select id="collab-field-manager"></select>
           </label>
         </div>
 
-        <div class="enr-section-title">Dados pessoais (preenchidos pelo colaborador)</div>
+        <div class="enr-section-title" data-i18n="team.personalDataFilled">Dados pessoais (preenchidos pelo colaborador)</div>
         <div class="grid-2">
-          <label>Data de nascimento
+          <label><span data-i18n="colab.birthDate">Data de nascimento</span>
             <input type="date" id="collab-field-birth-date">
           </label>
-          <label>Nacionalidade
+          <label><span data-i18n="colab.nationality">Nacionalidade</span>
             <input type="text" id="collab-field-nationality">
           </label>
-          <label>CPF
+          <label><span data-i18n="matricula.cpf">CPF</span>
             <input type="text" id="collab-field-cpf">
           </label>
-          <label>RG
+          <label><span data-i18n="colab.rg">RG</span>
             <input type="text" id="collab-field-rg">
           </label>
-          <label>Estado civil
+          <label><span data-i18n="colab.maritalStatus">Estado civil</span>
             <select id="collab-field-marital-status">
-              <option value="">Selecione</option>
-              <option value="Solteiro(a)">Solteiro(a)</option>
-              <option value="Casado(a)">Casado(a)</option>
-              <option value="Divorciado(a)">Divorciado(a)</option>
-              <option value="Viúvo(a)">Viúvo(a)</option>
-              <option value="União estável">União estável</option>
-              <option value="Outro">Outro</option>
+              <option value="" data-i18n="common.select">Selecione</option>
+              <option value="Solteiro(a)" data-i18n="colab.single">Solteiro(a)</option>
+              <option value="Casado(a)" data-i18n="colab.married">Casado(a)</option>
+              <option value="Divorciado(a)" data-i18n="colab.divorced">Divorciado(a)</option>
+              <option value="Viúvo(a)" data-i18n="colab.widowed">Viúvo(a)</option>
+              <option value="União estável" data-i18n="colab.domesticPartnership">União estável</option>
+              <option value="Outro" data-i18n="common.other">Outro</option>
             </select>
           </label>
-          <label>Telefone pessoal
+          <label><span data-i18n="team.personalPhone">Telefone pessoal</span>
             <input type="text" id="collab-field-personal-phone">
           </label>
-          <label>E-mail pessoal
+          <label><span data-i18n="colab.personalEmail">E-mail pessoal</span>
             <input type="email" id="collab-field-personal-email">
           </label>
         </div>
 
-        <div class="enr-section-title">Endereço</div>
+        <div class="enr-section-title" data-i18n="addr.section">Endereço</div>
         <div class="grid-2">
-          <label>Rua
+          <label><span data-i18n="addr.street">Rua</span>
             <input type="text" id="collab-field-street">
           </label>
-          <label>Número
+          <label><span data-i18n="addr.number">Número</span>
             <input type="text" id="collab-field-number">
           </label>
-          <label>Complemento
+          <label><span data-i18n="addr.complement">Complemento</span>
             <input type="text" id="collab-field-complement">
           </label>
-          <label>Bairro
+          <label><span data-i18n="addr.neighborhood">Bairro</span>
             <input type="text" id="collab-field-neighborhood">
           </label>
-          <label>Cidade
+          <label><span data-i18n="addr.city">Cidade</span>
             <input type="text" id="collab-field-city">
           </label>
-          <label>Estado
+          <label><span data-i18n="addr.state">Estado</span>
             <input type="text" id="collab-field-state" maxlength="2" placeholder="Ex: SP">
           </label>
-          <label>CEP
+          <label><span data-i18n="addr.zip">CEP</span>
             <input type="text" id="collab-field-zip">
           </label>
         </div>
 
-        <div class="enr-section-title">Contato de emergência</div>
+        <div class="enr-section-title" data-i18n="emerg.section">Contato de emergência</div>
         <div class="grid-2">
-          <label>Nome
+          <label><span data-i18n="emerg.name">Nome</span>
             <input type="text" id="collab-field-emergency-name">
           </label>
-          <label>Parentesco
+          <label><span data-i18n="emerg.relationship">Parentesco</span>
             <input type="text" id="collab-field-emergency-relationship">
           </label>
-          <label>Telefone
+          <label><span data-i18n="emerg.phone">Telefone</span>
             <input type="text" id="collab-field-emergency-phone">
           </label>
         </div>
 
-        <div class="enr-section-title">Foto</div>
+        <div class="enr-section-title" data-i18n="colab.sectionPhoto">Foto</div>
         <div class="grid-2">
-          <label>Foto de perfil
+          <label><span data-i18n="colab.profilePhoto">Foto de perfil</span>
             <div class="enr-photo-row">
               <input type="file" id="collab-field-photo" accept="image/*">
-              <a href="#" id="collab-photo-view-link" target="_blank" rel="noopener" style="display:none;">Ver arquivo atual</a>
+              <a href="#" id="collab-photo-view-link" target="_blank" rel="noopener" style="display:none;" data-i18n="enr.viewCurrentFile">Ver arquivo atual</a>
             </div>
           </label>
         </div>
 
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="collab-btn-delete" style="display:none;">Excluir</button>
+          <button type="button" class="btn btn-danger" id="collab-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="collab-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="collab-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1646,37 +1646,37 @@
   <div class="modal-backdrop" id="product-modal-backdrop">
     <div class="modal modal-lg">
       <div class="modal-header">
-        <h2 id="product-modal-title">Novo produto</h2>
+        <h2 id="product-modal-title" data-i18n="products.newTitle">Novo produto</h2>
         <button class="btn-icon" id="product-modal-close">&times;</button>
       </div>
       <form id="product-form">
         <input type="hidden" id="product-id">
-        <label>Nome do item *
+        <label><span data-i18n="products.itemName">Nome do item *</span>
           <input type="text" id="product-field-name" required placeholder="Ex: International — Full Payment">
         </label>
         <div class="grid-2">
-          <label>Categoria (nível 1)
+          <label><span data-i18n="products.categoryLvl1">Categoria (nível 1)</span>
             <input type="text" id="product-field-categoria" list="list-categorias" placeholder="Ex: Irlanda">
           </label>
-          <label>Destino / Cidade (nível 2)
+          <label><span data-i18n="products.destinationLvl2">Destino / Cidade (nível 2)</span>
             <input type="text" id="product-field-destino" list="list-destinos" placeholder="Ex: Dublin — ou Todos">
           </label>
-          <label>Escola / fornecedor (nível 3)
+          <label><span data-i18n="products.schoolLvl3">Escola / fornecedor (nível 3)</span>
             <input type="text" id="product-field-subgrupo" list="list-subgrupos" placeholder="Ex: Academic Bridge (opcional)">
           </label>
-          <label>Turno (nível 4)
+          <label><span data-i18n="products.shiftLvl4">Turno (nível 4)</span>
             <input type="text" id="product-field-turno" list="list-turnos" placeholder="Ex: AM · Segunda a Sexta (opcional)">
           </label>
-          <label>Unidade
+          <label><span data-i18n="products.unit">Unidade</span>
             <input type="text" id="product-field-unidade" placeholder="Ex: pacote, semana, mês">
           </label>
-          <label>Preço unitário (€) *
+          <label><span data-i18n="products.unitPrice">Preço unitário (€) *</span>
             <input type="number" id="product-field-preco" min="0" step="0.01" placeholder="0,00">
           </label>
-          <label>Ordem na lista
+          <label><span data-i18n="products.listOrder">Ordem na lista</span>
             <input type="number" id="product-field-ordem" step="1" value="100">
           </label>
-          <label>Quantidade sugerida
+          <label><span data-i18n="products.suggestedQty">Quantidade sugerida</span>
             <input type="number" id="product-field-qtdpadrao" min="1" step="1" value="1">
           </label>
         </div>
@@ -1684,30 +1684,30 @@
         <datalist id="list-destinos"></datalist>
         <datalist id="list-subgrupos"></datalist>
         <datalist id="list-turnos"></datalist>
-        <label>Descrição curta
+        <label><span data-i18n="products.shortDescription">Descrição curta</span>
           <textarea id="product-field-detalhe" rows="2" placeholder="Ex: Aulas de manhã, de segunda a sexta. Pagamento à vista."></textarea>
         </label>
         <div class="grid-2">
           <label class="checkbox-label">
             <input type="checkbox" id="product-field-qtdfixa" checked>
-            <span>Quantidade fixa em 1 (consultor não escolhe)</span>
+            <span data-i18n="products.fixedQty">Quantidade fixa em 1 (consultor não escolhe)</span>
           </label>
           <label class="checkbox-label">
             <input type="checkbox" id="product-field-ativo" checked>
-            <span>Visível para os consultores</span>
+            <span data-i18n="products.visibleToConsultants">Visível para os consultores</span>
           </label>
         </div>
         <div class="subs-editor">
-          <span class="subs-label">Subitens (o que está incluso)</span>
+          <span class="subs-label" data-i18n="products.subitems">Subitens (o que está incluso)</span>
           <div id="product-subs-list"></div>
-          <button type="button" class="btn btn-ghost btn-sm" id="btn-add-sub">+ Subitem</button>
-          <p class="muted-note">Os subitens aparecem detalhados abaixo do produto na cotação. Eles não somam no total — o total é preço × quantidade.</p>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-add-sub" data-i18n="products.addSubitem">+ Subitem</button>
+          <p class="muted-note" data-i18n="products.subitemsHint">Os subitens aparecem detalhados abaixo do produto na cotação. Eles não somam no total — o total é preço × quantidade.</p>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="product-btn-delete" style="display:none;">Excluir</button>
+          <button type="button" class="btn btn-danger" id="product-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="product-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar produto</button>
+          <button type="button" class="btn btn-ghost" id="product-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="products.saveProduct">Salvar produto</button>
         </div>
       </form>
     </div>
@@ -1717,31 +1717,31 @@
   <div class="modal-backdrop" id="user-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2 id="user-modal-title">Editar usuário</h2>
+        <h2 id="user-modal-title" data-i18n="users.editTitle">Editar usuário</h2>
         <button class="btn-icon" id="user-modal-close">&times;</button>
       </div>
       <form id="user-form">
         <input type="hidden" id="user-id">
-        <label>Nome
+        <label><span data-i18n="common.name">Nome</span>
           <input type="text" id="user-field-name" required placeholder="Ex: Maria Souza">
         </label>
-        <label>E-mail <span class="field-hint">(login — não pode ser alterado por aqui)</span>
+        <label><span data-i18n="common.email">E-mail</span> <span class="field-hint" data-i18n="users.loginHint">(login — não pode ser alterado por aqui)</span>
           <input type="email" id="user-field-email" disabled>
         </label>
-        <button type="button" class="btn btn-ghost btn-sm" id="user-btn-reset-password" style="align-self:flex-start;">Enviar redefinição de senha</button>
-        <label>Função
+        <button type="button" class="btn btn-ghost btn-sm" id="user-btn-reset-password" style="align-self:flex-start;" data-i18n="users.sendPasswordReset">Enviar redefinição de senha</button>
+        <label><span data-i18n="users.role">Função</span>
           <select id="user-field-role"></select>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="user-field-active" checked>
-          <span>Usuário ativo</span>
+          <span data-i18n="users.activeUser">Usuário ativo</span>
         </label>
-        <p class="muted-note" id="user-adm-hint" style="display:none;">Este é o único ADM ativo — a função e o status não podem ser alterados por aqui até existir outro ADM.</p>
+        <p class="muted-note" id="user-adm-hint" style="display:none;" data-i18n="users.lastAdmHint">Este é o único ADM ativo — a função e o status não podem ser alterados por aqui até existir outro ADM.</p>
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="user-btn-delete" style="display:none;">Desativar</button>
+          <button type="button" class="btn btn-danger" id="user-btn-delete" style="display:none;" data-i18n="users.deactivate">Desativar</button>
           <div class="spacer"></div>
-          <button type="button" class="btn btn-ghost" id="user-btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost" id="user-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
         </div>
       </form>
     </div>
@@ -1750,9 +1750,9 @@
   <!-- DOCUMENTO DE COTAÇÃO (impressão A4) -->
   <div class="quote-doc-overlay" id="quote-doc-overlay" hidden>
     <div class="doc-actions noprint">
-      <button type="button" class="btn btn-ghost" id="quote-doc-back">← Voltar e editar</button>
-      <button type="button" class="btn btn-primary" id="quote-doc-print">Salvar em PDF / Imprimir</button>
-      <span class="note">Use a opção "Salvar como PDF" na janela de impressão do navegador.</span>
+      <button type="button" class="btn btn-ghost" id="quote-doc-back" data-i18n="quotes.backEdit">← Voltar e editar</button>
+      <button type="button" class="btn btn-primary" id="quote-doc-print" data-i18n="quotes.saveAsPdf">Salvar em PDF / Imprimir</button>
+      <span class="note" data-i18n="quotes.printHint">Use a opção "Salvar como PDF" na janela de impressão do navegador.</span>
     </div>
 
     <div class="sheet" id="quote-sheet">
@@ -1761,43 +1761,43 @@
           <div class="rule"></div>
           <img src="assets/peregrinos-logo.png" alt="Peregrinos Intercâmbio">
           <div class="title-row">
-            <h2>COTAÇÃO</h2>
+            <h2 data-i18n="quotes.docTitle">COTAÇÃO</h2>
             <div class="dates">
-              Emitida em: <b id="d-emissao">—</b><br>
-              Válida até: <b id="d-validade">—</b>
+              <span data-i18n="quotes.issuedOnColon">Emitida em:</span> <b id="d-emissao">—</b><br>
+              <span data-i18n="quotes.validUntilColon">Válida até:</span> <b id="d-validade">—</b>
             </div>
           </div>
           <div class="infobox">
-            <div><div class="lbl">Estudante</div><div class="val" id="d-nome"></div></div>
-            <div><div class="lbl">E-mail</div><div class="val" id="d-email"></div></div>
-            <div><div class="lbl">Cotação</div><div class="val" id="d-titulo"></div></div>
-            <div><div class="lbl">Status</div><div class="val" id="d-status"></div></div>
-            <div><div class="lbl">Consultor</div><div class="val" id="d-consultor"></div></div>
-            <div><div class="lbl">E-mail do consultor</div><div class="val" id="d-consultor-email"></div></div>
+            <div><div class="lbl" data-i18n="quotes.student">Estudante</div><div class="val" id="d-nome"></div></div>
+            <div><div class="lbl" data-i18n="common.email">E-mail</div><div class="val" id="d-email"></div></div>
+            <div><div class="lbl" data-i18n="nav.cotacao">Cotação</div><div class="val" id="d-titulo"></div></div>
+            <div><div class="lbl" data-i18n="common.status">Status</div><div class="val" id="d-status"></div></div>
+            <div><div class="lbl" data-i18n="common.consultant">Consultor</div><div class="val" id="d-consultor"></div></div>
+            <div><div class="lbl" data-i18n="quotes.consultorEmailLabel">E-mail do consultor</div><div class="val" id="d-consultor-email"></div></div>
           </div>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th>Serviço</th>
-              <th class="c">Qtd.</th>
-              <th class="r">Unitário</th>
-              <th class="t">Total</th>
+              <th data-i18n="quotes.service">Serviço</th>
+              <th class="c" data-i18n="quotes.qty">Qtd.</th>
+              <th class="r" data-i18n="quotes.unitPrice">Unitário</th>
+              <th class="t" data-i18n="common.value">Total</th>
             </tr>
           </thead>
           <tbody id="d-itens"></tbody>
         </table>
 
         <div class="totals">
-          <div class="line"><span>Subtotal</span><span id="d-subtotal">€0,00</span></div>
-          <div class="line grand"><span>Total</span><span id="d-total">€0,00</span></div>
+          <div class="line"><span data-i18n="quotes.subtotal">Subtotal</span><span id="d-subtotal">€0,00</span></div>
+          <div class="line grand"><span data-i18n="common.value">Total</span><span id="d-total">€0,00</span></div>
         </div>
 
-        <div class="obs" id="d-obs" hidden><div class="lbl">Observações</div><span id="d-obs-txt"></span></div>
+        <div class="obs" id="d-obs" hidden><div class="lbl" data-i18n="quotes.notes">Observações</div><span id="d-obs-txt"></span></div>
 
         <div class="doc-foot">
-          <div class="slogan">O caminho transforma.</div>
+          <div class="slogan" data-i18n="quotes.slogan">O caminho transforma.</div>
           <div class="rule"></div>
         </div>
       </div>
@@ -1806,7 +1806,7 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="i18n.js?v=1790582217"></script>
-  <script src="script.js?v=1790582217"></script>
+  <script src="i18n.js?v=1790589793"></script>
+  <script src="script.js?v=1790589793"></script>
 </body>
 </html>

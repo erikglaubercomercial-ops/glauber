@@ -109,6 +109,24 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+/* traduz valores fixos de status/temperatura pra exibição, sem tocar no
+   valor gravado no banco (que continua em português) — valores livres
+   (ex.: origem, categoria, escola) não estão aqui de propósito, pois são
+   editáveis pelo ADM e não têm tradução automática possível */
+const STATUS_I18N_MAP = {
+  "Novo": "status.novo", "Em contato": "status.emContato", "Qualificado": "status.qualificado", "Descartado": "status.descartado",
+  "Quente": "status.quente", "Morno": "status.morno", "Frio": "status.frio",
+  "Aguardando aluno": "status.aguardandoAluno", "Preenchido pelo aluno": "status.preenchidoPeloAluno", "Completo": "status.completo",
+  "Aguardando colaborador": "status.aguardandoColaborador", "Preenchido pelo colaborador": "status.preenchidoPeloColaborador",
+  "Rascunho": "status.rascunho", "Aguardando assinatura": "status.aguardandoAssinatura", "Assinado": "status.assinado", "Cancelado": "status.cancelado",
+  "Enviada": "status.enviada", "Em negociação": "status.emNegociacao", "Aprovada": "status.aprovada", "Recusada": "status.recusada",
+  "pendente": "status.pendente", "pago": "status.pago",
+};
+function statusLabel(value) {
+  const key = STATUS_I18N_MAP[value];
+  return key ? t(key) : value;
+}
+
 function uid() {
   return crypto.randomUUID();
 }
@@ -327,7 +345,7 @@ function renderBoard() {
 
     const cardsEl = column.querySelector(".column-cards");
     if (stageDeals.length === 0) {
-      cardsEl.innerHTML = `<div class="empty-hint">Arraste um negócio aqui</div>`;
+      cardsEl.innerHTML = `<div class="empty-hint">${t("pipeline.dragDealHere")}</div>`;
     } else {
       stageDeals.forEach(deal => cardsEl.appendChild(renderCard(deal)));
     }
@@ -373,15 +391,15 @@ function renderCard(deal) {
     ${phoneText ? `
       <div class="card-contact-row">
         ${waDigits
-          ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp">${WPP_ICON_SVG}</a>`
-          : `<span class="wpp-btn disabled" title="Sem WhatsApp configurado">${WPP_ICON_SVG}</span>`}
+          ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="${t("common.openWhatsapp")}">${WPP_ICON_SVG}</a>`
+          : `<span class="wpp-btn disabled" title="${t("lead.noWhatsappConfigured")}">${WPP_ICON_SVG}</span>`}
         <span>${escapeHtml(phoneText)}</span>
       </div>` : ""}
     ${emailText ? `<div class="card-email">${escapeHtml(emailText)}</div>` : ""}
     ${lead && (lead.source || lead.temperature) ? `
       <div class="card-tags">
         ${lead.source ? originBadge(lead.source) : ""}
-        ${lead.temperature ? `<span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature)}</span>` : ""}
+        ${lead.temperature ? `<span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(statusLabel(lead.temperature))}</span>` : ""}
       </div>` : ""}
     ${consultant ? `<div class="card-consultor">${escapeHtml(consultant.name)}</div>` : ""}
     <div class="card-footer">
@@ -522,7 +540,7 @@ function openDealModal(id) {
     const lead = deal.leadId ? leads.find(l => l.id === deal.leadId) : null;
     const consultorId = dealConsultorId(deal);
     const consultant = consultorId ? users.find(u => u.id === consultorId) : null;
-    document.getElementById("modal-title").textContent = "Editar negócio";
+    document.getElementById("modal-title").textContent = t("deal.editTitle");
     document.getElementById("deal-id").value = deal.id;
     document.getElementById("field-name").value = deal.name;
     document.getElementById("field-source").value = (lead && lead.source) || "—";
@@ -531,16 +549,16 @@ function openDealModal(id) {
     document.getElementById("field-info").value = deal.info || "";
     document.getElementById("field-first-interaction").value = deal.firstInteractionAt
       ? new Date(deal.firstInteractionAt).toLocaleString("pt-BR")
-      : "Ainda sem interação registrada";
+      : t("deal.noInteractionYet");
     document.getElementById("field-stage").value = deal.stage;
     document.getElementById("field-notes").value = deal.notes || "";
     btnDelete.style.display = "inline-block";
   } else {
-    document.getElementById("modal-title").textContent = "Novo negócio";
+    document.getElementById("modal-title").textContent = t("deal.newTitle");
     document.getElementById("deal-id").value = "";
     document.getElementById("field-source").value = "—";
     document.getElementById("field-consultor-display").value = "—";
-    document.getElementById("field-first-interaction").value = "Ainda sem interação registrada";
+    document.getElementById("field-first-interaction").value = t("deal.noInteractionYet");
     document.getElementById("field-stage").value = STAGES[0] ? STAGES[0].id : "";
     btnDelete.style.display = "none";
   }
@@ -588,7 +606,7 @@ dealForm.addEventListener("submit", async e => {
 btnDelete.addEventListener("click", async () => {
   const id = document.getElementById("deal-id").value;
   if (!id) return;
-  if (!confirm("Excluir este negócio? Essa ação não pode ser desfeita.")) return;
+  if (!confirm(t("deal.confirmDelete"))) return;
   deals = deals.filter(d => d.id !== id);
   renderBoard();
   closeDealModal();
@@ -610,8 +628,8 @@ function renderStagesList() {
   stagesListEl.innerHTML = STAGES.map(s => `
     <div class="source-row">
       <input type="text" value="${escapeHtml(s.label)}" data-id="${s.id}">
-      <span class="source-usage">${stageUsageCount(s.id)} negócio(s)</span>
-      <button type="button" class="btn btn-icon" data-act="del" data-id="${s.id}" title="Excluir coluna" ${(s.isWon || s.isLost) ? "disabled" : ""}>&times;</button>
+      <span class="source-usage">${stageUsageCount(s.id)} ${t("pipeline.dealsCount")}</span>
+      <button type="button" class="btn btn-icon" data-act="del" data-id="${s.id}" title="${t("pipeline.deleteColumn")}" ${(s.isWon || s.isLost) ? "disabled" : ""}>&times;</button>
     </div>`).join("");
 }
 
@@ -647,14 +665,14 @@ stagesListEl.addEventListener("click", async e => {
   const stage = STAGES.find(s => s.id === btn.dataset.id);
   const count = stageUsageCount(stage.id);
   if (count > 0) {
-    alert(`Mova os ${count} negócio(s) dessa coluna para outra antes de excluí-la.`);
+    alert(`${t("pipeline.moveBeforeDelete1")} ${count} ${t("pipeline.moveBeforeDelete2")}`);
     return;
   }
   if (STAGES.length <= 1) {
-    alert("Mantenha ao menos uma coluna no pipeline.");
+    alert(t("pipeline.keepAtLeastOneColumn"));
     return;
   }
-  if (!confirm(`Excluir a coluna "${stage.label}"?`)) return;
+  if (!confirm(`${t("pipeline.confirmDeleteColumn")} "${stage.label}"?`)) return;
   STAGES = STAGES.filter(s => s.id !== stage.id);
   renderStagesList();
   renderStageOptions();
@@ -666,7 +684,7 @@ async function addNewStage() {
   const label = stagesNewInput.value.trim();
   if (!label) return;
   const duplicate = STAGES.some(s => s.label.toLowerCase() === label.toLowerCase());
-  if (duplicate) { alert("Já existe uma coluna com esse nome."); return; }
+  if (duplicate) { alert(t("pipeline.duplicateColumnName")); return; }
   const maxPos = STAGES.reduce((m, s) => Math.max(m, s.position), 0);
   const stage = { id: uid(), label, position: maxPos + 1, isWon: false, isLost: false };
   STAGES.push(stage);
@@ -858,7 +876,7 @@ async function saveLeads() {
   if (error) {
     console.error("Erro ao salvar leads:", error);
     if (error.code === "23505") {
-      alert("Não foi possível salvar: já existe um lead com esse e-mail cadastrado. Atualize a página (F5) e tente novamente.");
+      alert(t("lead.duplicateEmailSaveError"));
     }
   }
 }
@@ -888,7 +906,7 @@ function renderLeadFormOptions(currentSource) {
   const sourceOptions = SOURCES.slice();
   if (currentSource && !sourceOptions.includes(currentSource)) sourceOptions.push(currentSource);
   document.getElementById("lead-field-source").innerHTML = sourceOptions.map(s => `<option value="${s}">${s}</option>`).join("");
-  document.getElementById("lead-field-temperature").innerHTML = TEMPERATURES.map(t => `<option value="${t}">${t}</option>`).join("");
+  document.getElementById("lead-field-temperature").innerHTML = TEMPERATURES.map(temp => `<option value="${temp}">${escapeHtml(statusLabel(temp))}</option>`).join("");
 }
 
 function isOwnLeadsOnly() {
@@ -960,9 +978,9 @@ function renderLeadsSearchResults(query) {
     ? matches.map(l => `
       <div class="enr-lead-result-item" data-id="${l.id}">
         <div>${escapeHtml(l.name)}</div>
-        <div class="sub">${escapeHtml(l.email || l.phone || "sem contato")}</div>
+        <div class="sub">${escapeHtml(l.email || l.phone || t("enr.noContact"))}</div>
       </div>`).join("")
-    : `<div class="enr-lead-result-empty">Nenhum lead encontrado</div>`;
+    : `<div class="enr-lead-result-empty">${t("enr.noLeadFound")}</div>`;
   leadsSearchResults.classList.add("open");
 }
 
@@ -1036,11 +1054,11 @@ function renderLeads() {
           ${lead.active === false ? '<span class="badge badge-neutral">Inativo</span>' : ""}
         </span>
         <div class="cell-meta-row">
-          <span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(lead.status)}</span>
-          <span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(lead.temperature || "—")}</span>
+          <span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(statusLabel(lead.status))}</span>
+          <span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(statusLabel(lead.temperature) || "—")}</span>
           ${waDigits
-            ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="Abrir no WhatsApp">${WPP_ICON_SVG}</a>`
-            : `<span class="wpp-btn disabled" title="Preencha país, DDD e número do lead para liberar o WhatsApp">${WPP_ICON_SVG}</span>`}
+            ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="${t("common.openWhatsapp")}">${WPP_ICON_SVG}</a>`
+            : `<span class="wpp-btn disabled" title="${t("lead.fillPhoneForWhatsapp")}">${WPP_ICON_SVG}</span>`}
         </div>
       </td>
       <td class="cell-muted">
@@ -1201,7 +1219,7 @@ function toggleBulkMenu(triggerEl) {
   });
   menu.querySelector('[data-action="delete"]').addEventListener("click", async () => {
     closeBulkMenu();
-    if (!confirm(`Excluir ${ids.length} lead(s) selecionado(s)? Essa ação não pode ser desfeita.`)) return;
+    if (!confirm(`${t("lead.confirmBulkDelete1")} ${ids.length} ${t("lead.confirmBulkDelete2")}`)) return;
     leads = leads.filter(l => !ids.includes(l.id));
     selectedLeadIds.clear();
     renderLeads();
@@ -1227,19 +1245,19 @@ const quickFieldSelect = document.getElementById("quickfield-select");
 let quickFieldTarget = { ids: [], field: null };
 
 const QUICK_FIELD_CONFIG = {
-  temperature: { label: "Temperatura", title: "Mudar temperatura", options: () => TEMPERATURES },
-  source: { label: "Origem", title: "Mudar origem", options: () => SOURCES },
-  status: { label: "Status", title: "Mudar status", options: () => STATUSES },
-  category: { label: "Categoria", title: "Mudar categoria", options: () => CATEGORIES },
+  temperature: { label: () => t("common.temperature"), title: () => t("leads.changeTemperature"), options: () => TEMPERATURES },
+  source: { label: () => t("common.source"), title: () => t("leads.changeSource"), options: () => SOURCES },
+  status: { label: () => t("common.status"), title: () => t("leads.changeStatus"), options: () => STATUSES },
+  category: { label: () => t("common.category"), title: () => t("leads.changeCategory"), options: () => CATEGORIES },
 };
 
 function openQuickFieldModal(ids, field) {
   quickFieldTarget = { ids, field };
   const config = QUICK_FIELD_CONFIG[field];
   document.getElementById("quickfield-modal-title").textContent =
-    config.title + (ids.length > 1 ? ` (${ids.length} leads)` : "");
-  document.getElementById("quickfield-label-text").textContent = config.label;
-  quickFieldSelect.innerHTML = config.options().map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
+    config.title() + (ids.length > 1 ? ` (${ids.length} leads)` : "");
+  document.getElementById("quickfield-label-text").textContent = config.label();
+  quickFieldSelect.innerHTML = config.options().map(o => `<option value="${escapeHtml(o)}">${escapeHtml(statusLabel(o))}</option>`).join("");
   if (ids.length === 1) {
     const lead = leads.find(l => l.id === ids[0]);
     if (lead && lead[field]) quickFieldSelect.value = lead[field];
@@ -1272,7 +1290,7 @@ async function toggleLeadActive(lead) {
 }
 
 async function removeLead(id) {
-  if (!confirm("Excluir este lead? Essa ação não pode ser desfeita.")) return false;
+  if (!confirm(t("lead.confirmDelete"))) return false;
   leads = leads.filter(l => l.id !== id);
   selectedLeadIds.delete(id);
   renderLeads();
@@ -1309,7 +1327,7 @@ function toggleRowMenu(lead, triggerEl) {
     <button type="button" class="row-menu-item" data-action="category">Mudar categoria</button>
     ${canEditLeadSource() ? '<button type="button" class="row-menu-item" data-action="source">Mudar origem</button>' : ""}
     <button type="button" class="row-menu-item" data-action="email" ${lead.email ? "" : "disabled"}>Enviar e-mail</button>
-    <button type="button" class="row-menu-item" data-action="quote">Ver cotação</button>
+    <button type="button" class="row-menu-item" data-action="quote">${t("lead.viewQuote")}</button>
     <div class="row-menu-divider"></div>
     <button type="button" class="row-menu-item" data-action="toggle-active">${isInactive ? "Reativar lead" : "Desativar lead"}</button>
     <button type="button" class="row-menu-item row-menu-item-danger" data-action="delete">Excluir lead</button>
@@ -1364,7 +1382,7 @@ document.addEventListener("click", e => {
 
 function sendLeadEmail(lead) {
   if (!lead.email) {
-    alert("Este lead não tem e-mail cadastrado.");
+    alert(t("lead.noEmailRegistered"));
     return;
   }
   window.location.href = `mailto:${lead.email}`;
@@ -1464,7 +1482,7 @@ function renderStuckOverview() {
       <span class="stuck-card-avatar">${PERSON_PHOTO_PLACEHOLDER_SVG}</span>
       <span class="stuck-card-body">
         <span class="stuck-card-name">${escapeHtml(g.consultorName)}</span>
-        <span class="stuck-card-sub">até ${g.maxDays} dia(s) parado</span>
+        <span class="stuck-card-sub">${t("stuck.upTo")} ${g.maxDays} ${t("stuck.daysStalled")}</span>
       </span>
       <span class="stuck-card-count-wrap">
         <span class="stuck-card-count">${g.leads.length}</span>
@@ -1513,7 +1531,7 @@ function renderStuckDetailTable() {
         <td class="cell-primary">${escapeHtml(l.name)}</td>
         <td class="cell-muted">${escapeHtml(l.email || l.phone || "—")}</td>
         <td class="cell-muted">${escapeHtml(l.source || "—")}</td>
-        <td><span class="badge ${TEMPERATURE_BADGE[l.temperature] || "badge-neutral"}">${escapeHtml(l.temperature || "—")}</span></td>
+        <td><span class="badge ${TEMPERATURE_BADGE[l.temperature] || "badge-neutral"}">${escapeHtml(statusLabel(l.temperature) || "—")}</span></td>
         <td><span class="badge ${stuckDaysBadgeClass(days)}">${days} dia(s)</span></td>
       </tr>`;
   }).join("");
@@ -1615,7 +1633,7 @@ function openLeadModal(id) {
   const sourceField = document.getElementById("lead-field-source");
   const sourceLocked = !!id && !canEditLeadSource();
   sourceField.disabled = sourceLocked;
-  sourceField.title = sourceLocked ? "Apenas ADM ou Gerente podem alterar a origem de um lead já cadastrado." : "";
+  sourceField.title = sourceLocked ? t("lead.sourceLockedHint") : "";
 
   leadModalBackdrop.classList.add("open");
   document.getElementById("lead-field-name").focus();
@@ -1640,7 +1658,7 @@ leadForm.addEventListener("submit", async e => {
   dddField.classList.toggle("err", dddVazio);
   phoneField.classList.toggle("err", phoneVazio);
   if (dddVazio || phoneVazio) {
-    alert("Preencha o país, o DDD e o número do lead — são obrigatórios para o botão do WhatsApp funcionar.");
+    alert(t("lead.fillPhoneForWhatsapp"));
     (dddVazio ? dddField : phoneField).focus();
     return;
   }
@@ -1660,7 +1678,7 @@ leadForm.addEventListener("submit", async e => {
   };
 
   if (data.email && leads.some(l => l.id !== id && l.email && l.email.toLowerCase() === data.email.toLowerCase())) {
-    alert(`Já existe um lead cadastrado com o e-mail "${data.email}".`);
+    alert(`${t("lead.emailAlreadyExists")} "${data.email}".`);
     return;
   }
 
@@ -1781,14 +1799,14 @@ importFileInput.addEventListener("change", () => {
   reader.onload = () => {
     const parsed = parseCSV(String(reader.result || ""));
     if (parsed.length < 2) {
-      alert("Não encontrei linhas de dados nesse CSV. Confira o arquivo e tente novamente.");
+      alert(t("import.noRowsFound"));
       return;
     }
     importHeaders = parsed[0];
     importRows = parsed.slice(1);
     openImportModal();
   };
-  reader.onerror = () => alert("Não consegui ler esse arquivo. Tente novamente.");
+  reader.onerror = () => alert(t("import.cantReadFile"));
   reader.readAsText(file, "UTF-8");
 });
 
@@ -1799,7 +1817,7 @@ function openImportModal() {
   importMappingTbody.innerHTML = importHeaders.map((h, i) => {
     const sample = (importRows[0] && importRows[0][i]) || "";
     const guess = guessImportField(h);
-    const options = `<option value="">Não importar</option>` +
+    const options = `<option value="">${t("import.dontImport")}</option>` +
       IMPORT_FIELDS.map(f => `<option value="${f.key}"${f.key === guess ? " selected" : ""}>${f.label}</option>`).join("");
     return `
       <tr>
@@ -1876,9 +1894,9 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
 
   renderLeads();
   closeImportModal();
-  alert(`Importação concluída: ${imported} lead(s) importado(s)`
-    + `${skipped ? `, ${skipped} linha(s) ignorada(s) por falta de nome` : ""}`
-    + `${skippedDuplicates ? `, ${skippedDuplicates} linha(s) ignorada(s) por e-mail já cadastrado` : ""}.`);
+  alert(`${t("import.completed1")} ${imported} ${t("import.completed2")}`
+    + `${skipped ? `, ${skipped} ${t("import.skippedNoName")}` : ""}`
+    + `${skippedDuplicates ? `, ${skippedDuplicates} ${t("import.skippedDuplicates")}` : ""}.`);
   await saveLeads();
 
   if (importedLeads.length) {
@@ -1930,7 +1948,7 @@ sourcesListEl.addEventListener("change", async e => {
   if (!newName) { input.value = oldName; return; }
   const duplicate = SOURCES.some((s, i) => i !== index && s.toLowerCase() === newName.toLowerCase());
   if (duplicate) {
-    alert("Já existe uma origem com esse nome.");
+    alert(t("leads.duplicateSourceName"));
     input.value = oldName;
     return;
   }
@@ -1956,7 +1974,7 @@ sourcesListEl.addEventListener("click", async e => {
   }
   const count = sourceUsageCount(name);
   const msg = count > 0
-    ? `Excluir a origem "${name}"? ${count} lead(s) já usam esse valor — eles manterão "${name}" no registro, mas essa opção deixará de existir para novos cadastros.`
+    ? `${t("leads.confirmDeleteSource1")} "${name}"? ${count} ${t("leads.confirmDeleteSource2")} "${name}" ${t("leads.confirmDeleteSource3")}`
     : `Excluir a origem "${name}"?`;
   if (!confirm(msg)) return;
   SOURCES.splice(index, 1);
@@ -1970,7 +1988,7 @@ async function addNewSource() {
   if (!name) return;
   const duplicate = SOURCES.some(s => s.toLowerCase() === name.toLowerCase());
   if (duplicate) {
-    alert("Já existe uma origem com esse nome.");
+    alert(t("leads.duplicateSourceName"));
     return;
   }
   SOURCES.push(name);
@@ -2056,7 +2074,7 @@ function renderContractsList() {
         <td class="cell-primary">${escapeHtml(lead ? lead.name : "—")}</td>
         <td class="cell-muted">${escapeHtml(c.title)}</td>
         <td class="cell-muted">${currency(c.value)}</td>
-        <td><span class="badge ${CONTRACT_STATUS_BADGE[c.status] || "badge-neutral"}">${escapeHtml(c.status)}</span></td>
+        <td><span class="badge ${CONTRACT_STATUS_BADGE[c.status] || "badge-neutral"}">${escapeHtml(statusLabel(c.status))}</span></td>
         <td class="cell-actions">›</td>
       </tr>`;
   }).join("");
@@ -2080,9 +2098,9 @@ function renderContractLeadResults(query) {
     ? matches.map(l => `
       <div class="enr-lead-result-item" data-id="${l.id}">
         <div>${escapeHtml(l.name)}</div>
-        <div class="sub">${escapeHtml(l.email || l.phone || "sem contato")}</div>
+        <div class="sub">${escapeHtml(l.email || l.phone || t("enr.noContact"))}</div>
       </div>`).join("")
-    : `<div class="enr-lead-result-empty">Nenhum lead encontrado</div>`;
+    : `<div class="enr-lead-result-empty">${t("enr.noLeadFound")}</div>`;
   contractLeadResults.classList.add("open");
 }
 contractLeadSearch.addEventListener("input", () => {
@@ -2217,7 +2235,7 @@ function readContractFormData() {
 async function persistContract(statusOverride) {
   const data = readContractFormData();
   if (!data.leadId) { alert("Selecione um lead para o contrato."); return null; }
-  if (!data.content) { alert("Preencha o conteúdo do contrato."); return null; }
+  if (!data.content) { alert(t("contracts.fillContent")); return null; }
 
   const id = document.getElementById("contract-id").value;
   const payload = {
@@ -2226,7 +2244,7 @@ async function persistContract(statusOverride) {
     status: statusOverride || (currentContract ? currentContract.status : "Rascunho"),
   };
   const saved = await saveContractRemote(payload);
-  if (!saved) { alert("Não foi possível salvar o contrato. Tente novamente."); return null; }
+  if (!saved) { alert(t("contracts.saveError")); return null; }
 
   if (id) {
     const idx = contracts.findIndex(c => c.id === id);
@@ -2245,12 +2263,12 @@ contractForm.addEventListener("submit", async e => {
 });
 
 document.getElementById("contract-btn-send").addEventListener("click", async () => {
-  if (!confirm("Enviar este contrato para assinatura? Depois de enviado, o conteúdo não poderá mais ser editado.")) return;
+  if (!confirm(t("contracts.confirmSend"))) return;
   const saved = await persistContract("Aguardando assinatura");
   if (!saved) return;
   currentContract = saved;
   navigator.clipboard.writeText(buildContractPublicUrl(saved.publicToken)).catch(() => {});
-  alert("Contrato enviado! O link de assinatura já foi copiado para a área de transferência.");
+  alert(t("contracts.sentSuccess"));
   openContractModal(saved.id);
 });
 
@@ -2258,14 +2276,14 @@ document.getElementById("contract-btn-copy-link").addEventListener("click", () =
   if (!currentContract) return;
   navigator.clipboard.writeText(buildContractPublicUrl(currentContract.publicToken));
   const btn = document.getElementById("contract-btn-copy-link");
-  btn.textContent = "Copiado!";
-  setTimeout(() => { btn.textContent = "Copiar link"; }, 1500);
+  btn.textContent = t("common.copied");
+  setTimeout(() => { btn.textContent = t("common.copyLink"); }, 1500);
 });
 
 document.getElementById("contract-btn-cancel-contract").addEventListener("click", async () => {
-  if (!currentContract || !confirm("Cancelar este contrato? O link de assinatura deixará de funcionar.")) return;
+  if (!currentContract || !confirm(t("contracts.confirmCancel"))) return;
   const saved = await saveContractRemote({ ...currentContract, status: "Cancelado" });
-  if (!saved) { alert("Não foi possível cancelar o contrato."); return; }
+  if (!saved) { alert(t("contracts.cancelError")); return; }
   const idx = contracts.findIndex(c => c.id === saved.id);
   if (idx >= 0) contracts[idx] = saved;
   renderContractsList();
@@ -2274,7 +2292,7 @@ document.getElementById("contract-btn-cancel-contract").addEventListener("click"
 
 document.getElementById("contract-btn-delete").addEventListener("click", async () => {
   const id = document.getElementById("contract-id").value;
-  if (!id || !confirm("Excluir este contrato? Essa ação não pode ser desfeita.")) return;
+  if (!id || !confirm(t("contracts.confirmDelete"))) return;
   contracts = contracts.filter(c => c.id !== id);
   renderContractsList();
   closeContractModal();
@@ -2282,9 +2300,9 @@ document.getElementById("contract-btn-delete").addEventListener("click", async (
 });
 
 document.getElementById("contract-btn-download-pdf").addEventListener("click", async () => {
-  if (!currentContract || !currentContract.pdfPath) { alert("PDF ainda não disponível."); return; }
+  if (!currentContract || !currentContract.pdfPath) { alert(t("contracts.pdfNotReady")); return; }
   const { data, error } = await supabase.storage.from("contract-pdfs").createSignedUrl(currentContract.pdfPath, 300);
-  if (error || !data) { alert("Não foi possível gerar o link do PDF."); return; }
+  if (error || !data) { alert(t("contracts.pdfLinkError")); return; }
   window.open(data.signedUrl, "_blank", "noopener");
 });
 
@@ -2403,7 +2421,7 @@ function renderQuotes() {
       <td class="cell-muted">${escapeHtml(q.items || "—")}</td>
       <td class="cell-muted">${escapeHtml((consultant && consultant.name) || q.consultorName || "—")}</td>
       <td class="cell-muted">${formatDate(q.validade)}</td>
-      <td><span class="badge ${QUOTE_STATUS_BADGE[q.status] || "badge-neutral"}">${escapeHtml(q.status)}</span></td>
+      <td><span class="badge ${QUOTE_STATUS_BADGE[q.status] || "badge-neutral"}">${escapeHtml(statusLabel(q.status))}</span></td>
       <td class="cell-primary">${currency(q.value)}</td>
       <td class="cell-actions">›</td>
     `;
@@ -2466,7 +2484,7 @@ function openQuoteBuilder(id) {
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
 
   document.getElementById("q-btn-excluir").style.display = id ? "inline-block" : "none";
-  document.getElementById("quote-builder-title").textContent = id ? "Editar cotação" : "Nova cotação";
+  document.getElementById("quote-builder-title").textContent = id ? t("quotes.editTitle") : t("quotes.newTitle");
 
   if (id) {
     const q = quotes.find(x => x.id === id);
@@ -2496,7 +2514,7 @@ document.getElementById("q-btn-voltar").addEventListener("click", () => { openQu
 
 document.getElementById("q-btn-excluir").addEventListener("click", async () => {
   const id = document.getElementById("q-id").value;
-  if (!id || !confirm("Excluir esta cotação? Essa ação não pode ser desfeita.")) return;
+  if (!id || !confirm(t("quotes.confirmDelete"))) return;
   quotes = quotes.filter(q => q.id !== id);
   await deleteQuoteRemote(id);
   openQuoteList();
@@ -2518,9 +2536,9 @@ function renderQuoteLeadSearchResults(query) {
     ? matches.map(l => `
       <div class="enr-lead-result-item" data-id="${l.id}">
         <div>${escapeHtml(l.name)}</div>
-        <div class="sub">${escapeHtml(l.email || l.phone || "sem contato")}</div>
+        <div class="sub">${escapeHtml(l.email || l.phone || t("enr.noContact"))}</div>
       </div>`).join("")
-    : `<div class="enr-lead-result-empty">Nenhum lead encontrado</div>`;
+    : `<div class="enr-lead-result-empty">${t("enr.noLeadFound")}</div>`;
   quoteLeadResults.classList.add("open");
 }
 
@@ -2629,14 +2647,14 @@ function adminItemCardHtml(p, isAdmin) {
   const subs = p.subs.length;
   const actions = isAdmin ? `
     <div class="acts">
-      <button type="button" class="btn btn-ghost btn-sm" data-act="edit" data-id="${p.id}">Editar</button>
-      <button type="button" class="btn btn-danger btn-sm" data-act="del" data-id="${p.id}">Excluir</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-act="edit" data-id="${p.id}">${t("common.edit")}</button>
+      <button type="button" class="btn btn-danger btn-sm" data-act="del" data-id="${p.id}">${t("common.delete")}</button>
     </div>` : "";
   return `
     <div class="prod-card${p.ativo ? "" : " off"}">
       <div class="body">
-        <div class="nm">${escapeHtml(p.nome)}${p.ativo ? "" : '<span class="prod-tag">oculto</span>'}</div>
-        <div class="meta">por ${escapeHtml(p.unidade)}${subs ? ` · ${subs} subiten${subs > 1 ? "s" : ""}` : ""}${p.qtdFixa ? " · quantidade fixa" : ""}</div>
+        <div class="nm">${escapeHtml(p.nome)}${p.ativo ? "" : `<span class="prod-tag">${t("products.hiddenTag")}</span>`}</div>
+        <div class="meta">${t("products.byUnit")} ${escapeHtml(p.unidade)}${subs ? ` · ${subs} ${subs > 1 ? t("products.subitemPlural") : t("products.subitemSingular")}` : ""}${p.qtdFixa ? ` · ${t("products.fixedQtyTag")}` : ""}</div>
       </div>
       <div class="pr">${currency(p.preco)}</div>
       ${actions}
@@ -2710,7 +2728,7 @@ function renderCatalogList() {
   renderProductsDashboard();
 
   if (catalog.length === 0) {
-    catalogListEl.innerHTML = '<p class="muted-note">Nenhum produto no catálogo ainda. Use "+ Novo produto" para começar.</p>';
+    catalogListEl.innerHTML = `<p class="muted-note">${t("products.emptyCatalog1")} "${t("products.new")}" ${t("products.emptyCatalog2")}</p>`;
     return;
   }
 
@@ -2718,7 +2736,7 @@ function renderCatalogList() {
   const view = catalogNodeAtPath(tree, catalogNavPath);
   if (view.invalid) { catalogNavPath = []; renderCatalogList(); return; }
 
-  let html = renderCatalogBreadcrumb(catalogNavPath, "Catálogo");
+  let html = renderCatalogBreadcrumb(catalogNavPath, t("common.catalogRoot"));
 
   if (view.kind === "itens") {
     const itens = view.itens.slice().sort((a, b) => a.ordem - b.ordem);
@@ -2731,9 +2749,9 @@ function renderCatalogList() {
     }
 
     if (!view.boxes.length && !looseHtml) {
-      html += `<p class="muted-note">Nenhum item aqui ainda.</p>`;
+      html += `<p class="muted-note">${t("products.emptyItemsHere")}</p>`;
     } else {
-      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, "produto");
+      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, t("products.itemWord"));
       html += looseHtml;
     }
   }
@@ -2762,7 +2780,7 @@ catalogListEl.addEventListener("click", async e => {
   if (!p) return;
   if (btn.dataset.act === "edit") openProductModal(p.id);
   if (btn.dataset.act === "del") {
-    if (!confirm(`Excluir "${p.nome}" do catálogo? Essa ação não pode ser desfeita.`)) return;
+    if (!confirm(`${t("products.confirmDelete1")} "${p.nome}" ${t("products.confirmDelete2")}`)) return;
     catalog = catalog.filter(x => x.id !== p.id);
     renderCatalogList();
     quoteMontaDestinos();
@@ -2901,7 +2919,7 @@ productForm.addEventListener("submit", async e => {
 
 productBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("product-id").value;
-  if (!id || !confirm("Excluir este produto? Essa ação não pode ser desfeita.")) return;
+  if (!id || !confirm(t("products.confirmDeleteSimple"))) return;
   catalog = catalog.filter(p => p.id !== id);
   renderCatalogList();
   quoteMontaDestinos();
@@ -2964,7 +2982,7 @@ function quoteMontaCatalogo() {
   });
 
   if (lista.length === 0) {
-    quoteCatalogEl.innerHTML = `<p class="muted-note">${termo ? `Nenhum serviço encontrado para "${escapeHtml(termo)}".` : "Nenhum serviço cadastrado para este destino."}</p>`;
+    quoteCatalogEl.innerHTML = `<p class="muted-note">${termo ? `${t("quotes.noServiceFound1")} "${escapeHtml(termo)}".` : t("quotes.noServiceForDestination")}</p>`;
     quoteAtualizaPrevia();
     return;
   }
@@ -2979,7 +2997,7 @@ function quoteMontaCatalogo() {
   const view = catalogNodeAtPath(buildCatalogTree(lista), quoteNavPath);
   if (view.invalid) { quoteNavPath = []; quoteMontaCatalogo(); return; }
 
-  let html = renderCatalogBreadcrumb(quoteNavPath, "Serviços");
+  let html = renderCatalogBreadcrumb(quoteNavPath, t("quotes.services"));
 
   if (view.kind === "itens") {
     const itens = view.itens.slice().sort((a, b) => a.ordem - b.ordem);
@@ -2992,9 +3010,9 @@ function quoteMontaCatalogo() {
     }
 
     if (!view.boxes.length && !looseHtml) {
-      html += `<p class="muted-note">Nenhum item aqui ainda.</p>`;
+      html += `<p class="muted-note">${t("products.emptyItemsHere")}</p>`;
     } else {
-      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, "serviço");
+      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, t("quotes.serviceWord"));
       html += looseHtml;
     }
   }
@@ -3067,7 +3085,7 @@ document.getElementById("q-busca").addEventListener("input", () => {
 });
 
 document.getElementById("q-btn-limpar").addEventListener("click", () => {
-  if (!confirm("Limpar os dados do estudante e os serviços marcados?")) return;
+  if (!confirm(t("quotes.confirmClear"))) return;
   ["q-nome", "q-email", "q-obs", "q-busca"].forEach(id => { document.getElementById(id).value = ""; });
   document.getElementById("q-status").value = "Enviada";
   document.getElementById("q-lead-id").value = "";
@@ -3081,10 +3099,10 @@ document.getElementById("q-btn-limpar").addEventListener("click", () => {
 
 function quoteValida() {
   const campos = [
-    { el: document.getElementById("q-nome"), nome: "o nome do estudante" },
-    { el: document.getElementById("q-email"), nome: "o e-mail do estudante" },
-    { el: document.getElementById("q-consultor"), nome: "o nome do consultor" },
-    { el: document.getElementById("q-consultor-email"), nome: "o e-mail do consultor" },
+    { el: document.getElementById("q-nome"), nome: t("quotes.fieldStudentName") },
+    { el: document.getElementById("q-email"), nome: t("quotes.fieldStudentEmail") },
+    { el: document.getElementById("q-consultor"), nome: t("quotes.fieldConsultorName") },
+    { el: document.getElementById("q-consultor-email"), nome: t("quotes.fieldConsultorEmail") },
   ];
   const faltando = [];
   campos.forEach(c => {
@@ -3093,12 +3111,12 @@ function quoteValida() {
     if (vazio) faltando.push(c.nome);
   });
   if (faltando.length) {
-    alert("Preencha " + faltando.join(", ") + " antes de gerar.");
+    alert(t("quotes.fillPrefix") + " " + faltando.join(", ") + " " + t("quotes.fillSuffix"));
     campos.find(c => !c.el.value.trim()).el.focus();
     return false;
   }
   if (quoteLinhas().length === 0) {
-    alert("Marque pelo menos um serviço para a cotação.");
+    alert(t("quotes.selectAtLeastOneService"));
     return false;
   }
   return true;
@@ -3111,7 +3129,7 @@ function quoteValidaMinima() {
   const vazio = !nomeEl.value.trim();
   nomeEl.classList.toggle("err", vazio);
   if (vazio) {
-    alert("Preencha ao menos o nome do estudante para salvar.");
+    alert(t("quotes.fillStudentNameToSave"));
     nomeEl.focus();
     return false;
   }
@@ -3163,8 +3181,8 @@ async function quoteSalvar() {
   btn.disabled = true;
   await buildAndSaveQuoteRecord();
   document.getElementById("q-btn-excluir").style.display = "inline-block";
-  document.getElementById("quote-builder-title").textContent = "Editar cotação";
-  btn.textContent = "Salvo ✓";
+  document.getElementById("quote-builder-title").textContent = t("quotes.editTitle");
+  btn.textContent = t("quotes.saved");
   setTimeout(() => { btn.textContent = textoOriginal; btn.disabled = false; }, 1500);
 }
 
@@ -3190,7 +3208,7 @@ async function quoteGerar() {
   /* ---- gera o documento imprimível (PDF via "Salvar como PDF") ---- */
   document.getElementById("d-nome").textContent = nome;
   document.getElementById("d-email").textContent = email;
-  document.getElementById("d-titulo").textContent = "Cotação para " + nome;
+  document.getElementById("d-titulo").textContent = t("quotes.quoteFor") + " " + nome;
   document.getElementById("d-status").textContent = status;
   document.getElementById("d-consultor").textContent = consultorNome;
   document.getElementById("d-consultor-email").textContent = consultorEmail;
@@ -3482,7 +3500,7 @@ function renderFinanceiroOverview() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-primary">${escapeHtml(d.name)}</td>
-      <td><span class="badge ${won ? "badge-good" : "badge-danger"}">${won ? "Ganho" : "Perdido"}</span></td>
+      <td><span class="badge ${won ? "badge-good" : "badge-danger"}">${won ? t("status.ganho") : t("status.perdido")}</span></td>
       <td>${currency(d.value)}</td>
       <td class="cell-muted">${d.closedAt ? new Date(d.closedAt).toLocaleDateString("pt-BR") : "—"}</td>
     `;
@@ -3514,8 +3532,8 @@ function renderReceivables() {
       <td class="cell-muted">${r.installmentNumber}/${r.installmentsTotal}</td>
       <td>${currency(r.amount)}</td>
       <td class="cell-muted">${formatDate(r.dueDate)}</td>
-      <td><span class="badge ${r.paid ? "badge-good" : "badge-warn"}">${r.paid ? "Pago" : "Pendente"}</span></td>
-      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${r.paid ? "Marcar pendente" : "Marcar pago"}</button></td>
+      <td><span class="badge ${r.paid ? "badge-good" : "badge-warn"}">${r.paid ? t("status.pago") : t("status.pendente")}</span></td>
+      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${r.paid ? t("fin.markPending") : t("fin.markPaid")}</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -3541,7 +3559,7 @@ document.getElementById("fin-rec-filter-clear").addEventListener("click", () => 
 /* ---- Despesas ---- */
 function renderExpenseFilterOptions() {
   document.getElementById("fin-exp-filter-category").innerHTML =
-    `<option value="">Categoria (todas)</option>` + EXPENSE_CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+    `<option value="">${t("leads.categoryAll")}</option>` + EXPENSE_CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
 }
 
 function getFilteredExpenses() {
@@ -3567,7 +3585,7 @@ function renderExpenses() {
       <td class="cell-muted">${escapeHtml(e.category)}</td>
       <td>${currency(e.amount)}</td>
       <td class="cell-muted">${formatDate(e.dueDate)}</td>
-      <td><span class="badge ${e.paid ? "badge-good" : "badge-warn"}">${e.paid ? "Paga" : "Pendente"}</span></td>
+      <td><span class="badge ${e.paid ? "badge-good" : "badge-warn"}">${e.paid ? t("status.pago") : t("status.pendente")}</span></td>
       <td class="cell-actions">›</td>
     `;
     tr.addEventListener("click", () => openExpenseModal(e.id));
@@ -3648,7 +3666,7 @@ expenseForm.addEventListener("submit", async e => {
 expenseBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("expense-id").value;
   if (!id) return;
-  if (!confirm("Excluir esta despesa? Essa ação não pode ser desfeita.")) return;
+  if (!confirm(t("fin.confirmDeleteExpense"))) return;
   expenses = expenses.filter(x => x.id !== id);
   renderExpenses();
   renderFinanceiroOverview();
@@ -3668,8 +3686,8 @@ function renderExpenseCategoriesList() {
   expenseCategoriesListEl.innerHTML = EXPENSE_CATEGORIES.map((c, i) => `
     <div class="source-row">
       <input type="text" value="${escapeHtml(c)}" data-index="${i}">
-      <span class="source-usage">${expenseCategoryUsageCount(c)} despesa(s)</span>
-      <button type="button" class="btn btn-icon" data-act="del" data-index="${i}" title="Excluir categoria">&times;</button>
+      <span class="source-usage">${expenseCategoryUsageCount(c)} ${t("fin.expenseCount")}</span>
+      <button type="button" class="btn btn-icon" data-act="del" data-index="${i}" title="${t("fin.deleteCategory")}">&times;</button>
     </div>`).join("");
 }
 function openExpenseCategoriesModal() {
@@ -3692,7 +3710,7 @@ expenseCategoriesListEl.addEventListener("change", async e => {
   const newName = input.value.trim();
   if (!newName) { input.value = oldName; return; }
   const duplicate = EXPENSE_CATEGORIES.some((c, i) => i !== index && c.toLowerCase() === newName.toLowerCase());
-  if (duplicate) { alert("Já existe uma categoria com esse nome."); input.value = oldName; return; }
+  if (duplicate) { alert(t("fin.duplicateCategoryName")); input.value = oldName; return; }
   if (newName === oldName) return;
   EXPENSE_CATEGORIES[index] = newName;
   expenses.forEach(e => { if (e.category === oldName) e.category = newName; });
@@ -3708,11 +3726,11 @@ expenseCategoriesListEl.addEventListener("click", async e => {
   if (!btn) return;
   const index = parseInt(btn.dataset.index, 10);
   const name = EXPENSE_CATEGORIES[index];
-  if (EXPENSE_CATEGORIES.length === 1) { alert("Mantenha ao menos uma categoria cadastrada."); return; }
+  if (EXPENSE_CATEGORIES.length === 1) { alert(t("fin.keepAtLeastOneCategory")); return; }
   const count = expenseCategoryUsageCount(name);
   const msg = count > 0
-    ? `Excluir a categoria "${name}"? ${count} despesa(s) já usam esse valor — elas manterão "${name}" no registro, mas essa opção deixará de existir para novas despesas.`
-    : `Excluir a categoria "${name}"?`;
+    ? `${t("fin.confirmDeleteCategory1")} "${name}"? ${count} ${t("fin.confirmDeleteCategory2")} "${name}" ${t("fin.confirmDeleteCategory3")}`
+    : `${t("fin.confirmDeleteCategory1")} "${name}"?`;
   if (!confirm(msg)) return;
   EXPENSE_CATEGORIES.splice(index, 1);
   renderExpenseCategoriesList();
@@ -3724,7 +3742,7 @@ async function addNewExpenseCategory() {
   const name = expenseCategoriesNewInput.value.trim();
   if (!name) return;
   const duplicate = EXPENSE_CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase());
-  if (duplicate) { alert("Já existe uma categoria com esse nome."); return; }
+  if (duplicate) { alert(t("fin.duplicateCategoryName")); return; }
   EXPENSE_CATEGORIES.push(name);
   expenseCategoriesNewInput.value = "";
   renderExpenseCategoriesList();
@@ -3752,8 +3770,8 @@ function renderCommissions() {
       <td class="cell-muted">${currency(c.dealValue)}</td>
       <td class="cell-muted">${c.percentage}%</td>
       <td class="cell-primary">${currency(c.amount)}</td>
-      <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${c.status}</span></td>
-      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? "Marcar pendente" : "Marcar pago"}</button></td>
+      <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${escapeHtml(statusLabel(c.status))}</span></td>
+      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? t("fin.markPending") : t("fin.markPaid")}</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -3777,7 +3795,7 @@ document.getElementById("fin-commission-pct-save").addEventListener("click", asy
   const pct = parseFloat(document.getElementById("fin-commission-pct").value) || 0;
   commissionSettings.defaultPercentage = pct;
   await updateCommissionSettingRemote(pct);
-  alert("Comissão padrão atualizada.");
+  alert(t("fin.commissionUpdated"));
 });
 
 /* ============================================================
@@ -3867,14 +3885,14 @@ document.getElementById("student-access-modal-close").addEventListener("click", 
 document.getElementById("student-access-btn-close").addEventListener("click", closeStudentAccessModal);
 studentAccessModalBackdrop.addEventListener("click", e => { if (e.target === studentAccessModalBackdrop) closeStudentAccessModal(); });
 document.getElementById("student-access-btn-copy").addEventListener("click", async e => {
-  const text = `Acesse sua Área do Aluno: ${document.getElementById("student-access-link").value}\nE-mail: ${document.getElementById("student-access-email").value}\nSenha: ${document.getElementById("student-access-password").value}`;
+  const text = `${t("studentAccess.copyAccess")} ${document.getElementById("student-access-link").value}\n${t("studentAccess.copyEmail")} ${document.getElementById("student-access-email").value}\n${t("studentAccess.copyPassword")} ${document.getElementById("student-access-password").value}`;
   const btn = e.currentTarget;
   const original = btn.textContent;
   try {
     await navigator.clipboard.writeText(text);
-    btn.textContent = "Copiado!";
+    btn.textContent = t("common.copied");
   } catch {
-    prompt("Copie os dados abaixo:", text);
+    prompt(t("common.copyDataPrompt"), text);
   }
   setTimeout(() => { btn.textContent = original; }, 1500);
 });
@@ -3929,9 +3947,9 @@ async function copyEnrollmentLink(enr, btnEl) {
   const original = btnEl.textContent;
   try {
     await navigator.clipboard.writeText(url);
-    btnEl.textContent = "Copiado!";
+    btnEl.textContent = t("common.copied");
   } catch {
-    prompt("Copie o link abaixo:", url);
+    prompt(t("common.copyLinkPrompt"), url);
   }
   setTimeout(() => { btnEl.textContent = original; }, 1500);
 }
@@ -3947,7 +3965,7 @@ function renderEnrollments() {
       <td class="cell-primary">${escapeHtml(e.name || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.turno || "—")}</td>
-      <td><span class="badge ${ENROLLMENT_STATUS_BADGE[e.status] || "badge-neutral"}">${escapeHtml(e.status)}</span></td>
+      <td><span class="badge ${ENROLLMENT_STATUS_BADGE[e.status] || "badge-neutral"}">${escapeHtml(statusLabel(e.status))}</span></td>
       <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="copy-link">Copiar link</button></td>
     `;
     tr.querySelector('[data-act="copy-link"]').addEventListener("click", ev => {
@@ -3989,9 +4007,9 @@ function renderLeadSearchResults(query) {
     ? matches.map(l => `
       <div class="enr-lead-result-item" data-id="${l.id}">
         <div>${escapeHtml(l.name)}</div>
-        <div class="sub">${escapeHtml(l.email || l.phone || "sem contato")}</div>
+        <div class="sub">${escapeHtml(l.email || l.phone || t("enr.noContact"))}</div>
       </div>`).join("")
-    : `<div class="enr-lead-result-empty">Nenhum lead encontrado</div>`;
+    : `<div class="enr-lead-result-empty">${t("enr.noLeadFound")}</div>`;
   enrollmentLeadResults.classList.add("open");
 }
 
@@ -4044,7 +4062,7 @@ document.getElementById("enrollment-new-form").addEventListener("submit", async 
     status: "Aguardando aluno",
   };
   const saved = await saveEnrollmentRemote(draft);
-  if (!saved) { alert("Não foi possível criar a matrícula. Tente novamente."); return; }
+  if (!saved) { alert(t("enr.createError")); return; }
   enrollments.push(saved);
   renderEnrollments();
   closeNewEnrollmentModal();
@@ -4069,7 +4087,7 @@ async function openEnrollmentModal(id) {
   const enr = enrollments.find(x => x.id === id);
   if (!enr) return;
 
-  document.getElementById("enrollment-modal-title").textContent = enr.name || "Matrícula";
+  document.getElementById("enrollment-modal-title").textContent = enr.name || t("enr.newTitle");
   document.getElementById("enr-id").value = enr.id;
   document.getElementById("enr-field-name").value = enr.name || "";
   document.getElementById("enr-field-status").value = enr.status || "Aguardando aluno";
@@ -4123,7 +4141,7 @@ document.getElementById("enr-copy-link").addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(input.value);
     const original = btn.textContent;
-    btn.textContent = "Copiado!";
+    btn.textContent = t("common.copied");
     setTimeout(() => { btn.textContent = original; }, 1500);
   } catch {
     /* clipboard indisponível — o campo já fica selecionado para copiar com Ctrl/Cmd+C */
@@ -4181,7 +4199,7 @@ enrollmentForm.addEventListener("submit", async e => {
 enrBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("enr-id").value;
   if (!id) return;
-  if (!confirm("Excluir esta matrícula? Essa ação não pode ser desfeita.")) return;
+  if (!confirm(t("enr.confirmDelete"))) return;
   enrollments = enrollments.filter(x => x.id !== id);
   renderEnrollments();
   closeEnrollmentModal();
@@ -4274,9 +4292,9 @@ document.getElementById("btn-copy-collaborator-signup-link").addEventListener("c
   const original = btn.textContent;
   try {
     await navigator.clipboard.writeText(url);
-    btn.textContent = "Copiado!";
+    btn.textContent = t("common.copied");
   } catch {
-    prompt("Copie o link abaixo:", url);
+    prompt(t("common.copyLinkPrompt"), url);
   }
   setTimeout(() => { btn.textContent = original; }, 1500);
 });
@@ -4357,7 +4375,7 @@ function renderCollaborators() {
       <td class="cell-primary">${escapeHtml(c.name || "—")}</td>
       <td class="cell-muted">${escapeHtml(c.roleTitle || "—")}</td>
       <td class="cell-muted">${escapeHtml(c.department || "—")}</td>
-      <td><span class="badge ${COLLAB_STATUS_BADGE[c.status] || "badge-neutral"}">${escapeHtml(c.status)}</span></td>
+      <td><span class="badge ${COLLAB_STATUS_BADGE[c.status] || "badge-neutral"}">${escapeHtml(statusLabel(c.status))}</span></td>
       <td class="cell-actions">›</td>
     `;
     tr.addEventListener("click", () => openCollaboratorModal(c.id));
@@ -4388,7 +4406,7 @@ function renderCollaboratorManagerOptions() {
   const sel = document.getElementById("collab-field-manager");
   const current = sel.value;
   const managers = users.filter(u => u.role === "ADM" || u.role === "Gerente").slice().sort((a, b) => a.name.localeCompare(b.name));
-  sel.innerHTML = `<option value="">Sem gestor definido</option>` + managers.map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join("");
+  sel.innerHTML = `<option value="">${t("team.noManagerSet")}</option>` + managers.map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join("");
   sel.value = current;
 }
 
@@ -4400,7 +4418,7 @@ function openCollaboratorModal(id) {
   if (id) {
     const c = collaborators.find(x => x.id === id);
     if (!c) return;
-    document.getElementById("collaborator-modal-title").textContent = c.name || "Colaborador";
+    document.getElementById("collaborator-modal-title").textContent = c.name || t("team.collaborator");
     document.getElementById("collab-id").value = c.id;
     document.getElementById("collab-field-name").value = c.name || "";
     document.getElementById("collab-field-status").value = c.status || "Aguardando colaborador";
@@ -4439,7 +4457,7 @@ function openCollaboratorModal(id) {
       });
     });
   } else {
-    document.getElementById("collaborator-modal-title").textContent = "Novo colaborador";
+    document.getElementById("collaborator-modal-title").textContent = t("team.newTitle");
     document.getElementById("collab-id").value = "";
     document.getElementById("collab-field-status").value = "Aguardando colaborador";
     collabBtnDelete.style.display = "none";
@@ -4501,7 +4519,7 @@ collaboratorForm.addEventListener("submit", async e => {
   }
 
   const saved = await saveCollaboratorRemote(merged);
-  if (!saved) { alert("Não foi possível salvar o colaborador. Tente novamente."); return; }
+  if (!saved) { alert(t("team.saveError")); return; }
 
   if (existing) Object.assign(existing, saved);
   else collaborators.push(saved);
@@ -4512,7 +4530,7 @@ collaboratorForm.addEventListener("submit", async e => {
 
 collabBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("collab-id").value;
-  if (!id || !confirm("Excluir este colaborador? Essa ação não pode ser desfeita.")) return;
+  if (!id || !confirm(t("team.confirmDelete"))) return;
   collaborators = collaborators.filter(x => x.id !== id);
   renderCollaborators();
   closeCollaboratorModal();
@@ -4527,15 +4545,15 @@ collabBtnDelete.addEventListener("click", async () => {
    roda todo no banco (RPC security definer), sem passar por aqui.
    ============================================================ */
 const FORM_FIELD_TYPES = [
-  { value: "name", label: "Nome (vira o nome do lead)" },
-  { value: "email", label: "E-mail (vira o e-mail do lead)" },
-  { value: "phone_br", label: "Telefone com DDD (vira o telefone do lead)" },
-  { value: "source", label: "Origem (como o lead chegou até nós)" },
-  { value: "boolean", label: "Sim / Não" },
-  { value: "date", label: "Data" },
-  { value: "text", label: "Texto curto" },
-  { value: "textarea", label: "Texto longo" },
-  { value: "select", label: "Lista de opções personalizada" },
+  { value: "name", label: () => t("forms.fieldTypeName") },
+  { value: "email", label: () => t("forms.fieldTypeEmail") },
+  { value: "phone_br", label: () => t("forms.fieldTypePhone") },
+  { value: "source", label: () => t("forms.fieldTypeSource") },
+  { value: "boolean", label: () => t("forms.fieldTypeBoolean") },
+  { value: "date", label: () => t("forms.fieldTypeDate") },
+  { value: "text", label: () => t("forms.fieldTypeTextShort") },
+  { value: "textarea", label: () => t("forms.fieldTypeTextLong") },
+  { value: "select", label: () => t("forms.fieldTypeSelect") },
 ];
 
 let forms = [];
@@ -4543,7 +4561,7 @@ let formSubmissions = [];
 
 function formFromDb(r) {
   return {
-    id: r.id, title: r.title || "Formulário", subtitle: r.subtitle || "",
+    id: r.id, title: r.title || t("forms.newTitle"), subtitle: r.subtitle || "",
     slug: r.slug, fields: Array.isArray(r.fields) ? r.fields : [], active: r.active !== false,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
@@ -4619,10 +4637,10 @@ function renderFormsList() {
       <td class="cell-primary">${escapeHtml(f.title)}</td>
       <td class="cell-muted">${escapeHtml(f.subtitle || "—")}</td>
       <td class="cell-muted">${f.fields.length}</td>
-      <td><button type="button" class="btn btn-ghost btn-sm" data-act="responses">Respostas (${formSubmissionCount(f.id)})</button></td>
+      <td><button type="button" class="btn btn-ghost btn-sm" data-act="responses">${t("forms.responses")} (${formSubmissionCount(f.id)})</button></td>
       <td class="cell-actions">
         <div class="cell-actions-row">
-          <button type="button" class="cell-copy-btn" data-act="copy" title="Copiar link">${CELL_COPY_ICON_SVG}</button>
+          <button type="button" class="cell-copy-btn" data-act="copy" title="${t("common.copyLink")}">${CELL_COPY_ICON_SVG}</button>
           <span>›</span>
         </div>
       </td>
@@ -4659,15 +4677,15 @@ function renderFormBuilderFields() {
   container.innerHTML = formBuilderFields.map((f, i) => `
     <div class="form-field-row" data-index="${i}">
       <div class="form-field-row-main">
-        <input type="text" class="ff-label" ${dis} placeholder="Pergunta" value="${escapeHtml(f.label || "")}">
+        <input type="text" class="ff-label" ${dis} placeholder="${t("forms.questionPlaceholder")}" value="${escapeHtml(f.label || "")}">
         <select class="ff-type" ${dis}>
-          ${FORM_FIELD_TYPES.map(t => `<option value="${t.value}" ${f.type === t.value ? "selected" : ""}>${escapeHtml(t.label)}</option>`).join("")}
+          ${FORM_FIELD_TYPES.map(ft => `<option value="${ft.value}" ${f.type === ft.value ? "selected" : ""}>${escapeHtml(ft.label())}</option>`).join("")}
         </select>
       </div>
       <div class="form-field-row-sub">
-        <label class="checkbox-label"><input type="checkbox" class="ff-required" ${dis} ${f.required ? "checked" : ""}><span>Obrigatório</span></label>
-        <input type="text" class="ff-options" ${dis} placeholder="Opções separadas por vírgula" value="${escapeHtml((f.options || []).join(", "))}" style="${f.type === "select" ? "" : "display:none;"}">
-        ${formBuilderReadOnly ? "" : '<button type="button" class="btn-icon ff-delete" title="Excluir campo">&times;</button>'}
+        <label class="checkbox-label"><input type="checkbox" class="ff-required" ${dis} ${f.required ? "checked" : ""}><span>${t("forms.required")}</span></label>
+        <input type="text" class="ff-options" ${dis} placeholder="${t("forms.optionsPlaceholder")}" value="${escapeHtml((f.options || []).join(", "))}" style="${f.type === "select" ? "" : "display:none;"}">
+        ${formBuilderReadOnly ? "" : `<button type="button" class="btn-icon ff-delete" title="${t("forms.deleteField")}">&times;</button>`}
       </div>
     </div>`).join("");
 }
@@ -4725,7 +4743,7 @@ function openFormModal(id) {
     formBtnDelete.style.display = formBuilderReadOnly ? "none" : "inline-block";
     formBtnCopyLink.style.display = "inline-block";
   } else {
-    document.getElementById("form-modal-title").textContent = "Novo formulário";
+    document.getElementById("form-modal-title").textContent = t("forms.newTitle");
     document.getElementById("form-id").value = "";
     formBuilderFields = [];
     formModalSlug = "";
@@ -4752,8 +4770,8 @@ formModalBackdrop.addEventListener("click", e => { if (e.target === formModalBac
 formBtnCopyLink.addEventListener("click", () => {
   if (!formModalSlug) return;
   navigator.clipboard.writeText(buildFormPublicUrl(formModalSlug));
-  formBtnCopyLink.textContent = "Copiado!";
-  setTimeout(() => { formBtnCopyLink.textContent = "Copiar link"; }, 1500);
+  formBtnCopyLink.textContent = t("common.copied");
+  setTimeout(() => { formBtnCopyLink.textContent = t("common.copyLink"); }, 1500);
 });
 
 formBuilderForm.addEventListener("submit", async e => {
@@ -4763,11 +4781,11 @@ formBuilderForm.addEventListener("submit", async e => {
   const title = document.getElementById("form-field-title").value.trim();
   const subtitle = document.getElementById("form-field-subtitle").value.trim();
   if (!formBuilderFields.length) {
-    alert("Adicione ao menos um campo ao formulário.");
+    alert(t("forms.addFieldError"));
     return;
   }
   if (formBuilderFields.some(f => !f.label.trim())) {
-    alert("Preencha o texto de todas as perguntas do formulário.");
+    alert(t("forms.fillQuestionsError"));
     return;
   }
 
@@ -4783,7 +4801,7 @@ formBuilderForm.addEventListener("submit", async e => {
   };
 
   const saved = await saveFormRemote(data);
-  if (!saved) { alert("Não foi possível salvar o formulário. Tente novamente."); return; }
+  if (!saved) { alert(t("forms.saveError")); return; }
 
   if (id) {
     const idx = forms.findIndex(x => x.id === id);
@@ -4797,7 +4815,7 @@ formBuilderForm.addEventListener("submit", async e => {
 
 formBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("form-id").value;
-  if (!id || !confirm("Excluir este formulário? O link público deixará de funcionar. Essa ação não pode ser desfeita.")) return;
+  if (!id || !confirm(t("forms.confirmDelete"))) return;
   forms = forms.filter(f => f.id !== id);
   renderFormsList();
   closeFormModal();
@@ -4810,7 +4828,7 @@ let formResponsesFormId = null;
 function openFormResponses(formId) {
   formResponsesFormId = formId;
   const form = forms.find(f => f.id === formId);
-  document.getElementById("fr-title").textContent = form ? `Respostas — ${form.title}` : "Respostas";
+  document.getElementById("fr-title").textContent = form ? `${t("forms.responsesTitlePrefix")} ${form.title}` : t("forms.responses");
   document.getElementById("subview-formularios-lista").classList.remove("active");
   document.getElementById("subview-formularios-respostas").classList.add("active");
   renderFormResponses();
@@ -4833,8 +4851,8 @@ function renderFormResponses() {
 
   thead.innerHTML = `<tr>
     ${form.fields.map(f => `<th>${escapeHtml(f.label)}</th>`).join("")}
-    <th>Recebido em</th>
-    <th>Lead</th>
+    <th>${t("forms.receivedOn")}</th>
+    <th>${t("common.lead")}</th>
   </tr>`;
 
   const rows = formSubmissions.filter(s => s.formId === form.id).sort((a, b) => b.createdAt - a.createdAt);
@@ -4851,15 +4869,15 @@ function renderFormResponses() {
 
     let leadCell;
     if (s.leadId) {
-      leadCell = `<button type="button" class="fr-lead-badge" data-act="view-lead" data-lead-id="${s.leadId}">✓ Ver lead</button>`;
+      leadCell = `<button type="button" class="fr-lead-badge" data-act="view-lead" data-lead-id="${s.leadId}">${t("forms.viewLeadBtn")}</button>`;
     } else if (canConvert) {
       leadCell = `
         <div class="fr-convert-cell">
           <select data-role="consultor">
-            <option value="">Sem consultor</option>
+            <option value="">${t("forms.noConsultant")}</option>
             ${consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
           </select>
-          <button type="button" class="btn btn-primary btn-sm" data-act="convert" data-submission-id="${s.id}">Transformar em lead</button>
+          <button type="button" class="btn btn-primary btn-sm" data-act="convert" data-submission-id="${s.id}">${t("forms.convertToLead")}</button>
         </div>`;
     } else {
       leadCell = "—";
@@ -4873,7 +4891,7 @@ function renderFormResponses() {
       const row = btn.closest("tr");
       const consultorSel = row.querySelector('[data-role="consultor"]');
       btn.disabled = true;
-      btn.textContent = "Salvando…";
+      btn.textContent = t("forms.saving");
       await convertSubmissionToLead(btn.dataset.submissionId, consultorSel.value || null);
     });
   });
@@ -4906,7 +4924,7 @@ function buildLeadFromSubmission(form, submission) {
   });
 
   return {
-    id: uid(), name: name || "Lead sem nome", company: "", email,
+    id: uid(), name: name || t("forms.leadNoName"), company: "", email,
     countryCode: "BR", phoneDdd: ddd, phoneNumber: number,
     phone: ddd && number ? `(${ddd}) ${number}` : "",
     source, category: "Outro", status: "Novo", temperature: "Morno",
@@ -5015,7 +5033,7 @@ function renderDashboardFunnel() {
   const openStages = STAGES.filter(s => !s.isLost);
 
   if (deals.length === 0 || openStages.length === 0) {
-    container.innerHTML = `<p class="muted-note dash-funnel-empty">Nenhum negócio no pipeline ainda.</p>`;
+    container.innerHTML = `<p class="muted-note dash-funnel-empty">${t("dash.noDealsInPipeline")}</p>`;
     return;
   }
 
@@ -5039,7 +5057,7 @@ function renderDashboardFunnel() {
   }).join("");
 
   const lostHtml = lostCount > 0
-    ? `<p class="muted-note" style="margin-top:6px;">+ ${lostCount} negócio(s) perdido(s) no funil atual</p>`
+    ? `<p class="muted-note" style="margin-top:6px;">+ ${lostCount} ${t("dash.lostDealsInFunnel")}</p>`
     : "";
 
   container.innerHTML = rows + lostHtml;
@@ -5205,11 +5223,11 @@ function renderDashboardAlertas() {
 
   const items = [
     ...overdueReceivables.map(r => ({
-      title: `${r.clientName || "Cliente"} — parcela ${r.installmentNumber}/${r.installmentsTotal}`,
-      sub: `Venceu em ${formatDate(r.dueDate)}`, value: currency(r.amount), date: r.dueDate,
+      title: `${r.clientName || t("dash.clientFallback")} — ${t("dash.installmentWord")} ${r.installmentNumber}/${r.installmentsTotal}`,
+      sub: `${t("dash.overdueSub")} ${formatDate(r.dueDate)}`, value: currency(r.amount), date: r.dueDate,
     })),
     ...overdueExpenses.map(e => ({
-      title: e.description, sub: `Despesa venceu em ${formatDate(e.dueDate)}`, value: currency(e.amount), date: e.dueDate,
+      title: e.description, sub: `${t("dash.expenseDueSub")} ${formatDate(e.dueDate)}`, value: currency(e.amount), date: e.dueDate,
     })),
   ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
 
@@ -5235,13 +5253,13 @@ function renderDashboardAlertas() {
 /* ---- lista: atividade recente ---- */
 function renderDashboardAtividade() {
   const recentLeads = leads.slice().sort((a, b) => b.createdAt - a.createdAt).slice(0, 5)
-    .map(l => ({ kind: "lead", id: l.id, title: l.name, sub: `Novo lead · ${l.source || "Outro"}`, date: l.createdAt }));
+    .map(l => ({ kind: "lead", id: l.id, title: l.name, sub: `${t("dash.newLeadSub")} ${l.source || t("common.other")}`, date: l.createdAt }));
 
   const recentDeals = deals.filter(d => isClosedStage(d.stage) && d.closedAt).slice()
     .sort((a, b) => b.closedAt - a.closedAt).slice(0, 5)
     .map(d => ({
       kind: "deal", id: d.id, title: d.name,
-      sub: isWonStage(d.stage) ? `Negócio ganho · ${currency(d.value)}` : "Negócio perdido",
+      sub: isWonStage(d.stage) ? `${t("dash.dealWonSub")} · ${currency(d.value)}` : t("dash.dealLostSub"),
       date: d.closedAt, won: isWonStage(d.stage),
     }));
 
@@ -5249,7 +5267,7 @@ function renderDashboardAtividade() {
 
   const listEl = document.getElementById("dash-atividade-list");
   if (!items.length) {
-    listEl.innerHTML = `<p class="muted-note" style="padding:16px 20px;">Nenhuma atividade recente ainda.</p>`;
+    listEl.innerHTML = `<p class="muted-note" style="padding:16px 20px;">${t("dash.noRecentActivity")}</p>`;
     return;
   }
 
@@ -5287,8 +5305,13 @@ function renderDashboardAtividade() {
 let dashCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let dashCalendarSelectedDate = new Date().toISOString().slice(0, 10);
 const DASH_CAL_DOW = ["D", "S", "T", "Q", "Q", "S", "S"];
-const DASH_CAL_MONTH_LABEL = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-const AGENDA_TYPE_LABELS = { tarefa: "Tarefa", reuniao: "Reunião", aviso: "Aviso" };
+function dashCalMonthLabel(i) {
+  const keys = ["monthJan", "monthFeb", "monthMar", "monthApr", "monthMay", "monthJun", "monthJul", "monthAug", "monthSep", "monthOct", "monthNov", "monthDec"];
+  return t(`dash.${keys[i]}`);
+}
+function agendaTypeLabel(type) {
+  return { tarefa: t("agenda.taskType"), reuniao: t("agenda.meetingType"), aviso: t("agenda.noticeType") }[type] || type;
+}
 
 function renderDashCalendar() {
   const grid = document.getElementById("dash-calendar");
@@ -5332,15 +5355,15 @@ function renderDashCalendar() {
 
   grid.innerHTML = `
     <div class="dash-calendar-nav">
-      <button type="button" id="dash-cal-prev" aria-label="Mês anterior">&lsaquo;</button>
-      <span class="dash-cal-label">${DASH_CAL_MONTH_LABEL[month]} de ${year}</span>
-      <button type="button" id="dash-cal-next" aria-label="Próximo mês">&rsaquo;</button>
+      <button type="button" id="dash-cal-prev" aria-label="${t("dash.prevMonth")}">&lsaquo;</button>
+      <span class="dash-cal-label">${dashCalMonthLabel(month)} de ${year}</span>
+      <button type="button" id="dash-cal-next" aria-label="${t("dash.nextMonth")}">&rsaquo;</button>
     </div>
     <div class="dash-cal-grid">${dowHtml}${daysHtml}</div>
     <div class="dash-cal-legend">
-      <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-tarefa"></span>Tarefa</span>
-      <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-reuniao"></span>Reunião</span>
-      <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-aviso"></span>Aviso</span>
+      <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-tarefa"></span>${t("agenda.taskType")}</span>
+      <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-reuniao"></span>${t("agenda.meetingType")}</span>
+      <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-aviso"></span>${t("agenda.noticeType")}</span>
     </div>`;
 
   document.getElementById("dash-cal-prev").addEventListener("click", () => {
@@ -5366,8 +5389,8 @@ function renderDashAgendaDay() {
   const label = document.getElementById("dash-agenda-day-label");
   const todayIso = new Date().toISOString().slice(0, 10);
   label.textContent = dashCalendarSelectedDate === todayIso
-    ? "Agenda de hoje"
-    : `Agenda de ${formatDate(dashCalendarSelectedDate)}`;
+    ? t("dash.todayAgenda")
+    : `${t("dash.agendaOn")} ${formatDate(dashCalendarSelectedDate)}`;
 
   const items = agendaItems
     .filter(a => a.itemDate === dashCalendarSelectedDate)
@@ -5375,13 +5398,13 @@ function renderDashAgendaDay() {
 
   const list = document.getElementById("dash-agenda-day-list");
   if (!items.length) {
-    list.innerHTML = `<p class="muted-note" style="padding:4px 0;">Nada agendado nesse dia.</p>`;
+    list.innerHTML = `<p class="muted-note" style="padding:4px 0;">${t("dash.nothingScheduled")}</p>`;
     return;
   }
 
   list.innerHTML = items.map(a => {
     const consultor = a.consultorId ? users.find(u => u.id === a.consultorId) : null;
-    const metaParts = [AGENDA_TYPE_LABELS[a.type] || a.type];
+    const metaParts = [agendaTypeLabel(a.type)];
     if (a.itemTime) metaParts.push(a.itemTime.slice(0, 5));
     if (consultor) metaParts.push(consultor.name);
     return `
@@ -5416,7 +5439,7 @@ document.querySelectorAll(".agenda-type-btn").forEach(btn => {
 function renderAgendaConsultorOptions(currentId) {
   const sel = document.getElementById("agenda-field-consultor");
   const consultants = users.filter(u => u.role === "Consultor");
-  sel.innerHTML = `<option value="">Sem consultor específico</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  sel.innerHTML = `<option value="">${t("agenda.noSpecificConsultant")}</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   if (currentId) sel.value = currentId;
   else if (session && session.role === "Consultor") sel.value = session.id;
 }
@@ -5426,7 +5449,7 @@ function openAgendaModal(id, presetDate) {
   const existing = id ? agendaItems.find(a => a.id === id) : null;
 
   if (existing) {
-    document.getElementById("agenda-modal-title").textContent = "Editar compromisso";
+    document.getElementById("agenda-modal-title").textContent = t("agenda.editTitle");
     document.getElementById("agenda-id").value = existing.id;
     document.getElementById("agenda-field-title").value = existing.title;
     document.getElementById("agenda-field-date").value = existing.itemDate;
@@ -5436,7 +5459,7 @@ function openAgendaModal(id, presetDate) {
     setAgendaType(existing.type);
     agendaBtnDelete.style.display = "inline-block";
   } else {
-    document.getElementById("agenda-modal-title").textContent = "Novo compromisso";
+    document.getElementById("agenda-modal-title").textContent = t("agenda.newTitle");
     document.getElementById("agenda-id").value = "";
     document.getElementById("agenda-field-date").value = presetDate || dashCalendarSelectedDate;
     renderAgendaConsultorOptions(null);
@@ -5469,7 +5492,7 @@ agendaForm.addEventListener("submit", async e => {
   };
 
   const saved = await saveAgendaItemRemote(data);
-  if (!saved) { alert("Não foi possível salvar o compromisso. Tente novamente."); return; }
+  if (!saved) { alert(t("agenda.saveError")); return; }
 
   if (id) {
     const idx = agendaItems.findIndex(a => a.id === id);
@@ -5486,7 +5509,7 @@ agendaForm.addEventListener("submit", async e => {
 
 agendaBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("agenda-id").value;
-  if (!id || !confirm("Excluir este compromisso?")) return;
+  if (!id || !confirm(t("agenda.confirmDelete"))) return;
   agendaItems = agendaItems.filter(a => a.id !== id);
   renderDashCalendar();
   renderDashAgendaDay();
@@ -5623,7 +5646,7 @@ function renderUsers() {
       <td class="cell-primary">${escapeHtml(u.name)}</td>
       <td class="cell-muted">${escapeHtml(u.email)}</td>
       <td><span class="badge ${u.role === "ADM" ? "badge-role-adm" : "badge-neutral"}">${escapeHtml(u.role)}</span></td>
-      <td><span class="badge ${u.active ? "badge-good" : "badge-danger"}">${u.active ? "Ativo" : "Inativo"}</span></td>
+      <td><span class="badge ${u.active ? "badge-good" : "badge-danger"}">${u.active ? t("users.statusActive") : t("users.statusInactive")}</span></td>
       <td class="cell-actions">›</td>
     `;
     tr.addEventListener("click", () => openUserModal(u.id));
@@ -5664,7 +5687,7 @@ function openUserModal(id) {
 function closeUserModal() { userModalBackdrop.classList.remove("open"); }
 
 document.getElementById("btn-new-user").addEventListener("click", () => {
-  alert('Para criar um novo login, use o Supabase Dashboard → Authentication → Users → "Add user". Depois de criado, ele aparece aqui para você ajustar a função e o acesso.');
+  alert(t("users.createInfoAlert"));
 });
 document.getElementById("user-modal-close").addEventListener("click", closeUserModal);
 document.getElementById("user-btn-cancel").addEventListener("click", closeUserModal);
@@ -5674,12 +5697,12 @@ document.getElementById("user-btn-reset-password").addEventListener("click", asy
   const id = document.getElementById("user-id").value;
   const u = users.find(u => u.id === id);
   if (!u) return;
-  if (!confirm(`Enviar e-mail de redefinição de senha para ${u.name} (${u.email})?`)) return;
+  if (!confirm(`${t("users.confirmSendReset1")} ${u.name} (${u.email})?`)) return;
 
   const btn = document.getElementById("user-btn-reset-password");
   const original = btn.textContent;
   btn.disabled = true;
-  btn.textContent = "Enviando…";
+  btn.textContent = t("users.sending");
 
   const { error } = await supabase.auth.resetPasswordForEmail(u.email, {
     redirectTo: `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}redefinir-senha.html`,
@@ -5689,10 +5712,10 @@ document.getElementById("user-btn-reset-password").addEventListener("click", asy
   btn.textContent = original;
 
   if (error) {
-    alert("Não foi possível enviar o e-mail de redefinição. Tente novamente.");
+    alert(t("users.resetSendError"));
     return;
   }
-  alert(`E-mail de redefinição enviado para ${u.email}.`);
+  alert(`${t("users.resetSentSuccess")} ${u.email}.`);
 });
 
 userForm.addEventListener("submit", async e => {
@@ -5705,7 +5728,7 @@ userForm.addEventListener("submit", async e => {
   const active = document.getElementById("user-field-active").checked;
   const wasLastAdmin = u.role === "ADM" && users.filter(x => x.role === "ADM" && x.active).length === 1;
   if (wasLastAdmin && (role !== "ADM" || !active)) {
-    alert("Não é possível remover o acesso do último administrador (ADM).");
+    alert(t("users.cantRemoveLastAdmin"));
     return;
   }
 
@@ -5723,10 +5746,10 @@ userBtnDelete.addEventListener("click", async () => {
   if (!id) return;
   const u = users.find(u => u.id === id);
   if (u.role === "ADM" && users.filter(x => x.role === "ADM" && x.active).length === 1) {
-    alert("Não é possível desativar o último administrador (ADM).");
+    alert(t("users.cantDeactivateLastAdmin"));
     return;
   }
-  if (!confirm(`Desativar "${u.name}"? Ele perde o acesso ao sistema imediatamente. Para excluir o login por completo, use o Supabase Dashboard.`)) return;
+  if (!confirm(`${t("users.confirmDeactivate1")} "${u.name}"${t("users.confirmDeactivate2")}`)) return;
   u.active = false;
   renderUsers();
   closeUserModal();
@@ -5742,7 +5765,7 @@ function renderPermissionsTable() {
   const admRow = document.createElement("tr");
   admRow.innerHTML = `
     <td class="perm-role-name">ADM</td>
-    <td colspan="8" class="perm-locked">Acesso total (fixo)</td>
+    <td colspan="8" class="perm-locked">${t("users.fullAccessFixed")}</td>
   `;
   permissionsTbody.appendChild(admRow);
 
