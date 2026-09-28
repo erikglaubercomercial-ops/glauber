@@ -13,6 +13,7 @@ function canAccessView(view) {
   if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
   if (view === "usuarios") return session.role === "ADM";
   if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
+  if (view === "meusleads") return hasModuleAccess(session.role, "leads");
   return hasModuleAccess(session.role, view);
 }
 
@@ -85,11 +86,17 @@ function switchView(view) {
   document.querySelectorAll(".nav-item[data-view]").forEach(item => {
     item.classList.toggle("active", item.dataset.view === view);
   });
+  const sectionId = view === "meusleads" ? "leads" : view;
   document.querySelectorAll(".view").forEach(section => {
-    section.classList.toggle("active", section.id === `view-${view}`);
+    section.classList.toggle("active", section.id === `view-${sectionId}`);
   });
   document.getElementById("view-title").textContent = t(`nav.${view}`);
   if (view === "dashboard") renderDashboardView();
+  if (view === "leads" || view === "meusleads") {
+    leadsOwnOnlyMode = view === "meusleads";
+    renderLeadFilterOptions();
+    renderLeads();
+  }
   if (view === "leadsparados") {
     document.getElementById("subview-stuck-detalhe").classList.remove("active");
     document.getElementById("subview-stuck-overview").classList.add("active");
@@ -114,7 +121,7 @@ const DEFAULT_MENU_STRUCTURE = {
   sections: [
     { id: "geral", items: [
       { id: "dashboard" },
-      { id: "leads", children: ["leadsparados"] },
+      { id: "leads", children: ["meusleads", "leadsparados"] },
       { id: "pipeline" },
       { id: "cotacao" },
       { id: "contratos" },
@@ -1208,6 +1215,10 @@ function isOwnLeadsOnly() {
   return !!(session && session.role === "Consultor");
 }
 
+/* ativado quando a tela "Meus leads" (submenu de Leads) está aberta —
+   força ver só os próprios leads, mesmo pra quem normalmente vê todos */
+let leadsOwnOnlyMode = false;
+
 /* só ADM e Gerente podem alterar a origem de um lead já cadastrado —
    qualquer função pode definir a origem na hora de criar o lead */
 function canEditLeadSource() {
@@ -1222,9 +1233,10 @@ function renderLeadFilterOptions() {
   categorySel.innerHTML = `<option value="">Categoria (todas)</option>` + CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join("");
   sourceSel.innerHTML = `<option value="">Origem (todas)</option>` + SOURCES.map(s => `<option value="${s}">${s}</option>`).join("");
 
-  if (isOwnLeadsOnly()) {
+  if (isOwnLeadsOnly() || leadsOwnOnlyMode) {
     consultorSel.style.display = "none";
   } else {
+    consultorSel.style.display = "";
     const consultants = users.filter(u => u.role === "Consultor");
     consultorSel.innerHTML = `<option value="">Consultor (todos)</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   }
@@ -1255,7 +1267,7 @@ const leadsSearchResults = document.getElementById("leads-search-results");
 
 function visibleLeadsBase() {
   const showInactive = document.getElementById("filter-show-inactive").checked;
-  const ownOnly = isOwnLeadsOnly();
+  const ownOnly = isOwnLeadsOnly() || leadsOwnOnlyMode;
   return leads.filter(l => {
     if (ownOnly && l.consultorId !== session.id) return false;
     if (!showInactive && l.active === false) return false;
