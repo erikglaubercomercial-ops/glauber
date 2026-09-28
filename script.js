@@ -127,6 +127,15 @@ function statusLabel(value) {
   return key ? t(key) : value;
 }
 
+const STAGE_I18N_MAP = {
+  "Lead": "stage.lead", "Contato Feito": "stage.contato", "Proposta": "stage.proposta",
+  "Negociação": "stage.negociacao", "Ganho": "status.ganho", "Perdido": "status.perdido",
+};
+function stageLabel(label) {
+  const key = STAGE_I18N_MAP[label];
+  return key ? t(key) : label;
+}
+
 function uid() {
   return crypto.randomUUID();
 }
@@ -281,7 +290,7 @@ const fieldStage = document.getElementById("field-stage");
 const btnDelete = document.getElementById("btn-delete");
 
 function renderStageOptions() {
-  fieldStage.innerHTML = STAGES.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
+  fieldStage.innerHTML = STAGES.map(s => `<option value="${s.id}">${escapeHtml(stageLabel(s.label))}</option>`).join("");
 }
 
 /* ---- filtro: performance por consultor ---- */
@@ -302,7 +311,7 @@ function renderPipelineFilterOptions() {
   }
   sel.style.display = "";
   const consultants = users.filter(u => u.role === "Consultor").slice().sort((a, b) => a.name.localeCompare(b.name));
-  sel.innerHTML = `<option value="">Todos os consultores</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  sel.innerHTML = `<option value="">${t("pipeline.allConsultants")}</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   sel.value = current;
 }
 
@@ -336,7 +345,7 @@ function renderBoard() {
     column.style.setProperty("--stage-color", stageColor(stage.id));
     column.innerHTML = `
       <div class="column-header">
-        <span>${stage.label}</span>
+        <span>${escapeHtml(stageLabel(stage.label))}</span>
         <span class="column-count">${stageDeals.length}</span>
       </div>
       <div class="column-value">${currency(totalValue)}</div>
@@ -672,7 +681,7 @@ stagesListEl.addEventListener("click", async e => {
     alert(t("pipeline.keepAtLeastOneColumn"));
     return;
   }
-  if (!confirm(`${t("pipeline.confirmDeleteColumn")} "${stage.label}"?`)) return;
+  if (!confirm(`${t("pipeline.confirmDeleteColumn")} "${stageLabel(stage.label)}"?`)) return;
   STAGES = STAGES.filter(s => s.id !== stage.id);
   renderStagesList();
   renderStageOptions();
@@ -5052,7 +5061,7 @@ function renderDashboardFunnel() {
             <span class="n">${count}</span>
           </div>
         </div>
-        <div class="dash-funnel-label">${escapeHtml(s.label)}</div>
+        <div class="dash-funnel-label">${escapeHtml(stageLabel(s.label))}</div>
       </div>`;
   }).join("");
 
