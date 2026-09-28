@@ -15,7 +15,7 @@ const I18N_LANG_NAMES = { pt: "Português", en: "English", es: "Español" };
 const I18N = {
   pt: {
     "nav.geral": "GERAL", "nav.administracao": "ADMINISTRAÇÃO",
-    "nav.dashboard": "Dashboard", "nav.leads": "Leads", "nav.pipeline": "Pipeline",
+    "nav.dashboard": "Dashboard", "nav.leads": "Meus leads", "nav.pipeline": "Pipeline", "permTable.leads": "Leads",
     "nav.leadsparados": "Leads Parados", "nav.cotacao": "Cotação", "nav.contratos": "Contratos",
     "nav.produtos": "Produtos", "nav.financeiro": "Financeiro", "nav.matriculas": "Matrículas",
     "nav.colaboradores": "Time", "nav.formularios": "Formulários", "nav.templates": "Templates",
@@ -595,7 +595,7 @@ const I18N = {
 
   en: {
     "nav.geral": "GENERAL", "nav.administracao": "ADMINISTRATION",
-    "nav.dashboard": "Dashboard", "nav.leads": "Leads", "nav.pipeline": "Pipeline",
+    "nav.dashboard": "Dashboard", "nav.leads": "My Leads", "nav.pipeline": "Pipeline", "permTable.leads": "Leads",
     "nav.leadsparados": "Stalled Leads", "nav.cotacao": "Quotes", "nav.contratos": "Contracts",
     "nav.produtos": "Products", "nav.financeiro": "Finance", "nav.matriculas": "Enrollments",
     "nav.colaboradores": "Team", "nav.formularios": "Forms", "nav.templates": "Templates",
@@ -1175,7 +1175,7 @@ const I18N = {
 
   es: {
     "nav.geral": "GENERAL", "nav.administracao": "ADMINISTRACIÓN",
-    "nav.dashboard": "Panel", "nav.leads": "Leads", "nav.pipeline": "Embudo",
+    "nav.dashboard": "Panel", "nav.leads": "Mis Leads", "nav.pipeline": "Embudo", "permTable.leads": "Leads",
     "nav.leadsparados": "Leads Detenidos", "nav.cotacao": "Cotizaciones", "nav.contratos": "Contratos",
     "nav.produtos": "Productos", "nav.financeiro": "Finanzas", "nav.matriculas": "Matrículas",
     "nav.colaboradores": "Equipo", "nav.formularios": "Formularios", "nav.templates": "Plantillas",
