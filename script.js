@@ -50,6 +50,7 @@ function initSidebarToggle() {
 /* ============================================================
    NAVIGATION
    ============================================================ */
+const CURRENT_VIEW_KEY = "crm-vendas-current-view";
 let currentView = "dashboard";
 
 function initNavigation() {
@@ -69,14 +70,18 @@ function initNavigation() {
     document.getElementById("btn-manage-stages").style.display = "";
   }
 
-  const firstAccessible = ["dashboard", "leads", "pipeline", "cotacao", "produtos", "financeiro", "matriculas", "colaboradores", "usuarios"].find(canAccessView);
-  switchView(firstAccessible || "leads");
+  const priorityOrder = ["dashboard", "leads", "pipeline", "cotacao", "produtos", "financeiro", "matriculas", "colaboradores", "usuarios"];
+  const savedView = localStorage.getItem(CURRENT_VIEW_KEY);
+  const restoreView = savedView && canAccessView(savedView) ? savedView : null;
+  const firstAccessible = priorityOrder.find(canAccessView);
+  switchView(restoreView || firstAccessible || "leads");
 }
 
 function switchView(view) {
   if (!canAccessView(view)) return;
   closeRowMenu();
   currentView = view;
+  localStorage.setItem(CURRENT_VIEW_KEY, view);
   document.querySelectorAll(".nav-item[data-view]").forEach(item => {
     item.classList.toggle("active", item.dataset.view === view);
   });
