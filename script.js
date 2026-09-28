@@ -628,7 +628,6 @@ function renderBoard() {
   const filteredDeals = getFilteredDeals();
   STAGES.forEach(stage => {
     const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
-    const totalValue = stageDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
     const column = document.createElement("div");
     column.className = "column";
@@ -639,7 +638,6 @@ function renderBoard() {
         <span>${escapeHtml(stageLabel(stage.label))}</span>
         <span class="column-count">${stageDeals.length}</span>
       </div>
-      <div class="column-value">${currency(totalValue)}</div>
       <div class="column-cards" data-stage="${stage.id}"></div>
     `;
 
@@ -690,9 +688,6 @@ function renderCard(deal) {
     <div class="card-meta">${new Date(deal.createdAt).toLocaleDateString("pt-BR")}</div>
     ${phoneText ? `
       <div class="card-contact-row">
-        ${waDigits
-          ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="${t("common.openWhatsapp")}">${WPP_ICON_SVG}</a>`
-          : `<span class="wpp-btn disabled" title="${t("lead.noWhatsappConfigured")}">${WPP_ICON_SVG}</span>`}
         <span>${escapeHtml(phoneText)}</span>
       </div>` : ""}
     ${emailText ? `<div class="card-email">${escapeHtml(emailText)}</div>` : ""}
@@ -705,10 +700,13 @@ function renderCard(deal) {
     <div class="card-footer">
       <span class="card-value">${deal.value ? currency(deal.value) : "—"}</span>
       <div class="card-actions">
+        ${phoneText ? (waDigits
+          ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="${t("common.openWhatsapp")}">${WPP_ICON_SVG}</a>`
+          : `<span class="wpp-btn disabled" title="${t("lead.noWhatsappConfigured")}">${WPP_ICON_SVG}</span>`) : ""}
         <button type="button" class="card-action-btn ${followUpClass}" data-act="followup" title="${followUpTitle}">
           ${CARD_CALENDAR_ICON_SVG}${deal.followUpAt ? `<span>${formatDate(deal.followUpAt)}</span>` : ""}
         </button>
-        <button type="button" class="card-action-btn ${deal.notes ? "set" : ""}" data-act="notes" title="Notas">${CARD_NOTES_ICON_SVG}</button>
+        <button type="button" class="card-action-btn ${deal.notes ? "set" : ""}" data-act="notes" title="${t("common.notes")}">${CARD_NOTES_ICON_SVG}</button>
       </div>
     </div>
   `;
@@ -1357,7 +1355,7 @@ function renderLeads() {
       <td class="cell-primary">
         <span class="cell-name-row">
           <span>${escapeHtml(lead.name)}</span>
-          <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.name)}" title="Copiar nome">${CELL_COPY_ICON_SVG}</button>
+          <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.name)}" title="${t("lead.copyName")}">${CELL_COPY_ICON_SVG}</button>
           ${lead.active === false ? '<span class="badge badge-neutral">Inativo</span>' : ""}
         </span>
         <div class="cell-meta-row">
@@ -1369,10 +1367,17 @@ function renderLeads() {
         </div>
       </td>
       <td class="cell-muted">
+        ${lead.phone ? `
+          <div class="cell-email-row">
+            <span>${escapeHtml(lead.phone)}</span>
+            <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.phone)}" title="${t("lead.copyPhone")}">${CELL_COPY_ICON_SVG}</button>
+          </div>` : "—"}
+      </td>
+      <td class="cell-muted">
         ${lead.email ? `
           <div class="cell-email-row">
             <span>${escapeHtml(lead.email)}</span>
-            <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.email)}" title="Copiar e-mail">${CELL_COPY_ICON_SVG}</button>
+            <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.email)}" title="${t("lead.copyEmail")}">${CELL_COPY_ICON_SVG}</button>
           </div>` : "—"}
       </td>
       <td class="cell-muted">${originBadge(lead.source)}</td>
@@ -1909,7 +1914,7 @@ function openLeadModal(id) {
   renderLeadCountryOptions(document.getElementById("lead-field-country"));
   if (id) {
     const lead = existingLead;
-    document.getElementById("lead-modal-title").textContent = "Editar lead";
+    document.getElementById("lead-modal-title").textContent = t("lead.editTitle");
     document.getElementById("lead-id").value = lead.id;
     document.getElementById("lead-field-name").value = lead.name;
     document.getElementById("lead-field-company").value = lead.company || "";
@@ -1925,7 +1930,7 @@ function openLeadModal(id) {
     document.getElementById("lead-field-active").checked = lead.active !== false;
     leadBtnDelete.style.display = "inline-block";
   } else {
-    document.getElementById("lead-modal-title").textContent = "Novo lead";
+    document.getElementById("lead-modal-title").textContent = t("lead.newTitle");
     document.getElementById("lead-id").value = "";
     document.getElementById("lead-field-country").value = "BR";
     document.getElementById("lead-field-category").value = "Outro";
@@ -2229,7 +2234,7 @@ function renderSourcesList() {
     <div class="source-row">
       <input type="text" value="${escapeHtml(s)}" data-index="${i}">
       <span class="source-usage">${sourceUsageCount(s)} lead(s)</span>
-      <button type="button" class="btn btn-icon" data-act="del" data-index="${i}" title="Excluir origem">&times;</button>
+      <button type="button" class="btn btn-icon" data-act="del" data-index="${i}" title="${t("leads.deleteSource")}">&times;</button>
     </div>`).join("");
 }
 
@@ -2514,7 +2519,7 @@ function openContractModal(id) {
       signedInfo.textContent = `Assinado por ${currentContract.signerName || "—"}${currentContract.signerDocument ? ` (documento: ${currentContract.signerDocument})` : ""} em ${currentContract.signedAt ? new Date(currentContract.signedAt).toLocaleString("pt-BR") : "—"}${currentContract.signedIp ? ` · IP ${currentContract.signedIp}` : ""}.`;
     }
   } else {
-    document.getElementById("contract-modal-title").textContent = "Novo contrato";
+    document.getElementById("contract-modal-title").textContent = t("contracts.newTitle");
     document.getElementById("contract-id").value = "";
     document.getElementById("contract-field-title").value = CONTRACT_DEFAULT_TITLE;
     setContractFieldsDisabled(false);
@@ -2541,7 +2546,7 @@ function readContractFormData() {
 
 async function persistContract(statusOverride) {
   const data = readContractFormData();
-  if (!data.leadId) { alert("Selecione um lead para o contrato."); return null; }
+  if (!data.leadId) { alert(t("contracts.selectLeadError")); return null; }
   if (!data.content) { alert(t("contracts.fillContent")); return null; }
 
   const id = document.getElementById("contract-id").value;
@@ -3108,7 +3113,7 @@ function subRowHtml(s) {
     <div class="sub-row" data-sub>
       <input type="text" data-sf="nome" placeholder="Nome do subitem" value="${escapeHtml(s.nome)}">
       <input type="number" step="0.01" min="0" data-sf="valor" placeholder="0,00" value="${Number(s.valor) || 0}">
-      <button type="button" class="btn btn-icon" data-act="delsub" title="Remover subitem">&times;</button>
+      <button type="button" class="btn btn-icon" data-act="delsub" title="${t("products.removeSubitem")}">&times;</button>
     </div>`;
 }
 
@@ -3144,7 +3149,7 @@ function openProductModal(id) {
   populateCatalogDatalists();
   if (id) {
     const p = catalog.find(p => p.id === id);
-    document.getElementById("product-modal-title").textContent = "Editar produto";
+    document.getElementById("product-modal-title").textContent = t("products.editTitle");
     document.getElementById("product-id").value = p.id;
     document.getElementById("product-field-name").value = p.nome;
     document.getElementById("product-field-categoria").value = p.categoria;
@@ -3161,7 +3166,7 @@ function openProductModal(id) {
     renderProductSubs(p.subs);
     productBtnDelete.style.display = "inline-block";
   } else {
-    document.getElementById("product-modal-title").textContent = "Novo produto";
+    document.getElementById("product-modal-title").textContent = t("products.newTitle");
     document.getElementById("product-id").value = "";
     document.getElementById("product-field-ordem").value = 100;
     document.getElementById("product-field-qtdpadrao").value = 1;
@@ -3916,7 +3921,7 @@ function openExpenseModal(id) {
   document.getElementById("expense-field-category").innerHTML = EXPENSE_CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
   if (id) {
     const e = expenses.find(x => x.id === id);
-    document.getElementById("expense-modal-title").textContent = "Editar despesa";
+    document.getElementById("expense-modal-title").textContent = t("fin.editExpenseTitle");
     document.getElementById("expense-id").value = e.id;
     document.getElementById("expense-field-description").value = e.description;
     document.getElementById("expense-field-category").value = e.category;
@@ -3927,7 +3932,7 @@ function openExpenseModal(id) {
     document.getElementById("expense-field-notes").value = e.notes || "";
     expenseBtnDelete.style.display = "inline-block";
   } else {
-    document.getElementById("expense-modal-title").textContent = "Nova despesa";
+    document.getElementById("expense-modal-title").textContent = t("fin.newExpenseTitle");
     document.getElementById("expense-id").value = "";
     document.getElementById("expense-field-due-date").value = new Date().toISOString().slice(0, 10);
     expenseBtnDelete.style.display = "none";
