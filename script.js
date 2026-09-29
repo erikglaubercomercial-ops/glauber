@@ -1008,9 +1008,19 @@ const CATEGORIES = ["Intercâmbio de Idiomas", "High School", "Au Pair", "Work a
 const TEMPERATURES = ["Quente", "Morno", "Frio"];
 const STATUSES = ["Novo", "Em contato", "Qualificado", "Descartado"];
 
+/* configuração de comissão de influencer por origem (chave = nome da
+   origem) — carregada junto com SOURCES, mantida em memória à parte
+   porque SOURCES precisa continuar sendo uma lista simples de strings
+   (usada em dezenas de lugares como filtro/valor de lead) */
+let sourceInfluencerConfig = {};
+
 async function loadSources() {
-  const { data, error } = await supabase.from("lead_sources").select("name").order("ordem");
+  const { data, error } = await supabase.from("lead_sources").select("name, is_influencer, commission_pct").order("ordem");
   if (error || !data || !data.length) return ["Indicação", "Site", "Redes Sociais", "Anúncio", "Evento", "Outro"];
+  sourceInfluencerConfig = {};
+  data.forEach(r => {
+    sourceInfluencerConfig[r.name] = { isInfluencer: !!r.is_influencer, commissionPct: Number(r.commission_pct) || 0 };
+  });
   return data.map(r => r.name);
 }
 async function addSourceRemote(name) {
@@ -1024,6 +1034,12 @@ async function renameSourceRemote(oldName, newName) {
 async function deleteSourceRemote(name) {
   const { error } = await supabase.from("lead_sources").delete().eq("name", name);
   if (error) console.error("Erro ao excluir origem:", error);
+}
+async function updateSourceInfluencerRemote(name, isInfluencer, commissionPct) {
+  const { error } = await supabase.from("lead_sources")
+    .update({ is_influencer: isInfluencer, commission_pct: commissionPct })
+    .eq("name", name);
+  if (error) console.error("Erro ao salvar configuração de influencer:", error);
 }
 
 let SOURCES = [];
@@ -1160,6 +1176,7 @@ function leadFromDb(r) {
     rotationAssignedAt: r.rotation_assigned_at ? new Date(r.rotation_assigned_at).getTime() : null,
     rotationDeadline: r.rotation_deadline ? new Date(r.rotation_deadline).getTime() : null,
     rotationReassignCount: r.rotation_reassign_count || 0,
+    referredByLeadId: r.referred_by_lead_id || null,
   };
 }
 function leadToDb(l) {
@@ -1173,6 +1190,7 @@ function leadToDb(l) {
     rotation_assigned_at: l.rotationAssignedAt ? new Date(l.rotationAssignedAt).toISOString() : null,
     rotation_deadline: l.rotationDeadline ? new Date(l.rotationDeadline).toISOString() : null,
     rotation_reassign_count: l.rotationReassignCount || 0,
+    referred_by_lead_id: l.referredByLeadId || null,
   };
 }
 
@@ -1978,6 +1996,9 @@ function openLeadModal(id) {
     document.getElementById("lead-field-notes").value = lead.notes || "";
     document.getElementById("lead-field-active").checked = lead.active !== false;
     leadBtnDelete.style.display = "inline-block";
+    const referredLead = lead.referredByLeadId ? leads.find(l => l.id === lead.referredByLeadId) : null;
+    document.getElementById("lead-field-referred-by").value = lead.referredByLeadId || "";
+    document.getElementById("lead-referred-search").value = referredLead ? referredLead.name : "";
   } else {
     document.getElementById("lead-modal-title").textContent = t("lead.newTitle");
     document.getElementById("lead-id").value = "";
@@ -1986,6 +2007,8 @@ function openLeadModal(id) {
     document.getElementById("lead-field-source").value = "Indicação";
     document.getElementById("lead-field-temperature").value = "Morno";
     document.getElementById("lead-field-active").checked = true;
+    document.getElementById("lead-field-referred-by").value = "";
+    document.getElementById("lead-referred-search").value = "";
     leadBtnDelete.style.display = "none";
   }
 
@@ -2006,6 +2029,47 @@ document.getElementById("btn-new-lead").addEventListener("click", () => openLead
 document.getElementById("lead-modal-close").addEventListener("click", closeLeadModal);
 document.getElementById("lead-btn-cancel").addEventListener("click", closeLeadModal);
 leadModalBackdrop.addEventListener("click", e => { if (e.target === leadModalBackdrop) closeLeadModal(); });
+
+/* ---- busca de lead pra "Indicado por" (mesmo padrão da busca de lead em Matrículas) ---- */
+const leadReferredSearch = document.getElementById("lead-referred-search");
+const leadReferredResults = document.getElementById("lead-referred-results");
+const leadFieldReferredBy = document.getElementById("lead-field-referred-by");
+
+function renderLeadReferredResults(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { leadReferredResults.classList.remove("open"); leadReferredResults.innerHTML = ""; return; }
+  const currentId = document.getElementById("lead-id").value;
+  const matches = leads.filter(l =>
+    l.id !== currentId && ((l.name && l.name.toLowerCase().includes(q)) || (l.email && l.email.toLowerCase().includes(q)))
+  ).slice(0, 8);
+  leadReferredResults.innerHTML = matches.length
+    ? matches.map(l => `
+      <div class="enr-lead-result-item" data-id="${l.id}">
+        <div>${escapeHtml(l.name)}</div>
+        <div class="sub">${escapeHtml(l.email || l.phone || t("enr.noContact"))}</div>
+      </div>`).join("")
+    : `<div class="enr-lead-result-empty">${t("enr.noLeadFound")}</div>`;
+  leadReferredResults.classList.add("open");
+}
+leadReferredSearch.addEventListener("input", () => {
+  leadFieldReferredBy.value = "";
+  renderLeadReferredResults(leadReferredSearch.value);
+});
+leadReferredSearch.addEventListener("focus", () => {
+  if (leadReferredSearch.value.trim()) renderLeadReferredResults(leadReferredSearch.value);
+});
+leadReferredSearch.addEventListener("blur", () => {
+  setTimeout(() => leadReferredResults.classList.remove("open"), 150);
+});
+leadReferredResults.addEventListener("mousedown", e => {
+  const item = e.target.closest(".enr-lead-result-item[data-id]");
+  if (!item) return;
+  const lead = leads.find(l => l.id === item.dataset.id);
+  if (!lead) return;
+  leadFieldReferredBy.value = lead.id;
+  leadReferredSearch.value = lead.name;
+  leadReferredResults.classList.remove("open");
+});
 
 leadForm.addEventListener("submit", async e => {
   e.preventDefault();
@@ -2036,6 +2100,7 @@ leadForm.addEventListener("submit", async e => {
     status: document.getElementById("lead-field-status").value,
     notes: document.getElementById("lead-field-notes").value.trim(),
     active: document.getElementById("lead-field-active").checked,
+    referredByLeadId: document.getElementById("lead-field-referred-by").value || null,
   };
 
   if (data.email && leads.some(l => l.id !== id && l.email && l.email.toLowerCase() === data.email.toLowerCase())) {
@@ -2281,12 +2346,21 @@ function sourceUsageCount(name) {
 }
 
 function renderSourcesList() {
-  sourcesListEl.innerHTML = SOURCES.map((s, i) => `
+  sourcesListEl.innerHTML = SOURCES.map((s, i) => {
+    const cfg = sourceInfluencerConfig[s] || { isInfluencer: false, commissionPct: 0 };
+    return `
     <div class="source-row">
       <input type="text" value="${escapeHtml(s)}" data-index="${i}">
       <span class="source-usage">${sourceUsageCount(s)} lead(s)</span>
+      <label class="checkbox-label source-influencer-toggle">
+        <input type="checkbox" class="source-influencer-checkbox" data-name="${escapeHtml(s)}" ${cfg.isInfluencer ? "checked" : ""}>
+        <span>${t("leads.sourceIsInfluencer")}</span>
+      </label>
+      <input type="number" class="source-influencer-pct" data-name="${escapeHtml(s)}" min="0" max="100" step="0.5"
+        value="${cfg.commissionPct}" title="${t("leads.influencerCommissionPct")}" style="${cfg.isInfluencer ? "" : "display:none;"}">
       <button type="button" class="btn btn-icon" data-act="del" data-index="${i}" title="${t("leads.deleteSource")}">&times;</button>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 function openSourcesModal() {
@@ -2319,6 +2393,10 @@ sourcesListEl.addEventListener("change", async e => {
 
   SOURCES[index] = newName;
   leads.forEach(l => { if (l.source === oldName) l.source = newName; });
+  if (sourceInfluencerConfig[oldName]) {
+    sourceInfluencerConfig[newName] = sourceInfluencerConfig[oldName];
+    delete sourceInfluencerConfig[oldName];
+  }
   renderSourcesList();
   renderLeadFilterOptions();
   renderLeads();
@@ -2341,9 +2419,23 @@ sourcesListEl.addEventListener("click", async e => {
     : `${t("leads.confirmDeleteSource1")} "${name}"?`;
   if (!confirm(msg)) return;
   SOURCES.splice(index, 1);
+  delete sourceInfluencerConfig[name];
   renderSourcesList();
   renderLeadFilterOptions();
   await deleteSourceRemote(name);
+});
+
+sourcesListEl.addEventListener("change", async e => {
+  const cb = e.target.closest(".source-influencer-checkbox");
+  const pctInput = e.target.closest(".source-influencer-pct");
+  if (!cb && !pctInput) return;
+  const name = (cb || pctInput).dataset.name;
+  const cfg = sourceInfluencerConfig[name] || { isInfluencer: false, commissionPct: 0 };
+  if (cb) cfg.isInfluencer = cb.checked;
+  if (pctInput) cfg.commissionPct = Math.max(0, Math.min(100, parseFloat(pctInput.value) || 0));
+  sourceInfluencerConfig[name] = cfg;
+  renderSourcesList();
+  await updateSourceInfluencerRemote(name, cfg.isInfluencer, cfg.commissionPct);
 });
 
 async function addNewSource() {
@@ -3679,6 +3771,8 @@ function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 let EXPENSE_CATEGORIES = [];
 let expenses = [];
 let commissions = [];
+let influencerCommissions = [];
+let adSpend = [];
 let receivables = [];
 let commissionSettings = { defaultPercentage: 10 };
 
@@ -3771,6 +3865,65 @@ async function saveCommission(c) {
   if (error) console.error("Erro ao salvar comissão:", error);
 }
 
+/* ---- comissão de influencer (mesmo padrão de commissions, mas por
+   origem em vez de consultor — origem não é um usuário do sistema) ---- */
+function influencerCommissionFromDb(r) {
+  return {
+    id: r.id, dealId: r.deal_id, source: r.source || "",
+    dealName: r.deal_name || "", dealValue: Number(r.deal_value) || 0,
+    percentage: Number(r.percentage) || 0, amount: Number(r.amount) || 0,
+    status: r.status, paidAt: r.paid_at ? new Date(r.paid_at).getTime() : null,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function influencerCommissionToDb(c) {
+  return {
+    id: c.id, deal_id: c.dealId, source: c.source,
+    deal_name: c.dealName, deal_value: c.dealValue,
+    percentage: c.percentage, amount: c.amount, status: c.status,
+    paid_at: c.paidAt ? new Date(c.paidAt).toISOString() : null,
+    created_at: new Date(c.createdAt).toISOString(),
+  };
+}
+async function loadInfluencerCommissions() {
+  const { data, error } = await supabase.from("influencer_commissions").select("*").order("created_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar comissões de influencer:", error); return []; }
+  return data.map(influencerCommissionFromDb);
+}
+async function saveInfluencerCommission(c) {
+  const { error } = await supabase.from("influencer_commissions").upsert(influencerCommissionToDb(c));
+  if (error) console.error("Erro ao salvar comissão de influencer:", error);
+}
+
+/* ---- tráfego pago ---- */
+function adSpendFromDb(r) {
+  return {
+    id: r.id, channel: r.channel || "Outro", amount: Number(r.amount) || 0,
+    spendDate: r.spend_date, notes: r.notes || "",
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  };
+}
+function adSpendToDb(a) {
+  return {
+    id: a.id, channel: a.channel, amount: a.amount,
+    spend_date: a.spendDate, notes: a.notes,
+    created_at: new Date(a.createdAt).toISOString(),
+  };
+}
+async function loadAdSpend() {
+  const { data, error } = await supabase.from("ad_spend").select("*").order("spend_date", { ascending: false });
+  if (error) { console.error("Erro ao carregar tráfego pago:", error); return []; }
+  return data.map(adSpendFromDb);
+}
+async function saveAdSpendRemote(a) {
+  const { error } = await supabase.from("ad_spend").upsert(adSpendToDb(a));
+  if (error) console.error("Erro ao salvar tráfego pago:", error);
+}
+async function deleteAdSpendRemote(id) {
+  const { error } = await supabase.from("ad_spend").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir tráfego pago:", error);
+}
+
 function receivableFromDb(r) {
   return {
     id: r.id, dealId: r.deal_id, clientName: r.client_name || "",
@@ -3807,8 +3960,9 @@ async function updateReceivableRemote(r) {
 async function handleDealWon(deal) {
   if (!isWonStage(deal.stage)) return;
 
+  const lead = deal.leadId ? leads.find(l => l.id === deal.leadId) : null;
+
   if (!commissions.some(c => c.dealId === deal.id)) {
-    const lead = deal.leadId ? leads.find(l => l.id === deal.leadId) : null;
     const pct = commissionSettings.defaultPercentage;
     const commission = {
       id: uid(), dealId: deal.id, consultorId: lead ? lead.consultorId : null,
@@ -3819,6 +3973,21 @@ async function handleDealWon(deal) {
     commissions.push(commission);
     renderCommissions();
     await saveCommission(commission);
+  }
+
+  if (lead && lead.source && !influencerCommissions.some(c => c.dealId === deal.id)) {
+    const cfg = sourceInfluencerConfig[lead.source];
+    if (cfg && cfg.isInfluencer && cfg.commissionPct > 0) {
+      const influencerCommission = {
+        id: uid(), dealId: deal.id, source: lead.source,
+        dealName: deal.name, dealValue: deal.value,
+        percentage: cfg.commissionPct, amount: round2(deal.value * cfg.commissionPct / 100),
+        status: "Pendente", paidAt: null, createdAt: Date.now(),
+      };
+      influencerCommissions.push(influencerCommission);
+      renderInfluencerCommissions();
+      await saveInfluencerCommission(influencerCommission);
+    }
   }
 
   if (!receivables.some(r => r.dealId === deal.id)) {
@@ -3885,6 +4054,10 @@ function initFinanceiroSubtabs() {
       document.getElementById("subview-fin-receivables").classList.toggle("active", target === "receivables");
       document.getElementById("subview-fin-expenses").classList.toggle("active", target === "expenses");
       document.getElementById("subview-fin-commissions").classList.toggle("active", target === "commissions");
+      document.getElementById("subview-fin-schoolcommissions").classList.toggle("active", target === "schoolcommissions");
+      document.getElementById("subview-fin-adspend").classList.toggle("active", target === "adspend");
+      document.getElementById("subview-fin-metrics").classList.toggle("active", target === "metrics");
+      if (target === "metrics") renderMetrics();
     });
   });
 }
@@ -4217,6 +4390,223 @@ document.getElementById("fin-commission-pct-save").addEventListener("click", asy
   alert(t("fin.commissionUpdated"));
 });
 
+/* ---- comissões de influencer (mesmo padrão das comissões de consultor) ---- */
+function renderInfluencerCommissions() {
+  const list = influencerCommissions.slice().sort((a, b) => b.createdAt - a.createdAt);
+  const tbody = document.getElementById("fin-influencer-commissions-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("fin-influencer-commissions-empty").style.display = list.length === 0 ? "block" : "none";
+  list.forEach(c => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(c.source)}</td>
+      <td class="cell-muted">${escapeHtml(c.dealName)}</td>
+      <td class="cell-muted">${currency(c.dealValue)}</td>
+      <td class="cell-muted">${c.percentage}%</td>
+      <td class="cell-primary">${currency(c.amount)}</td>
+      <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${escapeHtml(statusLabel(c.status))}</span></td>
+      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? t("fin.markPending") : t("fin.markPaid")}</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("fin-influencer-commissions-tbody").addEventListener("click", async e => {
+  const btn = e.target.closest('button[data-act="toggle-status"]');
+  if (!btn) return;
+  const c = influencerCommissions.find(x => x.id === btn.dataset.id);
+  if (!c) return;
+  c.status = c.status === "Pago" ? "Pendente" : "Pago";
+  c.paidAt = c.status === "Pago" ? Date.now() : null;
+  renderInfluencerCommissions();
+  await saveInfluencerCommission(c);
+});
+
+/* ---- comissão de escola (lançada dentro de cada Matrícula) ---- */
+function getSchoolCommissionEnrollments() {
+  const status = document.getElementById("fin-schoolcomm-filter-status").value;
+  return enrollments.filter(e => {
+    if (e.schoolCommissionAmount == null) return false;
+    if (status && (e.schoolCommissionStatus || "Pendente") !== status) return false;
+    return true;
+  });
+}
+function renderSchoolCommissions() {
+  const list = getSchoolCommissionEnrollments().slice().sort((a, b) => b.createdAt - a.createdAt);
+  const tbody = document.getElementById("fin-schoolcomm-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("fin-schoolcomm-empty").style.display = list.length === 0 ? "block" : "none";
+  list.forEach(e => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(e.name || "—")}</td>
+      <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
+      <td class="cell-primary">${currency(e.schoolCommissionAmount)}</td>
+      <td class="cell-muted">${e.schoolCommissionExpected ? formatDate(e.schoolCommissionExpected) : "—"}</td>
+      <td><span class="badge ${e.schoolCommissionStatus === "Recebido" ? "badge-good" : "badge-warn"}">${e.schoolCommissionStatus === "Recebido" ? t("fin.received") : t("status.pendente")}</span></td>
+      <td class="cell-actions">›</td>
+    `;
+    tr.addEventListener("click", () => openEnrollmentModal(e.id));
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById("fin-schoolcomm-filter-status").addEventListener("change", renderSchoolCommissions);
+document.getElementById("fin-schoolcomm-filter-clear").addEventListener("click", () => {
+  document.getElementById("fin-schoolcomm-filter-status").value = "";
+  renderSchoolCommissions();
+});
+
+/* ---- tráfego pago ---- */
+function renderAdSpend() {
+  const list = adSpend.slice().sort((a, b) => new Date(b.spendDate) - new Date(a.spendDate));
+  const tbody = document.getElementById("fin-adspend-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("fin-adspend-empty").style.display = list.length === 0 ? "block" : "none";
+  list.forEach(a => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-primary">${escapeHtml(a.channel)}</td>
+      <td class="cell-primary">${currency(a.amount)}</td>
+      <td class="cell-muted">${formatDate(a.spendDate)}</td>
+      <td class="cell-muted">${escapeHtml(a.notes || "—")}</td>
+      <td class="cell-actions">›</td>
+    `;
+    tr.addEventListener("click", () => openAdSpendModal(a.id));
+    tbody.appendChild(tr);
+  });
+}
+
+const adSpendModalBackdrop = document.getElementById("adspend-modal-backdrop");
+const adSpendForm = document.getElementById("adspend-form");
+const adSpendBtnDelete = document.getElementById("adspend-btn-delete");
+
+function openAdSpendModal(id) {
+  adSpendForm.reset();
+  if (id) {
+    const a = adSpend.find(x => x.id === id);
+    if (!a) return;
+    document.getElementById("adspend-modal-title").textContent = a.channel;
+    document.getElementById("adspend-id").value = a.id;
+    document.getElementById("adspend-field-channel").value = a.channel;
+    document.getElementById("adspend-field-amount").value = a.amount;
+    document.getElementById("adspend-field-date").value = a.spendDate;
+    document.getElementById("adspend-field-notes").value = a.notes || "";
+    adSpendBtnDelete.style.display = "inline-block";
+  } else {
+    document.getElementById("adspend-modal-title").textContent = t("fin.newAdSpendTitle");
+    document.getElementById("adspend-id").value = "";
+    document.getElementById("adspend-field-date").value = new Date().toISOString().slice(0, 10);
+    adSpendBtnDelete.style.display = "none";
+  }
+  adSpendModalBackdrop.classList.add("open");
+}
+function closeAdSpendModal() { adSpendModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-adspend").addEventListener("click", () => openAdSpendModal(null));
+document.getElementById("adspend-modal-close").addEventListener("click", closeAdSpendModal);
+document.getElementById("adspend-btn-cancel").addEventListener("click", closeAdSpendModal);
+adSpendModalBackdrop.addEventListener("click", e => { if (e.target === adSpendModalBackdrop) closeAdSpendModal(); });
+
+adSpendForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("adspend-id").value;
+  const data = {
+    id: id || uid(),
+    channel: document.getElementById("adspend-field-channel").value,
+    amount: parseFloat(document.getElementById("adspend-field-amount").value) || 0,
+    spendDate: document.getElementById("adspend-field-date").value,
+    notes: document.getElementById("adspend-field-notes").value.trim(),
+    createdAt: id ? (adSpend.find(x => x.id === id) || {}).createdAt || Date.now() : Date.now(),
+  };
+  if (id) {
+    Object.assign(adSpend.find(x => x.id === id), data);
+  } else {
+    adSpend.push(data);
+  }
+  renderAdSpend();
+  closeAdSpendModal();
+  await saveAdSpendRemote(data);
+});
+
+adSpendBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("adspend-id").value;
+  if (!id || !confirm(t("fin.confirmDeleteAdSpend"))) return;
+  adSpend = adSpend.filter(x => x.id !== id);
+  renderAdSpend();
+  closeAdSpendModal();
+  await deleteAdSpendRemote(id);
+});
+
+/* ---- métricas: CAC, LTV e LTV:CAC ----
+   CAC (período) = (tráfego pago + comissão de influencer + comissão de
+   consultor, tudo no período) ÷ nº de negócios Ganhos no período.
+   LTV (por cliente raiz) = soma da receita de todas as vendas ligadas a
+   uma "árvore" de indicação (o cliente + quem ele indicou, recursivamente)
+   menos a comissão de consultor dessas vendas — dividido pelo nº de
+   clientes raiz, dando a média. */
+function findRootLeadId(leadId, guard) {
+  guard = guard || new Set();
+  if (guard.has(leadId)) return leadId;
+  guard.add(leadId);
+  const lead = leads.find(l => l.id === leadId);
+  if (!lead || !lead.referredByLeadId) return leadId;
+  return findRootLeadId(lead.referredByLeadId, guard);
+}
+
+function renderMetrics() {
+  const fromVal = document.getElementById("metrics-filter-from").value;
+  const toVal = document.getElementById("metrics-filter-to").value;
+  const fromTs = fromVal ? new Date(`${fromVal}T00:00:00`).getTime() : -Infinity;
+  const toTs = toVal ? new Date(`${toVal}T23:59:59`).getTime() : Infinity;
+  const inPeriod = ts => ts >= fromTs && ts <= toTs;
+
+  const adSpendTotal = adSpend.filter(a => inPeriod(new Date(`${a.spendDate}T00:00:00`).getTime())).reduce((s, a) => s + a.amount, 0);
+  const influencerTotal = influencerCommissions.filter(c => inPeriod(c.createdAt)).reduce((s, c) => s + c.amount, 0);
+  const consultorTotal = commissions.filter(c => inPeriod(c.createdAt)).reduce((s, c) => s + c.amount, 0);
+  const wonDeals = deals.filter(d => isWonStage(d.stage) && d.closedAt && inPeriod(d.closedAt));
+
+  const cacCost = adSpendTotal + influencerTotal + consultorTotal;
+  const cac = wonDeals.length > 0 ? cacCost / wonDeals.length : 0;
+
+  /* agrupa os negócios ganhos do período por cliente raiz (própria
+     árvore de indicação), somando receita e subtraindo a comissão de
+     consultor de cada venda daquela árvore */
+  const rootTotals = new Map();
+  wonDeals.forEach(d => {
+    if (!d.leadId) return;
+    const rootId = findRootLeadId(d.leadId);
+    const commission = commissions.find(c => c.dealId === d.id);
+    const net = (Number(d.value) || 0) - (commission ? commission.amount : 0);
+    rootTotals.set(rootId, (rootTotals.get(rootId) || 0) + net);
+  });
+  const ltvValues = Array.from(rootTotals.values());
+  const ltv = ltvValues.length > 0 ? ltvValues.reduce((s, v) => s + v, 0) / ltvValues.length : 0;
+
+  const ratio = cac > 0 ? ltv / cac : null;
+
+  document.getElementById("metrics-stat-cac").textContent = currency(cac);
+  document.getElementById("metrics-stat-ltv").textContent = currency(ltv);
+  document.getElementById("metrics-stat-ratio").textContent = ratio == null ? "—" : `${ratio.toFixed(1)} : 1`;
+
+  const rows = [
+    [t("fin.tabAdSpend"), currency(adSpendTotal)],
+    [t("fin.influencerCommissions"), currency(influencerTotal)],
+    [t("fin.consultantCommissions"), currency(consultorTotal)],
+    [t("fin.metricWonDeals"), String(wonDeals.length)],
+    [t("fin.metricRootClients"), String(ltvValues.length)],
+  ];
+  document.getElementById("metrics-breakdown-tbody").innerHTML = rows.map(([label, value]) => `
+    <tr><td class="cell-muted">${escapeHtml(label)}</td><td class="cell-primary">${escapeHtml(value)}</td></tr>
+  `).join("");
+}
+document.getElementById("metrics-filter-from").addEventListener("change", renderMetrics);
+document.getElementById("metrics-filter-to").addEventListener("change", renderMetrics);
+document.getElementById("metrics-filter-clear").addEventListener("click", () => {
+  document.getElementById("metrics-filter-from").value = "";
+  document.getElementById("metrics-filter-to").value = "";
+  renderMetrics();
+});
+
 /* ============================================================
    MATRÍCULAS — documentos e dados do aluno, com link público
    para o próprio aluno preencher (sem precisar de login)
@@ -4238,6 +4628,10 @@ function enrollmentFromDb(r) {
     arrivalDate: r.arrival_date, classStartDate: r.class_start_date,
     status: r.status, publicToken: r.public_token, studentUserId: r.student_user_id || null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+    schoolCommissionAmount: r.school_commission_amount != null ? Number(r.school_commission_amount) : null,
+    schoolCommissionStatus: r.school_commission_status || "Pendente",
+    schoolCommissionExpected: r.school_commission_expected || null,
+    schoolCommissionReceived: r.school_commission_received || null,
   };
 }
 function enrollmentToDb(e) {
@@ -4254,6 +4648,10 @@ function enrollmentToDb(e) {
     course_value: e.courseValue,
     arrival_date: e.arrivalDate || null, class_start_date: e.classStartDate || null,
     status: e.status, student_user_id: e.studentUserId || null,
+    school_commission_amount: e.schoolCommissionAmount != null && e.schoolCommissionAmount !== "" ? e.schoolCommissionAmount : null,
+    school_commission_status: e.schoolCommissionStatus || "Pendente",
+    school_commission_expected: e.schoolCommissionExpected || null,
+    school_commission_received: e.schoolCommissionReceived || null,
   };
 }
 
@@ -4527,6 +4925,10 @@ async function openEnrollmentModal(id) {
   document.getElementById("enr-field-course-value").value = enr.courseValue || "";
   document.getElementById("enr-field-arrival").value = enr.arrivalDate || "";
   document.getElementById("enr-field-class-start").value = enr.classStartDate || "";
+  document.getElementById("enr-field-school-commission-amount").value = enr.schoolCommissionAmount != null ? enr.schoolCommissionAmount : "";
+  document.getElementById("enr-field-school-commission-status").value = enr.schoolCommissionStatus || "Pendente";
+  document.getElementById("enr-field-school-commission-expected").value = enr.schoolCommissionExpected || "";
+  document.getElementById("enr-field-school-commission-received").value = enr.schoolCommissionReceived || "";
 
   const photoLink = document.getElementById("enr-photo-view-link");
   photoLink.style.display = "none";
@@ -4600,9 +5002,15 @@ enrollmentForm.addEventListener("submit", async e => {
     courseValue: parseFloat(document.getElementById("enr-field-course-value").value) || 0,
     arrivalDate: document.getElementById("enr-field-arrival").value || null,
     classStartDate: document.getElementById("enr-field-class-start").value || null,
+    schoolCommissionAmount: document.getElementById("enr-field-school-commission-amount").value !== ""
+      ? parseFloat(document.getElementById("enr-field-school-commission-amount").value) || 0 : null,
+    schoolCommissionStatus: document.getElementById("enr-field-school-commission-status").value,
+    schoolCommissionExpected: document.getElementById("enr-field-school-commission-expected").value || null,
+    schoolCommissionReceived: document.getElementById("enr-field-school-commission-received").value || null,
   });
 
   renderEnrollments();
+  renderSchoolCommissions();
   closeEnrollmentModal();
   await saveEnrollmentRemote(enr);
 
@@ -6250,6 +6658,7 @@ document.addEventListener("keydown", e => {
   if (importModalBackdrop.classList.contains("open")) closeImportModal();
   if (sourcesModalBackdrop.classList.contains("open")) closeSourcesModal();
   if (rotationModalBackdrop.classList.contains("open")) closeRotationModal();
+  if (adSpendModalBackdrop.classList.contains("open")) closeAdSpendModal();
   if (collaboratorModalBackdrop.classList.contains("open")) closeCollaboratorModal();
   if (followUpModalBackdrop.classList.contains("open")) closeFollowUpModal();
   if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
@@ -6273,7 +6682,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -6284,6 +6693,8 @@ document.addEventListener("keydown", e => {
     loadExpenseCategories(),
     loadExpenses(),
     loadCommissions(),
+    loadInfluencerCommissions(),
+    loadAdSpend(),
     loadReceivables(),
     loadCommissionSettings(),
     loadEnrollments(),
@@ -6317,7 +6728,10 @@ document.addEventListener("keydown", e => {
   renderReceivables();
   renderExpenses();
   renderCommissions();
+  renderInfluencerCommissions();
+  renderAdSpend();
   renderEnrollments();
+  renderSchoolCommissions();
   renderCollaborators();
   renderFormsList();
   renderContractsList();

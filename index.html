@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790673584">
+<link rel="stylesheet" href="style.css?v=1790705714">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -591,6 +591,9 @@
           <button type="button" class="subtab" data-fin-subtab="receivables" data-i18n="fin.tabReceivables">Contas a Receber</button>
           <button type="button" class="subtab" data-fin-subtab="expenses" data-i18n="fin.tabExpenses">Despesas</button>
           <button type="button" class="subtab" data-fin-subtab="commissions" data-i18n="fin.tabCommissions">Comissões</button>
+          <button type="button" class="subtab" data-fin-subtab="schoolcommissions" data-i18n="fin.tabSchoolCommissions">Comissão de Escolas</button>
+          <button type="button" class="subtab" data-fin-subtab="adspend" data-i18n="fin.tabAdSpend">Tráfego Pago</button>
+          <button type="button" class="subtab" data-fin-subtab="metrics" data-i18n="fin.tabMetrics">Métricas</button>
         </div>
 
         <!-- VISÃO GERAL -->
@@ -671,6 +674,87 @@
               <tbody id="fin-commissions-tbody"></tbody>
             </table>
             <div class="empty-hint" id="fin-commissions-empty" style="display:none;" data-i18n="fin.noCommissions">Nenhuma comissão gerada ainda.</div>
+          </div>
+          <div class="panel" style="margin-top:16px;">
+            <div class="panel-header">
+              <h2 data-i18n="fin.influencerCommissions">Comissões de Influencers</h2>
+            </div>
+            <table class="data-table">
+              <thead><tr><th data-i18n="common.source">Origem</th><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.dealValue">Valor do negócio</th><th>%</th><th data-i18n="fin.commission">Comissão</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
+              <tbody id="fin-influencer-commissions-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="fin-influencer-commissions-empty" style="display:none;" data-i18n="fin.noInfluencerCommissions">Nenhuma comissão de influencer gerada ainda.</div>
+          </div>
+        </div>
+
+        <!-- COMISSÃO DE ESCOLAS -->
+        <div class="subview" id="subview-fin-schoolcommissions">
+          <div class="panel">
+            <div class="panel-header">
+              <h2 data-i18n="fin.tabSchoolCommissions">Comissão de Escolas</h2>
+            </div>
+            <div class="filter-bar">
+              <select id="fin-schoolcomm-filter-status">
+                <option value="" data-i18n="common.statusAll">Status (todos)</option>
+                <option value="Pendente" data-i18n="status.pendente">Pendente</option>
+                <option value="Recebido" data-i18n="fin.received">Recebido</option>
+              </select>
+              <button type="button" class="btn btn-ghost btn-sm" id="fin-schoolcomm-filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
+            </div>
+            <table class="data-table">
+              <thead><tr><th data-i18n="common.client">Cliente</th><th data-i18n="enr.school">Escola</th><th data-i18n="common.value">Valor</th><th data-i18n="fin.expectedDate">Previsão</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
+              <tbody id="fin-schoolcomm-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="fin-schoolcomm-empty" style="display:none;" data-i18n="fin.noSchoolCommissions">Nenhuma comissão de escola cadastrada ainda.</div>
+          </div>
+        </div>
+
+        <!-- TRÁFEGO PAGO -->
+        <div class="subview" id="subview-fin-adspend">
+          <div class="panel">
+            <div class="panel-header">
+              <h2 data-i18n="fin.tabAdSpend">Tráfego Pago</h2>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-new-adspend" data-i18n="fin.newAdSpend">+ Novo investimento</button>
+            </div>
+            <table class="data-table">
+              <thead><tr><th data-i18n="fin.channel">Canal</th><th data-i18n="common.value">Valor</th><th data-i18n="common.date">Data</th><th data-i18n="common.notes">Notas</th><th></th></tr></thead>
+              <tbody id="fin-adspend-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="fin-adspend-empty" style="display:none;" data-i18n="fin.noAdSpend">Nenhum investimento em tráfego pago cadastrado ainda.</div>
+          </div>
+        </div>
+
+        <!-- MÉTRICAS -->
+        <div class="subview" id="subview-fin-metrics">
+          <div class="panel">
+            <div class="panel-header">
+              <h2 data-i18n="fin.tabMetrics">Métricas</h2>
+            </div>
+            <div class="filter-bar">
+              <label><span data-i18n="common.dateFrom">Data inicial</span> <input type="date" id="metrics-filter-from"></label>
+              <label><span data-i18n="common.dateTo">Data final</span> <input type="date" id="metrics-filter-to"></label>
+              <button type="button" class="btn btn-ghost btn-sm" id="metrics-filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
+            </div>
+            <div class="stat-row">
+              <div class="stat-card">
+                <span class="stat-label" data-i18n="fin.metricCac">CAC (custo de aquisição)</span>
+                <span class="stat-value" id="metrics-stat-cac">€ 0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label" data-i18n="fin.metricLtv">LTV médio</span>
+                <span class="stat-value" id="metrics-stat-ltv">€ 0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label" data-i18n="fin.metricRatio">LTV : CAC</span>
+                <span class="stat-value stat-good" id="metrics-stat-ratio">—</span>
+              </div>
+            </div>
+            <div class="panel" style="margin-top:16px;">
+              <div class="panel-header"><h2 data-i18n="fin.metricBreakdown">Detalhamento do período</h2></div>
+              <table class="data-table">
+                <tbody id="metrics-breakdown-tbody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -963,6 +1047,14 @@
             <option value="Qualificado" data-i18n="status.qualificado">Qualificado</option>
             <option value="Descartado" data-i18n="status.descartado">Descartado</option>
           </select>
+        </label>
+        <label><span data-i18n="lead.referredBy">Indicado por (opcional)</span>
+          <div class="enr-lead-search-wrap">
+            <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="lead-referred-search" placeholder="Buscar por nome ou e-mail" autocomplete="off" data-i18n-placeholder="leads.searchPlaceholder">
+            <div class="enr-lead-results" id="lead-referred-results"></div>
+          </div>
+          <input type="hidden" id="lead-field-referred-by">
         </label>
         <label><span data-i18n="common.notes">Notas</span>
           <textarea id="lead-field-notes" rows="3" placeholder="Detalhes adicionais (ex: respostas de formulário)"></textarea>
@@ -1374,6 +1466,42 @@
     </div>
   </div>
 
+  <!-- MODAL: NOVO INVESTIMENTO EM TRÁFEGO PAGO -->
+  <div class="modal-backdrop" id="adspend-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="adspend-modal-title" data-i18n="fin.newAdSpendTitle">Novo investimento</h2>
+        <button class="btn-icon" id="adspend-modal-close">&times;</button>
+      </div>
+      <form id="adspend-form">
+        <input type="hidden" id="adspend-id">
+        <label><span data-i18n="fin.channel">Canal</span>
+          <select id="adspend-field-channel">
+            <option value="Meta">Meta (Facebook/Instagram)</option>
+            <option value="Google">Google Ads</option>
+            <option value="TikTok">TikTok Ads</option>
+            <option value="Outro" data-i18n="common.other">Outro</option>
+          </select>
+        </label>
+        <label><span data-i18n="contracts.valueEur">Valor (€)</span>
+          <input type="number" id="adspend-field-amount" min="0" step="0.01" placeholder="0,00" required>
+        </label>
+        <label><span data-i18n="common.date">Data</span>
+          <input type="date" id="adspend-field-date" required>
+        </label>
+        <label><span data-i18n="common.notes">Notas</span>
+          <textarea id="adspend-field-notes" rows="2" placeholder="Detalhes (opcional)"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="adspend-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="adspend-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: GERENCIAR CATEGORIAS DE DESPESA -->
   <div class="modal-backdrop" id="expense-categories-modal-backdrop">
     <div class="modal">
@@ -1543,6 +1671,25 @@
         </div>
         <datalist id="enr-schools-list"></datalist>
         <datalist id="enr-turnos-list"></datalist>
+
+        <div class="panel-header" style="margin-top:8px;"><h2 data-i18n="fin.schoolCommissionSection">Comissão de escola</h2></div>
+        <div class="grid-2">
+          <label><span data-i18n="fin.schoolCommissionAmount">Valor combinado (€)</span>
+            <input type="number" id="enr-field-school-commission-amount" min="0" step="0.01" placeholder="0,00">
+          </label>
+          <label><span data-i18n="common.status">Status</span>
+            <select id="enr-field-school-commission-status">
+              <option value="Pendente" data-i18n="status.pendente">Pendente</option>
+              <option value="Recebido" data-i18n="fin.received">Recebido</option>
+            </select>
+          </label>
+          <label><span data-i18n="fin.expectedDate">Previsão de recebimento</span>
+            <input type="date" id="enr-field-school-commission-expected">
+          </label>
+          <label><span data-i18n="fin.receivedDate">Data de recebimento</span>
+            <input type="date" id="enr-field-school-commission-received">
+          </label>
+        </div>
 
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="enr-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
@@ -1856,7 +2003,7 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="i18n.js?v=1790673584"></script>
-  <script src="script.js?v=1790673584"></script>
+  <script src="i18n.js?v=1790705714"></script>
+  <script src="script.js?v=1790705714"></script>
 </body>
 </html>
