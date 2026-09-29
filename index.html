@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790705714">
+<link rel="stylesheet" href="style.css?v=1790706289">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -326,6 +326,11 @@
 
         <div class="panel" style="margin-bottom:16px;">
           <div class="filter-bar" style="border-bottom:none; padding:14px 20px;">
+            <div class="enr-lead-search-wrap filter-lead-search" id="pipeline-search-wrap">
+              <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="pipeline-search-input" placeholder="Buscar por nome ou e-mail" autocomplete="off" data-i18n-placeholder="leads.searchPlaceholder">
+              <div class="enr-lead-results" id="pipeline-search-results"></div>
+            </div>
             <span class="filter-sep" style="font-weight:600; color:var(--text);" data-i18n="pipeline.performanceByConsultor">Performance por consultor:</span>
             <select id="pipeline-filter-consultor"><option value="" data-i18n="pipeline.allConsultants">Todos os consultores</option></select>
             <button type="button" class="btn btn-ghost btn-sm" id="pipeline-filter-clear" data-i18n="pipeline.clearFilter">Limpar filtro</button>
@@ -2003,7 +2008,7 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="i18n.js?v=1790705714"></script>
-  <script src="script.js?v=1790705714"></script>
+  <script src="i18n.js?v=1790706289"></script>
+  <script src="script.js?v=1790706289"></script>
 </body>
 </html>

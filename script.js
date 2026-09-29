@@ -608,6 +608,8 @@ function renderPipelineFilterOptions() {
   sel.value = current;
 }
 
+let pipelineSearchSelectedDealId = null;
+
 function getFilteredDeals() {
   let list = deals;
   if (isOwnLeadsOnly()) {
@@ -616,12 +618,62 @@ function getFilteredDeals() {
     const consultorId = document.getElementById("pipeline-filter-consultor").value;
     if (consultorId) list = list.filter(d => dealConsultorId(d) === consultorId);
   }
+  if (pipelineSearchSelectedDealId) list = list.filter(d => d.id === pipelineSearchSelectedDealId);
   return list;
 }
 
 document.getElementById("pipeline-filter-consultor").addEventListener("change", () => { renderBoard(); });
 document.getElementById("pipeline-filter-clear").addEventListener("click", () => {
   document.getElementById("pipeline-filter-consultor").value = "";
+  pipelineSearchSelectedDealId = null;
+  document.getElementById("pipeline-search-input").value = "";
+  renderBoard();
+});
+
+/* ---- busca de negócio no Pipeline por nome/e-mail (do próprio negócio
+   ou do lead vinculado) — mesmo padrão de busca já usado em Leads ---- */
+const pipelineSearchInput = document.getElementById("pipeline-search-input");
+const pipelineSearchResults = document.getElementById("pipeline-search-results");
+
+function renderPipelineSearchResults(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { pipelineSearchResults.classList.remove("open"); pipelineSearchResults.innerHTML = ""; return; }
+  const matches = deals.filter(d => {
+    const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
+    const haystack = [d.name, d.contact, d.info, lead ? lead.name : "", lead ? lead.email : ""].join(" ").toLowerCase();
+    return haystack.includes(q);
+  }).slice(0, 8);
+  pipelineSearchResults.innerHTML = matches.length
+    ? matches.map(d => {
+        const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
+        const sub = (lead && lead.email) || d.info || d.contact || t("enr.noContact");
+        return `
+      <div class="enr-lead-result-item" data-id="${d.id}">
+        <div>${escapeHtml(d.name)}</div>
+        <div class="sub">${escapeHtml(sub)}</div>
+      </div>`;
+      }).join("")
+    : `<div class="enr-lead-result-empty">${t("enr.noLeadFound")}</div>`;
+  pipelineSearchResults.classList.add("open");
+}
+pipelineSearchInput.addEventListener("input", () => {
+  pipelineSearchSelectedDealId = null;
+  renderPipelineSearchResults(pipelineSearchInput.value);
+});
+pipelineSearchInput.addEventListener("focus", () => {
+  if (pipelineSearchInput.value.trim() && !pipelineSearchSelectedDealId) renderPipelineSearchResults(pipelineSearchInput.value);
+});
+pipelineSearchInput.addEventListener("blur", () => {
+  setTimeout(() => pipelineSearchResults.classList.remove("open"), 150);
+});
+pipelineSearchResults.addEventListener("mousedown", e => {
+  const item = e.target.closest(".enr-lead-result-item[data-id]");
+  if (!item) return;
+  const deal = deals.find(d => d.id === item.dataset.id);
+  if (!deal) return;
+  pipelineSearchSelectedDealId = deal.id;
+  pipelineSearchInput.value = deal.name;
+  pipelineSearchResults.classList.remove("open");
   renderBoard();
 });
 
