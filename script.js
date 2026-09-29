@@ -1577,7 +1577,7 @@ document.getElementById("leads-select-all").addEventListener("change", e => {
 function updateBulkBar() {
   const bar = document.getElementById("leads-bulk-bar");
   const count = selectedLeadIds.size;
-  document.getElementById("leads-bulk-count").textContent = `${count} selecionado(s)`;
+  document.getElementById("leads-bulk-count").textContent = `${count} ${t("common.selectedCount")}`;
   bar.style.display = count > 0 ? "flex" : "none";
   document.getElementById("leads-bulk-menu-trigger").disabled = count === 0;
 }
@@ -1999,7 +1999,7 @@ document.getElementById("stuck-select-all").addEventListener("change", e => {
 function updateStuckBulkBar() {
   const bar = document.getElementById("stuck-bulk-bar");
   const count = selectedStuckLeadIds.size;
-  document.getElementById("stuck-bulk-count").textContent = `${count} selecionado(s)`;
+  document.getElementById("stuck-bulk-count").textContent = `${count} ${t("common.selectedCount")}`;
   bar.style.display = count > 0 ? "flex" : "none";
 }
 
@@ -4115,6 +4115,28 @@ function initFinanceiroSubtabs() {
 }
 
 /* ---- Visão Geral ---- */
+let finOverviewSelectedIds = new Set();
+
+function dealStatusLabel(d) {
+  if (isWonStage(d.stage)) return t("status.ganho");
+  if (isLostStage(d.stage)) return t("status.perdido");
+  const stage = stageById(d.stage);
+  return stage ? stageLabel(stage.label) : d.stage;
+}
+
+function getFilteredOverviewDeals() {
+  const q = (document.getElementById("fin-overview-search-input").value || "").trim().toLowerCase();
+  let list = deals;
+  if (q) {
+    list = list.filter(d => {
+      const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
+      const haystack = [d.name, lead ? lead.source : "", lead ? lead.email : "", dealStatusLabel(d)].join(" ").toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+  return list.slice().sort((a, b) => (b.closedAt || b.createdAt || 0) - (a.closedAt || a.createdAt || 0));
+}
+
 function renderFinanceiroOverview() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -4135,22 +4157,86 @@ function renderFinanceiroOverview() {
   document.getElementById("fin-stat-profit").textContent = currency(revenue - expensesTotal);
   document.getElementById("fin-stat-receivable").textContent = currency(pendingReceivable);
 
-  const closedDeals = deals.filter(d => isClosedStage(d.stage)).slice().sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0)).slice(0, 30);
+  const list = getFilteredOverviewDeals();
   const tbody = document.getElementById("fin-overview-tbody");
   tbody.innerHTML = "";
-  document.getElementById("fin-overview-empty").style.display = closedDeals.length === 0 ? "block" : "none";
-  closedDeals.forEach(d => {
+  document.getElementById("fin-overview-empty").style.display = list.length === 0 ? "block" : "none";
+  list.forEach(d => {
+    const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
     const won = isWonStage(d.stage);
+    const lost = isLostStage(d.stage);
+    const badgeClass = won ? "badge-good" : lost ? "badge-danger" : "badge-neutral";
+    const dateVal = d.closedAt || d.createdAt;
     const tr = document.createElement("tr");
     tr.innerHTML = `
+      <td class="cell-check"><input type="checkbox" class="fin-overview-checkbox" data-id="${d.id}" ${finOverviewSelectedIds.has(d.id) ? "checked" : ""}></td>
       <td class="cell-primary">${escapeHtml(d.name)}</td>
-      <td><span class="badge ${won ? "badge-good" : "badge-danger"}">${won ? t("status.ganho") : t("status.perdido")}</span></td>
+      <td class="cell-muted">${lead ? escapeHtml(lead.source || "—") : "—"}</td>
+      <td class="cell-muted">${lead ? escapeHtml(lead.email || "—") : "—"}</td>
+      <td><span class="badge ${badgeClass}">${escapeHtml(dealStatusLabel(d))}</span></td>
       <td>${currency(d.value)}</td>
-      <td class="cell-muted">${d.closedAt ? new Date(d.closedAt).toLocaleDateString("pt-BR") : "—"}</td>
+      <td class="cell-muted">${dateVal ? new Date(dateVal).toLocaleDateString("pt-BR") : "—"}</td>
     `;
+    const checkbox = tr.querySelector(".fin-overview-checkbox");
+    checkbox.addEventListener("click", e => e.stopPropagation());
+    checkbox.addEventListener("change", e => {
+      if (e.target.checked) finOverviewSelectedIds.add(d.id);
+      else finOverviewSelectedIds.delete(d.id);
+      updateFinOverviewSelectAllState(list);
+      updateFinOverviewBulkBar();
+    });
+    tr.addEventListener("click", () => openDealModal(d.id));
     tbody.appendChild(tr);
   });
+  updateFinOverviewSelectAllState(list);
+  updateFinOverviewBulkBar();
 }
+
+function updateFinOverviewSelectAllState(list) {
+  const cb = document.getElementById("fin-overview-select-all");
+  if (!list.length) { cb.checked = false; cb.indeterminate = false; return; }
+  const selectedCount = list.filter(d => finOverviewSelectedIds.has(d.id)).length;
+  cb.checked = selectedCount === list.length;
+  cb.indeterminate = selectedCount > 0 && selectedCount < list.length;
+}
+function updateFinOverviewBulkBar() {
+  const bar = document.getElementById("fin-overview-bulk-bar");
+  const count = finOverviewSelectedIds.size;
+  document.getElementById("fin-overview-bulk-count").textContent = `${count} ${t("common.selectedCount")}`;
+  bar.style.display = count > 0 ? "flex" : "none";
+}
+
+document.getElementById("fin-overview-search-input").addEventListener("input", renderFinanceiroOverview);
+document.getElementById("fin-overview-search-clear").addEventListener("click", () => {
+  document.getElementById("fin-overview-search-input").value = "";
+  renderFinanceiroOverview();
+});
+document.getElementById("fin-overview-select-all").addEventListener("change", e => {
+  const list = getFilteredOverviewDeals();
+  if (e.target.checked) list.forEach(d => finOverviewSelectedIds.add(d.id));
+  else list.forEach(d => finOverviewSelectedIds.delete(d.id));
+  renderFinanceiroOverview();
+});
+document.getElementById("fin-overview-bulk-clear").addEventListener("click", () => {
+  finOverviewSelectedIds = new Set();
+  renderFinanceiroOverview();
+});
+document.getElementById("fin-overview-bulk-delete").addEventListener("click", async () => {
+  const ids = Array.from(finOverviewSelectedIds);
+  if (!ids.length) return;
+  if (!confirm(`${t("fin.confirmBulkDeleteDeals1")} ${ids.length} ${t("fin.confirmBulkDeleteDeals2")}`)) return;
+  deals = deals.filter(d => !ids.includes(d.id));
+  commissions = commissions.filter(c => !ids.includes(c.dealId));
+  influencerCommissions = influencerCommissions.filter(c => !ids.includes(c.dealId));
+  receivables = receivables.filter(r => !ids.includes(r.dealId));
+  finOverviewSelectedIds = new Set();
+  renderFinanceiroOverview();
+  renderBoard();
+  renderCommissions();
+  renderInfluencerCommissions();
+  renderReceivables();
+  await Promise.all(ids.map(id => deleteDealRemote(id)));
+});
 
 /* ---- Contas a Receber ---- */
 function getFilteredReceivables() {

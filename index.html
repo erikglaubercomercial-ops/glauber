@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790706289">
+<link rel="stylesheet" href="style.css?v=1790713866">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -604,12 +604,33 @@
         <!-- VISÃO GERAL -->
         <div class="subview active" id="subview-fin-overview">
           <div class="panel">
-            <div class="panel-header"><h2 data-i18n="fin.recentDeals">Negócios fechados recentemente</h2></div>
+            <div class="panel-header"><h2 data-i18n="fin.allDeals">Negócios</h2></div>
+            <div class="filter-bar">
+              <div class="enr-lead-search-wrap filter-lead-search" id="fin-overview-search-wrap">
+                <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="fin-overview-search-input" placeholder="Buscar por nome, origem, e-mail ou status" data-i18n-placeholder="fin.searchDealsPlaceholder" autocomplete="off">
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="fin-overview-search-clear" data-i18n="common.clearFilters">Limpar filtros</button>
+            </div>
+            <div class="bulk-bar" id="fin-overview-bulk-bar" style="display:none;">
+              <span id="fin-overview-bulk-count">0 selecionado(s)</span>
+              <div class="spacer"></div>
+              <button type="button" class="btn btn-danger btn-sm" id="fin-overview-bulk-delete" data-i18n="fin.deleteSelected">Excluir selecionados</button>
+              <button type="button" class="btn-icon" id="fin-overview-bulk-clear" title="Limpar seleção" data-i18n-title="common.clearSelection">&times;</button>
+            </div>
             <table class="data-table">
-              <thead><tr><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.result">Resultado</th><th data-i18n="common.value">Valor</th><th data-i18n="common.date">Data</th></tr></thead>
+              <thead><tr>
+                <th class="cell-check"><input type="checkbox" id="fin-overview-select-all"></th>
+                <th data-i18n="fin.deal">Negócio</th>
+                <th data-i18n="common.source">Origem</th>
+                <th data-i18n="common.email">E-mail</th>
+                <th data-i18n="common.status">Status</th>
+                <th data-i18n="common.value">Valor</th>
+                <th data-i18n="common.date">Data</th>
+              </tr></thead>
               <tbody id="fin-overview-tbody"></tbody>
             </table>
-            <div class="empty-hint" id="fin-overview-empty" style="display:none;" data-i18n="fin.noClosedDeals">Nenhum negócio fechado ainda.</div>
+            <div class="empty-hint" id="fin-overview-empty" style="display:none;" data-i18n="fin.noDeals">Nenhum negócio cadastrado ainda.</div>
           </div>
         </div>
 
@@ -2008,7 +2029,7 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="i18n.js?v=1790706289"></script>
-  <script src="script.js?v=1790706289"></script>
+  <script src="i18n.js?v=1790713866"></script>
+  <script src="script.js?v=1790713866"></script>
 </body>
 </html>
