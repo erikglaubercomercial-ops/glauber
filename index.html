@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790628389">
+<link rel="stylesheet" href="style.css?v=1790673584">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -254,6 +254,7 @@
             <div style="display:flex; gap:8px;">
               <button type="button" class="btn btn-ghost btn-sm" id="leads-bulk-menu-trigger" title="Ações em massa (selecione ao menos um lead)" data-i18n-title="leads.bulkActionsTitle" data-i18n="leads.bulkActions">⋮ Ações</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-sources" data-i18n="leads.manageSources">Gerenciar origens</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-manage-rotation" style="display:none;" data-i18n="leads.rotationTitle">Rodízio de leads</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btn-import-leads" data-i18n="leads.importCsv">Importar CSV</button>
               <input type="file" id="import-file-input" accept=".csv,text/csv" style="display:none;">
               <button class="btn btn-primary" id="btn-new-lead" data-i18n="leads.newLead">+ Novo lead</button>
@@ -1022,6 +1023,36 @@
         <div class="modal-actions">
           <div class="spacer"></div>
           <button type="button" class="btn btn-primary" id="sources-btn-done" data-i18n="common.done">Concluído</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RODÍZIO DE LEADS -->
+  <div class="modal-backdrop" id="rotation-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 data-i18n="leads.rotationTitle">Rodízio de leads</h2>
+        <button class="btn-icon" id="rotation-modal-close">&times;</button>
+      </div>
+      <div class="sources-body">
+        <p class="muted-note" data-i18n="leads.rotationHint">Todo lead novo criado sem consultor definido é atribuído automaticamente ao próximo da fila. Se o consultor não fizer o primeiro contato (clicar no WhatsApp) dentro do prazo, o lead passa pro próximo.</p>
+        <label class="checkbox-label">
+          <input type="checkbox" id="rotation-field-enabled">
+          <span data-i18n="leads.rotationEnabled">Rodízio automático ativado</span>
+        </label>
+        <label>
+          <span data-i18n="leads.rotationTimeoutHours">Prazo para o primeiro contato (horas)</span>
+          <input type="number" id="rotation-field-timeout" min="1" step="1" value="24">
+        </label>
+        <div class="sources-add-row" style="margin-top:6px;">
+          <span data-i18n="leads.rotationMembers">Consultores no rodízio</span>
+        </div>
+        <div id="rotation-members-list" class="rotation-members-list"></div>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="rotation-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="rotation-btn-save" data-i18n="common.save">Salvar</button>
         </div>
       </div>
     </div>
@@ -1825,7 +1856,7 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="i18n.js?v=1790628389"></script>
-  <script src="script.js?v=1790628389"></script>
+  <script src="i18n.js?v=1790673584"></script>
+  <script src="script.js?v=1790673584"></script>
 </body>
 </html>

@@ -69,6 +69,7 @@ function initNavigation() {
   if (session && session.role === "ADM") {
     document.getElementById("nav-label-admin").style.display = "";
     document.getElementById("btn-manage-stages").style.display = "";
+    document.getElementById("btn-manage-rotation").style.display = "";
   }
 
   const priorityOrder = ["dashboard", "leads", "pipeline", "cotacao", "produtos", "financeiro", "matriculas", "colaboradores", "usuarios"];
@@ -540,6 +541,7 @@ function unstickLeadIfNew(leadId) {
   const lead = leads.find(l => l.id === leadId);
   if (!lead || lead.status !== "Novo") return;
   lead.status = "Em contato";
+  lead.rotationActive = false;
   renderLeads();
   saveLeads();
   refreshStuckLeadsAfterReassign([leadId]);
@@ -1154,6 +1156,10 @@ function leadFromDb(r) {
     source: r.source, category: r.category, status: r.status, temperature: r.temperature,
     consultorId: r.consultor_id, active: r.active, notes: r.notes || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+    rotationActive: !!r.rotation_active,
+    rotationAssignedAt: r.rotation_assigned_at ? new Date(r.rotation_assigned_at).getTime() : null,
+    rotationDeadline: r.rotation_deadline ? new Date(r.rotation_deadline).getTime() : null,
+    rotationReassignCount: r.rotation_reassign_count || 0,
   };
 }
 function leadToDb(l) {
@@ -1163,6 +1169,10 @@ function leadToDb(l) {
     source: l.source, category: l.category, status: l.status, temperature: l.temperature,
     consultor_id: l.consultorId || null, active: l.active, notes: l.notes || "",
     created_at: new Date(l.createdAt).toISOString(),
+    rotation_active: !!l.rotationActive,
+    rotation_assigned_at: l.rotationAssignedAt ? new Date(l.rotationAssignedAt).toISOString() : null,
+    rotation_deadline: l.rotationDeadline ? new Date(l.rotationDeadline).toISOString() : null,
+    rotation_reassign_count: l.rotationReassignCount || 0,
   };
 }
 
@@ -1180,6 +1190,45 @@ async function saveLeads() {
     }
   }
 }
+/* ---- rodízio automático de leads (fila de consultores + prazo pro
+   primeiro contato) — a atribuição/reatribuição em si acontece no banco
+   (funções abaixo), pra funcionar mesmo com o CRM fechado */
+let rotationSettings = { enabled: false, timeoutHours: 24, memberUserIds: [] };
+
+async function loadRotationSettings() {
+  const { data, error } = await supabase.from("lead_rotation_settings").select("*").eq("id", 1).single();
+  if (error || !data) return { enabled: false, timeoutHours: 24, memberUserIds: [] };
+  return {
+    enabled: !!data.enabled,
+    timeoutHours: Number(data.timeout_hours) || 24,
+    memberUserIds: Array.isArray(data.member_user_ids) ? data.member_user_ids : [],
+  };
+}
+async function saveRotationSettingsRemote(settings) {
+  const { error } = await supabase.from("lead_rotation_settings").update({
+    enabled: settings.enabled,
+    timeout_hours: settings.timeoutHours,
+    member_user_ids: settings.memberUserIds,
+    updated_by_name: session.name || "",
+    updated_at: new Date().toISOString(),
+  }).eq("id", 1);
+  if (error) console.error("Erro ao salvar rodízio de leads:", error);
+  return !error;
+}
+
+/* chamado sempre que um lead novo é criado sem consultor definido —
+   a função no banco decide se o rodízio está ativo e faz a atribuição
+   de forma atômica (evita duas pessoas criando leads ao mesmo tempo
+   caírem no mesmo consultor) */
+async function maybeAssignRotation(lead) {
+  if (lead.consultorId) return;
+  const { data, error } = await supabase.rpc("assign_lead_rotation", { p_lead_id: lead.id });
+  if (error) { console.error("Erro ao atribuir rodízio:", error); return; }
+  if (!data) return;
+  Object.assign(lead, leadFromDb(data));
+  renderLeads();
+}
+
 async function deleteLeadsRemote(ids) {
   const { error } = await supabase.from("leads").delete().in("id", ids);
   if (error) console.error("Erro ao excluir lead(s):", error);
@@ -2010,6 +2059,7 @@ leadForm.addEventListener("submit", async e => {
     createDealForLead(newLead);
     renderBoard();
     await saveDeals();
+    await maybeAssignRotation(newLead);
   }
 });
 
@@ -2215,6 +2265,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
     importedLeads.forEach(l => createDealForLead(l));
     renderBoard();
     await saveDeals();
+    for (const l of importedLeads) await maybeAssignRotation(l);
   }
 });
 
@@ -2281,13 +2332,13 @@ sourcesListEl.addEventListener("click", async e => {
   const index = parseInt(btn.dataset.index, 10);
   const name = SOURCES[index];
   if (SOURCES.length === 1) {
-    alert("Mantenha ao menos uma origem cadastrada.");
+    alert(t("leads.keepAtLeastOneSource"));
     return;
   }
   const count = sourceUsageCount(name);
   const msg = count > 0
     ? `${t("leads.confirmDeleteSource1")} "${name}"? ${count} ${t("leads.confirmDeleteSource2")} "${name}" ${t("leads.confirmDeleteSource3")}`
-    : `Excluir a origem "${name}"?`;
+    : `${t("leads.confirmDeleteSource1")} "${name}"?`;
   if (!confirm(msg)) return;
   SOURCES.splice(index, 1);
   renderSourcesList();
@@ -2313,6 +2364,62 @@ async function addNewSource() {
 document.getElementById("sources-add-btn").addEventListener("click", addNewSource);
 sourcesNewInput.addEventListener("keydown", e => {
   if (e.key === "Enter") { e.preventDefault(); addNewSource(); }
+});
+
+/* ---- modal: rodízio de leads (ADM) ---- */
+const rotationModalBackdrop = document.getElementById("rotation-modal-backdrop");
+const rotationMembersListEl = document.getElementById("rotation-members-list");
+let rotationDraftMemberIds = [];
+
+function renderRotationMembersList() {
+  const consultants = users.filter(u => u.role === "Consultor" && u.active !== false).slice().sort((a, b) => a.name.localeCompare(b.name));
+  if (!consultants.length) {
+    rotationMembersListEl.innerHTML = `<p class="muted-note">${t("leads.rotationNoConsultants")}</p>`;
+    return;
+  }
+  rotationMembersListEl.innerHTML = consultants.map(c => `
+    <label class="checkbox-label">
+      <input type="checkbox" class="rotation-member-checkbox" data-id="${c.id}" ${rotationDraftMemberIds.includes(c.id) ? "checked" : ""}>
+      <span>${escapeHtml(c.name)}</span>
+    </label>`).join("");
+}
+
+function openRotationModal() {
+  document.getElementById("rotation-field-enabled").checked = rotationSettings.enabled;
+  document.getElementById("rotation-field-timeout").value = rotationSettings.timeoutHours;
+  rotationDraftMemberIds = rotationSettings.memberUserIds.slice();
+  renderRotationMembersList();
+  rotationModalBackdrop.classList.add("open");
+}
+function closeRotationModal() { rotationModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-manage-rotation").addEventListener("click", openRotationModal);
+document.getElementById("rotation-modal-close").addEventListener("click", closeRotationModal);
+document.getElementById("rotation-btn-cancel").addEventListener("click", closeRotationModal);
+rotationModalBackdrop.addEventListener("click", e => { if (e.target === rotationModalBackdrop) closeRotationModal(); });
+
+rotationMembersListEl.addEventListener("change", e => {
+  const cb = e.target.closest(".rotation-member-checkbox");
+  if (!cb) return;
+  const id = cb.dataset.id;
+  if (cb.checked) {
+    if (!rotationDraftMemberIds.includes(id)) rotationDraftMemberIds.push(id);
+  } else {
+    rotationDraftMemberIds = rotationDraftMemberIds.filter(x => x !== id);
+  }
+});
+
+document.getElementById("rotation-btn-save").addEventListener("click", async () => {
+  const enabled = document.getElementById("rotation-field-enabled").checked;
+  const timeoutHours = Math.max(1, parseFloat(document.getElementById("rotation-field-timeout").value) || 24);
+  if (enabled && rotationDraftMemberIds.length === 0) {
+    alert(t("leads.rotationNeedMemberError"));
+    return;
+  }
+  rotationSettings = { enabled, timeoutHours, memberUserIds: rotationDraftMemberIds.slice() };
+  const ok = await saveRotationSettingsRemote(rotationSettings);
+  if (!ok) { alert(t("leads.rotationSaveError")); return; }
+  closeRotationModal();
 });
 
 /* ============================================================
@@ -5278,6 +5385,7 @@ async function convertSubmissionToLead(submissionId, consultorId) {
 
   leads.push(lead);
   await saveLeads();
+  await maybeAssignRotation(lead);
 
   submission.leadId = lead.id;
   await markSubmissionLeadRemote(submission.id, lead.id);
@@ -6141,6 +6249,7 @@ document.addEventListener("keydown", e => {
   if (assignModalBackdrop.classList.contains("open")) closeAssignModal();
   if (importModalBackdrop.classList.contains("open")) closeImportModal();
   if (sourcesModalBackdrop.classList.contains("open")) closeSourcesModal();
+  if (rotationModalBackdrop.classList.contains("open")) closeRotationModal();
   if (collaboratorModalBackdrop.classList.contains("open")) closeCollaboratorModal();
   if (followUpModalBackdrop.classList.contains("open")) closeFollowUpModal();
   if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
@@ -6164,7 +6273,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -6185,6 +6294,7 @@ document.addEventListener("keydown", e => {
     loadAgendaItems(),
     loadContracts(),
     loadMenuConfig(),
+    loadRotationSettings(),
   ]);
 
   renderSessionChip();
