@@ -664,6 +664,10 @@ body {
   font-weight: 700;
   font-size: 13px;
 }
+.column-header[draggable="true"] { cursor: grab; }
+.column-header[draggable="true"]:active { cursor: grabbing; }
+.column-header.drag-over-col { background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.column.dragging-col { opacity: 0.4; }
 .column-count {
   background: color-mix(in srgb, var(--stage-color, var(--text-muted)) 16%, transparent);
   color: var(--stage-color, var(--text-muted));
