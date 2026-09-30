@@ -806,6 +806,7 @@ body {
   margin-top: 4px;
 }
 .spacer { flex: 1; }
+.deal-signed-docs-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .checkbox-label {
   flex-direction: row !important;

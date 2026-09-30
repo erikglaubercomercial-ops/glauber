@@ -936,6 +936,23 @@ function openDealModal(id) {
     document.getElementById("field-stage").value = deal.stage;
     document.getElementById("field-notes").value = deal.notes || "";
     btnDelete.style.display = "inline-block";
+
+    const signedQuote = findSignedQuoteForLead(deal.leadId);
+    const signedContract = signedQuote ? contracts.find(c => c.quoteId === signedQuote.id && c.status === "Assinado") : null;
+    const docsRow = document.getElementById("deal-signed-docs-row");
+    docsRow.style.display = signedQuote ? "flex" : "none";
+    if (signedQuote) {
+      document.getElementById("deal-btn-view-quote").onclick = () => {
+        closeDealModal();
+        switchView("cotacao");
+        openQuoteBuilder(signedQuote.id);
+      };
+      document.getElementById("deal-btn-view-contract").onclick = () => {
+        closeDealModal();
+        switchView("contratos");
+        openContractModal(signedContract.id);
+      };
+    }
   } else {
     document.getElementById("modal-title").textContent = t("deal.newTitle");
     document.getElementById("deal-id").value = "";
@@ -944,6 +961,7 @@ function openDealModal(id) {
     document.getElementById("field-first-interaction").value = t("deal.noInteractionYet");
     document.getElementById("field-stage").value = STAGES[0] ? STAGES[0].id : "";
     btnDelete.style.display = "none";
+    document.getElementById("deal-signed-docs-row").style.display = "none";
   }
   modalBackdrop.classList.add("open");
   document.getElementById("field-name").focus();
