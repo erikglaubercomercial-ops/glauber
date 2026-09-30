@@ -611,7 +611,7 @@ function renderPipelineFilterOptions() {
     return;
   }
   sel.style.display = "";
-  const consultants = users.filter(u => u.role === "Consultor").slice().sort((a, b) => a.name.localeCompare(b.name));
+  const consultants = users.filter(u => isSellRole(u.role)).slice().sort((a, b) => a.name.localeCompare(b.name));
   sel.innerHTML = `<option value="">${t("pipeline.allConsultants")}</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   sel.value = current;
 }
@@ -1344,6 +1344,12 @@ function isOwnLeadsOnly() {
   return !!(session && session.role === "Consultor");
 }
 
+/* quem pode ser dono de lead/negócio (aparece nos filtros e listas de
+   atribuição de consultor) — Consultor sempre, Gerente também */
+function isSellRole(role) {
+  return role === "Consultor" || role === "Gerente";
+}
+
 /* ativado quando a tela "Meus leads" (submenu de Leads) está aberta —
    força ver só os próprios leads, mesmo pra quem normalmente vê todos */
 let leadsOwnOnlyMode = false;
@@ -1366,7 +1372,7 @@ function renderLeadFilterOptions() {
     consultorSel.style.display = "none";
   } else {
     consultorSel.style.display = "";
-    const consultants = users.filter(u => u.role === "Consultor");
+    const consultants = users.filter(u => isSellRole(u.role));
     consultorSel.innerHTML = `<option value="">Consultor (todos)</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   }
 
@@ -1847,7 +1853,7 @@ let assigningLeadIds = [];
 
 function openAssignModal(leadIds) {
   assigningLeadIds = leadIds;
-  const consultants = users.filter(u => u.role === "Consultor");
+  const consultants = users.filter(u => isSellRole(u.role));
   assignFieldConsultor.innerHTML = `<option value="">Sem consultor</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
 
   if (leadIds.length === 1) {
@@ -2353,7 +2359,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
     let consultorId = null;
     const consultorRaw = get("consultor");
     if (consultorRaw) {
-      const match = users.find(u => u.role === "Consultor" &&
+      const match = users.find(u => isSellRole(u.role) &&
         (normalizeImportStr(u.name) === normalizeImportStr(consultorRaw) || normalizeImportStr(u.email) === normalizeImportStr(consultorRaw)));
       if (match) consultorId = match.id;
     }
@@ -2528,7 +2534,7 @@ const rotationMembersListEl = document.getElementById("rotation-members-list");
 let rotationDraftMemberIds = [];
 
 function renderRotationMembersList() {
-  const consultants = users.filter(u => u.role === "Consultor" && u.active !== false).slice().sort((a, b) => a.name.localeCompare(b.name));
+  const consultants = users.filter(u => isSellRole(u.role) && u.active !== false).slice().sort((a, b) => a.name.localeCompare(b.name));
   if (!consultants.length) {
     rotationMembersListEl.innerHTML = `<p class="muted-note">${t("leads.rotationNoConsultants")}</p>`;
     return;
@@ -2950,7 +2956,7 @@ function isQuoteLost(q) { return q.status === "Recusada"; }
 function renderQuotesFilterOptions() {
   const sel = document.getElementById("quotes-filter-consultor");
   const current = sel.value;
-  const consultants = users.filter(u => u.role === "Consultor").slice().sort((a, b) => a.name.localeCompare(b.name));
+  const consultants = users.filter(u => isSellRole(u.role)).slice().sort((a, b) => a.name.localeCompare(b.name));
   sel.innerHTML = `<option value="">Todos os consultores</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   sel.value = current;
 }
@@ -5853,7 +5859,7 @@ function renderFormResponses() {
   if (!form) { thead.innerHTML = ""; tbody.innerHTML = ""; return; }
 
   const canConvert = hasModuleAccess(session.role, "leads");
-  const consultants = users.filter(u => u.role === "Consultor");
+  const consultants = users.filter(u => isSellRole(u.role));
 
   thead.innerHTML = `<tr>
     <th class="cell-check"><input type="checkbox" id="fr-select-all"></th>
@@ -6521,10 +6527,10 @@ document.querySelectorAll(".agenda-type-btn").forEach(btn => {
 
 function renderAgendaConsultorOptions(currentId) {
   const sel = document.getElementById("agenda-field-consultor");
-  const consultants = users.filter(u => u.role === "Consultor");
+  const consultants = users.filter(u => isSellRole(u.role));
   sel.innerHTML = `<option value="">${t("agenda.noSpecificConsultant")}</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   if (currentId) sel.value = currentId;
-  else if (session && session.role === "Consultor") sel.value = session.id;
+  else if (session && isSellRole(session.role)) sel.value = session.id;
 }
 
 function openAgendaModal(id, presetDate) {
