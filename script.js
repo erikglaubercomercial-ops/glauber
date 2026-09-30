@@ -3318,17 +3318,107 @@ function renderCatalogBreadcrumb(navPath, rootLabel) {
   }).join("")}</div>`;
 }
 
+const CATALOG_BOX_ICON_RENAME = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+const CATALOG_BOX_ICON_DELETE = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`;
+
 /* ---- grade de caixas clicáveis de um nível da árvore (compartilhado entre Produtos e Cotação) ---- */
-function catalogBoxGridHtml(boxes, kind, itemWord) {
+function catalogBoxGridHtml(boxes, kind, itemWord, levelIndex, isAdmin) {
   return `<div class="cat-box-grid">${boxes.map(node => {
     const count = catalogCountItems(node, kind);
     return `
-      <button type="button" class="cat-box" data-nav="${escapeHtml(node.nome)}">
-        <span class="cat-box-icon">${CATALOG_ICONS[kind]}</span>
-        <span class="cat-box-name">${escapeHtml(node.nome)}</span>
-        <span class="cat-box-count">${count} ${count === 1 ? itemWord : itemWord + "s"}</span>
-      </button>`;
+      <div class="cat-box-wrap">
+        <button type="button" class="cat-box" data-nav="${escapeHtml(node.nome)}">
+          <span class="cat-box-icon">${CATALOG_ICONS[kind]}</span>
+          <span class="cat-box-name">${escapeHtml(node.nome)}</span>
+          <span class="cat-box-count">${count} ${count === 1 ? itemWord : itemWord + "s"}</span>
+        </button>
+        ${isAdmin ? `
+          <div class="cat-box-admin-acts">
+            <button type="button" class="btn-icon cat-box-rename" data-level="${levelIndex}" data-name="${escapeHtml(node.nome)}" title="${t("products.renameBox")}">${CATALOG_BOX_ICON_RENAME}</button>
+            <button type="button" class="btn-icon cat-box-delete" data-level="${levelIndex}" data-name="${escapeHtml(node.nome)}" title="${t("products.deleteBox")}">${CATALOG_BOX_ICON_DELETE}</button>
+          </div>` : ""}
+      </div>`;
   }).join("")}</div>`;
+}
+
+/* nível 0=categoria, 1=destino, 2=escola/subgrupo, 3=turno — mesma
+   lógica de fallback usada em buildCatalogTree, pra bater exatamente
+   com o agrupamento mostrado nas caixas */
+const CATALOG_LEVEL_FIELDS = ["categoria", "destino", "subgrupo", "turno"];
+function catalogLevelValue(p, levelIndex) {
+  if (levelIndex === 0) return p.categoria || "Outros";
+  if (levelIndex === 1) return p.destino || "Todos";
+  if (levelIndex === 2) return p.subgrupo || "";
+  return p.turno || "";
+}
+function catalogItemsInBox(navPath, levelIndex, boxName) {
+  return catalog.filter(p => {
+    for (let i = 0; i < levelIndex; i++) {
+      if (catalogLevelValue(p, i) !== navPath[i]) return false;
+    }
+    return catalogLevelValue(p, levelIndex) === boxName;
+  });
+}
+async function bulkSaveCatalogItemsRemote(items) {
+  if (!items.length) return;
+  const { error } = await supabase.from("catalog_items").upsert(items.map(catalogToDb));
+  if (error) console.error("Erro ao salvar produtos em massa:", error);
+}
+async function bulkDeleteCatalogItemsRemote(ids) {
+  if (!ids.length) return;
+  const { error } = await supabase.from("catalog_items").delete().in("id", ids);
+  if (error) console.error("Erro ao excluir produtos em massa:", error);
+}
+async function renameCatalogBox(navPath, levelIndex, oldName, newName) {
+  const field = CATALOG_LEVEL_FIELDS[levelIndex];
+  const affected = catalogItemsInBox(navPath, levelIndex, oldName);
+  if (!affected.length) return;
+  affected.forEach(p => { p[field] = newName; });
+  await bulkSaveCatalogItemsRemote(affected);
+}
+async function deleteCatalogBoxCascade(navPath, levelIndex, boxName) {
+  const affected = catalogItemsInBox(navPath, levelIndex, boxName);
+  const ids = affected.map(p => p.id);
+  catalog = catalog.filter(p => !ids.includes(p.id));
+  await bulkDeleteCatalogItemsRemote(ids);
+}
+
+/* renomear/excluir uma caixa (categoria/destino/escola/turno) — ações
+   compartilhadas entre a grade de Produtos e a de Cotação, só ADM */
+async function promptRenameCatalogBox(navPath, levelIndex, oldName) {
+  const newName = prompt(t("products.renameBoxPrompt"), oldName);
+  if (newName === null) return false;
+  const trimmed = newName.trim();
+  if (!trimmed || trimmed === oldName) return false;
+  if (catalogItemsInBox(navPath, levelIndex, trimmed).length > 0) {
+    alert(t("products.renameBoxDuplicate"));
+    return false;
+  }
+  await renameCatalogBox(navPath, levelIndex, oldName, trimmed);
+  return true;
+}
+async function confirmDeleteCatalogBox(navPath, levelIndex, name) {
+  const count = catalogItemsInBox(navPath, levelIndex, name).length;
+  const msg = count > 0
+    ? `${t("products.confirmDeleteBox1")} "${name}"? ${count} ${t("products.confirmDeleteBox2")}`
+    : `${t("products.confirmDeleteBox1")} "${name}"?`;
+  if (!confirm(msg)) return false;
+  await deleteCatalogBoxCascade(navPath, levelIndex, name);
+  return true;
+}
+async function handleCatalogBoxAction(e, navPath) {
+  if (!(session && session.role === "ADM")) return false;
+  const renameBtn = e.target.closest(".cat-box-rename");
+  const delBtn = e.target.closest(".cat-box-delete");
+  if (!renameBtn && !delBtn) return false;
+  const btn = renameBtn || delBtn;
+  const levelIndex = parseInt(btn.dataset.level, 10);
+  const name = btn.dataset.name;
+  const changed = renameBtn
+    ? await promptRenameCatalogBox(navPath, levelIndex, name)
+    : await confirmDeleteCatalogBox(navPath, levelIndex, name);
+  if (changed) { quoteMontaDestinos(); quoteMontaCatalogo(); }
+  return true;
 }
 
 function renderCatalogList() {
@@ -3360,7 +3450,7 @@ function renderCatalogList() {
     if (!view.boxes.length && !looseHtml) {
       html += `<p class="muted-note">${t("products.emptyItemsHere")}</p>`;
     } else {
-      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, t("products.itemWord"));
+      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, t("products.itemWord"), catalogNavPath.length, isAdmin);
       html += looseHtml;
     }
   }
@@ -3376,6 +3466,7 @@ catalogListEl.addEventListener("click", async e => {
     renderCatalogList();
     return;
   }
+  if (await handleCatalogBoxAction(e, catalogNavPath)) { renderCatalogList(); return; }
   const box = e.target.closest(".cat-box");
   if (box) {
     catalogNavPath = [...catalogNavPath, box.dataset.nav];
@@ -3621,7 +3712,7 @@ function quoteMontaCatalogo() {
     if (!view.boxes.length && !looseHtml) {
       html += `<p class="muted-note">${t("products.emptyItemsHere")}</p>`;
     } else {
-      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, t("quotes.serviceWord"));
+      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, t("quotes.serviceWord"), quoteNavPath.length, !!(session && session.role === "ADM"));
       html += looseHtml;
     }
   }
@@ -3662,7 +3753,7 @@ quoteCatalogEl.addEventListener("change", e => {
   quoteAtualizaPrevia();
 });
 
-quoteCatalogEl.addEventListener("click", e => {
+quoteCatalogEl.addEventListener("click", async e => {
   const crumb = e.target.closest(".cat-crumb");
   if (crumb) {
     const idx = parseInt(crumb.dataset.idx, 10);
@@ -3670,6 +3761,7 @@ quoteCatalogEl.addEventListener("click", e => {
     quoteMontaCatalogo();
     return;
   }
+  if (await handleCatalogBoxAction(e, quoteNavPath)) { quoteMontaCatalogo(); return; }
   const box = e.target.closest(".cat-box");
   if (box) {
     quoteNavPath = [...quoteNavPath, box.dataset.nav];
