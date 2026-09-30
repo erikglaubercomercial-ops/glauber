@@ -853,9 +853,31 @@ notesForm.addEventListener("submit", async e => {
   await saveDeals([deal]);
 });
 
+/* venda só é liberada se o lead tiver uma cotação com contrato já
+   assinado (única assinatura eletrônica real do sistema) — leads sem
+   leadId (negócio avulso) não são travados. A cotação assinada também
+   define o valor do negócio (puxado pro Financeiro) */
+function findSignedQuoteForLead(leadId) {
+  if (!leadId) return null;
+  const leadQuotes = quotes.filter(q => q.leadId === leadId);
+  for (const q of leadQuotes) {
+    if (contracts.some(c => c.quoteId === q.id && c.status === "Assinado")) return q;
+  }
+  return null;
+}
+function hasSignedContractForLead(leadId) {
+  return !!findSignedQuoteForLead(leadId);
+}
+
 function moveDeal(id, newStage) {
   const deal = deals.find(d => d.id === id);
   if (!deal || deal.stage === newStage) return;
+  let signedQuote = null;
+  if (isWonStage(newStage) && deal.leadId) {
+    signedQuote = findSignedQuoteForLead(deal.leadId);
+    if (!signedQuote) { alert(t("pipeline.needSignedContract")); return; }
+  }
+  if (signedQuote) deal.value = signedQuote.value;
   deal.stage = newStage;
   deal.closedAt = isClosedStage(newStage) ? Date.now() : null;
   if (deal.leadId && STAGES.length && newStage !== STAGES[0].id) {
@@ -2630,7 +2652,7 @@ let contracts = [];
 
 function contractFromDb(r) {
   return {
-    id: r.id, leadId: r.lead_id, title: r.title || CONTRACT_DEFAULT_TITLE, content: r.content || "",
+    id: r.id, leadId: r.lead_id, quoteId: r.quote_id || null, title: r.title || CONTRACT_DEFAULT_TITLE, content: r.content || "",
     value: Number(r.value) || 0, status: r.status,
     signerName: r.signer_name || "", signerDocument: r.signer_document || "",
     signedAt: r.signed_at ? new Date(r.signed_at).getTime() : null, signedIp: r.signed_ip || "",
@@ -2640,7 +2662,7 @@ function contractFromDb(r) {
 }
 function contractToDb(c) {
   return {
-    id: c.id, lead_id: c.leadId || null, title: c.title, content: c.content, value: c.value, status: c.status,
+    id: c.id, lead_id: c.leadId || null, quote_id: c.quoteId || null, title: c.title, content: c.content, value: c.value, status: c.status,
     updated_at: new Date().toISOString(),
   };
 }
@@ -2774,7 +2796,7 @@ function setContractFieldsDisabled(disabled) {
   document.getElementById("contract-btn-template").style.display = disabled ? "none" : "";
 }
 
-function openContractModal(id) {
+function openContractModal(id, quotePrefill) {
   contractForm.reset();
   currentContract = id ? contracts.find(c => c.id === id) : null;
 
@@ -2794,6 +2816,7 @@ function openContractModal(id) {
     const lead = currentContract.leadId ? leads.find(l => l.id === currentContract.leadId) : null;
     document.getElementById("contract-modal-title").textContent = currentContract.title;
     document.getElementById("contract-id").value = currentContract.id;
+    document.getElementById("contract-quote-id").value = currentContract.quoteId || "";
     contractLeadIdField.value = currentContract.leadId || "";
     contractLeadSearch.value = lead ? lead.name : "";
     document.getElementById("contract-field-title").value = currentContract.title;
@@ -2818,9 +2841,18 @@ function openContractModal(id) {
   } else {
     document.getElementById("contract-modal-title").textContent = t("contracts.newTitle");
     document.getElementById("contract-id").value = "";
+    document.getElementById("contract-quote-id").value = quotePrefill ? quotePrefill.id : "";
     document.getElementById("contract-field-title").value = CONTRACT_DEFAULT_TITLE;
     setContractFieldsDisabled(false);
     btnSend.style.display = "";
+
+    if (quotePrefill) {
+      const lead = quotePrefill.leadId ? leads.find(l => l.id === quotePrefill.leadId) : null;
+      contractLeadIdField.value = quotePrefill.leadId || "";
+      contractLeadSearch.value = lead ? lead.name : quotePrefill.client || "";
+      document.getElementById("contract-field-value").value = quotePrefill.value || "";
+      document.getElementById("contract-field-content").value = contractTemplateText(lead ? lead.name : quotePrefill.client, quotePrefill.value);
+    }
   }
 
   contractModalBackdrop.classList.add("open");
@@ -2835,6 +2867,7 @@ contractModalBackdrop.addEventListener("click", e => { if (e.target === contract
 function readContractFormData() {
   return {
     leadId: contractLeadIdField.value || null,
+    quoteId: document.getElementById("contract-quote-id").value || null,
     title: document.getElementById("contract-field-title").value.trim() || CONTRACT_DEFAULT_TITLE,
     content: document.getElementById("contract-field-content").value.trim(),
     value: parseFloat(document.getElementById("contract-field-value").value) || 0,
@@ -3093,6 +3126,7 @@ function openQuoteBuilder(id) {
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
 
   document.getElementById("q-btn-excluir").style.display = id ? "inline-block" : "none";
+  document.getElementById("q-btn-gerar-contrato").style.display = id ? "" : "none";
   document.getElementById("quote-builder-title").textContent = id ? t("quotes.editTitle") : t("quotes.newTitle");
 
   if (id) {
@@ -3882,12 +3916,29 @@ async function quoteSalvar() {
   btn.disabled = true;
   await buildAndSaveQuoteRecord();
   document.getElementById("q-btn-excluir").style.display = "inline-block";
+  document.getElementById("q-btn-gerar-contrato").style.display = "";
   document.getElementById("quote-builder-title").textContent = t("quotes.editTitle");
   btn.textContent = t("quotes.saved");
   setTimeout(() => { btn.textContent = textoOriginal; btn.disabled = false; }, 1500);
 }
 
 document.getElementById("q-btn-salvar").addEventListener("click", quoteSalvar);
+
+document.getElementById("q-btn-gerar-contrato").addEventListener("click", () => {
+  const quoteId = document.getElementById("q-id").value;
+  const quote = quotes.find(q => q.id === quoteId);
+  if (!quote) { alert(t("quotes.saveFirst")); return; }
+  const existingContract = contracts.find(c => c.quoteId === quote.id);
+  if (existingContract) {
+    switchView("contratos");
+    openContractModal(existingContract.id);
+    return;
+  }
+  if (quote.status !== "Aprovada") { alert(t("quotes.needApprovedForContract")); return; }
+  if (!quote.leadId) { alert(t("quotes.needLeadForContract")); return; }
+  switchView("contratos");
+  openContractModal(null, quote);
+});
 
 async function quoteGerar() {
   if (!quoteValida()) return;
@@ -5189,17 +5240,31 @@ document.getElementById("enrollment-new-modal-close").addEventListener("click", 
 document.getElementById("enrollment-new-btn-cancel").addEventListener("click", closeNewEnrollmentModal);
 enrollmentNewModalBackdrop.addEventListener("click", e => { if (e.target === enrollmentNewModalBackdrop) closeNewEnrollmentModal(); });
 
+/* matrícula puxa escola/turno/valor da cotação assinada do lead — 1º
+   item da cotação define escola/turno, valor é o total da cotação */
+function enrollmentPrefillFromQuote(quote) {
+  if (!quote) return { school: "", turno: "", courseValue: 0 };
+  const firstItem = (quote.itemsDetail || [])[0];
+  const product = firstItem ? catalog.find(p => p.id === firstItem.id) : null;
+  return {
+    school: product ? (product.subgrupo || "") : "",
+    turno: product ? (product.turno || "") : "",
+    courseValue: quote.value || 0,
+  };
+}
+
 document.getElementById("enrollment-new-form").addEventListener("submit", async e => {
   e.preventDefault();
   const leadId = enrollmentNewLeadId.value || null;
   const lead = leadId ? leads.find(l => l.id === leadId) : null;
+  const prefill = enrollmentPrefillFromQuote(findSignedQuoteForLead(leadId));
   const draft = {
     leadId, consultorId: (lead ? lead.consultorId : null) || (isOwnLeadsOnly() ? session.id : null),
     name: lead ? lead.name : "", email: lead ? lead.email : "", phone: lead ? lead.phone : "",
     emergencyPhone: "", passportNumber: "", passportPhotoPath: null, cpf: "",
     addressStreet: "", addressNumber: "", addressComplement: "", addressNeighborhood: "",
     addressCity: "", addressState: "", addressZip: "",
-    school: "", turno: "", courseValue: 0, arrivalDate: null, classStartDate: null,
+    school: prefill.school, turno: prefill.turno, courseValue: prefill.courseValue, arrivalDate: null, classStartDate: null,
     status: "Aguardando aluno",
   };
   const saved = await saveEnrollmentRemote(draft);
