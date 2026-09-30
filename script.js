@@ -5157,10 +5157,6 @@ async function openEnrollmentModal(id) {
   document.getElementById("enr-field-course-value").value = enr.courseValue || "";
   document.getElementById("enr-field-arrival").value = enr.arrivalDate || "";
   document.getElementById("enr-field-class-start").value = enr.classStartDate || "";
-  document.getElementById("enr-field-school-commission-amount").value = enr.schoolCommissionAmount != null ? enr.schoolCommissionAmount : "";
-  document.getElementById("enr-field-school-commission-status").value = enr.schoolCommissionStatus || "Pendente";
-  document.getElementById("enr-field-school-commission-expected").value = enr.schoolCommissionExpected || "";
-  document.getElementById("enr-field-school-commission-received").value = enr.schoolCommissionReceived || "";
 
   const photoLink = document.getElementById("enr-photo-view-link");
   photoLink.style.display = "none";
@@ -5234,11 +5230,6 @@ enrollmentForm.addEventListener("submit", async e => {
     courseValue: parseFloat(document.getElementById("enr-field-course-value").value) || 0,
     arrivalDate: document.getElementById("enr-field-arrival").value || null,
     classStartDate: document.getElementById("enr-field-class-start").value || null,
-    schoolCommissionAmount: document.getElementById("enr-field-school-commission-amount").value !== ""
-      ? parseFloat(document.getElementById("enr-field-school-commission-amount").value) || 0 : null,
-    schoolCommissionStatus: document.getElementById("enr-field-school-commission-status").value,
-    schoolCommissionExpected: document.getElementById("enr-field-school-commission-expected").value || null,
-    schoolCommissionReceived: document.getElementById("enr-field-school-commission-received").value || null,
   });
 
   renderEnrollments();
