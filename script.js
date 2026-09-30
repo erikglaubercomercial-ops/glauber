@@ -1075,11 +1075,16 @@ const STATUSES = ["Novo", "Em contato", "Qualificado", "Descartado"];
 let sourceInfluencerConfig = {};
 
 async function loadSources() {
-  const { data, error } = await supabase.from("lead_sources").select("name, is_influencer, commission_pct").order("ordem");
+  const { data, error } = await supabase.from("lead_sources")
+    .select("name, is_influencer, commission_pct, commission_mode, commission_fixed_am, commission_fixed_pm").order("ordem");
   if (error || !data || !data.length) return ["Indicação", "Site", "Redes Sociais", "Anúncio", "Evento", "Outro"];
   sourceInfluencerConfig = {};
   data.forEach(r => {
-    sourceInfluencerConfig[r.name] = { isInfluencer: !!r.is_influencer, commissionPct: Number(r.commission_pct) || 0 };
+    sourceInfluencerConfig[r.name] = {
+      isInfluencer: !!r.is_influencer, commissionPct: Number(r.commission_pct) || 0,
+      mode: r.commission_mode || "percentage",
+      fixedAm: Number(r.commission_fixed_am) || 0, fixedPm: Number(r.commission_fixed_pm) || 0,
+    };
   });
   return data.map(r => r.name);
 }
@@ -1095,9 +1100,12 @@ async function deleteSourceRemote(name) {
   const { error } = await supabase.from("lead_sources").delete().eq("name", name);
   if (error) console.error("Erro ao excluir origem:", error);
 }
-async function updateSourceInfluencerRemote(name, isInfluencer, commissionPct) {
+async function updateSourceInfluencerRemote(name, cfg) {
   const { error } = await supabase.from("lead_sources")
-    .update({ is_influencer: isInfluencer, commission_pct: commissionPct })
+    .update({
+      is_influencer: cfg.isInfluencer, commission_pct: cfg.commissionPct,
+      commission_mode: cfg.mode, commission_fixed_am: cfg.fixedAm, commission_fixed_pm: cfg.fixedPm,
+    })
     .eq("name", name);
   if (error) console.error("Erro ao salvar configuração de influencer:", error);
 }
@@ -2417,7 +2425,8 @@ function sourceUsageCount(name) {
 
 function renderSourcesList() {
   sourcesListEl.innerHTML = SOURCES.map((s, i) => {
-    const cfg = sourceInfluencerConfig[s] || { isInfluencer: false, commissionPct: 0 };
+    const cfg = sourceInfluencerConfig[s] || { isInfluencer: false, commissionPct: 0, mode: "percentage", fixedAm: 0, fixedPm: 0 };
+    const isFixed = cfg.mode === "fixed_turno";
     return `
     <div class="source-row">
       <input type="text" value="${escapeHtml(s)}" data-index="${i}">
@@ -2426,8 +2435,18 @@ function renderSourcesList() {
         <input type="checkbox" class="source-influencer-checkbox" data-name="${escapeHtml(s)}" ${cfg.isInfluencer ? "checked" : ""}>
         <span>${t("leads.sourceIsInfluencer")}</span>
       </label>
+      <select class="source-influencer-mode" data-name="${escapeHtml(s)}" style="${cfg.isInfluencer ? "" : "display:none;"}">
+        <option value="percentage" ${!isFixed ? "selected" : ""}>${t("leads.commissionModePct")}</option>
+        <option value="fixed_turno" ${isFixed ? "selected" : ""}>${t("leads.commissionModeFixedTurno")}</option>
+      </select>
       <input type="number" class="source-influencer-pct" data-name="${escapeHtml(s)}" min="0" max="100" step="0.5"
-        value="${cfg.commissionPct}" title="${t("leads.influencerCommissionPct")}" style="${cfg.isInfluencer ? "" : "display:none;"}">
+        value="${cfg.commissionPct}" title="${t("leads.influencerCommissionPct")}" style="${cfg.isInfluencer && !isFixed ? "" : "display:none;"}">
+      <span class="source-influencer-turno-fields" style="${cfg.isInfluencer && isFixed ? "display:inline-flex;" : "display:none;"}">
+        <input type="number" class="source-influencer-fixed-am" data-name="${escapeHtml(s)}" min="0" step="0.01"
+          value="${cfg.fixedAm}" title="${t("leads.commissionFixedAm")}" placeholder="${t("leads.commissionFixedAm")}">
+        <input type="number" class="source-influencer-fixed-pm" data-name="${escapeHtml(s)}" min="0" step="0.01"
+          value="${cfg.fixedPm}" title="${t("leads.commissionFixedPm")}" placeholder="${t("leads.commissionFixedPm")}">
+      </span>
       <button type="button" class="btn btn-icon" data-act="del" data-index="${i}" title="${t("leads.deleteSource")}">&times;</button>
     </div>`;
   }).join("");
@@ -2497,15 +2516,22 @@ sourcesListEl.addEventListener("click", async e => {
 
 sourcesListEl.addEventListener("change", async e => {
   const cb = e.target.closest(".source-influencer-checkbox");
+  const modeSel = e.target.closest(".source-influencer-mode");
   const pctInput = e.target.closest(".source-influencer-pct");
-  if (!cb && !pctInput) return;
-  const name = (cb || pctInput).dataset.name;
-  const cfg = sourceInfluencerConfig[name] || { isInfluencer: false, commissionPct: 0 };
+  const fixedAmInput = e.target.closest(".source-influencer-fixed-am");
+  const fixedPmInput = e.target.closest(".source-influencer-fixed-pm");
+  const control = cb || modeSel || pctInput || fixedAmInput || fixedPmInput;
+  if (!control) return;
+  const name = control.dataset.name;
+  const cfg = sourceInfluencerConfig[name] || { isInfluencer: false, commissionPct: 0, mode: "percentage", fixedAm: 0, fixedPm: 0 };
   if (cb) cfg.isInfluencer = cb.checked;
+  if (modeSel) cfg.mode = modeSel.value;
   if (pctInput) cfg.commissionPct = Math.max(0, Math.min(100, parseFloat(pctInput.value) || 0));
+  if (fixedAmInput) cfg.fixedAm = Math.max(0, parseFloat(fixedAmInput.value) || 0);
+  if (fixedPmInput) cfg.fixedPm = Math.max(0, parseFloat(fixedPmInput.value) || 0);
   sourceInfluencerConfig[name] = cfg;
   renderSourcesList();
-  await updateSourceInfluencerRemote(name, cfg.isInfluencer, cfg.commissionPct);
+  await updateSourceInfluencerRemote(name, cfg);
 });
 
 async function addNewSource() {
@@ -3939,7 +3965,7 @@ async function saveCommission(c) {
    origem em vez de consultor — origem não é um usuário do sistema) ---- */
 function influencerCommissionFromDb(r) {
   return {
-    id: r.id, dealId: r.deal_id, source: r.source || "",
+    id: r.id, dealId: r.deal_id, enrollmentId: r.enrollment_id || null, source: r.source || "",
     dealName: r.deal_name || "", dealValue: Number(r.deal_value) || 0,
     percentage: Number(r.percentage) || 0, amount: Number(r.amount) || 0,
     status: r.status, paidAt: r.paid_at ? new Date(r.paid_at).getTime() : null,
@@ -3948,7 +3974,7 @@ function influencerCommissionFromDb(r) {
 }
 function influencerCommissionToDb(c) {
   return {
-    id: c.id, deal_id: c.dealId, source: c.source,
+    id: c.id, deal_id: c.dealId || null, enrollment_id: c.enrollmentId || null, source: c.source,
     deal_name: c.dealName, deal_value: c.dealValue,
     percentage: c.percentage, amount: c.amount, status: c.status,
     paid_at: c.paidAt ? new Date(c.paidAt).toISOString() : null,
@@ -4026,6 +4052,54 @@ async function updateReceivableRemote(r) {
   if (error) console.error("Erro ao atualizar conta a receber:", error);
 }
 
+/* classifica o turno (texto livre da Matrícula, ex: "AM · Segunda a
+   Quinta", "PM · Dublin") em manhã/tarde, pra comissão de influencer
+   fixa por turno — não distingue escola/destino de propósito */
+function classifyTurnoShift(turno) {
+  const norm = normalizeImportStr(turno || "");
+  if (norm.startsWith("am") || norm.includes("manha")) return "am";
+  if (norm.startsWith("pm") || norm.includes("tarde")) return "pm";
+  return null;
+}
+
+/* ---- ao salvar uma matrícula: gera comissão fixa de influencer por
+   turno, se a origem do lead usar esse modo — não mexe se já existe
+   comissão paga pra essa matrícula ---- */
+async function handleEnrollmentInfluencerCommission(enr) {
+  if (!enr.leadId) return;
+  const lead = leads.find(l => l.id === enr.leadId);
+  if (!lead || !lead.source) return;
+  const cfg = sourceInfluencerConfig[lead.source];
+  if (!cfg || !cfg.isInfluencer || cfg.mode !== "fixed_turno") return;
+
+  const shift = classifyTurnoShift(enr.turno);
+  if (!shift) return;
+  const amount = shift === "am" ? cfg.fixedAm : cfg.fixedPm;
+  if (!(amount > 0)) return;
+
+  const existing = influencerCommissions.find(c => c.enrollmentId === enr.id);
+  if (existing) {
+    if (existing.status === "Pago") return;
+    if (existing.amount === amount) return;
+    existing.amount = amount;
+    existing.dealName = enr.name;
+    renderInfluencerCommissions();
+    await saveInfluencerCommission(existing);
+    return;
+  }
+
+  const deal = deals.find(d => d.leadId === enr.leadId);
+  const commission = {
+    id: uid(), dealId: deal ? deal.id : null, enrollmentId: enr.id, source: lead.source,
+    dealName: enr.name, dealValue: enr.courseValue,
+    percentage: 0, amount,
+    status: "Pendente", paidAt: null, createdAt: Date.now(),
+  };
+  influencerCommissions.push(commission);
+  renderInfluencerCommissions();
+  await saveInfluencerCommission(commission);
+}
+
 /* ---- ao marcar um negócio como Ganho: gera comissão e pede as parcelas ---- */
 async function handleDealWon(deal) {
   if (!isWonStage(deal.stage)) return;
@@ -4045,9 +4119,9 @@ async function handleDealWon(deal) {
     await saveCommission(commission);
   }
 
-  if (lead && lead.source && !influencerCommissions.some(c => c.dealId === deal.id)) {
+  if (lead && lead.source && !influencerCommissions.some(c => c.dealId === deal.id && !c.enrollmentId)) {
     const cfg = sourceInfluencerConfig[lead.source];
-    if (cfg && cfg.isInfluencer && cfg.commissionPct > 0) {
+    if (cfg && cfg.isInfluencer && cfg.mode !== "fixed_turno" && cfg.commissionPct > 0) {
       const influencerCommission = {
         id: uid(), dealId: deal.id, source: lead.source,
         dealName: deal.name, dealValue: deal.value,
@@ -5169,6 +5243,7 @@ enrollmentForm.addEventListener("submit", async e => {
   renderSchoolCommissions();
   closeEnrollmentModal();
   await saveEnrollmentRemote(enr);
+  await handleEnrollmentInfluencerCommission(enr);
 
   if (enr.email && !enr.studentUserId) {
     const result = await provisionStudentAccess(enr);

@@ -1063,8 +1063,14 @@ body {
 }
 .source-usage { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
 .source-influencer-toggle { font-size: 11.5px; white-space: nowrap; margin: 0; }
-.source-influencer-pct {
+.source-influencer-pct, .source-influencer-fixed-am, .source-influencer-fixed-pm {
   width: 60px; font-family: inherit; font-size: 13px; color: var(--text);
+  background: var(--content-bg); border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px;
+}
+.source-influencer-fixed-am, .source-influencer-fixed-pm { width: 78px; }
+.source-influencer-turno-fields { display: inline-flex; gap: 6px; align-items: center; }
+.source-influencer-mode {
+  font-family: inherit; font-size: 12.5px; color: var(--text);
   background: var(--content-bg); border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px;
 }
 .source-row button { padding: 7px 0; width: 36px; text-align: center; flex: 0 0 auto; }
