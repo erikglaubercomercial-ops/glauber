@@ -4144,7 +4144,7 @@ function dealStatusLabel(d) {
 
 function getFilteredOverviewDeals() {
   const q = (document.getElementById("fin-overview-search-input").value || "").trim().toLowerCase();
-  let list = deals;
+  let list = deals.filter(d => isWonStage(d.stage));
   if (q) {
     list = list.filter(d => {
       const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
