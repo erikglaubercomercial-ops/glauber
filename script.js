@@ -1221,7 +1221,7 @@ function leadFromDb(r) {
   return {
     id: r.id, name: r.name, company: r.company || "", phone: r.phone || "", email: r.email || "",
     countryCode: r.country_code || "BR", phoneDdd: r.phone_ddd || "", phoneNumber: r.phone_number || "",
-    source: r.source, category: r.category, status: r.status, temperature: r.temperature,
+    source: r.source, category: r.category, status: r.status, temperature: r.temperature || "",
     consultorId: r.consultor_id, active: r.active, notes: r.notes || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     rotationActive: !!r.rotation_active,
@@ -1235,7 +1235,7 @@ function leadToDb(l) {
   return {
     id: l.id, name: l.name, company: l.company, phone: l.phone, email: l.email,
     country_code: l.countryCode || "BR", phone_ddd: l.phoneDdd || "", phone_number: l.phoneNumber || "",
-    source: l.source, category: l.category, status: l.status, temperature: l.temperature,
+    source: l.source, category: l.category, status: l.status, temperature: l.temperature || null,
     consultor_id: l.consultorId || null, active: l.active, notes: l.notes || "",
     created_at: new Date(l.createdAt).toISOString(),
     rotation_active: !!l.rotationActive,
@@ -1325,7 +1325,8 @@ function renderLeadFormOptions(currentSource) {
   const sourceOptions = SOURCES.slice();
   if (currentSource && !sourceOptions.includes(currentSource)) sourceOptions.push(currentSource);
   document.getElementById("lead-field-source").innerHTML = sourceOptions.map(s => `<option value="${s}">${s}</option>`).join("");
-  document.getElementById("lead-field-temperature").innerHTML = TEMPERATURES.map(temp => `<option value="${temp}">${escapeHtml(statusLabel(temp))}</option>`).join("");
+  document.getElementById("lead-field-temperature").innerHTML = `<option value="">${t("common.select")}</option>` +
+    TEMPERATURES.map(temp => `<option value="${temp}">${escapeHtml(statusLabel(temp))}</option>`).join("");
 }
 
 function isOwnLeadsOnly() {
@@ -2043,7 +2044,7 @@ function openLeadModal(id) {
     document.getElementById("lead-field-email").value = lead.email || "";
     document.getElementById("lead-field-category").value = lead.category || "Outro";
     document.getElementById("lead-field-source").value = lead.source || "Indicação";
-    document.getElementById("lead-field-temperature").value = lead.temperature || "Morno";
+    document.getElementById("lead-field-temperature").value = lead.temperature || "";
     document.getElementById("lead-field-status").value = lead.status || "Novo";
     document.getElementById("lead-field-notes").value = lead.notes || "";
     document.getElementById("lead-field-active").checked = lead.active !== false;
@@ -2057,7 +2058,7 @@ function openLeadModal(id) {
     document.getElementById("lead-field-country").value = "BR";
     document.getElementById("lead-field-category").value = "Outro";
     document.getElementById("lead-field-source").value = "Indicação";
-    document.getElementById("lead-field-temperature").value = "Morno";
+    document.getElementById("lead-field-temperature").value = "";
     document.getElementById("lead-field-active").checked = true;
     document.getElementById("lead-field-referred-by").value = "";
     document.getElementById("lead-referred-search").value = "";
@@ -2359,7 +2360,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
       email,
       category: matchEnum(get("category"), CATEGORIES, "Outro"),
       source: matchEnum(get("source"), SOURCES, "Outro"),
-      temperature: matchEnum(get("temperature"), TEMPERATURES, "Morno"),
+      temperature: matchEnum(get("temperature"), TEMPERATURES, ""),
       status: matchEnum(get("status"), ["Novo", "Em contato", "Qualificado", "Descartado"], "Novo"),
       consultorId,
       active: true,
@@ -5558,6 +5559,10 @@ async function markSubmissionLeadRemote(submissionId, leadId) {
   const { error } = await supabase.from("form_submissions").update({ lead_id: leadId }).eq("id", submissionId);
   if (error) console.error("Erro ao vincular lead à resposta:", error);
 }
+async function deleteFormSubmissionsRemote(ids) {
+  const { error } = await supabase.from("form_submissions").delete().in("id", ids);
+  if (error) console.error("Erro ao excluir respostas de formulário:", error);
+}
 async function saveFormRemote(f) {
   const { data, error } = await supabase.from("forms").upsert(formToDb(f)).select().single();
   if (error) { console.error("Erro ao salvar formulário:", error); return null; }
@@ -5828,6 +5833,8 @@ function closeFormResponses() {
 }
 document.getElementById("fr-btn-voltar").addEventListener("click", closeFormResponses);
 
+let frSelectedIds = new Set();
+
 function renderFormResponses() {
   const form = forms.find(f => f.id === formResponsesFormId);
   const thead = document.getElementById("fr-thead");
@@ -5838,6 +5845,7 @@ function renderFormResponses() {
   const consultants = users.filter(u => u.role === "Consultor");
 
   thead.innerHTML = `<tr>
+    <th class="cell-check"><input type="checkbox" id="fr-select-all"></th>
     ${form.fields.map(f => `<th>${escapeHtml(f.label)}</th>`).join("")}
     <th>${t("forms.receivedOn")}</th>
     <th>${t("common.lead")}</th>
@@ -5871,7 +5879,10 @@ function renderFormResponses() {
       leadCell = "—";
     }
 
-    return `<tr>${cells}<td>${when}</td><td>${leadCell}</td></tr>`;
+    return `<tr>
+      <td class="cell-check"><input type="checkbox" class="fr-row-checkbox" data-id="${s.id}" ${frSelectedIds.has(s.id) ? "checked" : ""}></td>
+      ${cells}<td>${when}</td><td>${leadCell}</td>
+    </tr>`;
   }).join("");
 
   tbody.querySelectorAll('[data-act="convert"]').forEach(btn => {
@@ -5890,7 +5901,79 @@ function renderFormResponses() {
       openLeadModal(btn.dataset.leadId);
     });
   });
+  tbody.querySelectorAll(".fr-row-checkbox").forEach(cb => {
+    cb.addEventListener("click", e => e.stopPropagation());
+    cb.addEventListener("change", e => {
+      if (e.target.checked) frSelectedIds.add(e.target.dataset.id);
+      else frSelectedIds.delete(e.target.dataset.id);
+      updateFrSelectAllState(rows);
+      updateFrBulkBar();
+    });
+  });
+
+  const bulkConsultorSel = document.getElementById("fr-bulk-consultor");
+  bulkConsultorSel.innerHTML = `<option value="">${t("forms.noConsultant")}</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+
+  updateFrSelectAllState(rows);
+  updateFrBulkBar();
 }
+
+function updateFrSelectAllState(rows) {
+  const cb = document.getElementById("fr-select-all");
+  if (!cb) return;
+  if (!rows.length) { cb.checked = false; cb.indeterminate = false; return; }
+  const selectedCount = rows.filter(s => frSelectedIds.has(s.id)).length;
+  cb.checked = selectedCount === rows.length;
+  cb.indeterminate = selectedCount > 0 && selectedCount < rows.length;
+}
+function updateFrBulkBar() {
+  const bar = document.getElementById("fr-bulk-bar");
+  const count = frSelectedIds.size;
+  document.getElementById("fr-bulk-count").textContent = `${count} ${t("common.selectedCount")}`;
+  bar.style.display = count > 0 ? "flex" : "none";
+}
+
+document.getElementById("fr-thead").addEventListener("change", e => {
+  const cb = e.target.closest("#fr-select-all");
+  if (!cb) return;
+  const rows = formSubmissions.filter(s => s.formId === formResponsesFormId);
+  if (cb.checked) rows.forEach(s => frSelectedIds.add(s.id));
+  else rows.forEach(s => frSelectedIds.delete(s.id));
+  renderFormResponses();
+});
+document.getElementById("fr-bulk-clear").addEventListener("click", () => {
+  frSelectedIds = new Set();
+  renderFormResponses();
+});
+document.getElementById("fr-bulk-delete").addEventListener("click", async () => {
+  const ids = Array.from(frSelectedIds);
+  if (!ids.length) return;
+  if (!confirm(`${t("forms.confirmBulkDeleteResponses1")} ${ids.length} ${t("forms.confirmBulkDeleteResponses2")}`)) return;
+  formSubmissions = formSubmissions.filter(s => !ids.includes(s.id));
+  frSelectedIds = new Set();
+  renderFormResponses();
+  renderFormsList();
+  await deleteFormSubmissionsRemote(ids);
+});
+document.getElementById("fr-bulk-assign").addEventListener("click", async () => {
+  const ids = Array.from(frSelectedIds);
+  if (!ids.length) return;
+  const consultorId = document.getElementById("fr-bulk-consultor").value || null;
+  const form = forms.find(f => f.id === formResponsesFormId);
+  if (!form) return;
+  const targets = formSubmissions.filter(s => ids.includes(s.id) && !s.leadId);
+  if (!targets.length) { alert(t("forms.bulkAssignNoneEligible")); return; }
+  const btn = document.getElementById("fr-bulk-assign");
+  btn.disabled = true;
+  btn.textContent = t("forms.saving");
+  for (const submission of targets) {
+    await convertSubmissionToLead(submission.id, consultorId);
+  }
+  btn.disabled = false;
+  btn.textContent = t("forms.bulkAssignConsultant");
+  frSelectedIds = new Set();
+  renderFormResponses();
+});
 
 function buildLeadFromSubmission(form, submission) {
   const answers = submission.answers || {};
@@ -5915,7 +5998,7 @@ function buildLeadFromSubmission(form, submission) {
     id: uid(), name: name || t("forms.leadNoName"), company: "", email,
     countryCode: "BR", phoneDdd: ddd, phoneNumber: number,
     phone: ddd && number ? `(${ddd}) ${number}` : "",
-    source, category: "Outro", status: "Novo", temperature: "Morno",
+    source, category: "Outro", status: "Novo", temperature: "",
     consultorId: null, active: true, notes: notes.trim(),
     createdAt: Date.now(),
   };

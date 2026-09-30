@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790713866">
+<link rel="stylesheet" href="style.css?v=1790727607">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -896,6 +896,14 @@
             <h2 id="fr-title" data-i18n="forms.responses">Respostas</h2>
           </div>
           <div class="panel">
+            <div class="bulk-bar" id="fr-bulk-bar" style="display:none;">
+              <span id="fr-bulk-count">0 selecionado(s)</span>
+              <div class="spacer"></div>
+              <select id="fr-bulk-consultor"><option value="" data-i18n="forms.noConsultant">Sem consultor</option></select>
+              <button type="button" class="btn btn-ghost btn-sm" id="fr-bulk-assign" data-i18n="forms.bulkAssignConsultant">Atribuir consultor</button>
+              <button type="button" class="btn btn-danger btn-sm" id="fr-bulk-delete" data-i18n="fin.deleteSelected">Excluir selecionados</button>
+              <button type="button" class="btn-icon" id="fr-bulk-clear" title="Limpar seleção" data-i18n-title="common.clearSelection">&times;</button>
+            </div>
             <div class="table-scroll">
               <table class="data-table data-table-list" id="fr-table">
                 <thead id="fr-thead"></thead>
@@ -2029,7 +2037,7 @@
 
   <script src="config.js?v=1790028144"></script>
   <script src="auth.js?v=1790102824"></script>
-  <script src="i18n.js?v=1790713866"></script>
-  <script src="script.js?v=1790713866"></script>
+  <script src="i18n.js?v=1790727607"></script>
+  <script src="script.js?v=1790727607"></script>
 </body>
 </html>
