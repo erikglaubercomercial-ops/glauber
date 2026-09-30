@@ -478,11 +478,6 @@ async function deletePipelineStageRemote(id) {
   const { error } = await supabase.from("pipeline_stages").delete().eq("id", id);
   if (error) console.error("Erro ao excluir coluna do pipeline:", error);
 }
-async function reorderPipelineStagesRemote(stages) {
-  const { error } = await supabase.from("pipeline_stages")
-    .upsert(stages.map(s => ({ id: s.id, label: s.label, position: s.position, is_won: s.isWon, is_lost: s.isLost })));
-  if (error) console.error("Erro ao reordenar colunas do pipeline:", error);
-}
 
 function dealFromDb(r) {
   return {
@@ -682,13 +677,9 @@ pipelineSearchResults.addEventListener("mousedown", e => {
   renderBoard();
 });
 
-const STAGE_DRAG_MIME = "application/x-pipeline-stage-id";
-const canReorderStages = () => !!(session && session.role === "ADM");
-
 function renderBoard() {
   boardEl.innerHTML = "";
   const filteredDeals = getFilteredDeals();
-  const reorderable = canReorderStages();
   STAGES.forEach(stage => {
     const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
 
@@ -697,7 +688,7 @@ function renderBoard() {
     column.dataset.stage = stage.id;
     column.style.setProperty("--stage-color", stageColor(stage.id));
     column.innerHTML = `
-      <div class="column-header"${reorderable ? ` draggable="true" title="${t("pipeline.dragToReorder")}"` : ""}>
+      <div class="column-header">
         <span>${escapeHtml(stageLabel(stage.label))}</span>
         <span class="column-count">${stageDeals.length}</span>
       </div>
@@ -716,48 +707,13 @@ function renderBoard() {
     cardsEl.addEventListener("drop", e => {
       e.preventDefault();
       cardsEl.classList.remove("drag-over");
-      if (e.dataTransfer.types.includes(STAGE_DRAG_MIME)) return;
       moveDeal(e.dataTransfer.getData("text/plain"), stage.id);
     });
-
-    if (reorderable) {
-      const headerEl = column.querySelector(".column-header");
-      headerEl.addEventListener("dragstart", e => {
-        e.dataTransfer.setData(STAGE_DRAG_MIME, stage.id);
-        e.dataTransfer.effectAllowed = "move";
-        column.classList.add("dragging-col");
-      });
-      headerEl.addEventListener("dragend", () => column.classList.remove("dragging-col"));
-      headerEl.addEventListener("dragover", e => {
-        if (!e.dataTransfer.types.includes(STAGE_DRAG_MIME)) return;
-        e.preventDefault();
-        headerEl.classList.add("drag-over-col");
-      });
-      headerEl.addEventListener("dragleave", () => headerEl.classList.remove("drag-over-col"));
-      headerEl.addEventListener("drop", e => {
-        if (!e.dataTransfer.types.includes(STAGE_DRAG_MIME)) return;
-        e.preventDefault();
-        headerEl.classList.remove("drag-over-col");
-        reorderStage(e.dataTransfer.getData(STAGE_DRAG_MIME), stage.id);
-      });
-    }
 
     boardEl.appendChild(column);
   });
 
   renderPipelineDashboard();
-}
-
-function reorderStage(draggedId, targetId) {
-  if (!draggedId || draggedId === targetId) return;
-  const fromIdx = STAGES.findIndex(s => s.id === draggedId);
-  const toIdx = STAGES.findIndex(s => s.id === targetId);
-  if (fromIdx === -1 || toIdx === -1) return;
-  const [moved] = STAGES.splice(fromIdx, 1);
-  STAGES.splice(toIdx, 0, moved);
-  STAGES.forEach((s, i) => { s.position = i + 1; });
-  renderBoard();
-  reorderPipelineStagesRemote(STAGES);
 }
 
 const CARD_CALENDAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
