@@ -601,6 +601,12 @@ body {
   white-space: nowrap;
 }
 .origin-badge svg { flex: 0 0 auto; width: 13px; height: 13px; }
+.origin-badge-solid {
+  background: var(--origin-color, var(--text-muted));
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--origin-color, var(--text-muted)) 55%, transparent);
+}
 
 /* ===== BUTTONS ===== */
 .btn {

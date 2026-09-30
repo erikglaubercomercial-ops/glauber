@@ -1141,6 +1141,8 @@ const ORIGIN_STYLES = [
     icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>` },
   { match: ["site", "website", "web"], color: "#0EA5E9",
     icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>` },
+  { match: ["app intercambio", "aplicativo", "app"], color: "#F7931E", solid: true,
+    icon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>` },
 ];
 const ORIGIN_ICON_FALLBACK = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.6 12 21l-9-9 8.6-8.6a2 2 0 0 1 1.4-.6H20a1 1 0 0 1 1 1v6.6a2 2 0 0 1-.4 1.4z"/><circle cx="16.5" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg>`;
 
@@ -1156,7 +1158,8 @@ function originStyle(source) {
 function originBadge(source) {
   if (!source) return "—";
   const style = originStyle(source);
-  return `<span class="origin-badge" style="--origin-color:${style.color}">${style.icon}${escapeHtml(source)}</span>`;
+  const solidClass = style.solid ? " origin-badge-solid" : "";
+  return `<span class="origin-badge${solidClass}" style="--origin-color:${style.color}">${style.icon}${escapeHtml(source)}</span>`;
 }
 
 /* ---- nacionalidade do lead: bandeira + DDI, usados para montar o
