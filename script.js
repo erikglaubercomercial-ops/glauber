@@ -530,7 +530,7 @@ function createDealForLead(lead) {
 async function recordFirstInteraction(deal) {
   if (!deal || deal.firstInteractionAt) return;
   deal.firstInteractionAt = Date.now();
-  await saveDeals();
+  await saveDeals([deal]);
 }
 
 /* tira o lead da lista de "Leads Parados" assim que alguém interage com ele
@@ -565,9 +565,17 @@ async function loadDeals() {
   if (error) { console.error("Erro ao carregar pipeline:", error); return []; }
   return data.map(dealFromDb);
 }
-async function saveDeals() {
-  const { error } = await supabase.from("deals").upsert(deals.map(dealToDb));
-  if (error) console.error("Erro ao salvar pipeline:", error);
+async function saveDeals(list) {
+  const target = list || deals;
+  if (!target.length) return;
+  const CHUNK_SIZE = 50;
+  let hadError = false;
+  for (let i = 0; i < target.length; i += CHUNK_SIZE) {
+    const chunk = target.slice(i, i + CHUNK_SIZE).map(dealToDb);
+    const { error } = await supabase.from("deals").upsert(chunk);
+    if (error) { console.error("Erro ao salvar pipeline:", error); hadError = true; }
+  }
+  if (hadError) alert(t("pipeline.saveError"));
 }
 async function deleteDealRemote(id) {
   const { error } = await supabase.from("deals").delete().eq("id", id);
@@ -813,7 +821,7 @@ followUpForm.addEventListener("submit", async e => {
   deal.followUpAt = document.getElementById("followup-field-date").value || null;
   renderBoard();
   closeFollowUpModal();
-  await saveDeals();
+  await saveDeals([deal]);
 });
 
 /* ---- notas rápidas do negócio, pelo card do Pipeline ---- */
@@ -842,7 +850,7 @@ notesForm.addEventListener("submit", async e => {
   deal.notes = document.getElementById("notes-field-text").value.trim();
   renderBoard();
   closeNotesModal();
-  await saveDeals();
+  await saveDeals([deal]);
 });
 
 function moveDeal(id, newStage) {
@@ -857,7 +865,7 @@ function moveDeal(id, newStage) {
       saveLeads();
     }
   }
-  saveDeals();
+  saveDeals([deal]);
   renderBoard();
   renderLeads();
   if (isWonStage(newStage)) handleDealWon(deal);
@@ -952,7 +960,7 @@ dealForm.addEventListener("submit", async e => {
   renderBoard();
   renderLeads();
   closeDealModal();
-  await saveDeals();
+  await saveDeals([deal]);
   if (isWonStage(deal.stage)) handleDealWon(deal);
 });
 
@@ -2177,9 +2185,9 @@ leadForm.addEventListener("submit", async e => {
   await saveLeads();
 
   if (newLead) {
-    createDealForLead(newLead);
+    const newDeal = createDealForLead(newLead);
     renderBoard();
-    await saveDeals();
+    await saveDeals(newDeal ? [newDeal] : []);
     await maybeAssignRotation(newLead);
   }
 });
@@ -2383,9 +2391,9 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
   await saveLeads();
 
   if (importedLeads.length) {
-    importedLeads.forEach(l => createDealForLead(l));
+    const newDeals = importedLeads.map(l => createDealForLead(l)).filter(Boolean);
     renderBoard();
-    await saveDeals();
+    await saveDeals(newDeals);
     for (const l of importedLeads) await maybeAssignRotation(l);
   }
 });
