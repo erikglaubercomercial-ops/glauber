@@ -3273,6 +3273,14 @@ const CATALOG_ICONS = {
   escola: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>`,
   turno: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
 };
+/* cor fixa por nível da árvore — padroniza visualmente (mesmo nível =
+   mesma cor sempre) e dá contraste entre categoria/destino/escola/turno */
+const CATALOG_KIND_COLORS = {
+  categoria: "#3167A1",
+  destino: "#0EA5E9",
+  escola: "#8B5CF6",
+  turno: "#F59E0B",
+};
 
 /* ---- estatísticas ---- */
 function renderProductsDashboard() {
@@ -3375,11 +3383,12 @@ const CATALOG_BOX_ICON_DELETE = `<svg viewBox="0 0 24 24" width="13" height="13"
 
 /* ---- grade de caixas clicáveis de um nível da árvore (compartilhado entre Produtos e Cotação) ---- */
 function catalogBoxGridHtml(boxes, kind, itemWord, levelIndex, isAdmin) {
+  const boxColor = CATALOG_KIND_COLORS[kind] || "#3167A1";
   return `<div class="cat-box-grid">${boxes.map(node => {
     const count = catalogCountItems(node, kind);
     return `
       <div class="cat-box-wrap">
-        <button type="button" class="cat-box" data-nav="${escapeHtml(node.nome)}">
+        <button type="button" class="cat-box" data-nav="${escapeHtml(node.nome)}" style="--box-color:${boxColor}">
           <span class="cat-box-icon">${CATALOG_ICONS[kind]}</span>
           <span class="cat-box-name">${escapeHtml(node.nome)}</span>
           <span class="cat-box-count">${count} ${count === 1 ? itemWord : itemWord + "s"}</span>
