@@ -14,6 +14,7 @@ function canAccessView(view) {
   if (view === "usuarios") return session.role === "ADM";
   if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
   if (view === "meusleads") return hasModuleAccess(session.role, "leads");
+  if (view === "escolas") return hasModuleAccess(session.role, "produtos") || hasModuleAccess(session.role, "cotacao");
   return hasModuleAccess(session.role, view);
 }
 
@@ -117,6 +118,7 @@ function switchView(view) {
     renderLeadFilterOptions();
     renderLeads();
   }
+  if (view === "escolas") renderEscolas();
   if (view === "leadsparados") {
     document.getElementById("subview-stuck-detalhe").classList.remove("active");
     document.getElementById("subview-stuck-overview").classList.add("active");
@@ -183,6 +185,11 @@ function navElementFor(id) {
 
 function applyMenuStructure(structure) {
   const nav = document.getElementById("sidebar-nav");
+  /* item novo (ainda fora do menu salvo): fica logo depois de Produtos */
+  const inStructure = id => (structure.sections || []).some(sec => (sec.items || []).some(it => it.id === id || (it.children || []).includes(id)));
+  const escolasEl = navElementFor("escolas");
+  const produtosEl = navElementFor("produtos");
+  if (escolasEl && produtosEl && !inStructure("escolas")) nav.insertBefore(escolasEl, produtosEl.nextSibling);
   (structure.sections || []).forEach(section => {
     const label = document.querySelector(`#sidebar-nav .nav-label[data-nav-section="${section.id}"]`);
     if (!label) return;
@@ -3142,6 +3149,249 @@ function openQuoteList() {
   document.getElementById("subview-cotacao-builder").classList.remove("active");
 }
 
+/* ============================================================
+   ESCOLAS — cadastro (itens que cada escola oferece) + comparativo
+   AM/PM com os valores vindos dos Produtos. Escola e produto se ligam
+   por categoria + destino + nome (= subgrupo do produto).
+   ============================================================ */
+let schools = [];
+let cmpShift = "am";
+
+function schoolFromDb(r) {
+  return {
+    id: r.id, nome: r.nome, categoria: r.categoria || "Outros", destino: r.destino || "Todos",
+    descricao: r.descricao || "", inclusos: Array.isArray(r.inclusos) ? r.inclusos : [],
+    ativo: r.ativo !== false, ordem: r.ordem || 0,
+  };
+}
+function schoolToDb(s) {
+  return {
+    id: s.id, nome: s.nome, categoria: s.categoria, destino: s.destino, descricao: s.descricao,
+    inclusos: s.inclusos, ativo: s.ativo, ordem: s.ordem,
+  };
+}
+async function loadSchools() {
+  const { data, error } = await supabase.from("schools").select("*").order("ordem");
+  if (error) { console.error("Erro ao carregar escolas:", error); return []; }
+  return data.map(schoolFromDb);
+}
+async function saveSchoolRemote(s) {
+  const { error } = await supabase.from("schools").upsert(schoolToDb(s));
+  if (error) console.error("Erro ao salvar escola:", error);
+  return !error;
+}
+async function deleteSchoolRemote(id) {
+  const { error } = await supabase.from("schools").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir escola:", error);
+}
+
+function schoolProducts(school) {
+  return catalog.filter(p => p.ativo
+    && (p.categoria || "Outros") === school.categoria
+    && (p.destino || "Todos") === school.destino
+    && (p.subgrupo || "") === school.nome);
+}
+
+function renderEscolas() {
+  const isAdmin = !!(session && session.role === "ADM");
+  document.getElementById("btn-new-school").style.display = isAdmin ? "" : "none";
+  document.getElementById("escolas-subtabs").style.display = isAdmin ? "" : "none";
+  if (!isAdmin) showEscolasSubtab("comparativo");
+  renderSchoolComparisonView();
+  renderSchoolsList();
+}
+
+function showEscolasSubtab(target) {
+  document.querySelectorAll("#escolas-subtabs .subtab").forEach(b => b.classList.toggle("active", b.dataset.escSubtab === target));
+  document.getElementById("subview-escolas-comparativo").classList.toggle("active", target === "comparativo");
+  document.getElementById("subview-escolas-cadastro").classList.toggle("active", target === "cadastro");
+}
+
+function renderSchoolComparisonView() {
+  const destinoSel = document.getElementById("cmp-filter-destino");
+  const term = (document.getElementById("cmp-filter-search").value || "").trim().toLowerCase();
+  const ativas = schools.filter(s => s.ativo);
+  const destinos = [...new Set(ativas.map(s => s.destino))].sort();
+  const current = destinoSel.value;
+  destinoSel.innerHTML = `<option value="">${t("quotes.cmpAllDestinations")}</option>` +
+    destinos.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("");
+  destinoSel.value = destinos.includes(current) ? current : "";
+
+  const list = ativas.filter(s => {
+    if (destinoSel.value && s.destino !== destinoSel.value) return false;
+    if (term && ![s.nome, s.destino, s.categoria].join(" ").toLowerCase().includes(term)) return false;
+    return true;
+  }).sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
+
+  document.querySelectorAll("#cmp-shift-toggle .cmp-shift-btn").forEach(b => b.classList.toggle("active", b.dataset.shift === cmpShift));
+  document.getElementById("cmp-container").innerHTML = renderSchoolComparison(list, schoolProducts, cmpShift, {
+    escape: escapeHtml, money: currency, classify: classifyTurnoShift,
+    labels: {
+      empty: t("schools.empty"), from: t("quotes.cmpFrom"), values: t("quotes.cmpValues"), includes: t("schools.includesTitle"),
+      overview: t("quotes.cmpOverview"), option: t("quotes.cmpOption"), options: t("quotes.cmpOptions"), noValues: t("schools.noValues"),
+    },
+  });
+}
+
+function renderSchoolsList() {
+  const isAdmin = !!(session && session.role === "ADM");
+  const el = document.getElementById("schools-list");
+  if (!schools.length) { el.innerHTML = `<p class="muted-note" style="padding:0 20px 16px;">${t("schools.empty")}</p>`; return; }
+  const rows = schools.slice().sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome)).map(s => {
+    const n = schoolProducts(s).length;
+    return `
+      <div class="school-row${s.ativo ? "" : " off"}">
+        <div class="school-row-main">
+          <div class="school-row-name">${escapeHtml(s.nome)}${s.ativo ? "" : ` <span class="prod-tag">${t("products.hiddenTag")}</span>`}</div>
+          <div class="school-row-meta">${escapeHtml(s.destino)}, ${escapeHtml(s.categoria)} · ${n} ${t("schools.productsCount")} · ${s.inclusos.length} ${t("schools.includesCount")}</div>
+        </div>
+        ${isAdmin ? `<div class="acts">
+          <button type="button" class="btn btn-ghost btn-sm" data-sact="edit" data-id="${s.id}">${t("common.edit")}</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-sact="dup" data-id="${s.id}">${t("common.duplicate")}</button>
+          <button type="button" class="btn btn-danger btn-sm" data-sact="del" data-id="${s.id}">${t("common.delete")}</button>
+        </div>` : ""}
+      </div>`;
+  }).join("");
+  el.innerHTML = rows;
+}
+
+/* ---- modal da escola ---- */
+const schoolModalBackdrop = document.getElementById("school-modal-backdrop");
+const schoolForm = document.getElementById("school-form");
+
+function fillSchoolDatalists() {
+  const uniq = arr => [...new Set(arr.filter(Boolean))].sort();
+  document.getElementById("school-categorias-list").innerHTML =
+    uniq([...catalog.map(p => p.categoria), ...schools.map(s => s.categoria)]).map(v => `<option value="${escapeHtml(v)}">`).join("");
+  document.getElementById("school-destinos-list").innerHTML =
+    uniq([...catalog.map(p => p.destino), ...schools.map(s => s.destino)]).map(v => `<option value="${escapeHtml(v)}">`).join("");
+}
+
+function openSchoolModal(id) {
+  schoolForm.reset();
+  fillSchoolDatalists();
+  const s = id ? schools.find(x => x.id === id) : null;
+  document.getElementById("school-modal-title").textContent = s ? t("schools.editTitle") : t("schools.newTitle");
+  document.getElementById("school-id").value = s ? s.id : "";
+  document.getElementById("school-field-nome").value = s ? s.nome : "";
+  document.getElementById("school-field-categoria").value = s ? s.categoria : "";
+  document.getElementById("school-field-destino").value = s ? s.destino : "";
+  document.getElementById("school-field-descricao").value = s ? s.descricao : "";
+  document.getElementById("school-field-inclusos").value = s ? s.inclusos.join("\n") : "";
+  document.getElementById("school-field-ativo").checked = s ? s.ativo : true;
+  document.getElementById("school-btn-delete").style.display = s ? "" : "none";
+  document.getElementById("school-btn-duplicate").style.display = s ? "" : "none";
+  schoolModalBackdrop.classList.add("open");
+}
+function closeSchoolModal() { schoolModalBackdrop.classList.remove("open"); }
+
+document.getElementById("btn-new-school").addEventListener("click", () => openSchoolModal(null));
+document.getElementById("school-modal-close").addEventListener("click", closeSchoolModal);
+document.getElementById("school-btn-cancel").addEventListener("click", closeSchoolModal);
+schoolModalBackdrop.addEventListener("click", e => { if (e.target === schoolModalBackdrop) closeSchoolModal(); });
+
+schoolForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("school-id").value;
+  const data = {
+    nome: document.getElementById("school-field-nome").value.trim(),
+    categoria: document.getElementById("school-field-categoria").value.trim(),
+    destino: document.getElementById("school-field-destino").value.trim(),
+    descricao: document.getElementById("school-field-descricao").value.trim(),
+    inclusos: document.getElementById("school-field-inclusos").value.split("\n").map(x => x.trim()).filter(Boolean),
+    ativo: document.getElementById("school-field-ativo").checked,
+  };
+  if (!data.nome || !data.categoria || !data.destino) return;
+  const dup = schools.some(x => x.id !== id && x.nome === data.nome && x.categoria === data.categoria && x.destino === data.destino);
+  if (dup) { alert(t("schools.duplicateError")); return; }
+
+  let school;
+  if (id) {
+    school = schools.find(x => x.id === id);
+    Object.assign(school, data);
+  } else {
+    school = { id: uid(), ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + 1, ...data };
+    schools.push(school);
+  }
+  const ok = await saveSchoolRemote(school);
+  if (!ok) alert(t("schools.saveError"));
+  closeSchoolModal();
+  renderEscolas();
+});
+
+function uniqueSchoolCopyName(school) {
+  let name = `${school.nome} (${t("common.copy")})`;
+  let n = 2;
+  while (schools.some(x => x.nome === name && x.categoria === school.categoria && x.destino === school.destino)) {
+    name = `${school.nome} (${t("common.copy")} ${n++})`;
+  }
+  return name;
+}
+
+async function duplicateSchool(id) {
+  const src = schools.find(x => x.id === id);
+  if (!src) return;
+  const copy = {
+    ...src, id: uid(), nome: uniqueSchoolCopyName(src), inclusos: src.inclusos.slice(),
+    ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + 1,
+  };
+  schools.push(copy);
+  const ok = await saveSchoolRemote(copy);
+  if (!ok) alert(t("schools.saveError"));
+  renderEscolas();
+  openSchoolModal(copy.id);
+}
+
+document.getElementById("school-btn-duplicate").addEventListener("click", () => {
+  const id = document.getElementById("school-id").value;
+  closeSchoolModal();
+  duplicateSchool(id);
+});
+document.getElementById("school-btn-delete").addEventListener("click", async () => {
+  const id = document.getElementById("school-id").value;
+  const s = schools.find(x => x.id === id);
+  if (!s || !confirm(`${t("schools.confirmDelete")} "${s.nome}"?`)) return;
+  schools = schools.filter(x => x.id !== id);
+  closeSchoolModal();
+  renderEscolas();
+  await deleteSchoolRemote(id);
+});
+
+document.getElementById("schools-list").addEventListener("click", async e => {
+  const btn = e.target.closest("[data-sact]");
+  if (!btn || !(session && session.role === "ADM")) return;
+  const id = btn.dataset.id;
+  if (btn.dataset.sact === "edit") openSchoolModal(id);
+  if (btn.dataset.sact === "dup") await duplicateSchool(id);
+  if (btn.dataset.sact === "del") {
+    const s = schools.find(x => x.id === id);
+    if (!s || !confirm(`${t("schools.confirmDelete")} "${s.nome}"?`)) return;
+    schools = schools.filter(x => x.id !== id);
+    renderEscolas();
+    await deleteSchoolRemote(id);
+  }
+});
+
+document.querySelectorAll("#escolas-subtabs .subtab").forEach(btn => {
+  btn.addEventListener("click", () => showEscolasSubtab(btn.dataset.escSubtab));
+});
+document.getElementById("cmp-shift-toggle").addEventListener("click", e => {
+  const btn = e.target.closest(".cmp-shift-btn");
+  if (!btn) return;
+  cmpShift = btn.dataset.shift;
+  renderSchoolComparisonView();
+});
+document.getElementById("cmp-filter-destino").addEventListener("change", renderSchoolComparisonView);
+document.getElementById("cmp-filter-search").addEventListener("input", renderSchoolComparisonView);
+document.getElementById("cmp-container").addEventListener("click", e => {
+  const link = e.target.closest("[data-cmp-target]");
+  if (!link) return;
+  e.preventDefault();
+  const target = document.getElementById(link.dataset.cmpTarget);
+  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+document.getElementById("btn-compare-schools").addEventListener("click", () => { switchView("escolas"); showEscolasSubtab("comparativo"); });
+
 function openQuoteBuilder(id) {
   document.getElementById("subview-cotacao-lista").classList.remove("active");
   document.getElementById("subview-cotacao-builder").classList.add("active");
@@ -3336,6 +3586,7 @@ function adminItemCardHtml(p, isAdmin) {
   const actions = isAdmin ? `
     <div class="acts">
       <button type="button" class="btn btn-ghost btn-sm" data-act="edit" data-id="${p.id}">${t("common.edit")}</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-act="dup" data-id="${p.id}">${t("common.duplicate")}</button>
       <button type="button" class="btn btn-danger btn-sm" data-act="del" data-id="${p.id}">${t("common.delete")}</button>
     </div>` : "";
   return `
@@ -3559,6 +3810,19 @@ catalogListEl.addEventListener("click", async e => {
   const p = catalog.find(p => p.id === btn.dataset.id);
   if (!p) return;
   if (btn.dataset.act === "edit") openProductModal(p.id);
+  if (btn.dataset.act === "dup") {
+    const copy = {
+      ...p, id: uid(), nome: `${p.nome} (${t("common.copy")})`,
+      ordem: catalog.reduce((m, x) => Math.max(m, x.ordem || 0), 0) + 1,
+      subs: JSON.parse(JSON.stringify(p.subs || [])),
+    };
+    catalog.push(copy);
+    renderCatalogList();
+    quoteMontaDestinos();
+    quoteMontaCatalogo();
+    await saveCatalogItem(copy);
+    openProductModal(copy.id);
+  }
   if (btn.dataset.act === "del") {
     if (!confirm(`${t("products.confirmDelete1")} "${p.nome}" ${t("products.confirmDelete2")}`)) return;
     catalog = catalog.filter(x => x.id !== p.id);
@@ -7191,7 +7455,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -7215,6 +7479,7 @@ document.addEventListener("keydown", e => {
     loadContracts(),
     loadMenuConfig(),
     loadRotationSettings(),
+    loadSchools(),
   ]);
 
   renderSessionChip();

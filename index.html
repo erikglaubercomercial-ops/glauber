@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791192721">
+<link rel="stylesheet" href="style.css?v=1791194970">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -67,6 +67,11 @@
         <button class="nav-item" data-view="produtos">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>
           <span data-i18n="nav.produtos">Produtos</span>
+        </button>
+
+        <button class="nav-item" data-view="escolas">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>
+          <span data-i18n="nav.escolas">Escolas</span>
         </button>
 
         <button class="nav-item" data-view="financeiro">
@@ -448,7 +453,10 @@
           <div class="panel">
             <div class="panel-header">
               <h2 data-i18n="quotes.title">Cotações</h2>
-              <button type="button" class="btn btn-primary" id="btn-new-quote" data-i18n="quotes.new">+ Nova cotação</button>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-ghost" id="btn-compare-schools" data-i18n="quotes.compareSchools">Comparar escolas</button>
+                <button type="button" class="btn btn-primary" id="btn-new-quote" data-i18n="quotes.new">+ Nova cotação</button>
+              </div>
             </div>
             <div class="filter-bar">
               <input type="text" id="quotes-filter-search" placeholder="Buscar por nome ou e-mail do cliente" data-i18n-placeholder="quotes.searchPlaceholder">
@@ -576,6 +584,40 @@
       </section>
 
       <!-- FINANCEIRO VIEW -->
+      <section class="view" id="view-escolas">
+        <div class="subtabs" id="escolas-subtabs">
+          <button type="button" class="subtab active" data-esc-subtab="comparativo" data-i18n="schools.tabCompare">Comparativo</button>
+          <button type="button" class="subtab" data-esc-subtab="cadastro" data-i18n="schools.tabRegister">Cadastro de escolas</button>
+        </div>
+
+        <!-- COMPARATIVO AM / PM -->
+        <div class="subview active" id="subview-escolas-comparativo">
+          <div class="panel">
+            <div class="cmp-filters">
+              <div class="cmp-shift-toggle" id="cmp-shift-toggle">
+                <button type="button" class="cmp-shift-btn active" data-shift="am" data-i18n="quotes.cmpMorning">Manhã (AM)</button>
+                <button type="button" class="cmp-shift-btn" data-shift="pm" data-i18n="quotes.cmpAfternoon">Tarde (PM)</button>
+              </div>
+              <select id="cmp-filter-destino"></select>
+              <input type="text" id="cmp-filter-search" placeholder="Buscar escola" data-i18n-placeholder="schools.search" autocomplete="off">
+            </div>
+            <div id="cmp-container"></div>
+          </div>
+        </div>
+
+        <!-- CADASTRO -->
+        <div class="subview" id="subview-escolas-cadastro">
+          <div class="panel">
+            <div class="panel-header">
+              <h2 data-i18n="schools.registerTitle">Escolas cadastradas</h2>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-new-school" data-i18n="schools.new">+ Nova escola</button>
+            </div>
+            <p class="muted-note" style="padding:0 20px;" data-i18n="schools.registerHint">Os valores de cada escola vêm da tela de Produtos (produtos cuja escola tem o mesmo nome e destino). Aqui você cadastra a escola e os itens que ela oferece.</p>
+            <div id="schools-list" class="schools-list"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="view" id="view-financeiro">
         <div class="stat-row">
           <div class="stat-card">
@@ -1142,6 +1184,49 @@
   </div>
 
   <!-- MODAL: GERENCIAR ORIGENS -->
+  <!-- MODAL: ESCOLA -->
+  <div class="modal-backdrop" id="school-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="school-modal-title" data-i18n="schools.newTitle">Nova escola</h2>
+        <button class="btn-icon" id="school-modal-close">&times;</button>
+      </div>
+      <form id="school-form">
+        <input type="hidden" id="school-id">
+        <label><span data-i18n="schools.name">Nome da escola</span>
+          <input type="text" id="school-field-nome" required placeholder="Ex: Academic Bridge">
+        </label>
+        <div class="grid-2">
+          <label><span data-i18n="schools.category">Categoria / país</span>
+            <input type="text" id="school-field-categoria" list="school-categorias-list" required placeholder="Ex: Irlanda">
+          </label>
+          <label><span data-i18n="schools.destination">Destino / cidade</span>
+            <input type="text" id="school-field-destino" list="school-destinos-list" required placeholder="Ex: Dublin">
+          </label>
+        </div>
+        <datalist id="school-categorias-list"></datalist>
+        <datalist id="school-destinos-list"></datalist>
+        <label><span data-i18n="schools.description">Descrição curta (opcional)</span>
+          <input type="text" id="school-field-descricao" placeholder="Ex: Escola no centro de Dublin, turmas pequenas">
+        </label>
+        <label><span data-i18n="schools.includes">O que a escola oferece (um item por linha)</span>
+          <textarea id="school-field-inclusos" rows="6" placeholder="Material didático&#10;Teste de nível&#10;Certificado de conclusão"></textarea>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="school-field-ativo" checked>
+          <span data-i18n="schools.active">Escola ativa (aparece no comparativo)</span>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="school-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
+          <button type="button" class="btn btn-ghost" id="school-btn-duplicate" style="display:none;" data-i18n="common.duplicate">Duplicar</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="school-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="sources-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
@@ -2026,9 +2111,10 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791192721"></script>
-  <script src="auth.js?v=1791192721"></script>
-  <script src="i18n.js?v=1791192721"></script>
-  <script src="script.js?v=1791192721"></script>
+  <script src="config.js?v=1791194970"></script>
+  <script src="auth.js?v=1791194970"></script>
+  <script src="i18n.js?v=1791194970"></script>
+  <script src="comparativo.js?v=1791194970"></script>
+  <script src="script.js?v=1791194970"></script>
 </body>
 </html>
