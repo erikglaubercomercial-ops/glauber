@@ -61,11 +61,74 @@ function initSidebarToggle() {
     backdrop.classList.add("open");
   });
   backdrop.addEventListener("click", closeDrawer);
-  document.getElementById("sidebar-nav").addEventListener("click", e => {
+  const navEl = document.getElementById("sidebar-nav");
+  navEl.addEventListener("click", e => {
     const nav = e.currentTarget;
     if (nav.classList.contains("edit-mode")) return;
+    if (e.target.closest(".nav-chevron")) return;
     if (e.target.closest(".nav-item, .nav-subitem")) closeDrawer();
   });
+
+  /* setinha dos itens com submenu: esconde/mostra os submenus. Fase de
+     captura pra o clique na setinha não chegar no botão do item (que
+     trocaria de tela) */
+  navEl.addEventListener("click", e => {
+    const chev = e.target.closest(".nav-chevron");
+    if (!chev || navEl.classList.contains("edit-mode")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const id = chev.dataset.navChevron;
+    const collapsed = getCollapsedMenuParents();
+    if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+    setCollapsedMenuParents(collapsed);
+    refreshMenuChevrons();
+  }, true);
+}
+
+/* ---- submenus recolhíveis: estado salvo por navegador ---- */
+const MENU_COLLAPSED_KEY = "crm-vendas-menu-collapsed";
+function getCollapsedMenuParents() {
+  try { return new Set(JSON.parse(localStorage.getItem(MENU_COLLAPSED_KEY) || "[]")); }
+  catch (err) { return new Set(); }
+}
+function setCollapsedMenuParents(set) {
+  try { localStorage.setItem(MENU_COLLAPSED_KEY, JSON.stringify([...set])); } catch (err) { /* sem storage: só não lembra */ }
+}
+
+/* desenha a setinha nos itens que têm submenu visível e aplica o
+   estado recolhido/aberto; chamar de novo sempre que a estrutura do
+   menu mudar */
+function refreshMenuChevrons() {
+  const nav = document.getElementById("sidebar-nav");
+  nav.querySelectorAll(".nav-chevron").forEach(c => c.remove());
+  const collapsed = getCollapsedMenuParents();
+  const parents = [...new Set([...nav.querySelectorAll("[data-parent]")].map(el => el.dataset.parent))];
+  parents.forEach(parentId => {
+    const parentEl = navElementFor(parentId);
+    const children = [...nav.querySelectorAll(`[data-parent="${parentId}"]`)];
+    children.forEach(ch => ch.classList.toggle("nav-sub-hidden", collapsed.has(parentId)));
+    const anyVisible = children.some(ch => ch.style.display !== "none");
+    if (!parentEl || !anyVisible || parentEl.style.display === "none") return;
+    const chev = document.createElement("span");
+    chev.className = "nav-chevron" + (collapsed.has(parentId) ? " collapsed" : "");
+    chev.dataset.navChevron = parentId;
+    chev.setAttribute("role", "button");
+    chev.setAttribute("aria-expanded", collapsed.has(parentId) ? "false" : "true");
+    chev.title = t("nav.toggleSubmenu");
+    chev.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    parentEl.appendChild(chev);
+  });
+}
+
+/* ao abrir uma tela que está dentro de um submenu recolhido, reabre o submenu */
+function ensureMenuParentExpanded(view) {
+  const el = document.querySelector(`#sidebar-nav .nav-item[data-view="${view}"]`);
+  if (!el || !el.dataset.parent) return;
+  const collapsed = getCollapsedMenuParents();
+  if (!collapsed.has(el.dataset.parent)) return;
+  collapsed.delete(el.dataset.parent);
+  setCollapsedMenuParents(collapsed);
+  refreshMenuChevrons();
 }
 
 /* ============================================================
@@ -107,6 +170,7 @@ function switchView(view) {
   document.querySelectorAll(".nav-item[data-view]").forEach(item => {
     item.classList.toggle("active", item.dataset.view === view);
   });
+  ensureMenuParentExpanded(view);
   const sectionId = view === "meusleads" ? "leads" : view;
   document.querySelectorAll(".view").forEach(section => {
     section.classList.toggle("active", section.id === `view-${sectionId}`);
@@ -298,6 +362,7 @@ function initMenuEditor() {
     editBar.style.display = "none";
     setMenuDragHandles(false);
     clearMenuDropMarkers();
+    refreshMenuChevrons();
   }
 
   editBtn.addEventListener("click", () => {
@@ -7689,6 +7754,7 @@ document.addEventListener("keydown", e => {
   initSidebarToggle();
   applyMenuStructure(menuConfig);
   initNavigation();
+  refreshMenuChevrons();
   initMenuEditor();
   renderStageOptions();
   renderPipelineFilterOptions();

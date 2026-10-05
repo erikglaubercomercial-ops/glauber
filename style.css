@@ -167,6 +167,18 @@ body {
 .nav-subitem:hover { background: var(--sidebar-hover); color: #fff; opacity: 1; }
 .nav-subitem .nav-icon { flex-shrink: 0; }
 
+/* setinha de esconder/mostrar submenu */
+.nav-chevron {
+  margin-left: auto; width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; opacity: 0.7; cursor: pointer;
+}
+.nav-chevron:hover { background: rgba(255, 255, 255, 0.14); opacity: 1; }
+.nav-chevron svg { transition: transform 0.18s ease; pointer-events: none; }
+.nav-chevron.collapsed svg { transform: rotate(-90deg); }
+.nav-sub-hidden { display: none !important; }
+.sidebar.collapsed .nav-chevron { display: none; }
+.sidebar-nav.edit-mode .nav-chevron { display: none !important; }
+
 .sidebar-signout {
   display: flex;
   align-items: center;
@@ -1654,6 +1666,8 @@ body {
   .sidebar .sidebar-signout span:last-child { display: inline !important; }
   .sidebar.collapsed .nav-subitem,
   .sidebar .nav-subitem { display: flex !important; }
+  .sidebar .nav-item span.nav-chevron { display: inline-flex !important; }
+  .sidebar-nav.edit-mode .nav-item span.nav-chevron { display: none !important; }
   .sidebar-toggle { display: none; }
   .mobile-nav-toggle {
     display: inline-flex; align-items: center; justify-content: center;

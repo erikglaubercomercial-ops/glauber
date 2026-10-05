@@ -14,6 +14,7 @@ const I18N_LANG_NAMES = { pt: "Português", en: "English", es: "Español" };
 
 const I18N = {
   pt: {
+    "nav.toggleSubmenu": "Mostrar/esconder submenu",
     "schools.editCities": "Editar menu de cidades",
     "schools.citiesTitle": "Menu de cidades",
     "schools.newCity": "Nova cidade",
@@ -662,6 +663,7 @@ const I18N = {
   },
 
   en: {
+    "nav.toggleSubmenu": "Show/hide submenu",
     "schools.editCities": "Edit cities menu",
     "schools.citiesTitle": "Cities menu",
     "schools.newCity": "New city",
@@ -1310,6 +1312,7 @@ const I18N = {
   },
 
   es: {
+    "nav.toggleSubmenu": "Mostrar/ocultar submenú",
     "schools.editCities": "Editar menú de ciudades",
     "schools.citiesTitle": "Menú de ciudades",
     "schools.newCity": "Nueva ciudad",
