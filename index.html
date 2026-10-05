@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791211359">
+<link rel="stylesheet" href="style.css?v=1791228421">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -168,9 +168,15 @@
           <div class="dashboard-main">
             <div class="stat-row" id="dash-stat-row"></div>
 
-            <div class="panel dash-funnel-panel">
-              <div class="panel-header"><h2 data-i18n="dash.funnel">Funil de Vendas</h2></div>
-              <div class="dash-funnel" id="dash-funnel"></div>
+            <div class="dash-grid-2" id="dash-row-funnel">
+              <div class="panel dash-funnel-panel">
+                <div class="panel-header"><h2 data-i18n="dash.funnel">Funil de Vendas</h2></div>
+                <div class="dash-funnel" id="dash-funnel"></div>
+              </div>
+              <div class="panel" id="dash-panel-temperatura">
+                <div class="panel-header"><h2 data-i18n="dash.temperature">Temperatura dos leads</h2></div>
+                <div class="dash-temp" id="dash-temp"></div>
+              </div>
             </div>
 
             <div class="dash-grid-2" id="dash-row-charts">
@@ -2151,10 +2157,10 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791211359"></script>
-  <script src="auth.js?v=1791211359"></script>
-  <script src="i18n.js?v=1791211359"></script>
-  <script src="comparativo.js?v=1791211359"></script>
-  <script src="script.js?v=1791211359"></script>
+  <script src="config.js?v=1791228421"></script>
+  <script src="auth.js?v=1791228421"></script>
+  <script src="i18n.js?v=1791228421"></script>
+  <script src="comparativo.js?v=1791228421"></script>
+  <script src="script.js?v=1791228421"></script>
 </body>
 </html>

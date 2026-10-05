@@ -14,6 +14,9 @@ const I18N_LANG_NAMES = { pt: "Português", en: "English", es: "Español" };
 
 const I18N = {
   pt: {
+    "dash.temperature": "Temperatura dos leads",
+    "dash.tempNone": "Sem temperatura",
+    "dash.tempLeads": "leads ativos",
     "nav.toggleSubmenu": "Mostrar/esconder submenu",
     "schools.editCities": "Editar menu de cidades",
     "schools.citiesTitle": "Menu de cidades",
@@ -663,6 +666,9 @@ const I18N = {
   },
 
   en: {
+    "dash.temperature": "Lead temperature",
+    "dash.tempNone": "No temperature",
+    "dash.tempLeads": "active leads",
     "nav.toggleSubmenu": "Show/hide submenu",
     "schools.editCities": "Edit cities menu",
     "schools.citiesTitle": "Cities menu",
@@ -1312,6 +1318,9 @@ const I18N = {
   },
 
   es: {
+    "dash.temperature": "Temperatura de los leads",
+    "dash.tempNone": "Sin temperatura",
+    "dash.tempLeads": "leads activos",
     "nav.toggleSubmenu": "Mostrar/ocultar submenú",
     "schools.editCities": "Editar menú de ciudades",
     "schools.citiesTitle": "Menú de ciudades",

@@ -6862,6 +6862,7 @@ function destroyDashChart(key) {
 function renderDashboardView() {
   renderDashboardStatCards();
   renderDashboardFunnel();
+  renderDashboardTemperature();
   renderDashboardOrigemChart();
   renderDashboardFaturamentoChart();
   renderDashboardRankingChart();
@@ -6952,6 +6953,31 @@ function renderDashboardFunnel() {
     : "";
 
   container.innerHTML = rows + lostHtml;
+}
+
+/* ---- leads por temperatura (barras compactas, ao lado do funil) ---- */
+const TEMP_COLORS = { "Quente": "#e2483d", "Morno": "#fb9d2d", "Frio": "#3167a1", "": "#8891a5" };
+function renderDashboardTemperature() {
+  const el = document.getElementById("dash-temp");
+  const active = leads.filter(l => l.active !== false);
+  if (!active.length) {
+    el.innerHTML = `<p class="muted-note">${t("dash.noLeadsYet")}</p>`;
+    return;
+  }
+  const order = ["Quente", "Morno", "Frio", ""];
+  const counts = order.map(k => active.filter(l => (TEMPERATURES.includes(l.temperature) ? l.temperature : "") === k).length);
+  const max = Math.max(1, ...counts);
+  const rows = order.map((k, i) => {
+    const pct = Math.round((counts[i] / active.length) * 100);
+    const width = counts[i] === 0 ? 0 : Math.max(4, Math.round((counts[i] / max) * 100));
+    return `
+      <div class="dash-temp-row" style="--temp-color:${TEMP_COLORS[k]}">
+        <div class="dash-temp-label"><span class="dash-temp-dot"></span>${escapeHtml(k ? statusLabel(k) : t("dash.tempNone"))}</div>
+        <div class="dash-temp-track"><div class="dash-temp-fill" style="width:${width}%"></div></div>
+        <div class="dash-temp-count">${counts[i]} <small>(${pct}%)</small></div>
+      </div>`;
+  }).join("");
+  el.innerHTML = `<div class="dash-temp-total">${active.length} ${t("dash.tempLeads")}</div>${rows}`;
 }
 
 /* ---- gráfico: leads por origem (pizza) ---- */
