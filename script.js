@@ -707,7 +707,7 @@ function renderPipelineFilterOptions() {
   sel.value = current;
 }
 
-let pipelineSearchSelectedDealId = null;
+let pipelineSearchQuery = "";
 
 function getFilteredDeals() {
   let list = deals;
@@ -717,68 +717,54 @@ function getFilteredDeals() {
     const consultorId = document.getElementById("pipeline-filter-consultor").value;
     if (consultorId) list = list.filter(d => dealConsultorId(d) === consultorId);
   }
-  if (pipelineSearchSelectedDealId) list = list.filter(d => d.id === pipelineSearchSelectedDealId);
+  if (pipelineSearchQuery) list = list.filter(d => dealMatchesPipelineSearch(d, pipelineSearchQuery));
   return list;
 }
 
 document.getElementById("pipeline-filter-consultor").addEventListener("change", () => { renderBoard(); });
 document.getElementById("pipeline-filter-clear").addEventListener("click", () => {
   document.getElementById("pipeline-filter-consultor").value = "";
-  pipelineSearchSelectedDealId = null;
+  pipelineSearchQuery = "";
   document.getElementById("pipeline-search-input").value = "";
   renderBoard();
 });
 
-/* ---- busca de negócio no Pipeline por nome/e-mail (do próprio negócio
-   ou do lead vinculado) — mesmo padrão de busca já usado em Leads ---- */
-const pipelineSearchInput = document.getElementById("pipeline-search-input");
-const pipelineSearchResults = document.getElementById("pipeline-search-results");
-
-function renderPipelineSearchResults(query) {
-  const q = query.trim().toLowerCase();
-  if (!q) { pipelineSearchResults.classList.remove("open"); pipelineSearchResults.innerHTML = ""; return; }
-  const matches = deals.filter(d => {
-    const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
-    const haystack = [d.name, d.contact, d.info, lead ? lead.name : "", lead ? lead.email : ""].join(" ").toLowerCase();
-    return haystack.includes(q);
-  }).slice(0, 8);
-  pipelineSearchResults.innerHTML = matches.length
-    ? matches.map(d => {
-        const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
-        const sub = (lead && lead.email) || d.info || d.contact || t("enr.noContact");
-        return `
-      <div class="enr-lead-result-item" data-id="${d.id}">
-        <div>${escapeHtml(d.name)}</div>
-        <div class="sub">${escapeHtml(sub)}</div>
-      </div>`;
-      }).join("")
-    : `<div class="enr-lead-result-empty">${t("enr.noLeadFound")}</div>`;
-  pipelineSearchResults.classList.add("open");
+/* ---- busca no Pipeline por nome, telefone ou e-mail (do próprio negócio
+   ou do lead vinculado): o board filtra enquanto digita. Texto ignora
+   maiúsculas/acentos; telefone compara só os dígitos (com ou sem
+   DDD/DDI/formatação) ---- */
+function dealMatchesPipelineSearch(d, rawQuery) {
+  const q = normalizeImportStr(rawQuery);
+  if (!q) return true;
+  const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
+  const text = normalizeImportStr([d.name, d.contact, d.info, lead && lead.name, lead && lead.email, lead && lead.phone].filter(Boolean).join(" "));
+  if (text.includes(q)) return true;
+  const qDigits = rawQuery.replace(/\D/g, "");
+  if (qDigits.length < 3) return false;
+  const pool = [
+    d.contact, d.info, lead && lead.phone,
+    lead && lead.phoneDdd && lead.phoneNumber ? `${lead.phoneDdd}${lead.phoneNumber}` : "",
+    lead && leadWhatsAppDigits(lead),
+  ].map(x => String(x || "").replace(/\D/g, "")).filter(Boolean);
+  return pool.some(x => x.includes(qDigits));
 }
+
+const pipelineSearchInput = document.getElementById("pipeline-search-input");
+let pipelineSearchTimer = null;
 pipelineSearchInput.addEventListener("input", () => {
-  pipelineSearchSelectedDealId = null;
-  renderPipelineSearchResults(pipelineSearchInput.value);
-});
-pipelineSearchInput.addEventListener("focus", () => {
-  if (pipelineSearchInput.value.trim() && !pipelineSearchSelectedDealId) renderPipelineSearchResults(pipelineSearchInput.value);
-});
-pipelineSearchInput.addEventListener("blur", () => {
-  setTimeout(() => pipelineSearchResults.classList.remove("open"), 150);
-});
-pipelineSearchResults.addEventListener("mousedown", e => {
-  const item = e.target.closest(".enr-lead-result-item[data-id]");
-  if (!item) return;
-  const deal = deals.find(d => d.id === item.dataset.id);
-  if (!deal) return;
-  pipelineSearchSelectedDealId = deal.id;
-  pipelineSearchInput.value = deal.name;
-  pipelineSearchResults.classList.remove("open");
-  renderBoard();
+  clearTimeout(pipelineSearchTimer);
+  pipelineSearchTimer = setTimeout(() => {
+    pipelineSearchQuery = pipelineSearchInput.value.trim();
+    renderBoard();
+  }, 180);
 });
 
 function renderBoard() {
   boardEl.innerHTML = "";
   const filteredDeals = getFilteredDeals();
+  const statusEl = document.getElementById("pipeline-search-status");
+  statusEl.style.display = pipelineSearchQuery ? "" : "none";
+  statusEl.textContent = pipelineSearchQuery ? `${filteredDeals.length} ${t("pipeline.searchFound")}` : "";
   STAGES.forEach(stage => {
     const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
 

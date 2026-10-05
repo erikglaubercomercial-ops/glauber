@@ -14,6 +14,8 @@ const I18N_LANG_NAMES = { pt: "Português", en: "English", es: "Español" };
 
 const I18N = {
   pt: {
+    "pipeline.searchPlaceholder": "Buscar por nome, telefone ou e-mail",
+    "pipeline.searchFound": "negócio(s) encontrado(s)",
     "dash.temperature": "Temperatura dos leads",
     "dash.tempNone": "Sem temperatura",
     "dash.tempLeads": "leads ativos",
@@ -666,6 +668,8 @@ const I18N = {
   },
 
   en: {
+    "pipeline.searchPlaceholder": "Search by name, phone or email",
+    "pipeline.searchFound": "deal(s) found",
     "dash.temperature": "Lead temperature",
     "dash.tempNone": "No temperature",
     "dash.tempLeads": "active leads",
@@ -1318,6 +1322,8 @@ const I18N = {
   },
 
   es: {
+    "pipeline.searchPlaceholder": "Buscar por nombre, teléfono o correo",
+    "pipeline.searchFound": "negocio(s) encontrado(s)",
     "dash.temperature": "Temperatura de los leads",
     "dash.tempNone": "Sin temperatura",
     "dash.tempLeads": "leads activos",
