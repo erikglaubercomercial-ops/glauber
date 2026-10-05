@@ -1731,6 +1731,8 @@ body {
 .appt-static-row, .data-table tbody tr.appt-static-row { cursor: default; }
 
 .appt-intent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.appt-intent-note { grid-column: 1 / -1; margin: 0; padding: 12px 16px; background: var(--content-bg); border-radius: var(--radius-sm); font-size: 12.5px; }
+.appt-intent-grid:empty { display: none; }
 .appt-top-body { display: flex; flex-direction: column; gap: 9px; padding: 14px 18px 16px; }
 .appt-top-row { display: grid; grid-template-columns: minmax(0, 1fr) 70px auto; align-items: center; gap: 10px; font-size: 13px; }
 .appt-top-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }

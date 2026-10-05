@@ -430,19 +430,28 @@ function apptIntentHtml(intencao) {
     ["turnos", "appt.intTurnos"], ["embarque", "appt.intEmbarque"], ["orcamentos", "appt.intOrcamentos"],
     ["objetivos", "appt.intObjetivos"], ["plataformas", "appt.platforms"], ["idiomas", "appt.languages"],
   ];
-  return blocks.map(([key, i18nKey]) => {
-    const list = (Array.isArray(it[key]) ? it[key] : [])
+  const withData = blocks.map(([key, i18nKey]) => ({
+    i18nKey, key,
+    list: (Array.isArray(it[key]) ? it[key] : [])
       .map(x => ({ nome: x.nome, total: Number(x.total) || 0 }))
-      .sort((a, b) => b.total - a.total).slice(0, 5);
+      .sort((a, b) => b.total - a.total).slice(0, 5),
+  })).filter(b => b.list.length > 0);
+
+  /* blocos sem nenhuma resposta ficam escondidos; se as escolhas do
+     plano (tudo menos plataforma/idioma) não chegaram, avisa em vez de
+     deixar a tela com quadros vazios */
+  const planKeys = ["destinos", "cidades", "escolas", "turnos", "embarque", "orcamentos", "objetivos"];
+  const note = withData.some(b => planKeys.includes(b.key)) ? ""
+    : `<p class="muted-note appt-intent-note">${escapeHtml(t("appt.intentPending"))}</p>`;
+
+  return note + withData.map(({ i18nKey, list }) => {
     const max = Math.max(1, ...list.map(x => x.total));
-    const content = list.length
-      ? list.map(x => `
+    const content = list.map(x => `
         <div class="appt-top-row">
           <span class="appt-top-name">${escapeHtml(apptLabel(x.nome))}</span>
           <span class="appt-top-bar"><span style="width:${Math.max(6, Math.round((x.total / max) * 100))}%;"></span></span>
           <b>${apptNum(x.total)}</b>
-        </div>`).join("")
-      : `<p class="muted-note">—</p>`;
+        </div>`).join("");
     return `<div class="panel appt-top-panel"><div class="panel-header"><h2>${escapeHtml(t(i18nKey))}</h2></div><div class="appt-top-body">${content}</div></div>`;
   }).join("");
 }
