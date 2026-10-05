@@ -14,6 +14,13 @@ const I18N_LANG_NAMES = { pt: "Português", en: "English", es: "Español" };
 
 const I18N = {
   pt: {
+    "schools.cover": "Capa da escola (foto)",
+    "schools.noCover": "Sem capa",
+    "schools.removeCover": "Remover capa",
+    "schools.coverError": "Não foi possível enviar a foto da capa. A escola foi salva sem alterar a capa.",
+    "schools.copyLinkAm": "Copiar link AM",
+    "schools.copyLinkPm": "Copiar link PM",
+    "schools.openClientPage": "Ver página do cliente",
     "nav.escolas": "Escolas",
     "common.duplicate": "Duplicar",
     "common.copy": "cópia",
@@ -642,6 +649,13 @@ const I18N = {
   },
 
   en: {
+    "schools.cover": "School cover (photo)",
+    "schools.noCover": "No cover",
+    "schools.removeCover": "Remove cover",
+    "schools.coverError": "Could not upload the cover photo. The school was saved without changing the cover.",
+    "schools.copyLinkAm": "Copy AM link",
+    "schools.copyLinkPm": "Copy PM link",
+    "schools.openClientPage": "View client page",
     "nav.escolas": "Schools",
     "common.duplicate": "Duplicate",
     "common.copy": "copy",
@@ -1270,6 +1284,13 @@ const I18N = {
   },
 
   es: {
+    "schools.cover": "Portada de la escuela (foto)",
+    "schools.noCover": "Sin portada",
+    "schools.removeCover": "Quitar portada",
+    "schools.coverError": "No fue posible enviar la foto de portada. La escuela se guardó sin cambiar la portada.",
+    "schools.copyLinkAm": "Copiar enlace AM",
+    "schools.copyLinkPm": "Copiar enlace PM",
+    "schools.openClientPage": "Ver página del cliente",
     "nav.escolas": "Escuelas",
     "common.duplicate": "Duplicar",
     "common.copy": "copia",

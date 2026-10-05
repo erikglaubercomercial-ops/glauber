@@ -1577,6 +1577,19 @@ body {
 .cmp-row-name small { color: var(--text-muted); }
 .cmp-row-price { font-weight: 700; white-space: nowrap; }
 .cmp-row-detail { font-size: 11.5px; color: var(--text-muted); padding: 3px 0 4px; }
+.cmp-card-banner.has-photo { height: 150px; background-size: cover; background-position: center; background-repeat: no-repeat; }
+.cmp-share { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.school-cover-preview {
+  width: 100%; height: 130px; border-radius: 10px; border: 1px dashed var(--border);
+  background: var(--content-bg) center / cover no-repeat; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 12.5px;
+}
+.school-cover-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.cmp-public-head { text-align: center; padding: 26px 16px 6px; }
+.cmp-public-head img { max-width: 150px; height: auto; margin-bottom: 10px; }
+.cmp-public-head h1 { margin: 0 0 4px; font-size: 24px; }
+.cmp-public-head p { margin: 0; color: var(--text-muted); font-size: 14px; }
+.cmp-public-wrap { max-width: 1240px; margin: 0 auto; padding-bottom: 36px; }
 .cmp-card-desc { font-size: 13px; color: var(--text-muted); margin: -8px 0 14px; line-height: 1.45; }
 .cmp-empty { font-size: 13px; color: var(--text-muted); margin: 8px 0 0; }
 .cmp-includes { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; color: var(--text); }

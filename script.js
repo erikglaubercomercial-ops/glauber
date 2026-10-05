@@ -3161,13 +3161,13 @@ function schoolFromDb(r) {
   return {
     id: r.id, nome: r.nome, categoria: r.categoria || "Outros", destino: r.destino || "Todos",
     descricao: r.descricao || "", inclusos: Array.isArray(r.inclusos) ? r.inclusos : [],
-    ativo: r.ativo !== false, ordem: r.ordem || 0,
+    ativo: r.ativo !== false, ordem: r.ordem || 0, coverPath: r.cover_path || null,
   };
 }
 function schoolToDb(s) {
   return {
     id: s.id, nome: s.nome, categoria: s.categoria, destino: s.destino, descricao: s.descricao,
-    inclusos: s.inclusos, ativo: s.ativo, ordem: s.ordem,
+    inclusos: s.inclusos, ativo: s.ativo, ordem: s.ordem, cover_path: s.coverPath || null,
   };
 }
 async function loadSchools() {
@@ -3183,6 +3183,42 @@ async function saveSchoolRemote(s) {
 async function deleteSchoolRemote(id) {
   const { error } = await supabase.from("schools").delete().eq("id", id);
   if (error) console.error("Erro ao excluir escola:", error);
+}
+
+const SCHOOL_COVER_BUCKET = "school-covers";
+function schoolCoverUrl(path) {
+  return supabase.storage.from(SCHOOL_COVER_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/* reduz a foto antes de enviar (lado maior 1400px, JPEG) pra capa não
+   pesar na página do cliente; se o navegador não conseguir ler o
+   formato, envia o arquivo original */
+async function prepareSchoolCover(file) {
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1400 / bmp.width);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext("2d").drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.85));
+    if (blob) return { body: blob, ext: "jpg", type: "image/jpeg" };
+  } catch (err) { console.error("Erro ao reduzir capa:", err); }
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  return { body: file, ext, type: file.type || "image/jpeg" };
+}
+async function uploadSchoolCover(schoolId, file) {
+  const prepared = await prepareSchoolCover(file);
+  const path = `${schoolId}-${Date.now()}.${prepared.ext}`;
+  const { error } = await supabase.storage.from(SCHOOL_COVER_BUCKET).upload(path, prepared.body, { contentType: prepared.type });
+  if (error) { console.error("Erro ao enviar capa da escola:", error); return null; }
+  return path;
+}
+/* só apaga o arquivo se nenhuma outra escola (ex: cópia) ainda usa a mesma capa */
+async function removeSchoolCoverFileIfUnused(path) {
+  if (!path || schools.some(x => x.coverPath === path)) return;
+  const { error } = await supabase.storage.from(SCHOOL_COVER_BUCKET).remove([path]);
+  if (error) console.error("Erro ao apagar capa antiga:", error);
 }
 
 function schoolProducts(school) {
@@ -3225,7 +3261,7 @@ function renderSchoolComparisonView() {
 
   document.querySelectorAll("#cmp-shift-toggle .cmp-shift-btn").forEach(b => b.classList.toggle("active", b.dataset.shift === cmpShift));
   document.getElementById("cmp-container").innerHTML = renderSchoolComparison(list, schoolProducts, cmpShift, {
-    escape: escapeHtml, money: currency, classify: classifyTurnoShift,
+    escape: escapeHtml, money: currency, classify: classifyTurnoShift, coverUrl: schoolCoverUrl,
     labels: {
       empty: t("schools.empty"), from: t("quotes.cmpFrom"), values: t("quotes.cmpValues"), includes: t("schools.includesTitle"),
       overview: t("quotes.cmpOverview"), option: t("quotes.cmpOption"), options: t("quotes.cmpOptions"), noValues: t("schools.noValues"),
@@ -3267,6 +3303,25 @@ function fillSchoolDatalists() {
     uniq([...catalog.map(p => p.destino), ...schools.map(s => s.destino)]).map(v => `<option value="${escapeHtml(v)}">`).join("");
 }
 
+let schoolCoverRemoved = false;
+function showSchoolCoverPreview(url) {
+  const box = document.getElementById("school-cover-preview");
+  box.style.backgroundImage = url ? `url("${url}")` : "";
+  box.textContent = url ? "" : t("schools.noCover");
+  document.getElementById("school-cover-remove").style.display = url ? "" : "none";
+}
+document.getElementById("school-field-cover").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  schoolCoverRemoved = false;
+  showSchoolCoverPreview(URL.createObjectURL(file));
+});
+document.getElementById("school-cover-remove").addEventListener("click", () => {
+  schoolCoverRemoved = true;
+  document.getElementById("school-field-cover").value = "";
+  showSchoolCoverPreview(null);
+});
+
 function openSchoolModal(id) {
   schoolForm.reset();
   fillSchoolDatalists();
@@ -3279,6 +3334,9 @@ function openSchoolModal(id) {
   document.getElementById("school-field-descricao").value = s ? s.descricao : "";
   document.getElementById("school-field-inclusos").value = s ? s.inclusos.join("\n") : "";
   document.getElementById("school-field-ativo").checked = s ? s.ativo : true;
+  schoolCoverRemoved = false;
+  document.getElementById("school-field-cover").value = "";
+  showSchoolCoverPreview(s && s.coverPath ? schoolCoverUrl(s.coverPath) : null);
   document.getElementById("school-btn-delete").style.display = s ? "" : "none";
   document.getElementById("school-btn-duplicate").style.display = s ? "" : "none";
   schoolModalBackdrop.classList.add("open");
@@ -3310,11 +3368,23 @@ schoolForm.addEventListener("submit", async e => {
     school = schools.find(x => x.id === id);
     Object.assign(school, data);
   } else {
-    school = { id: uid(), ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + 1, ...data };
+    school = { id: uid(), ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + 1, coverPath: null, ...data };
     schools.push(school);
   }
+
+  const oldCover = school.coverPath;
+  const coverFile = document.getElementById("school-field-cover").files[0];
+  if (coverFile) {
+    const newPath = await uploadSchoolCover(school.id, coverFile);
+    if (newPath) school.coverPath = newPath;
+    else alert(t("schools.coverError"));
+  } else if (schoolCoverRemoved) {
+    school.coverPath = null;
+  }
+
   const ok = await saveSchoolRemote(school);
   if (!ok) alert(t("schools.saveError"));
+  else if (oldCover && oldCover !== school.coverPath) await removeSchoolCoverFileIfUnused(oldCover);
   closeSchoolModal();
   renderEscolas();
 });
@@ -3355,6 +3425,7 @@ document.getElementById("school-btn-delete").addEventListener("click", async () 
   closeSchoolModal();
   renderEscolas();
   await deleteSchoolRemote(id);
+  await removeSchoolCoverFileIfUnused(s.coverPath);
 });
 
 document.getElementById("schools-list").addEventListener("click", async e => {
@@ -3369,6 +3440,7 @@ document.getElementById("schools-list").addEventListener("click", async e => {
     schools = schools.filter(x => x.id !== id);
     renderEscolas();
     await deleteSchoolRemote(id);
+    await removeSchoolCoverFileIfUnused(s.coverPath);
   }
 });
 
@@ -3389,6 +3461,21 @@ document.getElementById("cmp-container").addEventListener("click", e => {
   e.preventDefault();
   const target = document.getElementById(link.dataset.cmpTarget);
   if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+function buildSchoolsPublicUrl(shift) {
+  return `${window.location.origin}/escolas-publico.html?turno=${shift}`;
+}
+["am", "pm"].forEach(shift => {
+  const btn = document.getElementById(`cmp-copy-${shift}`);
+  btn.addEventListener("click", () => {
+    navigator.clipboard.writeText(buildSchoolsPublicUrl(shift)).catch(() => {});
+    const original = btn.textContent;
+    btn.textContent = t("common.copied");
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  });
+});
+document.getElementById("cmp-open-client").addEventListener("click", () => {
+  window.open(buildSchoolsPublicUrl(cmpShift), "_blank", "noopener");
 });
 document.getElementById("btn-compare-schools").addEventListener("click", () => { switchView("escolas"); showEscolasSubtab("comparativo"); });
 

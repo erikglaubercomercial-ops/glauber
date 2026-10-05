@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opções de escola — Peregrinos Intercâmbio</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body style="background:var(--content-bg);">
+  <div class="cmp-public-wrap">
+    <header class="cmp-public-head">
+      <img src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
+      <h1 id="ep-title">Opções de escola</h1>
+      <p id="ep-subtitle"></p>
+    </header>
+
+    <div id="ep-loading" class="muted-note" style="text-align:center; padding:30px;">Carregando...</div>
+    <div id="ep-error" style="display:none; text-align:center; padding:30px;" class="public-message error">Não foi possível carregar as opções agora. Tente novamente em instantes.</div>
+    <div id="ep-container"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="comparativo.js"></script>
+  <script src="escolas-publico.js"></script>
+</body>
+</html>
