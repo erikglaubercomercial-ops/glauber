@@ -46,6 +46,25 @@ function initSidebarToggle() {
     toggle.title = isCollapsed ? "Expandir menu" : "Recolher menu";
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, isCollapsed ? "1" : "0");
   });
+
+  /* celular: sidebar vira gaveta aberta pelo botão hambúrguer (o CSS
+     só mostra o botão/gaveta em tela estreita); fecha ao tocar no fundo
+     escuro ou ao escolher uma tela */
+  const backdrop = document.getElementById("sidebar-backdrop");
+  const closeDrawer = () => {
+    sidebar.classList.remove("mobile-open");
+    backdrop.classList.remove("open");
+  };
+  document.getElementById("mobile-nav-toggle").addEventListener("click", () => {
+    sidebar.classList.add("mobile-open");
+    backdrop.classList.add("open");
+  });
+  backdrop.addEventListener("click", closeDrawer);
+  document.getElementById("sidebar-nav").addEventListener("click", e => {
+    const nav = e.currentTarget;
+    if (nav.classList.contains("edit-mode")) return;
+    if (e.target.closest(".nav-item, .nav-subitem")) closeDrawer();
+  });
 }
 
 /* ============================================================

@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1790816564">
+<link rel="stylesheet" href="style.css?v=1791192721">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body style="visibility:hidden;">
   <div class="app-shell">
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
@@ -132,6 +133,9 @@
     <!-- MAIN CONTENT -->
     <main class="content">
       <header class="content-topbar">
+        <button type="button" class="mobile-nav-toggle" id="mobile-nav-toggle" title="Menu" aria-label="Menu">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
         <h1 id="view-title">Leads</h1>
         <div class="topbar-right">
           <label class="search-box">
@@ -2022,9 +2026,9 @@
     </div>
   </div>
 
-  <script src="config.js?v=1790816564"></script>
-  <script src="auth.js?v=1790816564"></script>
-  <script src="i18n.js?v=1790816564"></script>
-  <script src="script.js?v=1790816564"></script>
+  <script src="config.js?v=1791192721"></script>
+  <script src="auth.js?v=1791192721"></script>
+  <script src="i18n.js?v=1791192721"></script>
+  <script src="script.js?v=1791192721"></script>
 </body>
 </html>

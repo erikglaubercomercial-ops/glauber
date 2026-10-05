@@ -1530,18 +1530,60 @@ body {
 .nav-item.aluno-nav-soon:hover { background: none; }
 
 /* ===== RESPONSIVE ===== */
+.mobile-nav-toggle { display: none; }
+.sidebar-backdrop { display: none; }
+
 @media (max-width: 900px) {
   body { padding: 0; }
-  .app-shell { border-radius: 0; min-height: 100vh; flex-direction: column; }
-  .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 14px 16px; gap: 16px; }
-  .sidebar-nav { flex-direction: row; flex: 1; overflow-x: auto; }
-  .nav-label { display: none; }
-  .nav-item span:last-child { display: none; }
-  .sidebar-signout span:last-child { display: none; }
-  .nav-subitem { display: none; }
+  .app-shell { border-radius: 0; min-height: 100vh; }
+
+  /* sidebar vira gaveta (off-canvas): fica fora da tela até o botão
+     hambúrguer abrir — ignora o estado "collapsed" de desktop (que só
+     faz sentido com mouse/tela larga), por isso o !important pontual */
+  .sidebar, .sidebar.collapsed {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 300;
+    width: 260px !important; max-width: 82vw;
+    padding: 24px 16px !important;
+    flex-direction: column; align-items: stretch;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .sidebar.mobile-open { transform: translateX(0); box-shadow: 12px 0 32px rgba(0,0,0,0.3); }
+  .sidebar.collapsed .sidebar-brand,
+  .sidebar .sidebar-brand { justify-content: space-between !important; padding: 0 8px !important; flex-wrap: nowrap !important; }
+  .sidebar.collapsed .brand-group,
+  .sidebar .brand-group { display: flex !important; }
+  .sidebar.collapsed .nav-label,
+  .sidebar .nav-label { display: block !important; }
+  .sidebar.collapsed .nav-item,
+  .sidebar.collapsed .sidebar-signout,
+  .sidebar .nav-item,
+  .sidebar .sidebar-signout { justify-content: flex-start !important; padding: 10px !important; gap: 10px !important; }
+  .sidebar.collapsed .nav-item span:last-child,
+  .sidebar.collapsed .sidebar-signout span:last-child,
+  .sidebar .nav-item span:last-child,
+  .sidebar .sidebar-signout span:last-child { display: inline !important; }
+  .sidebar.collapsed .nav-subitem,
+  .sidebar .nav-subitem { display: flex !important; }
   .sidebar-toggle { display: none; }
-  .content-topbar { padding: 16px; }
+  .mobile-nav-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); cursor: pointer; flex-shrink: 0;
+  }
+  .sidebar-backdrop.open {
+    display: block; position: fixed; inset: 0; z-index: 290; background: rgba(15, 20, 35, 0.5);
+  }
+
+  .content-topbar { padding: 16px; gap: 10px; }
+  .content-topbar h1 { font-size: 18px; }
   .search-box input { width: 100px; }
   .user-meta { display: none; }
   .view { padding: 4px 16px 24px; }
+
+  /* tabelas: rolagem horizontal em vez de espremer colunas, mesmo nas
+     que não têm o wrapper .table-scroll */
+  table.data-table { display: block; overflow-x: auto; }
+  table.data-table tbody, table.data-table thead { display: table; width: 100%; min-width: max-content; }
 }
