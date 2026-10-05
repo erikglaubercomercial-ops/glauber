@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791235816">
+<link rel="stylesheet" href="style.css?v=1791242342">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -87,6 +87,11 @@
         <button class="nav-item" data-view="colaboradores">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span data-i18n="nav.colaboradores">Time</span>
+        </button>
+
+        <button class="nav-item" data-view="appacomp" id="nav-appacomp" style="display:none;">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><polyline points="9 14 11 11.5 13 13 15 9.5"/><line x1="11" y1="19" x2="13" y2="19"/></svg>
+          <span data-i18n="nav.appacomp">App · Acompanhamento</span>
         </button>
 
         <button class="nav-item" data-view="formularios">
@@ -360,6 +365,70 @@
           </div>
         </div>
         <div class="board" id="board"></div>
+      </section>
+
+      <!-- APP · ACOMPANHAMENTO VIEW (ADM/Gerente: visão geral + usuários; Consultor: só usuários) -->
+      <section class="view" id="view-appacomp">
+        <div class="subtabs" id="appt-subtabs">
+          <button type="button" class="subtab active" data-appt-tab="overview" data-i18n="appt.tabOverview">Visão geral</button>
+          <button type="button" class="subtab" data-appt-tab="users" data-i18n="appt.tabUsers">Usuários</button>
+        </div>
+
+        <div class="subview active" id="subview-appt-overview">
+          <div class="appt-range-bar" id="appt-range-bar">
+            <button type="button" class="subtab" data-appt-range="7" data-i18n="appt.range7">7 dias</button>
+            <button type="button" class="subtab active" data-appt-range="30" data-i18n="appt.range30">30 dias</button>
+            <button type="button" class="subtab" data-appt-range="90" data-i18n="appt.range90">90 dias</button>
+            <button type="button" class="subtab" data-appt-range="0" data-i18n="appt.rangeCustom">Personalizado</button>
+            <div class="appt-custom-range" id="appt-custom-range" style="display:none;">
+              <input type="date" id="appt-from" aria-label="De">
+              <span class="filter-sep" data-i18n="appt.to">até</span>
+              <input type="date" id="appt-to" aria-label="Até">
+              <button type="button" class="btn btn-primary btn-sm" id="appt-range-apply" data-i18n="appt.apply">Aplicar</button>
+            </div>
+          </div>
+          <div id="appt-overview-body"></div>
+        </div>
+
+        <div class="subview" id="subview-appt-users">
+          <div class="panel">
+            <div class="filter-bar">
+              <input type="text" id="appt-u-search" placeholder="Buscar por nome ou e-mail do lead" autocomplete="off" data-i18n-placeholder="appt.searchPh">
+              <select id="appt-u-temp">
+                <option value="" data-i18n="appt.allTemps">Todas as temperaturas</option>
+                <option value="Quente" data-i18n="status.quente">Quente</option>
+                <option value="Morno" data-i18n="status.morno">Morno</option>
+                <option value="Frio" data-i18n="status.frio">Frio</option>
+              </select>
+              <input type="text" id="appt-u-origin" list="appt-u-origin-list" placeholder="Origem (código)" autocomplete="off" data-i18n-placeholder="appt.originPh">
+              <datalist id="appt-u-origin-list"></datalist>
+              <input type="date" id="appt-u-from" aria-label="De">
+              <span class="filter-sep" data-i18n="appt.to">até</span>
+              <input type="date" id="appt-u-to" aria-label="Até">
+              <label class="filter-check" id="appt-u-onlyleads-wrap"><input type="checkbox" id="appt-u-onlyleads"><span data-i18n="appt.onlyLeads">Só leads</span></label>
+              <button type="button" class="btn btn-ghost btn-sm" id="appt-u-clear" data-i18n="appt.clear">Limpar</button>
+            </div>
+            <p class="muted-note appt-state" id="appt-u-state" style="display:none;"></p>
+            <div class="table-scroll" id="appt-u-table-wrap">
+              <table class="data-table data-table-list appt-users-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="appt.colUser">Usuário</th>
+                    <th data-i18n="appt.colOrigin">Origem</th>
+                    <th data-i18n="appt.colStage">Etapa</th>
+                    <th data-i18n="appt.colDest">Destino</th>
+                    <th data-i18n="common.temperature">Temperatura</th>
+                    <th class="appt-center" data-i18n="appt.colInstalled">App</th>
+                    <th data-i18n="appt.colLastAccess">Último acesso</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="appt-u-tbody"></tbody>
+              </table>
+            </div>
+            <div class="appt-pager" id="appt-u-pager"></div>
+          </div>
+        </div>
       </section>
 
       <!-- LEADS PARADOS VIEW (ADM/Gerente) -->
@@ -1104,6 +1173,16 @@
   </div>
 
   <!-- MODAL: LEAD -->
+  <div class="modal-backdrop" id="appt-timeline-backdrop">
+    <div class="modal appt-modal">
+      <div class="modal-header">
+        <h2 id="appt-timeline-title" data-i18n="appt.timelineTitle">Linha do tempo</h2>
+        <button class="btn-icon" id="appt-timeline-close" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="appt-modal-body" id="appt-timeline-body"></div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="lead-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
@@ -1164,6 +1243,10 @@
           <input type="checkbox" id="lead-field-active" checked>
           <span data-i18n="lead.active">Lead ativo</span>
         </label>
+        <details class="appt-lead-activity" id="lead-app-activity" style="display:none;">
+          <summary data-i18n="appt.activityTitle">Atividade no app</summary>
+          <div class="appt-lead-activity-body" id="lead-app-activity-body"></div>
+        </details>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="lead-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
@@ -2157,10 +2240,11 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791235816"></script>
-  <script src="auth.js?v=1791235816"></script>
-  <script src="i18n.js?v=1791235816"></script>
-  <script src="comparativo.js?v=1791235816"></script>
-  <script src="script.js?v=1791235816"></script>
+  <script src="config.js?v=1791242342"></script>
+  <script src="auth.js?v=1791242342"></script>
+  <script src="i18n.js?v=1791242342"></script>
+  <script src="comparativo.js?v=1791242342"></script>
+  <script src="script.js?v=1791242342"></script>
+  <script src="app-acompanhamento.js?v=1791242342"></script>
 </body>
 </html>

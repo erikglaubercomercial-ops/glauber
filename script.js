@@ -13,6 +13,10 @@ function canAccessView(view) {
   if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
   if (view === "usuarios") return session.role === "ADM";
   if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
+  /* uso do App de Intercâmbio: ADM/Gerente veem tudo; Consultor só a aba
+     Usuários (e o banco só devolve os leads dele). Quem restringe de
+     verdade são as funções app_* do Supabase, que conferem o papel. */
+  if (view === "appacomp") return session.role === "ADM" || session.role === "Gerente" || session.role === "Consultor";
   if (view === "meusleads") return hasModuleAccess(session.role, "leads");
   if (view === "escolas") return hasModuleAccess(session.role, "produtos") || hasModuleAccess(session.role, "cotacao");
   return hasModuleAccess(session.role, view);
@@ -183,6 +187,7 @@ function switchView(view) {
     renderLeads();
   }
   if (view === "escolas") renderEscolas();
+  if (view === "appacomp") renderAppTracking();
   if (view === "leadsparados") {
     document.getElementById("subview-stuck-detalhe").classList.remove("active");
     document.getElementById("subview-stuck-overview").classList.add("active");
@@ -215,6 +220,7 @@ const DEFAULT_MENU_STRUCTURE = {
       { id: "financeiro" },
       { id: "matriculas" },
       { id: "colaboradores" },
+      { id: "appacomp" },
       { id: "formularios" },
       { id: "templates" },
       { id: "areaaluno", children: ["areaaluno-preview-link"] },
@@ -2235,6 +2241,7 @@ function openLeadModal(id) {
   sourceField.disabled = sourceLocked;
   sourceField.title = sourceLocked ? t("lead.sourceLockedHint") : "";
 
+  apptSetupLeadActivity(id || null);
   leadModalBackdrop.classList.add("open");
   document.getElementById("lead-field-name").focus();
 }
