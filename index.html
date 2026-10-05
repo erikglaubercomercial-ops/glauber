@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791243177">
+<link rel="stylesheet" href="style.css?v=1791243665">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -634,26 +634,31 @@
 
       <!-- PRODUTOS VIEW -->
       <section class="view" id="view-produtos">
-        <div class="stat-row">
-          <div class="stat-card">
-            <span class="stat-label" data-i18n="products.statTotal">Produtos no catálogo</span>
-            <span class="stat-value" id="products-stat-total">0</span>
+        <div class="prod-hero">
+          <div class="prod-hero-top">
+            <div class="prod-hero-text">
+              <h2 data-i18n="products.catalogTitle">Catálogo de Produtos</h2>
+              <p data-i18n="products.heroSubtitle">Tudo o que os consultores podem cotar, organizado por categoria, destino, escola e turno.</p>
+            </div>
+            <button type="button" class="btn prod-hero-btn" id="btn-new-catalog-item" data-i18n="products.new">+ Novo produto</button>
           </div>
-          <div class="stat-card">
-            <span class="stat-label" data-i18n="products.statVisible">Visíveis para consultores</span>
-            <span class="stat-value stat-good" id="products-stat-active">0</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label" data-i18n="products.statDestinations">Destinos cadastrados</span>
-            <span class="stat-value" id="products-stat-destinos">0</span>
+          <div class="prod-kpis">
+            <div class="prod-kpi">
+              <span class="prod-kpi-value" id="products-stat-total">0</span>
+              <span class="prod-kpi-label" data-i18n="products.statTotal">Produtos no catálogo</span>
+            </div>
+            <div class="prod-kpi">
+              <span class="prod-kpi-value" id="products-stat-active">0</span>
+              <span class="prod-kpi-label" data-i18n="products.statVisible">Visíveis para consultores</span>
+            </div>
+            <div class="prod-kpi">
+              <span class="prod-kpi-value" id="products-stat-destinos">0</span>
+              <span class="prod-kpi-label" data-i18n="products.statDestinations">Destinos cadastrados</span>
+            </div>
           </div>
         </div>
 
-        <div class="panel">
-          <div class="panel-header">
-            <h2 data-i18n="products.catalogTitle">Catálogo de Produtos</h2>
-            <button type="button" class="btn btn-primary btn-sm" id="btn-new-catalog-item" data-i18n="products.new">+ Novo produto</button>
-          </div>
+        <div class="prod-surface">
           <div id="catalog-list" class="catalog-admin-list"></div>
         </div>
       </section>
@@ -2240,11 +2245,11 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791243177"></script>
-  <script src="auth.js?v=1791243177"></script>
-  <script src="i18n.js?v=1791243177"></script>
-  <script src="comparativo.js?v=1791243177"></script>
-  <script src="script.js?v=1791243177"></script>
-  <script src="app-acompanhamento.js?v=1791243177"></script>
+  <script src="config.js?v=1791243665"></script>
+  <script src="auth.js?v=1791243665"></script>
+  <script src="i18n.js?v=1791243665"></script>
+  <script src="comparativo.js?v=1791243665"></script>
+  <script src="script.js?v=1791243665"></script>
+  <script src="app-acompanhamento.js?v=1791243665"></script>
 </body>
 </html>

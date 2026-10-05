@@ -3883,13 +3883,20 @@ function adminItemCardHtml(p, isAdmin) {
       <button type="button" class="btn btn-ghost btn-sm" data-act="dup" data-id="${p.id}">${t("common.duplicate")}</button>
       <button type="button" class="btn btn-danger btn-sm" data-act="del" data-id="${p.id}">${t("common.delete")}</button>
     </div>` : "";
+  const chips = [
+    `<span class="prod-chip">${t("products.byUnit")} ${escapeHtml(p.unidade)}</span>`,
+    subs ? `<span class="prod-chip">${subs} ${subs > 1 ? t("products.subitemPlural") : t("products.subitemSingular")}</span>` : "",
+    p.qtdFixa ? `<span class="prod-chip">${t("products.fixedQtyTag")}</span>` : "",
+    p.ativo ? "" : `<span class="prod-chip prod-chip-off">${t("products.hiddenTag")}</span>`,
+  ].join("");
   return `
     <div class="prod-card${p.ativo ? "" : " off"}">
-      <div class="body">
-        <div class="nm">${escapeHtml(p.nome)}${p.ativo ? "" : `<span class="prod-tag">${t("products.hiddenTag")}</span>`}</div>
-        <div class="meta">${t("products.byUnit")} ${escapeHtml(p.unidade)}${subs ? ` · ${subs} ${subs > 1 ? t("products.subitemPlural") : t("products.subitemSingular")}` : ""}${p.qtdFixa ? ` · ${t("products.fixedQtyTag")}` : ""}</div>
+      <div class="prod-card-top">
+        <div class="nm">${escapeHtml(p.nome)}</div>
+        <div class="pr">${currency(p.preco)}</div>
       </div>
-      <div class="pr">${currency(p.preco)}</div>
+      ${p.detalhe ? `<p class="prod-desc">${escapeHtml(p.detalhe)}</p>` : ""}
+      <div class="prod-chips">${chips}</div>
       ${actions}
     </div>`;
 }
@@ -3956,6 +3963,7 @@ function catalogBoxGridHtml(boxes, kind, itemWord, levelIndex, isAdmin) {
           <span class="cat-box-icon">${CATALOG_ICONS[kind]}</span>
           <span class="cat-box-name">${escapeHtml(node.nome)}</span>
           <span class="cat-box-count">${count} ${count === 1 ? itemWord : itemWord + "s"}</span>
+          <span class="cat-box-arrow" aria-hidden="true">›</span>
         </button>
         ${isAdmin ? `
           <div class="cat-box-admin-acts">
@@ -4052,7 +4060,7 @@ function renderCatalogList() {
   renderProductsDashboard();
 
   if (catalog.length === 0) {
-    catalogListEl.innerHTML = `<p class="muted-note">${t("products.emptyCatalog1")} "${t("products.new")}" ${t("products.emptyCatalog2")}</p>`;
+    catalogListEl.innerHTML = `<div class="prod-empty"><div class="prod-empty-icon">${CATALOG_ICONS.categoria}</div><p>${t("products.emptyCatalog1")} "${t("products.new")}" ${t("products.emptyCatalog2")}</p></div>`;
     return;
   }
 
@@ -4073,7 +4081,7 @@ function renderCatalogList() {
     }
 
     if (!view.boxes.length && !looseHtml) {
-      html += `<p class="muted-note">${t("products.emptyItemsHere")}</p>`;
+      html += `<div class="prod-empty"><div class="prod-empty-icon">${CATALOG_ICONS.escola}</div><p>${t("products.emptyItemsHere")}</p></div>`;
     } else {
       if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, t("products.itemWord"), catalogNavPath.length, isAdmin);
       html += looseHtml;
