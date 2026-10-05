@@ -3155,7 +3155,9 @@ function openQuoteList() {
    por categoria + destino + nome (= subgrupo do produto).
    ============================================================ */
 let schools = [];
+let schoolCities = [];
 let cmpShift = "am";
+let cmpKind = "first";
 
 function schoolFromDb(r) {
   return {
@@ -3221,6 +3223,22 @@ async function removeSchoolCoverFileIfUnused(path) {
   if (error) console.error("Erro ao apagar capa antiga:", error);
 }
 
+async function loadSchoolCities() {
+  const { data, error } = await supabase.from("school_cities").select("*").order("ordem");
+  if (error) { console.error("Erro ao carregar cidades do comparativo:", error); return []; }
+  return data.map(r => ({ id: r.id, nome: r.nome, ordem: r.ordem || 0 }));
+}
+async function saveSchoolCityRemote(c) {
+  const { error } = await supabase.from("school_cities").upsert({ id: c.id, nome: c.nome, ordem: c.ordem });
+  if (error) console.error("Erro ao salvar cidade:", error);
+  return !error;
+}
+async function deleteSchoolCityRemote(id) {
+  const { error } = await supabase.from("school_cities").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir cidade:", error);
+}
+const schoolCityNames = () => schoolCities.slice().sort((a, b) => a.ordem - b.ordem).map(c => c.nome);
+
 function schoolProducts(school) {
   return catalog.filter(p => p.ativo
     && (p.categoria || "Outros") === school.categoria
@@ -3231,6 +3249,7 @@ function schoolProducts(school) {
 function renderEscolas() {
   const isAdmin = !!(session && session.role === "ADM");
   document.getElementById("btn-new-school").style.display = isAdmin ? "" : "none";
+  document.getElementById("cmp-edit-cities").style.display = isAdmin ? "" : "none";
   document.getElementById("escolas-subtabs").style.display = isAdmin ? "" : "none";
   if (!isAdmin) showEscolasSubtab("comparativo");
   renderSchoolComparisonView();
@@ -3260,11 +3279,16 @@ function renderSchoolComparisonView() {
   }).sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
 
   document.querySelectorAll("#cmp-shift-toggle .cmp-shift-btn").forEach(b => b.classList.toggle("active", b.dataset.shift === cmpShift));
+  document.querySelectorAll("#cmp-kind-toggle .cmp-shift-btn").forEach(b => b.classList.toggle("active", b.dataset.kind === cmpKind));
+  ["am", "pm"].forEach(sh => {
+    document.getElementById(`cmp-copy-${sh}`).textContent =
+      t(sh === "am" ? "schools.copyLinkAm" : "schools.copyLinkPm") + (cmpKind === "renewal" ? ` ${t("schools.renewalSuffix")}` : "");
+  });
   document.getElementById("cmp-container").innerHTML = renderSchoolComparison(list, schoolProducts, cmpShift, {
-    escape: escapeHtml, money: currency, classify: classifyTurnoShift, coverUrl: schoolCoverUrl,
+    escape: escapeHtml, money: currency, classify: classifyTurnoShift, kind: cmpKind, coverUrl: schoolCoverUrl, cities: schoolCityNames(),
     labels: {
       empty: t("schools.empty"), from: t("quotes.cmpFrom"), values: t("quotes.cmpValues"), includes: t("schools.includesTitle"),
-      overview: t("quotes.cmpOverview"), option: t("quotes.cmpOption"), options: t("quotes.cmpOptions"), noValues: t("schools.noValues"),
+      overview: t("quotes.cmpOverview"), option: t("quotes.cmpOption"), options: t("quotes.cmpOptions"), noValues: t("schools.noValues"), cityNoSchools: t("schools.cityNoSchools"),
     },
   });
 }
@@ -3453,6 +3477,12 @@ document.getElementById("cmp-shift-toggle").addEventListener("click", e => {
   cmpShift = btn.dataset.shift;
   renderSchoolComparisonView();
 });
+document.getElementById("cmp-kind-toggle").addEventListener("click", e => {
+  const btn = e.target.closest(".cmp-shift-btn");
+  if (!btn) return;
+  cmpKind = btn.dataset.kind;
+  renderSchoolComparisonView();
+});
 document.getElementById("cmp-filter-destino").addEventListener("change", renderSchoolComparisonView);
 document.getElementById("cmp-filter-search").addEventListener("input", renderSchoolComparisonView);
 document.getElementById("cmp-container").addEventListener("click", e => {
@@ -3462,8 +3492,93 @@ document.getElementById("cmp-container").addEventListener("click", e => {
   const target = document.getElementById(link.dataset.cmpTarget);
   if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
 });
+/* ---- editor do menu de cidades (só ADM) ---- */
+const citiesModalBackdrop = document.getElementById("cities-modal-backdrop");
+
+function renderCitiesEditor() {
+  const sorted = schoolCities.slice().sort((a, b) => a.ordem - b.ordem);
+  document.getElementById("cities-list").innerHTML = sorted.map((c, i) => {
+    const n = schools.filter(s => s.destino === c.nome).length;
+    return `
+    <div class="city-row">
+      <input type="text" value="${escapeHtml(c.nome)}" data-id="${c.id}">
+      <span class="city-count">${n} ${t("schools.cityCount")}</span>
+      <button type="button" class="btn btn-ghost btn-icon" data-cact="up" data-id="${c.id}" ${i === 0 ? "disabled" : ""} title="${t("schools.moveUp")}">↑</button>
+      <button type="button" class="btn btn-ghost btn-icon" data-cact="down" data-id="${c.id}" ${i === sorted.length - 1 ? "disabled" : ""} title="${t("schools.moveDown")}">↓</button>
+      <button type="button" class="btn btn-icon" data-cact="del" data-id="${c.id}" title="${t("common.delete")}">&times;</button>
+    </div>`;
+  }).join("");
+}
+function refreshAfterCitiesChange() {
+  renderCitiesEditor();
+  renderSchoolComparisonView();
+}
+
+document.getElementById("cmp-edit-cities").addEventListener("click", () => {
+  document.getElementById("cities-new-input").value = "";
+  renderCitiesEditor();
+  citiesModalBackdrop.classList.add("open");
+});
+const closeCitiesModal = () => citiesModalBackdrop.classList.remove("open");
+document.getElementById("cities-modal-close").addEventListener("click", closeCitiesModal);
+document.getElementById("cities-btn-done").addEventListener("click", closeCitiesModal);
+citiesModalBackdrop.addEventListener("click", e => { if (e.target === citiesModalBackdrop) closeCitiesModal(); });
+
+async function addSchoolCity() {
+  if (!(session && session.role === "ADM")) return;
+  const input = document.getElementById("cities-new-input");
+  const nome = input.value.trim();
+  if (!nome) return;
+  if (schoolCities.some(c => c.nome.toLowerCase() === nome.toLowerCase())) { alert(t("schools.cityDuplicateError")); return; }
+  const city = { id: uid(), nome, ordem: schoolCities.reduce((m, c) => Math.max(m, c.ordem), 0) + 1 };
+  schoolCities.push(city);
+  input.value = "";
+  refreshAfterCitiesChange();
+  await saveSchoolCityRemote(city);
+}
+document.getElementById("cities-add-btn").addEventListener("click", addSchoolCity);
+document.getElementById("cities-new-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); addSchoolCity(); }
+});
+
+document.getElementById("cities-list").addEventListener("change", async e => {
+  const input = e.target.closest('input[type="text"]');
+  if (!input || !(session && session.role === "ADM")) return;
+  const city = schoolCities.find(c => c.id === input.dataset.id);
+  const nome = input.value.trim();
+  if (!city) return;
+  if (!nome) { input.value = city.nome; return; }
+  if (schoolCities.some(c => c.id !== city.id && c.nome.toLowerCase() === nome.toLowerCase())) {
+    alert(t("schools.cityDuplicateError")); input.value = city.nome; return;
+  }
+  city.nome = nome;
+  refreshAfterCitiesChange();
+  await saveSchoolCityRemote(city);
+});
+
+document.getElementById("cities-list").addEventListener("click", async e => {
+  const btn = e.target.closest("[data-cact]");
+  if (!btn || btn.disabled || !(session && session.role === "ADM")) return;
+  const sorted = schoolCities.slice().sort((a, b) => a.ordem - b.ordem);
+  const i = sorted.findIndex(c => c.id === btn.dataset.id);
+  if (i === -1) return;
+  if (btn.dataset.cact === "del") {
+    if (!confirm(`${t("schools.confirmDeleteCity")} "${sorted[i].nome}"?`)) return;
+    schoolCities = schoolCities.filter(c => c.id !== sorted[i].id);
+    refreshAfterCitiesChange();
+    await deleteSchoolCityRemote(sorted[i].id);
+    return;
+  }
+  const j = btn.dataset.cact === "up" ? i - 1 : i + 1;
+  if (j < 0 || j >= sorted.length) return;
+  const a = sorted[i], b = sorted[j];
+  [a.ordem, b.ordem] = [b.ordem, a.ordem];
+  refreshAfterCitiesChange();
+  await Promise.all([saveSchoolCityRemote(a), saveSchoolCityRemote(b)]);
+});
+
 function buildSchoolsPublicUrl(shift) {
-  return `${window.location.origin}/escolas-publico.html?turno=${shift}`;
+  return `${window.location.origin}/escolas-publico.html?turno=${shift}${cmpKind === "renewal" ? "&tipo=renovacao" : ""}`;
 }
 ["am", "pm"].forEach(shift => {
   const btn = document.getElementById(`cmp-copy-${shift}`);
@@ -7542,7 +7657,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -7567,6 +7682,7 @@ document.addEventListener("keydown", e => {
     loadMenuConfig(),
     loadRotationSettings(),
     loadSchools(),
+    loadSchoolCities(),
   ]);
 
   renderSessionChip();

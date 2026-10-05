@@ -16,6 +16,11 @@ function cmpIsCash(p) {
   return /full payment|[aà]\s+vista/i.test(`${p.nome || ""} ${p.detalhe || ""}`);
 }
 
+/* produto de renovação (Renewal / Renovação) x primeiro curso */
+function cmpIsRenewal(p) {
+  return /renewal|renova[cç]/i.test(`${p.nome || ""} ${p.detalhe || ""}`);
+}
+
 /* AM/manhã → "am", PM/tarde → "pm", sem turno definido → null */
 function cmpClassifyTurno(turno) {
   const n = String(turno || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -26,9 +31,11 @@ function cmpClassifyTurno(turno) {
 
 /* produtos da escola no turno escolhido, sem os à vista; produto sem
    turno definido (ex: acomodação) aparece nos dois turnos */
-function cmpItemsForShift(items, shift, classify) {
+function cmpItemsForShift(items, shift, classify, kind) {
+  const wantRenewal = kind === "renewal";
   return items.filter(p => {
     if (cmpIsCash(p)) return false;
+    if (cmpIsRenewal(p) !== wantRenewal) return false;
     const s = classify(p.turno);
     return s === null || s === shift;
   });
@@ -45,16 +52,31 @@ function cmpGroupByTurno(items) {
   return turnos;
 }
 
-function renderSchoolComparison(schools, itemsFor, shift, opts) {
-  const esc = opts.escape, money = opts.money, L = opts.labels;
-  if (!schools.length) return `<p class="muted-note">${esc(L.empty)}</p>`;
+/* cartões agrupados por cidade na ordem do menu de cidades; cidades
+   que têm escola mas não estão no menu vêm depois, na ordem de cadastro */
+function cmpGroupByDestino(schools, cities) {
+  const order = (cities || []).slice();
+  schools.forEach(s => { if (!order.includes(s.destino)) order.push(s.destino); });
+  return order.flatMap(c => schools.filter(s => s.destino === c));
+}
 
-  const nav = schools.map((s, i) =>
-    `<a class="cmp-nav-link" href="#${cmpCardId(i)}" data-cmp-target="${cmpCardId(i)}">${esc(s.nome)}${s.destino && s.destino !== s.nome ? ` · ${esc(s.destino)}` : ""}</a>`).join("");
+function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
+  const esc = opts.escape, money = opts.money, L = opts.labels;
+  if (!rawSchools.length) return `<p class="muted-note">${esc(L.empty)}</p>`;
+  const schools = cmpGroupByDestino(rawSchools, opts.cities);
+
+  /* menu do topo: uma entrada por cidade do menu; leva ao primeiro cartão
+     dela, e fica apagada se ainda não há escola nessa cidade */
+  const menuCities = opts.cities && opts.cities.length ? opts.cities : [...new Set(schools.map(s => s.destino))];
+  const nav = menuCities.map(city => {
+    const idx = schools.findIndex(s => s.destino === city);
+    if (idx === -1) return `<span class="cmp-nav-link disabled" title="${esc(L.cityNoSchools || "")}">${esc(city)}</span>`;
+    return `<a class="cmp-nav-link" href="#${cmpCardId(idx)}" data-cmp-target="${cmpCardId(idx)}">${esc(city)}</a>`;
+  }).join("");
 
   const cards = schools.map((s, i) => {
     const color = CMP_PALETTE[i % CMP_PALETTE.length];
-    const items = cmpItemsForShift(itemsFor(s), shift, opts.classify);
+    const items = cmpItemsForShift(itemsFor(s), shift, opts.classify, opts.kind);
     const prices = items.map(p => Number(p.preco) || 0);
     const turnosHtml = items.length
       ? cmpGroupByTurno(items).map(t => `

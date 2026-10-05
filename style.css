@@ -1545,6 +1545,16 @@ body {
 .cmp-nav { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .cmp-nav-link { font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--primary); text-decoration: none; }
 .cmp-nav-link:hover { text-decoration: underline; }
+.cmp-nav-link.disabled { color: var(--text-muted); opacity: 0.55; cursor: default; }
+.cmp-nav-link.disabled:hover { text-decoration: none; }
+.cities-list { display: flex; flex-direction: column; gap: 8px; }
+.city-row { display: flex; gap: 6px; align-items: center; }
+.city-row input[type="text"] {
+  flex: 1; font-family: inherit; font-size: 14px; color: var(--text);
+  background: var(--content-bg); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px;
+}
+.city-row .btn-icon { width: 32px; height: 32px; padding: 0; }
+.city-row .city-count { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; min-width: 70px; text-align: right; }
 .cmp-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 22px; padding: 0 20px 28px; align-items: start;

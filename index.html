@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791196050">
+<link rel="stylesheet" href="style.css?v=1791197818">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -598,12 +598,17 @@
                 <button type="button" class="cmp-shift-btn active" data-shift="am" data-i18n="quotes.cmpMorning">Manhã (AM)</button>
                 <button type="button" class="cmp-shift-btn" data-shift="pm" data-i18n="quotes.cmpAfternoon">Tarde (PM)</button>
               </div>
+              <div class="cmp-shift-toggle" id="cmp-kind-toggle">
+                <button type="button" class="cmp-shift-btn active" data-kind="first" data-i18n="schools.kindFirst">Primeiro curso</button>
+                <button type="button" class="cmp-shift-btn" data-kind="renewal" data-i18n="schools.kindRenewal">Renovação</button>
+              </div>
               <select id="cmp-filter-destino"></select>
               <input type="text" id="cmp-filter-search" placeholder="Buscar escola" data-i18n-placeholder="schools.search" autocomplete="off">
               <div class="cmp-share">
                 <button type="button" class="btn btn-ghost btn-sm" id="cmp-copy-am" data-i18n="schools.copyLinkAm">Copiar link AM</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="cmp-copy-pm" data-i18n="schools.copyLinkPm">Copiar link PM</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="cmp-open-client" data-i18n="schools.openClientPage">Ver página do cliente</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="cmp-edit-cities" style="display:none;" data-i18n="schools.editCities">Editar menu de cidades</button>
               </div>
             </div>
             <div id="cmp-container"></div>
@@ -1189,6 +1194,28 @@
   </div>
 
   <!-- MODAL: GERENCIAR ORIGENS -->
+  <!-- MODAL: MENU DE CIDADES (comparativo de escolas) -->
+  <div class="modal-backdrop" id="cities-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 data-i18n="schools.citiesTitle">Menu de cidades</h2>
+        <button class="btn-icon" id="cities-modal-close">&times;</button>
+      </div>
+      <div class="sources-body">
+        <p class="muted-note" data-i18n="schools.citiesHint">Essas cidades aparecem no menu do topo do comparativo (inclusive na página do cliente). O nome precisa ser igual ao Destino cadastrado nas escolas; cidade sem escola aparece apagada.</p>
+        <div id="cities-list" class="cities-list"></div>
+        <div class="sources-add-row">
+          <input type="text" id="cities-new-input" placeholder="Nova cidade" data-i18n-placeholder="schools.newCity">
+          <button type="button" class="btn btn-primary btn-sm" id="cities-add-btn" data-i18n="common.add">+ Adicionar</button>
+        </div>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-primary" id="cities-btn-done" data-i18n="common.done">Concluído</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: ESCOLA -->
   <div class="modal-backdrop" id="school-modal-backdrop">
     <div class="modal">
@@ -2124,10 +2151,10 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791196050"></script>
-  <script src="auth.js?v=1791196050"></script>
-  <script src="i18n.js?v=1791196050"></script>
-  <script src="comparativo.js?v=1791196050"></script>
-  <script src="script.js?v=1791196050"></script>
+  <script src="config.js?v=1791197818"></script>
+  <script src="auth.js?v=1791197818"></script>
+  <script src="i18n.js?v=1791197818"></script>
+  <script src="comparativo.js?v=1791197818"></script>
+  <script src="script.js?v=1791197818"></script>
 </body>
 </html>

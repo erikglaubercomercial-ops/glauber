@@ -6,7 +6,9 @@
    Depende de config.js (variável global `supabase`) e comparativo.js.
    ============================================================ */
 
-const epShift = (new URLSearchParams(window.location.search).get("turno") || "").toLowerCase() === "pm" ? "pm" : "am";
+const epParams = new URLSearchParams(window.location.search);
+const epShift = (epParams.get("turno") || "").toLowerCase() === "pm" ? "pm" : "am";
+const epKind = (epParams.get("tipo") || "").toLowerCase() === "renovacao" ? "renewal" : "first";
 
 function epEscape(str) {
   return String(str ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -20,11 +22,16 @@ function epCoverUrl(path) {
 
 (async function init() {
   const shiftLabel = epShift === "am" ? "Manhã (AM)" : "Tarde (PM)";
-  document.getElementById("ep-title").textContent = `Opções de escola — ${shiftLabel}`;
+  const kindLabel = epKind === "renewal" ? " · Renovação" : "";
+  document.getElementById("ep-title").textContent = `Opções de escola — ${shiftLabel}${kindLabel}`;
   document.getElementById("ep-subtitle").textContent = "Valores parcelados por escola. Qualquer dúvida, fale com o seu consultor.";
-  document.title = `Opções de escola ${shiftLabel} — Peregrinos Intercâmbio`;
+  document.title = `Opções de escola ${shiftLabel}${kindLabel} — Peregrinos Intercâmbio`;
 
-  const { data, error } = await supabase.rpc("get_public_school_comparison");
+  const [{ data, error }, citiesRes] = await Promise.all([
+    supabase.rpc("get_public_school_comparison"),
+    supabase.rpc("get_public_school_cities"),
+  ]);
+  const cities = Array.isArray(citiesRes.data) ? citiesRes.data : [];
   document.getElementById("ep-loading").style.display = "none";
   if (error || !Array.isArray(data)) {
     console.error("Erro ao carregar escolas:", error);
@@ -39,14 +46,14 @@ function epCoverUrl(path) {
   }));
 
   /* pro cliente, só entram escolas que têm valor no turno do link */
-  const visible = schools.filter(s => cmpItemsForShift(s.items, epShift, cmpClassifyTurno).length > 0);
+  const visible = schools.filter(s => cmpItemsForShift(s.items, epShift, cmpClassifyTurno, epKind).length > 0);
 
   document.getElementById("ep-container").innerHTML = renderSchoolComparison(visible, s => s.items, epShift, {
-    escape: epEscape, money: epMoney, classify: cmpClassifyTurno, coverUrl: epCoverUrl,
+    escape: epEscape, money: epMoney, classify: cmpClassifyTurno, kind: epKind, coverUrl: epCoverUrl, cities,
     labels: {
       empty: "Nenhuma escola disponível no momento.", from: "A partir de", values: "Valores",
       includes: "O que a escola oferece", overview: "Visão Geral", option: "opção", options: "opções",
-      noValues: "Sem valores cadastrados para este turno.",
+      noValues: "Sem valores cadastrados para este turno.", cityNoSchools: "Em breve",
     },
   });
 
