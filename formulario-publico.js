@@ -111,7 +111,10 @@ form.addEventListener("submit", async e => {
 
   const { error } = await supabase.rpc("submit_form_public", { p_slug: slug, p_answers: answers });
 
-  if (error) {
+  /* telefone ou e-mail já cadastrado (23505): do ponto de vista de quem
+     preenche, já está na nossa base — mostra o agradecimento, não erro */
+  const alreadyRegistered = error && error.code === "23505";
+  if (error && !alreadyRegistered) {
     alert(t("form.sendError"));
     submitBtn.disabled = false;
     submitBtn.textContent = t("form.submit");

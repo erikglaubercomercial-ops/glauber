@@ -1394,7 +1394,7 @@ async function saveLeads() {
   if (error) {
     console.error("Erro ao salvar leads:", error);
     if (error.code === "23505") {
-      alert(t("lead.duplicateEmailSaveError"));
+      alert((error.message || "").includes("telefone_duplicado") ? t("lead.duplicatePhoneSaveError") : t("lead.duplicateEmailSaveError"));
     }
   }
 }
@@ -1465,6 +1465,25 @@ function renderLeadFormOptions(currentSource) {
   document.getElementById("lead-field-source").innerHTML = sourceOptions.map(s => `<option value="${s}">${s}</option>`).join("");
   document.getElementById("lead-field-temperature").innerHTML = `<option value="">${t("common.select")}</option>` +
     TEMPERATURES.map(temp => `<option value="${temp}">${escapeHtml(statusLabel(temp))}</option>`).join("");
+}
+
+/* chave canônica do telefone do lead (país + DDD + número, só dígitos) —
+   mesma regra da função lead_phone_key do banco; null se não há número
+   utilizável. Usada pra barrar lead com telefone repetido. */
+function leadPhoneKey(l) {
+  const country = l.countryCode || "BR";
+  let digits = `${l.phoneDdd || ""}${l.phoneNumber || ""}`.replace(/\D/g, "");
+  if (!digits) {
+    digits = String(l.phone || "").replace(/\D/g, "");
+    if (country === "BR" && digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) digits = digits.slice(2);
+  }
+  return digits.length >= 8 ? `${country}:${digits}` : null;
+}
+function findLeadWithSamePhone(lead, excludeId) {
+  const key = leadPhoneKey(lead);
+  if (!key) return null;
+  const skip = excludeId !== undefined ? excludeId : lead.id;
+  return leads.find(l => l.id !== skip && leadPhoneKey(l) === key) || null;
 }
 
 function isOwnLeadsOnly() {
@@ -2305,6 +2324,17 @@ leadForm.addEventListener("submit", async e => {
     return;
   }
 
+  /* telefone repetido: só barra lead novo ou telefone alterado (leads
+     antigos que já repetiam continuam editáveis) */
+  const original = id ? leads.find(l => l.id === id) : null;
+  if (!original || leadPhoneKey(original) !== leadPhoneKey(data)) {
+    const phoneDup = findLeadWithSamePhone(data, id || null);
+    if (phoneDup) {
+      alert(`${t("lead.phoneAlreadyExists")} ${phoneDup.name}.`);
+      return;
+    }
+  }
+
   let newLead = null;
   if (id) {
     Object.assign(leads.find(l => l.id === id), data);
@@ -2474,6 +2504,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
   let imported = 0, skipped = 0, skippedDuplicates = 0;
   const importedLeads = [];
   const seenEmails = new Set(leads.filter(l => l.email).map(l => l.email.toLowerCase()));
+  const seenPhones = new Set(leads.map(leadPhoneKey).filter(Boolean));
 
   importRows.forEach(row => {
     const get = key => mapping[key] !== undefined ? (row[mapping[key]] || "").trim() : "";
@@ -2510,7 +2541,10 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
       active: true,
       createdAt: now,
     };
+    const phoneKey = leadPhoneKey(newLead);
+    if (phoneKey && seenPhones.has(phoneKey)) { skippedDuplicates++; return; }
     if (email) seenEmails.add(email.toLowerCase());
+    if (phoneKey) seenPhones.add(phoneKey);
     leads.push(newLead);
     importedLeads.push(newLead);
     imported++;
@@ -6696,7 +6730,11 @@ function renderFormResponses() {
       const consultorSel = row.querySelector('[data-role="consultor"]');
       btn.disabled = true;
       btn.textContent = t("forms.saving");
-      await convertSubmissionToLead(btn.dataset.submissionId, consultorSel.value || null);
+      const res = await convertSubmissionToLead(btn.dataset.submissionId, consultorSel.value || null);
+      if (res && res.duplicate) {
+        alert(`${t("lead.phoneAlreadyExists")} ${res.duplicate.name}.`);
+        renderFormResponses();
+      }
     });
   });
   tbody.querySelectorAll('[data-act="view-lead"]').forEach(btn => {
@@ -6771,13 +6809,16 @@ document.getElementById("fr-bulk-assign").addEventListener("click", async () => 
   const btn = document.getElementById("fr-bulk-assign");
   btn.disabled = true;
   btn.textContent = t("forms.saving");
+  let duplicates = 0;
   for (const submission of targets) {
-    await convertSubmissionToLead(submission.id, consultorId);
+    const res = await convertSubmissionToLead(submission.id, consultorId);
+    if (res && res.duplicate) duplicates++;
   }
   btn.disabled = false;
   btn.textContent = t("forms.bulkAssignConsultant");
   frSelectedIds = new Set();
   renderFormResponses();
+  if (duplicates) alert(`${duplicates} ${t("forms.bulkAssignPhoneDuplicates")}`);
 });
 
 function buildLeadFromSubmission(form, submission) {
@@ -6817,6 +6858,9 @@ async function convertSubmissionToLead(submissionId, consultorId) {
   const lead = buildLeadFromSubmission(form, submission);
   lead.consultorId = consultorId || null;
 
+  const phoneDup = findLeadWithSamePhone(lead);
+  if (phoneDup) return { duplicate: phoneDup };
+
   leads.push(lead);
   await saveLeads();
   await maybeAssignRotation(lead);
@@ -6827,6 +6871,7 @@ async function convertSubmissionToLead(submissionId, consultorId) {
   renderFormResponses();
   renderFormsList();
   renderLeads();
+  return { ok: true };
 }
 
 /* ============================================================

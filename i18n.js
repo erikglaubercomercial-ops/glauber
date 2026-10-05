@@ -14,6 +14,9 @@ const I18N_LANG_NAMES = { pt: "Português", en: "English", es: "Español" };
 
 const I18N = {
   pt: {
+    "lead.phoneAlreadyExists": "Já existe um lead com esse telefone:",
+    "lead.duplicatePhoneSaveError": "Não foi possível salvar: já existe outro lead com esse telefone.",
+    "forms.bulkAssignPhoneDuplicates": "resposta(s) ignorada(s) por já existir lead com o mesmo telefone.",
     "pipeline.searchPlaceholder": "Buscar por nome, telefone ou e-mail",
     "pipeline.searchFound": "negócio(s) encontrado(s)",
     "dash.temperature": "Temperatura dos leads",
@@ -668,6 +671,9 @@ const I18N = {
   },
 
   en: {
+    "lead.phoneAlreadyExists": "A lead with this phone number already exists:",
+    "lead.duplicatePhoneSaveError": "Could not save: another lead with this phone number already exists.",
+    "forms.bulkAssignPhoneDuplicates": "response(s) skipped because a lead with the same phone already exists.",
     "pipeline.searchPlaceholder": "Search by name, phone or email",
     "pipeline.searchFound": "deal(s) found",
     "dash.temperature": "Lead temperature",
@@ -1322,6 +1328,9 @@ const I18N = {
   },
 
   es: {
+    "lead.phoneAlreadyExists": "Ya existe un lead con ese teléfono:",
+    "lead.duplicatePhoneSaveError": "No fue posible guardar: ya existe otro lead con ese teléfono.",
+    "forms.bulkAssignPhoneDuplicates": "respuesta(s) omitida(s) porque ya existe un lead con el mismo teléfono.",
     "pipeline.searchPlaceholder": "Buscar por nombre, teléfono o correo",
     "pipeline.searchFound": "negocio(s) encontrado(s)",
     "dash.temperature": "Temperatura de los leads",
