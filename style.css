@@ -2079,3 +2079,16 @@ body {
 /* escola e turno abaixo do nome do curso, na folha da cotação */
 .sheet tr.item td .item-meta { font-weight: 400; font-size: 8.5pt; color: #5C6B7D; margin-top: 1px; }
 .sheet tr.item td .item-meta b { font-weight: 700; color: #1F4670; }
+
+/* passaporte na matrícula */
+.enr-passport-box { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--content-bg); }
+.enr-passport-title { font-size: 12.5px; font-weight: 700; color: var(--text-muted); }
+
+/* passaporte no link do contrato e no painel da equipe */
+.pp-passport { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 12px; background: var(--content-bg); }
+.pp-passport-title { font-size: 12.5px; font-weight: 700; color: var(--text-muted); }
+.pp-passport-title small { font-weight: 500; }
+.pp-passport-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pp-passport-row .pp-hint { margin: 0; }
+.proposal-passport { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--content-bg); font-size: 13px; font-weight: 600; }
+.proposal-passport span { margin-right: auto; }

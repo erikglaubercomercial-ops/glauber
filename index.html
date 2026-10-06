@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791318777">
+<link rel="stylesheet" href="style.css?v=1791319441">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1222,6 +1222,11 @@
       <div class="proposal-body">
         <div class="proposal-info" id="proposal-info"></div>
         <div class="public-message info" id="proposal-pending" style="display:none;"></div>
+        <div class="proposal-passport" id="proposal-passport-row" style="display:none;">
+          <span id="proposal-passport-text"></span>
+          <button type="button" class="btn btn-ghost btn-sm" id="proposal-passport-view" data-i18n="enr.passportView">Ver</button>
+          <button type="button" class="btn btn-primary btn-sm" id="proposal-passport-download" data-i18n="enr.passportDownload">Baixar</button>
+        </div>
         <div class="public-message error" id="proposal-error" style="display:none;"></div>
         <div class="proposal-link" id="proposal-link-row" style="display:none;">
           <label><span data-i18n="contracts.proposalLink">Link para o cliente</span>
@@ -2015,12 +2020,23 @@
           <label><span data-i18n="matricula.passportNumber">Número do passaporte</span>
             <input type="text" id="enr-field-passport-number">
           </label>
-          <label><span data-i18n="enr.passportPhoto">Foto do passaporte</span>
-            <div class="enr-photo-row">
-              <input type="file" id="enr-field-passport-photo" accept="image/*">
-              <a href="#" id="enr-photo-view-link" target="_blank" rel="noopener" style="display:none;" data-i18n="enr.viewCurrentPhoto">Ver foto atual</a>
-            </div>
+          <label><span data-i18n="enr.passportIssue">Passaporte — data de expedição</span>
+            <input type="date" id="enr-field-passport-issue">
           </label>
+          <label><span data-i18n="enr.passportExpiry">Passaporte — validade</span>
+            <input type="date" id="enr-field-passport-expiry">
+          </label>
+          <div class="enr-passport-box">
+            <span class="enr-passport-title" data-i18n="enr.passportTitle">Passaporte (foto ou PDF)</span>
+            <div class="enr-photo-row">
+              <input type="file" id="enr-field-passport-photo" accept="image/*,application/pdf" hidden>
+              <button type="button" class="btn btn-ghost btn-sm" id="enr-passport-upload" data-i18n="enr.passportUpload">Enviar passaporte</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="enr-passport-view" style="display:none;" data-i18n="enr.passportView">Ver</button>
+              <button type="button" class="btn btn-primary btn-sm" id="enr-passport-download" style="display:none;" data-i18n="enr.passportDownload">Baixar</button>
+              <a href="#" id="enr-photo-view-link" target="_blank" rel="noopener" style="display:none;"></a>
+            </div>
+            <span class="muted-note" id="enr-passport-status"></span>
+          </div>
         </div>
 
         <div class="enr-section-title" data-i18n="matricula.sectionAddressBR">Endereço no Brasil</div>
@@ -2384,13 +2400,13 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791318777"></script>
-  <script src="auth.js?v=1791318777"></script>
-  <script src="i18n.js?v=1791318777"></script>
-  <script src="comparativo.js?v=1791318777"></script>
-  <script src="contrato-modelo.js?v=1791318777"></script>
-  <script src="script.js?v=1791318777"></script>
-  <script src="contratos-proposta.js?v=1791318777"></script>
-  <script src="app-acompanhamento.js?v=1791318777"></script>
+  <script src="config.js?v=1791319441"></script>
+  <script src="auth.js?v=1791319441"></script>
+  <script src="i18n.js?v=1791319441"></script>
+  <script src="comparativo.js?v=1791319441"></script>
+  <script src="contrato-modelo.js?v=1791319441"></script>
+  <script src="script.js?v=1791319441"></script>
+  <script src="contratos-proposta.js?v=1791319441"></script>
+  <script src="app-acompanhamento.js?v=1791319441"></script>
 </body>
 </html>

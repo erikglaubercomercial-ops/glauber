@@ -52,6 +52,7 @@ function ppGoto(step) {
   /* dados já salvos pelo próprio lead têm prioridade sobre o que veio do cadastro */
   ppDados = { ...(data.prefill || {}), ...Object.fromEntries(Object.entries(data.dados_cliente || {}).filter(([, v]) => v)) };
   ppRenderFields();
+  ppRenderPassport();
   ppShow("main");
   ppGoto(1);
 })();
@@ -68,8 +69,34 @@ function ppRenderFields() {
 function ppReadFields() {
   const out = {};
   CONTRATO_CAMPOS.forEach(c => { out[c.key] = ($pp(`pp-f-${c.key}`).value || "").trim(); });
+  out.passaporte_path = ppDados.passaporte_path || "";
   return out;
 }
+
+/* ---- passaporte (foto ou PDF): vai direto para o bucket privado, numa pasta desta proposta ---- */
+const PP_MAX_BYTES = 10 * 1024 * 1024;
+function ppRenderPassport() {
+  const sent = !!ppDados.passaporte_path;
+  $pp("pp-passport-btn").textContent = sent ? "Trocar passaporte" : "Enviar passaporte";
+  $pp("pp-passport-status").textContent = sent ? "✓ Passaporte enviado." : "";
+}
+$pp("pp-passport-btn").addEventListener("click", () => $pp("pp-passport-file").click());
+$pp("pp-passport-file").addEventListener("change", async e => {
+  const input = e.target, file = input.files[0];
+  input.value = "";
+  if (!file) return;
+  const status = $pp("pp-passport-status");
+  if (file.size > PP_MAX_BYTES) { status.textContent = "Arquivo acima de 10 MB. Envie um menor."; return; }
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+  const path = `proposta/${ppToken}/passaporte-${Date.now()}.${ext}`;
+  $pp("pp-passport-btn").disabled = true;
+  status.textContent = "Enviando…";
+  const { error } = await supabase.storage.from("passport-photos").upload(path, file);
+  $pp("pp-passport-btn").disabled = false;
+  if (error) { console.error("Erro ao enviar passaporte:", error); status.textContent = "Não foi possível enviar o arquivo. Tente de novo."; return; }
+  ppDados.passaporte_path = path;
+  ppRenderPassport();
+});
 
 $pp("pp-form").addEventListener("submit", async e => {
   e.preventDefault();

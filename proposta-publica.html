@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
 <title>Cotação e contrato — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1791318777">
+<link rel="stylesheet" href="style.css?v=1791319441">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -31,6 +31,14 @@
           <p class="pp-lead">Confira e complete seus dados. Eles entram no contrato.</p>
           <form class="public-form" id="pp-form" novalidate>
             <div class="pp-grid" id="pp-fields"></div>
+            <div class="pp-passport">
+              <span class="pp-passport-title">Passaporte (foto ou PDF) <small>— opcional, mas agiliza a sua matrícula</small></span>
+              <div class="pp-passport-row">
+                <input type="file" id="pp-passport-file" accept="image/*,application/pdf" hidden>
+                <button type="button" class="btn btn-ghost btn-sm" id="pp-passport-btn">Enviar passaporte</button>
+                <span class="pp-hint" id="pp-passport-status"></span>
+              </div>
+            </div>
             <div class="public-message error" id="pp-form-error" style="display:none;"></div>
             <button type="submit" class="btn btn-primary" id="pp-save">Continuar</button>
           </form>
@@ -84,8 +92,8 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791318777"></script>
-  <script src="contrato-modelo.js?v=1791318777"></script>
-  <script src="proposta-publica.js?v=1791318777"></script>
+  <script src="config.js?v=1791319441"></script>
+  <script src="contrato-modelo.js?v=1791319441"></script>
+  <script src="proposta-publica.js?v=1791319441"></script>
 </body>
 </html>

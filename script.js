@@ -5883,6 +5883,7 @@ function enrollmentFromDb(r) {
     emergencyPhone: r.emergency_phone || "",
     birthDate: r.birth_date || "", nationality: r.nationality || "", emergencyName: r.emergency_name || "",
     passportNumber: r.passport_number || "", passportPhotoPath: r.passport_photo_path || null,
+    passportIssueDate: r.passport_issue_date || "", passportExpiryDate: r.passport_expiry_date || "",
     cpf: r.cpf || "",
     addressStreet: r.address_street || "", addressNumber: r.address_number || "",
     addressComplement: r.address_complement || "", addressNeighborhood: r.address_neighborhood || "",
@@ -5904,6 +5905,7 @@ function enrollmentToDb(e) {
     name: e.name, email: e.email, phone: e.phone,
     emergency_phone: e.emergencyPhone,
     passport_number: e.passportNumber, passport_photo_path: e.passportPhotoPath,
+    passport_issue_date: e.passportIssueDate || null, passport_expiry_date: e.passportExpiryDate || null,
     cpf: e.cpf,
     address_street: e.addressStreet, address_number: e.addressNumber,
     address_complement: e.addressComplement, address_neighborhood: e.addressNeighborhood,
@@ -6006,6 +6008,70 @@ async function getPassportPhotoSignedUrl(path) {
   if (error) { console.error("Erro ao gerar link da foto:", error); return null; }
   return data.signedUrl;
 }
+
+/* ---- passaporte na ficha da matrícula: enviar (foto ou PDF), ver e baixar ---- */
+const PASSPORT_MAX_BYTES = 10 * 1024 * 1024;
+
+function passportFileName(enr) {
+  const ext = ((enr.passportPhotoPath || "").split(".").pop() || "jpg").toLowerCase();
+  const who = (enr.name || "aluno").replace(/[\\/:*?"<>|]+/g, " ").trim();
+  return `Passaporte - ${who}.${ext}`;
+}
+
+function renderEnrollmentPassportBox(enr) {
+  const has = !!enr.passportPhotoPath;
+  document.getElementById("enr-passport-upload").textContent = t(has ? "enr.passportReplace" : "enr.passportUpload");
+  document.getElementById("enr-passport-view").style.display = has ? "" : "none";
+  document.getElementById("enr-passport-download").style.display = has ? "" : "none";
+  document.getElementById("enr-passport-status").textContent = has ? `✓ ${t("enr.passportSent")}` : t("enr.passportNone");
+}
+function currentEnrollmentForPassport() {
+  return enrollments.find(x => x.id === document.getElementById("enr-id").value) || null;
+}
+
+document.getElementById("enr-passport-upload").addEventListener("click", () => document.getElementById("enr-field-passport-photo").click());
+
+document.getElementById("enr-field-passport-photo").addEventListener("change", async e => {
+  const enr = currentEnrollmentForPassport();
+  const input = e.target;
+  const file = input.files[0];
+  input.value = "";
+  if (!enr || !file) return;
+  const status = document.getElementById("enr-passport-status");
+  if (file.size > PASSPORT_MAX_BYTES) { status.textContent = t("enr.passportTooBig"); return; }
+  const btn = document.getElementById("enr-passport-upload");
+  btn.disabled = true;
+  status.textContent = t("enr.passportUploading");
+  const oldPath = enr.passportPhotoPath;
+  const path = await uploadPassportPhoto(file, enr.id);
+  btn.disabled = false;
+  if (!path) { status.textContent = t("enr.passportError"); return; }
+  enr.passportPhotoPath = path;
+  await saveEnrollmentRemote(enr);
+  /* troca: apaga o arquivo anterior (se der erro, só sobra um arquivo solto) */
+  if (oldPath && oldPath !== path) supabase.storage.from("passport-photos").remove([oldPath]).catch(() => {});
+  renderEnrollmentPassportBox(enr);
+});
+
+document.getElementById("enr-passport-view").addEventListener("click", async () => {
+  const enr = currentEnrollmentForPassport();
+  if (!enr || !enr.passportPhotoPath) return;
+  const url = await getPassportPhotoSignedUrl(enr.passportPhotoPath);
+  if (url) window.open(url, "_blank", "noopener");
+  else document.getElementById("enr-passport-status").textContent = t("enr.passportError");
+});
+
+document.getElementById("enr-passport-download").addEventListener("click", async () => {
+  const enr = currentEnrollmentForPassport();
+  if (!enr || !enr.passportPhotoPath) return;
+  const { data: blob, error } = await supabase.storage.from("passport-photos").download(enr.passportPhotoPath);
+  if (error || !blob) { console.error("Erro ao baixar passaporte:", error); document.getElementById("enr-passport-status").textContent = t("enr.passportError"); return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = passportFileName(enr);
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+});
 
 function buildPublicEnrollmentUrl(token) {
   return `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}matricula-publica.html?token=${token}`;
@@ -6191,6 +6257,8 @@ async function openEnrollmentModal(id) {
   document.getElementById("enr-field-emergency").value = enr.emergencyPhone || "";
   document.getElementById("enr-field-cpf").value = enr.cpf || "";
   document.getElementById("enr-field-passport-number").value = enr.passportNumber || "";
+  document.getElementById("enr-field-passport-issue").value = enr.passportIssueDate || "";
+  document.getElementById("enr-field-passport-expiry").value = enr.passportExpiryDate || "";
   document.getElementById("enr-field-street").value = enr.addressStreet || "";
   document.getElementById("enr-field-number").value = enr.addressNumber || "";
   document.getElementById("enr-field-complement").value = enr.addressComplement || "";
@@ -6204,13 +6272,7 @@ async function openEnrollmentModal(id) {
   document.getElementById("enr-field-arrival").value = enr.arrivalDate || "";
   document.getElementById("enr-field-class-start").value = enr.classStartDate || "";
 
-  const photoLink = document.getElementById("enr-photo-view-link");
-  photoLink.style.display = "none";
-  if (enr.passportPhotoPath) {
-    getPassportPhotoSignedUrl(enr.passportPhotoPath).then(url => {
-      if (url) { photoLink.href = url; photoLink.style.display = ""; }
-    });
-  }
+  renderEnrollmentPassportBox(enr);
 
   const linkRow = document.getElementById("enr-link-row");
   if (enr.publicToken) {
@@ -6264,6 +6326,8 @@ enrollmentForm.addEventListener("submit", async e => {
     emergencyPhone: document.getElementById("enr-field-emergency").value.trim(),
     cpf: document.getElementById("enr-field-cpf").value.trim(),
     passportNumber: document.getElementById("enr-field-passport-number").value.trim(),
+    passportIssueDate: document.getElementById("enr-field-passport-issue").value,
+    passportExpiryDate: document.getElementById("enr-field-passport-expiry").value,
     addressStreet: document.getElementById("enr-field-street").value.trim(),
     addressNumber: document.getElementById("enr-field-number").value.trim(),
     addressComplement: document.getElementById("enr-field-complement").value.trim(),

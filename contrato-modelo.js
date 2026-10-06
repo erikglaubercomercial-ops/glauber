@@ -12,6 +12,8 @@ const CONTRATO_CAMPOS = [
   { key: "nome", label: "Nome completo", autocomplete: "name", placeholder: "Como está no documento" },
   { key: "cpf", label: "CPF", autocomplete: "off", inputmode: "numeric", placeholder: "000.000.000-00" },
   { key: "documento", label: "Passaporte / documento", autocomplete: "off", placeholder: "Número do passaporte" },
+  { key: "passaporte_expedicao", label: "Passaporte — data de expedição", type: "date", autocomplete: "off" },
+  { key: "passaporte_validade", label: "Passaporte — validade", type: "date", autocomplete: "off" },
   { key: "data_nascimento", label: "Data de nascimento", type: "date", autocomplete: "bday" },
   { key: "nacionalidade", label: "Nacionalidade", autocomplete: "off", placeholder: "Ex.: Brasileira" },
   { key: "endereco", label: "Endereço", autocomplete: "street-address", placeholder: "Rua, número, complemento, bairro", wide: true },
@@ -50,6 +52,8 @@ function contratoContexto({ dados, numero, assinadoEm, cotacao }) {
   const cliente = {};
   CONTRATO_CAMPOS.forEach(c => { cliente[c.key] = String(d[c.key] || "").trim(); });
   cliente.data_nascimento = contratoDataBr(cliente.data_nascimento);
+  cliente.passaporte_expedicao = contratoDataBr(cliente.passaporte_expedicao);
+  cliente.passaporte_validade = contratoDataBr(cliente.passaporte_validade);
   const q = cotacao || {};
   return {
     cliente,

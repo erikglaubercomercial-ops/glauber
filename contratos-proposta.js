@@ -168,6 +168,7 @@ async function openProposalManage(contractId) {
     c.status === "Assinado" && c.signerName ? [t("contracts.signedBy"), `${c.signerName}${c.signedAt ? ` · ${new Date(c.signedAt).toLocaleString("pt-BR")}` : ""}`] : null,
   ]);
   proposalBackdrop.classList.add("open");
+  renderProposalPassport(c);
 
   if (c.status === "Assinado" && c.snapshot) {
     const s = c.snapshot;
@@ -539,4 +540,41 @@ document.getElementById("qa-contract").addEventListener("click", () => {
   const blocker = contractQuoteBlocker(q);
   if (blocker && blocker !== "has-contract") { alert(blocker); return; }
   openProposalForQuote(q);
+});
+
+
+/* ---------------- passaporte enviado pelo cliente no link do contrato ---------------- */
+function proposalPassportPath(c) {
+  return (c.snapshot && c.snapshot.cliente && c.snapshot.cliente.passaporte_path) || (c.dadosCliente && c.dadosCliente.passaporte_path) || "";
+}
+function renderProposalPassport(c) {
+  const row = document.getElementById("proposal-passport-row");
+  const path = proposalPassportPath(c);
+  row.style.display = path ? "flex" : "none";
+  document.getElementById("proposal-passport-text").textContent = path ? `📎 ${t("enr.passportSent")}` : "";
+}
+function currentProposalContract() { return proposalCurrent ? contracts.find(x => x.id === proposalCurrent.contractId) : null; }
+
+document.getElementById("proposal-passport-view").addEventListener("click", async () => {
+  const c = currentProposalContract();
+  const path = c && proposalPassportPath(c);
+  if (!path) return;
+  const { data, error } = await supabase.storage.from("passport-photos").createSignedUrl(path, 3600);
+  if (error || !data) { proposalSetError(t("enr.passportError")); return; }
+  window.open(data.signedUrl, "_blank", "noopener");
+});
+document.getElementById("proposal-passport-download").addEventListener("click", async () => {
+  const c = currentProposalContract();
+  const path = c && proposalPassportPath(c);
+  if (!path) return;
+  const { data: blob, error } = await supabase.storage.from("passport-photos").download(path);
+  if (error || !blob) { console.error("Erro ao baixar passaporte:", error); proposalSetError(t("enr.passportError")); return; }
+  const cli = (c.snapshot && c.snapshot.cliente) || c.dadosCliente || {};
+  const who = (cli.nome || "cliente").replace(/[\\/:*?"<>|]+/g, " ").trim();
+  const ext = (path.split(".").pop() || "jpg").toLowerCase();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `Passaporte - ${who}.${ext}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 });

@@ -53,6 +53,8 @@ let enrollment = null;
   document.getElementById("pm-emergency").value = enrollment.emergency_phone || "";
   document.getElementById("pm-cpf").value = enrollment.cpf || "";
   document.getElementById("pm-passport-number").value = enrollment.passport_number || "";
+  document.getElementById("pm-passport-issue").value = enrollment.passport_issue_date || "";
+  document.getElementById("pm-passport-expiry").value = enrollment.passport_expiry_date || "";
   document.getElementById("pm-street").value = enrollment.address_street || "";
   document.getElementById("pm-number").value = enrollment.address_number || "";
   document.getElementById("pm-complement").value = enrollment.address_complement || "";
@@ -96,6 +98,8 @@ form.addEventListener("submit", async e => {
     emergency_phone: document.getElementById("pm-emergency").value.trim(),
     cpf: document.getElementById("pm-cpf").value.trim(),
     passport_number: document.getElementById("pm-passport-number").value.trim(),
+    passport_issue_date: document.getElementById("pm-passport-issue").value,
+    passport_expiry_date: document.getElementById("pm-passport-expiry").value,
     address_street: document.getElementById("pm-street").value.trim(),
     address_number: document.getElementById("pm-number").value.trim(),
     address_complement: document.getElementById("pm-complement").value.trim(),

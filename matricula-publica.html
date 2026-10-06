@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Complete sua matrícula — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1791318777">
+<link rel="stylesheet" href="style.css?v=1791319441">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -40,8 +40,14 @@
           <label><span data-i18n="matricula.passportNumber">Número do passaporte</span>
             <input type="text" id="pm-passport-number">
           </label>
+          <label><span data-i18n="matricula.passportIssue">Data de expedição do passaporte</span>
+            <input type="date" id="pm-passport-issue">
+          </label>
+          <label><span data-i18n="matricula.passportExpiry">Validade do passaporte</span>
+            <input type="date" id="pm-passport-expiry">
+          </label>
           <label><span data-i18n="matricula.passportPhoto">Foto do passaporte (página com sua foto)</span>
-            <input type="file" id="pm-passport-photo" accept="image/*">
+            <input type="file" id="pm-passport-photo" accept="image/*,application/pdf">
           </label>
 
           <div class="public-section-title" data-i18n="matricula.sectionAddressBR">Endereço no Brasil</div>
@@ -74,7 +80,7 @@
   </div>
 
   <script src="config.js"></script>
-  <script src="i18n.js?v=1791318777"></script>
+  <script src="i18n.js?v=1791319441"></script>
   <script src="matricula-publica.js"></script>
 </body>
 </html>
