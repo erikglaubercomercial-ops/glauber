@@ -70,9 +70,12 @@ function contratoContexto({ dados, numero, assinadoEm, cotacao }) {
 const CONTRATO_VAR_RE = /\{\{\s*([a-z_]+)\.([a-z_]+)\s*\}\}/gi;
 
 /* variáveis {{grupo.campo}} usadas num modelo, sem repetir */
+const CONTRATO_COMENTARIO_RE = /<!--[\s\S]*?-->/g;
+
 function contratoVariaveis(html) {
   const out = [];
-  String(html || "").replace(CONTRATO_VAR_RE, (_, g, c) => {
+  /* comentários HTML do modelo (anotações) não contam como variáveis */
+  String(html || "").replace(CONTRATO_COMENTARIO_RE, "").replace(CONTRATO_VAR_RE, (_, g, c) => {
     const k = `${g.toLowerCase()}.${c.toLowerCase()}`;
     if (!out.includes(k)) out.push(k);
     return _;
@@ -92,7 +95,7 @@ function contratoPendentes(html, ctx) {
 
 /* troca as variáveis (valores escapados). Na prévia, o que falta aparece destacado */
 function contratoPreencher(html, ctx, { marcarPendentes = false } = {}) {
-  return String(html || "").replace(CONTRATO_VAR_RE, (_, g, c) => {
+  return String(html || "").replace(CONTRATO_COMENTARIO_RE, "").replace(CONTRATO_VAR_RE, (_, g, c) => {
     const k = `${g.toLowerCase()}.${c.toLowerCase()}`;
     const v = contratoValor(ctx, k).trim();
     if (v) return contratoEsc(v);
@@ -115,7 +118,6 @@ const CONTRATO_DOC_CSS = `
   .ct-extra .proof { margin-top: 8mm; border: 1px solid #e4e9f0; border-left: 4px solid #fb9d2d; border-radius: 8px; background: #f7f9fc; padding: 4mm 5mm; font-size: 10pt; line-height: 1.6; }
   .ct-extra .proof b { color: #1f4670; }
   .ct-break { page-break-before: always; break-before: page; }
-  @media print { @page { size: A4; margin: 10mm; } }
 `;
 
 /* cotação (itens, subitens, total) para o final do documento */
