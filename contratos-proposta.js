@@ -354,3 +354,70 @@ document.getElementById("template-save").addEventListener("click", async () => {
 function initContractTemplatesButton() {
   document.getElementById("btn-contract-templates").style.display = session && session.role === "ADM" ? "" : "none";
 }
+
+
+/* ============================================================
+   NOVO CONTRATO = ESCOLHER UMA COTAÇÃO
+   Não existe contrato sem cotação: a busca lista as cotações criadas
+   e só segue adiante a que pode gerar contrato (aprovada, ligada a
+   um lead e sem outro contrato ativo).
+   ============================================================ */
+const cqpickBackdrop = document.getElementById("cqpick-backdrop");
+
+/* devolve o motivo de a cotação ainda não poder gerar contrato (ou null) */
+function contractQuoteBlocker(q) {
+  if (contracts.some(c => c.quoteId === q.id && c.status !== "Cancelado")) return "has-contract";
+  if (q.status !== "Aprovada") return t("quotes.needApprovedForContract");
+  if (!q.leadId) return t("quotes.needLeadForContract");
+  return null;
+}
+
+function renderContractQuotePicker() {
+  const term = document.getElementById("cqpick-search").value.trim().toLowerCase();
+  const list = quotes.filter(q => {
+    if (!term) return true;
+    return [q.client, q.email, q.consultorName, q.numero].join(" ").toLowerCase().includes(term);
+  }).sort((a, b) => b.createdAt - a.createdAt).slice(0, 30);
+  const el = document.getElementById("cqpick-list");
+  if (!list.length) { el.innerHTML = `<p class="muted-note">${escapeHtml(t("contracts.pickQuoteEmpty"))}</p>`; return; }
+  el.innerHTML = list.map(q => {
+    const block = contractQuoteBlocker(q);
+    const note = block === "has-contract" ? t("contracts.quoteHasContract") : block;
+    return `
+      <button type="button" class="cqpick-row${block ? " blocked" : ""}" data-quote="${q.id}">
+        <span class="cqpick-num">${escapeHtml(q.numero || "—")}</span>
+        <span class="cqpick-main"><b>${escapeHtml(q.client)}</b><small>${escapeHtml(q.email || "")}${q.consultorName ? ` · ${escapeHtml(q.consultorName)}` : ""}</small></span>
+        <span class="cell-muted">${currency(q.value)}</span>
+        <span class="badge ${q.status === "Aprovada" ? "badge-good" : "badge-neutral"}">${escapeHtml(statusLabel(q.status))}</span>
+        ${note ? `<span class="cqpick-note">${escapeHtml(note)}</span>` : ""}
+      </button>`;
+  }).join("");
+}
+
+function openContractQuotePicker() {
+  document.getElementById("cqpick-search").value = "";
+  renderContractQuotePicker();
+  cqpickBackdrop.classList.add("open");
+  document.getElementById("cqpick-search").focus();
+}
+document.getElementById("btn-new-contract").addEventListener("click", openContractQuotePicker);
+document.getElementById("cqpick-close").addEventListener("click", () => cqpickBackdrop.classList.remove("open"));
+cqpickBackdrop.addEventListener("click", e => { if (e.target === cqpickBackdrop) cqpickBackdrop.classList.remove("open"); });
+document.getElementById("cqpick-search").addEventListener("input", renderContractQuotePicker);
+
+document.getElementById("cqpick-list").addEventListener("click", e => {
+  const row = e.target.closest("[data-quote]");
+  if (!row) return;
+  const q = quotes.find(x => x.id === row.dataset.quote);
+  if (!q) return;
+  const block = contractQuoteBlocker(q);
+  if (block === "has-contract") {
+    const c = contracts.find(x => x.quoteId === q.id && x.status !== "Cancelado");
+    cqpickBackdrop.classList.remove("open");
+    if (c.modo === "proposta") openProposalManage(c.id); else openContractModal(c.id);
+    return;
+  }
+  if (block) { alert(block); return; }
+  cqpickBackdrop.classList.remove("open");
+  openProposalForQuote(q);
+});

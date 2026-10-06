@@ -3002,7 +3002,7 @@ function openContractModal(id, quotePrefill) {
 }
 function closeContractModal() { contractModalBackdrop.classList.remove("open"); }
 
-document.getElementById("btn-new-contract").addEventListener("click", () => openContractModal(null));
+/* "+ Novo contrato" agora parte de uma cotação existente (ver contratos-proposta.js › openContractQuotePicker) */
 document.getElementById("contract-modal-close").addEventListener("click", closeContractModal);
 document.getElementById("contract-btn-cancel").addEventListener("click", closeContractModal);
 contractModalBackdrop.addEventListener("click", e => { if (e.target === contractModalBackdrop) closeContractModal(); });

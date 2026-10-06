@@ -2055,3 +2055,14 @@ body {
 .templates-new input[type="text"], .templates-new textarea { font-family: inherit; font-size: 13.5px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--content-bg); color: var(--text); }
 .templates-new textarea { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
 .templates-btns { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* escolher a cotação do contrato */
+.cqpick-search { font-family: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--content-bg); color: var(--text); width: 100%; }
+.cqpick-list { display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow-y: auto; }
+.cqpick-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; text-align: left; width: 100%; font-family: inherit; cursor: pointer; padding: 11px 13px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); }
+.cqpick-row:hover { border-color: var(--primary); }
+.cqpick-row.blocked { background: var(--content-bg); }
+.cqpick-num { font-weight: 800; color: var(--primary-deep); min-width: 74px; }
+.cqpick-main { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; }
+.cqpick-main small { color: var(--text-muted); font-size: 12px; }
+.cqpick-note { flex-basis: 100%; font-size: 12px; color: var(--warn); font-weight: 600; }
