@@ -4014,6 +4014,7 @@ function renderCatalogBreadcrumb(navPath, rootLabel) {
 }
 
 const CATALOG_BOX_ICON_RENAME = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+const CATALOG_BOX_ICON_DUPLICATE = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 const CATALOG_BOX_ICON_DELETE = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`;
 
 /* ---- grade de caixas clicáveis de um nível da árvore (compartilhado entre Produtos e Cotação) ---- */
@@ -4032,6 +4033,7 @@ function catalogBoxGridHtml(boxes, kind, itemWord, levelIndex, isAdmin) {
         ${isAdmin ? `
           <div class="cat-box-admin-acts">
             <button type="button" class="btn-icon cat-box-rename" data-level="${levelIndex}" data-name="${escapeHtml(node.nome)}" title="${t("products.renameBox")}">${CATALOG_BOX_ICON_RENAME}</button>
+            <button type="button" class="btn-icon cat-box-duplicate" data-level="${levelIndex}" data-name="${escapeHtml(node.nome)}" title="${t("common.duplicate")}">${CATALOG_BOX_ICON_DUPLICATE}</button>
             <button type="button" class="btn-icon cat-box-delete" data-level="${levelIndex}" data-name="${escapeHtml(node.nome)}" title="${t("products.deleteBox")}">${CATALOG_BOX_ICON_DELETE}</button>
           </div>` : ""}
       </div>`;
@@ -4090,6 +4092,66 @@ async function followCatalogBoxRenameInSchools(navPath, levelIndex, oldName, new
     await saveSchoolRemote(sc);
   }
 }
+/* duplica uma caixa inteira (categoria, destino, escola ou turno) com todos os
+   produtos de dentro, mantendo a estrutura. Caixas que ligam produtos a escolas
+   (categoria/destino/escola) também ganham uma cópia da escola, ligada aos
+   produtos novos por um código próprio; no turno a cópia continua na mesma escola. */
+async function duplicateCatalogBox(navPath, levelIndex, oldName, newName) {
+  const originals = catalogItemsInBox(navPath, levelIndex, oldName);
+  if (!originals.length) return false;
+  const field = CATALOG_LEVEL_FIELDS[levelIndex];
+  const maxOrdem = catalog.reduce((m, x) => Math.max(m, x.ordem || 0), 0);
+  const minOrig = originals.reduce((m, x) => Math.min(m, x.ordem || 0), Infinity);
+
+  const schoolCopies = new Map();   /* código antigo -> escola nova */
+  const newSchools = [];
+  const schoolFor = oldCode => {
+    if (levelIndex > 2 || !oldCode) return null;
+    if (schoolCopies.has(oldCode)) return schoolCopies.get(oldCode);
+    const src = schools.find(sc => sc.codigo === oldCode);
+    if (!src) return null;
+    const copy = { ...src, id: uid(), inclusos: src.inclusos.slice(), ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + newSchools.length + 1 };
+    if (levelIndex === 0) copy.categoria = newName;
+    else if (levelIndex === 1) copy.destino = newName;
+    else copy.nome = newName;
+    copy.codigo = newSchoolCode(copy.nome, copy.destino);
+    /* o código novo precisa ser único também entre as cópias ainda não salvas */
+    while (newSchools.some(x => x.codigo === copy.codigo)) copy.codigo += "-2";
+    schoolCopies.set(oldCode, copy);
+    newSchools.push(copy);
+    return copy;
+  };
+
+  const copies = originals.map(p => {
+    const sc = schoolFor(p.escolaCodigo);
+    return {
+      ...p, id: uid(), [field]: newName,
+      ordem: maxOrdem + 1 + ((p.ordem || 0) - minOrig),
+      subs: JSON.parse(JSON.stringify(p.subs || [])),
+      escolaCodigo: levelIndex > 2 ? p.escolaCodigo : (sc ? sc.codigo : ""),
+      ...(sc ? { categoria: sc.categoria, destino: sc.destino, subgrupo: sc.nome } : {}),
+    };
+  });
+  /* produtos sem escola ligada: só a chave do nível muda */
+  copies.forEach(c => { if (!c.escolaCodigo || levelIndex > 2) c[field] = newName; });
+
+  schools.push(...newSchools);
+  catalog.push(...copies);
+  await bulkSaveCatalogItemsRemote(copies);
+  for (const sc of newSchools) await saveSchoolRemote(sc);
+  return true;
+}
+async function promptDuplicateCatalogBox(navPath, levelIndex, oldName) {
+  const newName = prompt(t("products.duplicateBoxPrompt"), `${oldName} (${t("common.copy")})`);
+  if (newName === null) return false;
+  const trimmed = newName.trim();
+  if (!trimmed || trimmed === oldName) return false;
+  if (catalogItemsInBox(navPath, levelIndex, trimmed).length > 0) {
+    alert(t("products.renameBoxDuplicate"));
+    return false;
+  }
+  return duplicateCatalogBox(navPath, levelIndex, oldName, trimmed);
+}
 async function deleteCatalogBoxCascade(navPath, levelIndex, boxName) {
   const affected = catalogItemsInBox(navPath, levelIndex, boxName);
   const ids = affected.map(p => p.id);
@@ -4123,14 +4185,17 @@ async function confirmDeleteCatalogBox(navPath, levelIndex, name) {
 async function handleCatalogBoxAction(e, navPath) {
   if (!(session && session.role === "ADM")) return false;
   const renameBtn = e.target.closest(".cat-box-rename");
+  const dupBtn = e.target.closest(".cat-box-duplicate");
   const delBtn = e.target.closest(".cat-box-delete");
-  if (!renameBtn && !delBtn) return false;
-  const btn = renameBtn || delBtn;
+  if (!renameBtn && !dupBtn && !delBtn) return false;
+  const btn = renameBtn || dupBtn || delBtn;
   const levelIndex = parseInt(btn.dataset.level, 10);
   const name = btn.dataset.name;
   const changed = renameBtn
     ? await promptRenameCatalogBox(navPath, levelIndex, name)
-    : await confirmDeleteCatalogBox(navPath, levelIndex, name);
+    : dupBtn
+      ? await promptDuplicateCatalogBox(navPath, levelIndex, name)
+      : await confirmDeleteCatalogBox(navPath, levelIndex, name);
   if (changed) { quoteMontaDestinos(); quoteMontaCatalogo(); }
   return true;
 }
