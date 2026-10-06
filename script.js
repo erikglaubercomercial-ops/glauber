@@ -3746,7 +3746,7 @@ function openQuoteBuilder(id) {
   document.getElementById("q-obs").value = "";
   document.getElementById("q-busca").value = "";
   quoteSelecionados = {};
-  quoteNavPath = [];
+  quoteAbertos = {};
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
 
   document.getElementById("q-btn-excluir").style.display = id ? "inline-block" : "none";
@@ -4361,7 +4361,6 @@ productBtnDelete.addEventListener("click", async () => {
    MONTADOR DE COTAÇÃO (dentro de Produtos › Nova Cotação)
    ============================================================ */
 let quoteSelecionados = {};   /* id -> quantidade */
-let quoteNavPath = [];        /* navegação por caixas, igual à tela de Produtos */
 
 function quoteAtivos() {
   return catalog.filter(p => p.ativo);
@@ -4398,15 +4397,30 @@ function quoteItemHtml(p) {
 
 const quoteCatalogEl = document.getElementById("quote-catalog");
 
-/* navegação por caixas clicáveis (Categoria › Destino › Escola › Turno › Itens),
-   igual à tela de Produtos — ao buscar, mostra os itens encontrados direto. */
+/* catálogo em lista expansível, igual ao Cotações Peregrinos: categoria › destino
+   › escola (abre e fecha) › itens (agrupados por turno). Ao buscar, tudo abre. */
+let quoteAbertos = {};   /* "categoria|destino|escola" -> aberto */
+
+function quoteFaixa(itens) {
+  const precos = itens.map(p => Number(p.preco) || 0);
+  const min = Math.min(...precos), max = Math.max(...precos);
+  const n = `${itens.length} ${itens.length > 1 ? t("quotes.cmpOptions") : t("quotes.cmpOption")}`;
+  return `${n} · ${min === max ? currency(min) : `${currency(min)}–${currency(max)}`}`;
+}
+
+function quoteTurnosHtml(escola) {
+  return escola.turnos.map(tn => `
+    ${tn.nome ? `<div class="qc-turno-h">${escapeHtml(tn.nome)}</div>` : ""}
+    ${tn.itens.slice().sort((a, b) => a.ordem - b.ordem).map(quoteItemHtml).join("")}`).join("");
+}
+
 function quoteMontaCatalogo() {
   const filtro = document.getElementById("q-destino").value;
   const termo = (document.getElementById("q-busca").value || "").trim().toLowerCase();
   const lista = quoteAtivos().filter(p => {
     if (!quoteVisivel(p, filtro)) return false;
     if (!termo) return true;
-    const alvo = [p.nome, p.detalhe, p.subgrupo, p.turno, p.categoria].join(" ").toLowerCase();
+    const alvo = [p.nome, p.detalhe, p.subgrupo, p.turno, p.categoria, p.destino].join(" ").toLowerCase();
     return alvo.includes(termo);
   });
 
@@ -4416,35 +4430,31 @@ function quoteMontaCatalogo() {
     return;
   }
 
-  if (termo) {
-    const itens = lista.slice().sort((a, b) => a.ordem - b.ordem);
-    quoteCatalogEl.innerHTML = `<div class="q-items-stack">${itens.map(quoteItemHtml).join("")}</div>`;
-    quoteAtualizaPrevia();
-    return;
-  }
-
-  const view = catalogNodeAtPath(buildCatalogTree(lista), quoteNavPath);
-  if (view.invalid) { quoteNavPath = []; quoteMontaCatalogo(); return; }
-
-  let html = renderCatalogBreadcrumb(quoteNavPath, t("quotes.services"));
-
-  if (view.kind === "itens") {
-    const itens = view.itens.slice().sort((a, b) => a.ordem - b.ordem);
-    html += `<div class="q-items-stack">${itens.map(quoteItemHtml).join("")}</div>`;
-  } else {
-    let looseHtml = "";
-    if (view.looseItens && view.looseItens.length) {
-      const itens = view.looseItens.slice().sort((a, b) => a.ordem - b.ordem);
-      looseHtml = `<div class="q-items-stack">${itens.map(quoteItemHtml).join("")}</div>`;
-    }
-
-    if (!view.boxes.length && !looseHtml) {
-      html += `<p class="muted-note">${t("products.emptyItemsHere")}</p>`;
-    } else {
-      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, t("quotes.serviceWord"), quoteNavPath.length, !!(session && session.role === "ADM"));
-      html += looseHtml;
-    }
-  }
+  let html = "";
+  buildCatalogTree(lista.slice().sort((a, b) => a.ordem - b.ordem)).forEach(c => {
+    html += `<div class="qc-cat"><h3 class="qc-cat-h">${escapeHtml(c.nome)}</h3>`;
+    c.destinos.forEach(d => {
+      html += `<div class="qc-grp"><h4 class="qc-grp-h">${escapeHtml(d.nome)}</h4>`;
+      d.escolas.forEach(e => {
+        const itens = e.turnos.flatMap(tn => tn.itens);
+        if (!e.nome) { html += `<div class="qc-sub-flat">${quoteTurnosHtml(e)}</div>`; return; }
+        const chave = [c.nome, d.nome, e.nome].join("|");
+        const marcados = itens.filter(p => Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id)).length;
+        const aberto = !!termo || marcados > 0 || quoteAbertos[chave] === true;
+        html += `
+          <div class="qc-sub" data-chave="${escapeHtml(chave)}">
+            <button type="button" class="qc-sub-h" data-role="toggle" aria-expanded="${aberto}">
+              <span class="qc-arrow">▶</span>
+              <span>${escapeHtml(e.nome)}${marcados ? `<span class="qc-picked">${marcados} ${t("quotes.inQuote")}</span>` : ""}</span>
+              <span class="qc-count">${quoteFaixa(itens)}</span>
+            </button>
+            <div class="qc-sub-body"${aberto ? "" : " hidden"}>${quoteTurnosHtml(e)}</div>
+          </div>`;
+      });
+      html += `</div>`;
+    });
+    html += `</div>`;
+  });
 
   quoteCatalogEl.innerHTML = html;
   quoteAtualizaPrevia();
@@ -4482,19 +4492,15 @@ quoteCatalogEl.addEventListener("change", e => {
   quoteAtualizaPrevia();
 });
 
-quoteCatalogEl.addEventListener("click", async e => {
-  const crumb = e.target.closest(".cat-crumb");
-  if (crumb) {
-    const idx = parseInt(crumb.dataset.idx, 10);
-    quoteNavPath = idx < 0 ? [] : quoteNavPath.slice(0, idx + 1);
-    quoteMontaCatalogo();
-    return;
-  }
-  if (await handleCatalogBoxAction(e, quoteNavPath)) { quoteMontaCatalogo(); return; }
-  const box = e.target.closest(".cat-box");
-  if (box) {
-    quoteNavPath = [...quoteNavPath, box.dataset.nav];
-    quoteMontaCatalogo();
+quoteCatalogEl.addEventListener("click", e => {
+  const toggle = e.target.closest('button[data-role="toggle"]');
+  if (toggle) {
+    const caixa = toggle.closest(".qc-sub");
+    const corpo = caixa.querySelector(".qc-sub-body");
+    const abrir = corpo.hidden;
+    corpo.hidden = !abrir;
+    toggle.setAttribute("aria-expanded", String(abrir));
+    quoteAbertos[caixa.dataset.chave] = abrir;
     return;
   }
   if (e.target.tagName === "INPUT" || e.target.tagName === "LABEL") return;
@@ -4506,7 +4512,7 @@ quoteCatalogEl.addEventListener("click", async e => {
   chk.dispatchEvent(new Event("change", { bubbles: true }));
 });
 
-document.getElementById("q-destino").addEventListener("change", () => { quoteNavPath = []; quoteMontaCatalogo(); });
+document.getElementById("q-destino").addEventListener("change", quoteMontaCatalogo);
 
 let quoteBuscaTimer = null;
 document.getElementById("q-busca").addEventListener("input", () => {
@@ -4521,7 +4527,7 @@ document.getElementById("q-btn-limpar").addEventListener("click", () => {
   document.getElementById("q-lead-id").value = "";
   quoteLeadSearch.value = "";
   quoteSelecionados = {};
-  quoteNavPath = [];
+  quoteAbertos = {};
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
   quoteMontaCatalogo();
   document.getElementById("q-nome").focus();

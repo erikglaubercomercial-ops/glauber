@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791286790">
+<link rel="stylesheet" href="style.css?v=1791293830">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -564,8 +564,17 @@
             <h2 id="quote-builder-title" data-i18n="quotes.newTitle">Nova cotação</h2>
           </div>
 
+          <div class="q-masthead">
+            <img src="assets/peregrinos-logo.png" alt="Peregrinos Intercâmbio">
+            <div class="q-masthead-text">
+              <h1 data-i18n="quotes.mastTitle">Cotações Peregrinos</h1>
+              <p data-i18n="quotes.mastSub">Preencha os dados, marque os serviços e gere a cotação no padrão da casa.</p>
+            </div>
+          </div>
+
           <div class="panel" style="margin-bottom:16px;">
             <div class="panel-header"><h2 data-i18n="quotes.studentData">Dados do estudante</h2></div>
+            <p class="q-card-sub" data-i18n="quotes.studentSub">Aparecem no topo da cotação.</p>
             <div class="quote-form-body">
               <input type="hidden" id="q-id">
               <label class="f"><span data-i18n="quotes.pullFromLead">Puxar dados de um lead existente (opcional)</span>
@@ -594,6 +603,7 @@
 
           <div class="panel" style="margin-bottom:16px;">
             <div class="panel-header"><h2 data-i18n="common.consultant">Consultor</h2></div>
+            <p class="q-card-sub" data-i18n="quotes.consultorSub">Já vem preenchido com o seu usuário; ajuste se precisar.</p>
             <div class="quote-form-body">
               <div class="grid-2">
                 <label class="f"><span data-i18n="quotes.consultorName">Nome do consultor *</span><input type="text" id="q-consultor" placeholder="Erik"></label>
@@ -604,6 +614,7 @@
 
           <div class="panel" style="margin-bottom:16px;">
             <div class="panel-header"><h2 data-i18n="quotes.services">Serviços</h2></div>
+            <p class="q-card-sub" data-i18n="quotes.servicesSub">Marque o que entra nesta cotação. Os preços vêm do catálogo oficial e não são editados aqui.</p>
             <div class="quote-form-body" style="padding-bottom:0;">
               <label class="f"><span data-i18n="quotes.searchService">Buscar serviço</span><input type="text" id="q-busca" placeholder="Ex.: renewal, acomodação, Mon to Friday"></label>
             </div>
@@ -612,6 +623,7 @@
 
           <div class="panel" style="margin-bottom:16px;">
             <div class="panel-header"><h2 data-i18n="quotes.validityNotes">Validade e observações</h2></div>
+            <p class="q-card-sub" data-i18n="quotes.validitySub">A observação só aparece na cotação se for preenchida.</p>
             <div class="quote-form-body">
               <div class="grid-2">
                 <label class="f"><span data-i18n="quotes.issuedOn">Emitida em</span><input type="date" id="q-emissao"></label>
@@ -2250,11 +2262,11 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791286790"></script>
-  <script src="auth.js?v=1791286790"></script>
-  <script src="i18n.js?v=1791286790"></script>
-  <script src="comparativo.js?v=1791286790"></script>
-  <script src="script.js?v=1791286790"></script>
-  <script src="app-acompanhamento.js?v=1791286790"></script>
+  <script src="config.js?v=1791293830"></script>
+  <script src="auth.js?v=1791293830"></script>
+  <script src="i18n.js?v=1791293830"></script>
+  <script src="comparativo.js?v=1791293830"></script>
+  <script src="script.js?v=1791293830"></script>
+  <script src="app-acompanhamento.js?v=1791293830"></script>
 </body>
 </html>

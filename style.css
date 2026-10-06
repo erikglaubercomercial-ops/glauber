@@ -1931,3 +1931,64 @@ body {
   }
   .cmp-public-wrap .cmp-card { flex: 0 0 clamp(300px, calc((100vw - 126px) / 4), 420px); scroll-snap-align: start; }
 }
+
+/* ===== COTAÇÃO — montagem no padrão do "Cotações Peregrinos" (só o construtor) ===== */
+.q-masthead {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; position: relative; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px 18px; box-shadow: var(--shadow); margin-bottom: 14px;
+}
+.q-masthead::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: linear-gradient(180deg, var(--primary-deep), var(--warn)); }
+.q-masthead img { height: 34px; width: auto; margin-left: 6px; }
+.q-masthead-text h1 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+.q-masthead-text p { margin: 3px 0 0; font-size: 13px; color: var(--text-muted); }
+
+#subview-cotacao-builder .panel { border-radius: 16px; }
+#subview-cotacao-builder .panel-header { border-bottom: none; padding: 20px 20px 0; }
+#subview-cotacao-builder .panel-header h2 {
+  margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary);
+}
+.q-card-sub { margin: 3px 20px 4px; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+/* catálogo: categoria › destino › escola (expansível) › itens */
+#quote-catalog.catalog-admin-list { padding: 8px 20px 20px; }
+.qc-cat { margin-bottom: 22px; }
+.qc-cat-h {
+  margin: 0 0 10px; font-size: 13px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--primary); padding-bottom: 6px; border-bottom: 2px solid var(--border);
+}
+.qc-grp { margin: 0 0 14px; }
+.qc-grp-h { margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.qc-sub { margin: 0 0 8px; }
+.qc-sub-h {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer; font-family: inherit;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 11px 14px; font-size: 14.5px; font-weight: 700; color: var(--text);
+}
+.qc-sub-h:hover { border-color: var(--primary); }
+.qc-arrow { flex: 0 0 auto; color: var(--warn); font-size: 12px; transition: transform 0.15s ease; display: inline-block; }
+.qc-sub-h[aria-expanded="true"] .qc-arrow { transform: rotate(90deg); }
+.qc-count { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--text-muted); text-align: right; white-space: nowrap; }
+.qc-picked { display: inline-block; background: var(--warn); color: #231403; border-radius: 999px; font-size: 11px; font-weight: 800; padding: 2px 8px; margin-left: 8px; }
+.qc-sub-body { padding: 8px 0 2px 10px; border-left: 2px solid var(--border); margin: 8px 0 0 14px; }
+.qc-sub-body[hidden] { display: none; }
+.qc-sub-flat { padding-top: 2px; }
+.qc-turno-h { margin: 8px 0 6px; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary); }
+.qc-turno-h:first-child { margin-top: 0; }
+
+#subview-cotacao-builder .q-opt { border-radius: 12px; padding: 12px 14px; }
+#subview-cotacao-builder .q-opt .nm { font-size: 14.5px; }
+#subview-cotacao-builder .q-opt .pr { font-size: 14.5px; font-variant-numeric: tabular-nums; }
+
+/* barra do total, fixa no rodapé da tela enquanto monta a cotação */
+#subview-cotacao-builder .quote-summary-bar {
+  position: sticky; bottom: 0; z-index: 20; margin: 0 -28px -32px; border-radius: 0; border-width: 1px 0 0;
+  padding: 12px 28px; box-shadow: 0 -6px 24px rgba(18, 38, 62, 0.1);
+}
+@media (max-width: 900px) {
+  #subview-cotacao-builder .quote-summary-bar { margin: 0 -16px -24px; padding: 12px 16px; }
+}
+@media (max-width: 640px) {
+  .qc-sub-h { flex-wrap: wrap; }
+  .qc-count { margin-left: 24px; white-space: normal; text-align: left; }
+}
