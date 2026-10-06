@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Aprovar cotação — Peregrinos Intercâmbio</title>
+<link rel="stylesheet" href="style.css?v=1791317182">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div class="public-page pp-page">
+    <div class="public-card pp-card">
+      <img class="public-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
+
+      <div id="qa-loading"><p class="public-subtitle">Carregando...</p></div>
+      <div id="qa-error" style="display:none;"><div class="public-message error" id="qa-error-text">Não encontramos esta cotação. Verifique se o link está correto ou fale com o seu consultor.</div></div>
+
+      <div id="qa-main" style="display:none;">
+        <h1 class="public-title" id="qa-title">Aprovação da cotação</h1>
+        <p class="public-subtitle" id="qa-subtitle"></p>
+
+        <iframe class="pp-doc" id="qa-doc" sandbox="allow-same-origin allow-modals" title="Cotação"></iframe>
+
+        <div class="pp-sign-box" id="qa-approve-box">
+          <label class="checkbox-label">
+            <input type="checkbox" id="qa-accept">
+            <span>Li a cotação acima e concordo com os serviços e valores apresentados.</span>
+          </label>
+          <div class="public-message error" id="qa-approve-error" style="display:none;"></div>
+          <button type="button" class="btn btn-primary" id="qa-approve" disabled>Aprovar cotação</button>
+          <p class="pp-hint">Ao aprovar, a sua concordância fica registrada (data, hora e endereço IP) e seu consultor segue com o contrato.</p>
+        </div>
+
+        <div class="public-message success" id="qa-done" style="display:none;"></div>
+        <div class="pp-actions" id="qa-print-row" style="display:none; justify-content:center;">
+          <button type="button" class="btn btn-ghost" id="qa-print">Salvar / imprimir a cotação (PDF)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js?v=1791317182"></script>
+  <script src="contrato-modelo.js?v=1791317182"></script>
+  <script src="aprovacao-publica.js?v=1791317182"></script>
+</body>
+</html>

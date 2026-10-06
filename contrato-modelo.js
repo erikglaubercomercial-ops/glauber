@@ -146,7 +146,15 @@ function contratoCotacaoHtml(cotacao) {
       <thead><tr><th>Produto / serviço</th><th class="c">Qtd</th><th class="r">Preço unit.</th><th class="r">Total</th></tr></thead>
       <tbody>${linhas}</tbody>
     </table>
-    <div class="total">Total ${contratoMoney(cotacao.value)}</div>`;
+    <div class="total">Total ${contratoMoney(cotacao.value)}</div>
+    ${cotacao.observacoes ? `<div class="sub" style="margin-top:4mm"><b>Observações:</b> ${contratoEsc(cotacao.observacoes)}</div>` : ""}`;
+}
+
+/* só a cotação, como folha A4 (página pública de aprovação) */
+function contratoCotacaoDocumento(cotacao) {
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`
+    + `<style>body{font-family:"Segoe UI",Arial,sans-serif;color:#1a2233;line-height:1.5;margin:0;font-size:11pt}${CONTRATO_DOC_CSS}${CONTRATO_TELA_CSS}</style></head>`
+    + `<body><div class="ct-extra">${contratoCotacaoHtml(cotacao)}</div></body></html>`;
 }
 
 /* comprovante do aceite eletrônico (só depois de assinado) */

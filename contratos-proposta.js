@@ -369,7 +369,7 @@ const cqpickBackdrop = document.getElementById("cqpick-backdrop");
 /* devolve o motivo de a cotação ainda não poder gerar contrato (ou null) */
 function contractQuoteBlocker(q) {
   if (contracts.some(c => c.quoteId === q.id && c.status !== "Cancelado")) return "has-contract";
-  if (q.status !== "Aprovada") return t("quotes.needApprovedForContract");
+  if (!q.aprovadaEm) return t("quotes.needClientApproval");
   if (!q.leadId) return t("quotes.needLeadForContract");
   return null;
 }
@@ -390,15 +390,17 @@ function renderContractQuotePicker() {
         <span class="cqpick-num">${escapeHtml(q.numero || "—")}</span>
         <span class="cqpick-main"><b>${escapeHtml(q.client)}</b><small>${escapeHtml(q.email || "")}${q.consultorName ? ` · ${escapeHtml(q.consultorName)}` : ""}</small></span>
         <span class="cell-muted">${currency(q.value)}</span>
-        <span class="badge ${q.status === "Aprovada" ? "badge-good" : "badge-neutral"}">${escapeHtml(statusLabel(q.status))}</span>
+        <span class="badge ${q.aprovadaEm ? "badge-good" : "badge-neutral"}">${escapeHtml(q.aprovadaEm ? t("quotes.approvedByClient") : statusLabel(q.status))}</span>
         ${note ? `<span class="cqpick-note">${escapeHtml(note)}</span>` : ""}
       </button>`;
   }).join("");
 }
 
-function openContractQuotePicker() {
+async function openContractQuotePicker() {
   document.getElementById("cqpick-search").value = "";
   renderContractQuotePicker();
+  /* confere no banco quais cotações o cliente já aprovou desde que a tela foi aberta */
+  refreshAllQuoteApprovals().then(renderContractQuotePicker);
   cqpickBackdrop.classList.add("open");
   document.getElementById("cqpick-search").focus();
 }
@@ -446,4 +448,95 @@ document.getElementById("proposal-delete").addEventListener("click", async () =>
   const q = c.quoteId ? quotes.find(x => x.id === c.quoteId) : null;
   if (q) renderQuoteContractsPanel(q);
   closeProposalModal();
+});
+
+
+/* ============================================================
+   APROVAÇÃO DA COTAÇÃO PELO CLIENTE (link aprovacao-publica.html)
+   ============================================================ */
+const qaBackdrop = document.getElementById("qa-modal-backdrop");
+let qaCurrentQuote = null;
+
+function quoteApprovalUrl(token) { return `${window.location.origin}/aprovacao-publica.html?t=${token}`; }
+
+/* traz do banco o estado de aprovação (o cliente aprova fora do sistema) */
+async function refreshQuoteApproval(q) {
+  const { data, error } = await supabase.from("quotes").select("status, aprovada_em, public_token").eq("id", q.id).single();
+  if (error || !data) return;
+  q.status = data.status;
+  q.aprovadaEm = data.aprovada_em ? new Date(data.aprovada_em).getTime() : null;
+  q.publicToken = data.public_token || q.publicToken;
+}
+async function refreshAllQuoteApprovals() {
+  const { data, error } = await supabase.from("quotes").select("id, status, aprovada_em, public_token");
+  if (error || !data) return;
+  data.forEach(r => {
+    const q = quotes.find(x => x.id === r.id);
+    if (!q) return;
+    q.status = r.status;
+    q.aprovadaEm = r.aprovada_em ? new Date(r.aprovada_em).getTime() : null;
+    q.publicToken = r.public_token || q.publicToken;
+  });
+}
+
+function renderQuoteApprovalModal() {
+  const q = qaCurrentQuote;
+  if (!q) return;
+  const box = document.getElementById("qa-status");
+  if (q.aprovadaEm) {
+    box.className = "public-message success";
+    box.textContent = `${t("quotes.approvalDone")} ${new Date(q.aprovadaEm).toLocaleString("pt-BR")}.`;
+  } else {
+    box.className = "public-message info";
+    box.textContent = t("quotes.approvalWaiting");
+  }
+  document.getElementById("qa-link").value = q.publicToken ? quoteApprovalUrl(q.publicToken) : "";
+  document.getElementById("qa-contract").style.display = q.aprovadaEm && !contracts.some(c => c.quoteId === q.id && c.status !== "Cancelado") ? "" : "none";
+}
+
+async function openQuoteApprovalModal(q) {
+  qaCurrentQuote = q;
+  qaBackdrop.classList.add("open");
+  renderQuoteApprovalModal();
+  await refreshQuoteApproval(q);
+  renderQuoteApprovalModal();
+  renderQuotes();
+}
+
+document.getElementById("q-btn-aprovacao").addEventListener("click", () => {
+  const quote = quotes.find(q => q.id === document.getElementById("q-id").value);
+  if (!quote) { alert(t("quotes.saveFirst")); return; }
+  openQuoteApprovalModal(quote);
+});
+document.getElementById("qa-modal-close").addEventListener("click", () => qaBackdrop.classList.remove("open"));
+document.getElementById("qa-close").addEventListener("click", () => qaBackdrop.classList.remove("open"));
+qaBackdrop.addEventListener("click", e => { if (e.target === qaBackdrop) qaBackdrop.classList.remove("open"); });
+document.getElementById("qa-refresh").addEventListener("click", async () => {
+  if (!qaCurrentQuote) return;
+  await refreshQuoteApproval(qaCurrentQuote);
+  renderQuoteApprovalModal();
+  renderQuotes();
+});
+document.getElementById("qa-copy").addEventListener("click", async () => {
+  const url = document.getElementById("qa-link").value;
+  try { await navigator.clipboard.writeText(url); alert(t("contracts.proposalCopied")); }
+  catch (err) { prompt(t("common.copyLinkPrompt"), url); }
+});
+document.getElementById("qa-whatsapp").addEventListener("click", () => {
+  const q = qaCurrentQuote;
+  if (!q || !q.publicToken) return;
+  const lead = q.leadId ? leads.find(l => l.id === q.leadId) : null;
+  let digits = lead ? String(leadPhoneText(lead)).replace(/\D/g, "") : "";
+  if (digits && lead && (lead.countryCode || "BR") === "BR" && !digits.startsWith("55") && digits.length >= 10 && digits.length <= 11) digits = "55" + digits;
+  const first = (lead ? lead.name : q.client || "").split(" ")[0];
+  const msg = `Olá${first ? `, ${first}` : ""}! Segue a sua cotação${q.numero ? ` nº ${q.numero}` : ""}. Abra o link, leia e, se estiver de acordo, marque "li e concordo" e aprove:\n${quoteApprovalUrl(q.publicToken)}`;
+  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, "_blank", "noopener");
+});
+document.getElementById("qa-contract").addEventListener("click", () => {
+  const q = qaCurrentQuote;
+  if (!q) return;
+  qaBackdrop.classList.remove("open");
+  const blocker = contractQuoteBlocker(q);
+  if (blocker && blocker !== "has-contract") { alert(blocker); return; }
+  openProposalForQuote(q);
 });

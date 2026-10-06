@@ -2073,3 +2073,5 @@ body {
   .pp-doc { height: calc(100vh - 400px); min-height: 480px; }
 }
 .pp-page { width: 100%; }
+/* aprovação da cotação: a folha A4 da cotação ocupa o iframe */
+#qa-doc { height: calc(100vh - 360px); min-height: 520px; margin-bottom: 16px; }

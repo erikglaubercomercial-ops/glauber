@@ -3139,6 +3139,7 @@ function quoteRowFromDb(r) {
     leadId: r.lead_id || null, consultorId: r.consultor_id || null,
     consultorName: r.consultor_name || "", consultorEmail: r.consultor_email || "",
     emissao: r.emissao || "", observacoes: r.observacoes || "", numero: r.numero || "",
+    publicToken: r.public_token || "", aprovadaEm: r.aprovada_em ? new Date(r.aprovada_em).getTime() : null,
     itemsDetail: Array.isArray(r.items_detail) ? r.items_detail : [],
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
@@ -3242,7 +3243,7 @@ function renderQuotes() {
       <td class="cell-muted">${escapeHtml(q.items || "—")}</td>
       <td class="cell-muted">${escapeHtml((consultant && consultant.name) || q.consultorName || "—")}</td>
       <td class="cell-muted">${formatDate(q.validade)}</td>
-      <td><span class="badge ${QUOTE_STATUS_BADGE[q.status] || "badge-neutral"}">${escapeHtml(statusLabel(q.status))}</span></td>
+      <td><span class="badge ${QUOTE_STATUS_BADGE[q.status] || "badge-neutral"}">${escapeHtml(statusLabel(q.status))}</span>${q.aprovadaEm ? `<div class="cell-muted" style="font-size:11px;margin-top:3px;">✓ ${escapeHtml(t("quotes.approvedByClient"))}</div>` : ""}</td>
       <td class="cell-primary">${currency(q.value)}</td>
       <td class="cell-actions">›</td>
     `;
@@ -3795,6 +3796,7 @@ function openQuoteBuilder(id) {
 
   document.getElementById("q-btn-excluir").style.display = id ? "inline-block" : "none";
   document.getElementById("q-btn-gerar-contrato").style.display = id ? "" : "none";
+  document.getElementById("q-btn-aprovacao").style.display = id ? "" : "none";
   document.getElementById("quote-builder-title").textContent = id ? t("quotes.editTitle") : t("quotes.newTitle");
 
   if (id) {
@@ -4775,6 +4777,7 @@ async function quoteSalvar() {
   await buildAndSaveQuoteRecord();
   document.getElementById("q-btn-excluir").style.display = "inline-block";
   document.getElementById("q-btn-gerar-contrato").style.display = "";
+  document.getElementById("q-btn-aprovacao").style.display = "";
   document.getElementById("quote-builder-title").textContent = t("quotes.editTitle");
   btn.textContent = t("quotes.saved");
   setTimeout(() => { btn.textContent = textoOriginal; btn.disabled = false; }, 1500);
@@ -4793,10 +4796,13 @@ document.getElementById("q-btn-gerar-contrato").addEventListener("click", () => 
     openContractModal(existingContract.id);
     return;
   }
-  if (quote.status !== "Aprovada") { alert(t("quotes.needApprovedForContract")); return; }
   if (!quote.leadId) { alert(t("quotes.needLeadForContract")); return; }
-  /* contrato novo: modelo + dados do cliente + cotação, em um link de 3 etapas */
-  openProposalForQuote(quote);
+  /* o cliente precisa ter aprovado a cotação pelo link (confere no banco antes) */
+  refreshQuoteApproval(quote).then(() => {
+    if (!quote.aprovadaEm) { alert(t("quotes.needClientApproval")); openQuoteApprovalModal(quote); return; }
+    /* contrato novo: modelo + dados do cliente + cotação, em um link de 3 etapas */
+    openProposalForQuote(quote);
+  });
 });
 
 async function quoteGerar() {
