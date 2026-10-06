@@ -612,7 +612,7 @@ function createDealForLead(lead) {
     notes: "",
     leadId: lead.id,
     followUpAt: null,
-    createdAt: Date.now(),
+    createdAt: lead.createdAt || Date.now(),
     closedAt: null,
   };
   deals.push(deal);
@@ -2372,26 +2372,39 @@ leadBtnDelete.addEventListener("click", async () => {
    ============================================================ */
 const IMPORT_FIELDS = [
   { key: "name", label: "Nome" },
-  { key: "company", label: "Empresa" },
   { key: "phone", label: "Telefone" },
   { key: "email", label: "E-mail" },
   { key: "category", label: "Categoria" },
   { key: "source", label: "Origem" },
   { key: "temperature", label: "Temperatura" },
   { key: "status", label: "Status" },
+  { key: "entryDate", label: "Data de entrada" },
   { key: "consultor", label: "Consultor" },
+  /* respostas do formulário/pesquisa: não têm campo próprio no lead, então entram nas Notas */
+  { key: "noteWhen", label: "Quando pretende vir? (vai p/ Notas)", noteLabel: "Quando pretende vir" },
+  { key: "noteCompanion", label: "Vem sozinho(a) ou acompanhado(a)? (vai p/ Notas)", noteLabel: "Vem sozinho(a) ou acompanhado(a)" },
+  { key: "noteSchool", label: "Qual escola gostaria de estudar? (vai p/ Notas)", noteLabel: "Escola de interesse" },
+  { key: "noteHowFound", label: "Como chegou até nós? (vai p/ Notas)", noteLabel: "Como chegou até nós" },
+  { key: "noteChildren", label: "Tem filhos? (vai p/ Notas)", noteLabel: "Tem filhos" },
+  { key: "noteJob", label: "Profissão no Brasil (vai p/ Notas)", noteLabel: "Profissão no Brasil" },
 ];
 
 const IMPORT_FIELD_GUESSES = {
   name: ["nome", "name", "cliente", "aluno", "estudante"],
-  company: ["empresa", "company", "escola atual", "instituicao"],
   phone: ["telefone", "phone", "celular", "whatsapp", "fone", "contato"],
   email: ["email", "e-mail", "mail"],
   category: ["categoria", "category", "programa", "interesse"],
   source: ["origem", "source", "canal"],
   temperature: ["temperatura", "temperature"],
   status: ["status", "etapa", "estagio"],
+  entryDate: ["data de entrada", "data entrada", "entrada", "data de cadastro", "data cadastro", "cadastro", "data de criacao", "criado em", "criacao", "created", "data do lead"],
   consultor: ["consultor", "responsavel", "vendedor", "owner"],
+  noteWhen: ["quando pretende", "pretende vir", "quando vai", "quando quer"],
+  noteCompanion: ["sozinho", "acompanhado"],
+  noteSchool: ["qual escola", "escola voce", "escola gostaria", "escola de interesse"],
+  noteHowFound: ["como voce chegou", "como chegou", "chegou ate", "como conheceu"],
+  noteChildren: ["filhos", "tem filho"],
+  noteJob: ["profissao", "ocupacao", "trabalha com"],
 };
 
 function normalizeImportStr(s) {
@@ -2400,7 +2413,24 @@ function normalizeImportStr(s) {
 
 function guessImportField(header) {
   const h = normalizeImportStr(header);
+  if (h === "data" || h === "date") return "entryDate";
   return Object.keys(IMPORT_FIELD_GUESSES).find(key => IMPORT_FIELD_GUESSES[key].some(k => h.includes(k))) || "";
+}
+
+/* "06/10/2026", "06/10/26 14:30", "06-10-2026", "2026-10-06", "2026-10-06T14:30:00" -> timestamp (ou null) */
+function parseImportDate(raw) {
+  const str = String(raw || "").trim();
+  if (!str) return null;
+  let y, mo, d, hh = 0, mi = 0, ss = 0, m;
+  if ((m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/))) {
+    [y, mo, d] = [+m[1], +m[2], +m[3]]; hh = +(m[4] || 0); mi = +(m[5] || 0); ss = +(m[6] || 0);
+  } else if ((m = str.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})(?!\d)(?:[,\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/))) {
+    [d, mo, y] = [+m[1], +m[2], +m[3]]; if (y < 100) y += 2000;
+    hh = +(m[4] || 0); mi = +(m[5] || 0); ss = +(m[6] || 0);
+  } else return null;
+  const dt = new Date(y, mo - 1, d, hh, mi, ss);
+  if (isNaN(dt) || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;   /* 31/02 etc. */
+  return dt.getTime();
 }
 
 function parseCSV(text) {
@@ -2536,7 +2566,8 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
     const newLead = {
       id: uid(),
       name,
-      company: get("company"),
+      company: "",
+      notes: IMPORT_FIELDS.filter(f => f.noteLabel).map(f => get(f.key) ? `${f.noteLabel}: ${get(f.key)}` : "").filter(Boolean).join("\n"),
       phone: importedPhone,
       countryCode: "BR", phoneDdd: importedDdd, phoneNumber: importedNumber,
       email,
@@ -2546,7 +2577,8 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
       status: matchEnum(get("status"), ["Novo", "Em contato", "Qualificado", "Descartado"], "Novo"),
       consultorId,
       active: true,
-      createdAt: now,
+      /* data de entrada da planilha (se vier e for válida e não for do futuro); senão, hoje */
+      createdAt: (() => { const ts = parseImportDate(get("entryDate")); return ts && ts <= now ? ts : now; })(),
     };
     const phoneKey = leadPhoneKey(newLead);
     if (phoneKey && seenPhones.has(phoneKey)) { skippedDuplicates++; return; }
