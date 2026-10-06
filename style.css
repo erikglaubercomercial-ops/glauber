@@ -1992,3 +1992,10 @@ body {
   .qc-sub-h { flex-wrap: wrap; }
   .qc-count { margin-left: 24px; white-space: normal; text-align: left; }
 }
+.q-lead-summary {
+  background: color-mix(in srgb, var(--primary) 8%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: 10px; padding: 9px 12px; font-size: 13px; line-height: 1.5; color: var(--text);
+}
+.q-lead-summary[hidden] { display: none; }
+#subview-cotacao-builder .enr-lead-search-wrap { width: 100%; }
+#subview-cotacao-builder .enr-lead-search-wrap input { width: 100%; }

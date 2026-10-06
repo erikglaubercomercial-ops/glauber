@@ -3735,6 +3735,7 @@ function openQuoteBuilder(id) {
 
   document.getElementById("q-id").value = id || "";
   document.getElementById("q-lead-id").value = "";
+  document.getElementById("q-lead-summary").hidden = true;
   quoteLeadSearch.value = "";
   document.getElementById("q-nome").value = "";
   document.getElementById("q-email").value = "";
@@ -3795,9 +3796,10 @@ const quoteLeadIdField = document.getElementById("q-lead-id");
 
 function renderQuoteLeadSearchResults(query) {
   const q = query.trim().toLowerCase();
-  if (!q) { quoteLeadResults.classList.remove("open"); quoteLeadResults.innerHTML = ""; return; }
-  const matches = leads.filter(l =>
-    (l.name && l.name.toLowerCase().includes(q)) || (l.email && l.email.toLowerCase().includes(q))
+  /* campo vazio: mostra os leads mais recentes pra escolher sem digitar */
+  const matches = (q
+    ? leads.filter(l => (l.name && l.name.toLowerCase().includes(q)) || (l.email && l.email.toLowerCase().includes(q)) || (l.phone && l.phone.replace(/\D/g, "").includes(q.replace(/\D/g, "") || "x")))
+    : leads.slice().sort((a, b) => b.createdAt - a.createdAt)
   ).slice(0, 8);
   quoteLeadResults.innerHTML = matches.length
     ? matches.map(l => `
@@ -3811,11 +3813,10 @@ function renderQuoteLeadSearchResults(query) {
 
 quoteLeadSearch.addEventListener("input", () => {
   quoteLeadIdField.value = "";
+  document.getElementById("q-lead-summary").hidden = true;
   renderQuoteLeadSearchResults(quoteLeadSearch.value);
 });
-quoteLeadSearch.addEventListener("focus", () => {
-  if (quoteLeadSearch.value.trim()) renderQuoteLeadSearchResults(quoteLeadSearch.value);
-});
+quoteLeadSearch.addEventListener("focus", () => renderQuoteLeadSearchResults(quoteLeadSearch.value));
 quoteLeadSearch.addEventListener("blur", () => {
   setTimeout(() => quoteLeadResults.classList.remove("open"), 150);
 });
@@ -3826,10 +3827,30 @@ quoteLeadResults.addEventListener("mousedown", e => {
   if (!lead) return;
   quoteLeadIdField.value = lead.id;
   quoteLeadSearch.value = lead.name;
-  document.getElementById("q-nome").value = lead.name || "";
-  document.getElementById("q-email").value = lead.email || "";
+  quotePullFromLead(lead);
   quoteLeadResults.classList.remove("open");
 });
+
+function leadPhoneText(l) {
+  return l.phone || [l.phoneDdd, l.phoneNumber].filter(Boolean).join(" ");
+}
+
+/* escolher um lead preenche os dados do estudante e o consultor responsável
+   por ele, e mostra um resumo do que foi puxado */
+function quotePullFromLead(lead) {
+  document.getElementById("q-nome").value = lead.name || "";
+  document.getElementById("q-email").value = lead.email || "";
+  const owner = lead.consultorId ? users.find(u => u.id === lead.consultorId) : null;
+  if (owner) {
+    document.getElementById("q-consultor").value = owner.name || "";
+    document.getElementById("q-consultor-email").value = owner.email || "";
+  }
+  document.querySelectorAll("#q-nome, #q-email, #q-consultor, #q-consultor-email").forEach(el => el.classList.remove("err"));
+  const bits = [leadPhoneText(lead), lead.email, lead.status ? statusLabel(lead.status) : "", lead.temperature ? statusLabel(lead.temperature) : ""].filter(Boolean);
+  const box = document.getElementById("q-lead-summary");
+  box.innerHTML = `<strong>${escapeHtml(t("quotes.leadPulled"))}</strong> ${escapeHtml(lead.name)}${bits.length ? ` · ${escapeHtml(bits.join(" · "))}` : ""}${owner ? `<br>${escapeHtml(t("quotes.leadOwner"))}: ${escapeHtml(owner.name)}` : ""}`;
+  box.hidden = false;
+}
 
 /* ============================================================
    PRODUTOS — catálogo (Cotações Peregrinos) + montador de cotação
@@ -4525,6 +4546,7 @@ document.getElementById("q-btn-limpar").addEventListener("click", () => {
   ["q-nome", "q-email", "q-obs", "q-busca"].forEach(id => { document.getElementById(id).value = ""; });
   document.getElementById("q-status").value = "Enviada";
   document.getElementById("q-lead-id").value = "";
+  document.getElementById("q-lead-summary").hidden = true;
   quoteLeadSearch.value = "";
   quoteSelecionados = {};
   quoteAbertos = {};
