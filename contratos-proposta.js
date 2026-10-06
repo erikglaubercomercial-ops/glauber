@@ -155,6 +155,8 @@ async function openProposalManage(contractId) {
   linkRow.style.display = waiting ? "" : "none";
   if (waiting) document.getElementById("proposal-link").value = proposalUrl(c.publicToken);
   document.getElementById("proposal-cancel-contract").style.display = waiting ? "" : "none";
+  /* excluir (inclusive contrato já assinado): só ADM e Gerente */
+  document.getElementById("proposal-delete").style.display = session && ["ADM", "Gerente"].includes(session.role) ? "" : "none";
   document.getElementById("proposal-print").style.display = c.status === "Assinado" ? "" : "none";
 
   document.getElementById("proposal-info").innerHTML = proposalInfoHtml([
@@ -420,4 +422,28 @@ document.getElementById("cqpick-list").addEventListener("click", e => {
   if (block) { alert(block); return; }
   cqpickBackdrop.classList.remove("open");
   openProposalForQuote(q);
+});
+
+
+/* ---------------- excluir contrato (ADM e Gerente; vale também para o assinado) ---------------- */
+document.getElementById("proposal-delete").addEventListener("click", async () => {
+  const c = proposalCurrent && contracts.find(x => x.id === proposalCurrent.contractId);
+  if (!c || !session || !["ADM", "Gerente"].includes(session.role)) return;
+  if (c.status === "Assinado") {
+    /* contrato assinado: exige digitar o número, pois o aceite e o comprovante somem junto */
+    const typed = prompt(`${t("contracts.confirmDeleteSigned")} (${c.numero})`);
+    if (typed === null || typed.trim() !== c.numero) return;
+  } else if (!confirm(`${t("contracts.confirmDeleteContract")} ${c.numero}?`)) return;
+
+  const { data, error } = await supabase.from("contracts").delete().eq("id", c.id).select("id");
+  if (error || !data || !data.length) {
+    console.error("Erro ao excluir contrato:", error);
+    proposalSetError(t("contracts.deleteError"));
+    return;
+  }
+  contracts = contracts.filter(x => x.id !== c.id);
+  renderContractsList();
+  const q = c.quoteId ? quotes.find(x => x.id === c.quoteId) : null;
+  if (q) renderQuoteContractsPanel(q);
+  closeProposalModal();
 });
