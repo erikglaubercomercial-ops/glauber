@@ -4619,25 +4619,6 @@ function quoteMontaCatalogo() {
 
 function quotePorId(id) { return catalog.find(p => p.id === id) || null; }
 
-/* "O que a escola oferece" (Escolas) vira subitem "Incluso" do curso na cotação.
-   Fica sempre sincronizado com o cadastro da escola e aparece uma vez por escola
-   (no primeiro item dela), pra cotação com 2 turnos da mesma escola não repetir a lista. */
-function schoolOfProduct(p) {
-  return schools.find(sc => p.escolaCodigo
-    ? sc.codigo === p.escolaCodigo
-    : sc.categoria === (p.categoria || "Outros") && sc.destino === (p.destino || "Todos") && sc.nome === (p.subgrupo || "")) || null;
-}
-function quoteInclusosPorItem(linhas) {
-  const seen = new Set(), out = {};
-  linhas.forEach(l => {
-    const sc = schoolOfProduct(l.p);
-    if (!sc || !sc.inclusos.length || seen.has(sc.id)) return;
-    seen.add(sc.id);
-    out[l.p.id] = sc.inclusos.slice();
-  });
-  return out;
-}
-
 function quoteLinhas() {
   const out = [];
   quoteAtivos().forEach(p => {
@@ -4774,7 +4755,6 @@ async function buildAndSaveQuoteRecord() {
   else if (session && session.email && consultorEmail.toLowerCase() === session.email.toLowerCase()) consultorId = session.id;
   else if (existing) consultorId = existing.consultorId;
 
-  const inclusosPorItem = quoteInclusosPorItem(linhas);
   const record = {
     id, client: nome, email, items: itemsSummary, value: total, validade, status,
     leadId, consultorId, consultorName: consultorNome, consultorEmail, emissao, observacoes: obs,
@@ -4783,7 +4763,6 @@ async function buildAndSaveQuoteRecord() {
       /* guardados junto pra cotação anexada ao contrato sair completa mesmo se o catálogo mudar */
       escola: l.p.subgrupo || "", turno: l.p.turno || "", unidade: l.p.unidade || "",
       subs: (l.p.subs || []).map(sb => ({ nome: sb.nome, valor: Number(sb.valor) || 0 })),
-      inclusos: inclusosPorItem[l.p.id] || [],
     })),
     createdAt: existing ? existing.createdAt : Date.now(),
   };
@@ -4858,14 +4837,10 @@ async function quoteGerar() {
   document.getElementById("d-validade").textContent = formatDate(validade);
 
   let html = "";
-  const inclusosPorItem = quoteInclusosPorItem(linhas);
   linhas.forEach(l => {
     html += `<tr class="item"><td>${escapeHtml(l.p.nome)}</td><td class="c">${l.qtd}</td><td class="r">${currency(l.p.preco)}</td><td class="tot">${currency(l.total)}</td></tr>`;
     (l.p.subs || []).forEach(s => {
       html += `<tr class="subrow-doc"><td class="name">${escapeHtml(s.nome)}</td><td class="c"></td><td class="r"></td><td class="tot">${currency(s.valor)}</td></tr>`;
-    });
-    (inclusosPorItem[l.p.id] || []).forEach(inc => {
-      html += `<tr class="subrow-doc"><td class="name">${escapeHtml(inc)}</td><td class="c"></td><td class="r"></td><td class="tot">${escapeHtml(t("quotes.included"))}</td></tr>`;
     });
   });
   document.getElementById("d-itens").innerHTML = html;

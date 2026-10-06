@@ -16,8 +16,7 @@ function qaSheetDocument(q) {
   const itens = Array.isArray(q.items_detail) ? q.items_detail : [];
   const rows = itens.map(it => {
     const subs = (it.subs || []).map(sb => `<tr class="subrow-doc"><td class="name">${esc(sb.nome)}</td><td class="c"></td><td class="r"></td><td class="tot">${money(sb.valor)}</td></tr>`).join("");
-    const incl = (it.inclusos || []).map(x => `<tr class="subrow-doc"><td class="name">${esc(x)}</td><td class="c"></td><td class="r"></td><td class="tot">Incluso</td></tr>`).join("");
-    return `<tr class="item"><td>${esc(it.nome)}</td><td class="c">${esc(it.qtd)}</td><td class="r">${money(it.preco)}</td><td class="tot">${money(it.total)}</td></tr>${subs}${incl}`;
+    return `<tr class="item"><td>${esc(it.nome)}</td><td class="c">${esc(it.qtd)}</td><td class="r">${money(it.preco)}</td><td class="tot">${money(it.total)}</td></tr>${subs}`;
   }).join("");
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="style.css${QA_V ? `?v=${QA_V}` : ""}">

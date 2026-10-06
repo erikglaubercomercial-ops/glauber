@@ -136,8 +136,7 @@ function contratoCotacaoHtml(cotacao) {
   const linhas = itens.map(it => {
     const meta = [it.escola, it.turno].filter(Boolean).join(" · ");
     const subs = (it.subs || []).map(s => `<tr class="sub"><td colspan="3">↳ ${contratoEsc(s.nome)}</td><td class="r">${s.valor ? contratoMoney(s.valor) : ""}</td></tr>`).join("");
-    const inclusos = (it.inclusos || []).map(x => `<tr class="sub"><td colspan="3">↳ ${contratoEsc(x)}</td><td class="r">Incluso</td></tr>`).join("");
-    return `<tr><td class="item">${contratoEsc(it.nome)}${meta ? `<div style="font-weight:400;color:#65768b;font-size:9pt">${contratoEsc(meta)}</div>` : ""}</td><td class="c">${contratoEsc(it.qtd)}</td><td class="r">${contratoMoney(it.preco)}</td><td class="r">${contratoMoney(it.total)}</td></tr>${subs}${inclusos}`;
+    return `<tr><td class="item">${contratoEsc(it.nome)}${meta ? `<div style="font-weight:400;color:#65768b;font-size:9pt">${contratoEsc(meta)}</div>` : ""}</td><td class="c">${contratoEsc(it.qtd)}</td><td class="r">${contratoMoney(it.preco)}</td><td class="r">${contratoMoney(it.total)}</td></tr>${subs}`;
   }).join("");
   return `
     <h2>Cotação${cotacao.numero ? ` nº ${contratoEsc(cotacao.numero)}` : ""}</h2>
