@@ -62,6 +62,10 @@ function epCoverUrl(path) {
     if (!link) return;
     e.preventDefault();
     const target = document.getElementById(link.dataset.cmpTarget);
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (target) {
+      /* PC/Mac: as escolas ficam lado a lado, então o menu rola pro lado; celular segue na vertical */
+      const sideBySide = window.matchMedia("(min-width: 900px)").matches;
+      target.scrollIntoView({ behavior: "smooth", block: sideBySide ? "nearest" : "start", inline: sideBySide ? "start" : "nearest" });
+    }
   });
 })();

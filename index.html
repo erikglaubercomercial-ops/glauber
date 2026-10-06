@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791243665">
+<link rel="stylesheet" href="style.css?v=1791286790">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1322,6 +1322,7 @@
         <label><span data-i18n="schools.name">Nome da escola</span>
           <input type="text" id="school-field-nome" required placeholder="Ex: Academic Bridge">
         </label>
+        <p class="muted-note school-code-line" id="school-code-line" style="display:none;"><span data-i18n="schools.codeLabel">Código</span>: <code id="school-code-value"></code></p>
         <div class="grid-2">
           <label><span data-i18n="schools.category">Categoria / país</span>
             <input type="text" id="school-field-categoria" list="school-categorias-list" required placeholder="Ex: Irlanda">
@@ -2095,6 +2096,10 @@
         <label><span data-i18n="products.itemName">Nome do item *</span>
           <input type="text" id="product-field-name" required placeholder="Ex: International — Full Payment">
         </label>
+        <label><span data-i18n="products.schoolLink">Escola vinculada (comparativo de escolas)</span>
+          <select id="product-field-escola"></select>
+          <small class="muted-note" data-i18n="products.schoolLinkHint">Ao escolher uma escola, o produto passa a ser ligado a ela por código: mudar o nome da escola depois não quebra os preços.</small>
+        </label>
         <div class="grid-2">
           <label><span data-i18n="products.categoryLvl1">Categoria (nível 1)</span>
             <input type="text" id="product-field-categoria" list="list-categorias" placeholder="Ex: Irlanda">
@@ -2245,11 +2250,11 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791243665"></script>
-  <script src="auth.js?v=1791243665"></script>
-  <script src="i18n.js?v=1791243665"></script>
-  <script src="comparativo.js?v=1791243665"></script>
-  <script src="script.js?v=1791243665"></script>
-  <script src="app-acompanhamento.js?v=1791243665"></script>
+  <script src="config.js?v=1791286790"></script>
+  <script src="auth.js?v=1791286790"></script>
+  <script src="i18n.js?v=1791286790"></script>
+  <script src="comparativo.js?v=1791286790"></script>
+  <script src="script.js?v=1791286790"></script>
+  <script src="app-acompanhamento.js?v=1791286790"></script>
 </body>
 </html>

@@ -3255,13 +3255,13 @@ function schoolFromDb(r) {
   return {
     id: r.id, nome: r.nome, categoria: r.categoria || "Outros", destino: r.destino || "Todos",
     descricao: r.descricao || "", inclusos: Array.isArray(r.inclusos) ? r.inclusos : [],
-    ativo: r.ativo !== false, ordem: r.ordem || 0, coverPath: r.cover_path || null,
+    ativo: r.ativo !== false, ordem: r.ordem || 0, coverPath: r.cover_path || null, codigo: r.codigo || "",
   };
 }
 function schoolToDb(s) {
   return {
     id: s.id, nome: s.nome, categoria: s.categoria, destino: s.destino, descricao: s.descricao,
-    inclusos: s.inclusos, ativo: s.ativo, ordem: s.ordem, cover_path: s.coverPath || null,
+    inclusos: s.inclusos, ativo: s.ativo, ordem: s.ordem, cover_path: s.coverPath || null, codigo: s.codigo,
   };
 }
 async function loadSchools() {
@@ -3331,11 +3331,43 @@ async function deleteSchoolCityRemote(id) {
 }
 const schoolCityNames = () => schoolCities.slice().sort((a, b) => a.ordem - b.ordem).map(c => c.nome);
 
+/* escola ↔ produtos: pelo código da escola (o nome pode mudar à vontade);
+   produto que ainda não tem código cai na regra antiga, por nome */
 function schoolProducts(school) {
-  return catalog.filter(p => p.ativo
-    && (p.categoria || "Outros") === school.categoria
-    && (p.destino || "Todos") === school.destino
-    && (p.subgrupo || "") === school.nome);
+  return catalog.filter(p => p.ativo && (p.escolaCodigo
+    ? p.escolaCodigo === school.codigo
+    : (p.categoria || "Outros") === school.categoria
+      && (p.destino || "Todos") === school.destino
+      && (p.subgrupo || "") === school.nome));
+}
+
+function schoolSlug(str) {
+  return String(str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+/* mesmo formato da migração 034: nome (+ destino, se o nome ainda não o cita), único */
+function newSchoolCode(nome, destino) {
+  const base = schoolSlug(String(nome).toLowerCase().includes(String(destino).toLowerCase()) ? nome : `${nome} ${destino}`) || "escola";
+  let cand = base, n = 1;
+  while (schools.some(x => x.codigo === cand)) cand = `${base}-${++n}`;
+  return cand;
+}
+
+/* produtos que estavam ligados à escola (pela chave antiga) passam a
+   usar a chave nova */
+async function followSchoolChangeInCatalog(before, school) {
+  const linked = catalog.filter(p => p.escolaCodigo
+    ? p.escolaCodigo === school.codigo
+    : (p.categoria || "Outros") === before.categoria && (p.destino || "Todos") === before.destino && (p.subgrupo || "") === before.nome);
+  linked.forEach(p => {
+    p.escolaCodigo = school.codigo;
+    p.categoria = school.categoria; p.destino = school.destino; p.subgrupo = school.nome;
+  });
+  if (!linked.length) return;
+  await bulkSaveCatalogItemsRemote(linked);
+  renderCatalogList();
+  quoteMontaDestinos();
+  quoteMontaCatalogo();
 }
 
 function renderEscolas() {
@@ -3445,6 +3477,8 @@ function openSchoolModal(id) {
   document.getElementById("school-modal-title").textContent = s ? t("schools.editTitle") : t("schools.newTitle");
   document.getElementById("school-id").value = s ? s.id : "";
   document.getElementById("school-field-nome").value = s ? s.nome : "";
+  document.getElementById("school-code-line").style.display = s ? "" : "none";
+  document.getElementById("school-code-value").textContent = s ? s.codigo : "";
   document.getElementById("school-field-categoria").value = s ? s.categoria : "";
   document.getElementById("school-field-destino").value = s ? s.destino : "";
   document.getElementById("school-field-descricao").value = s ? s.descricao : "";
@@ -3480,11 +3514,14 @@ schoolForm.addEventListener("submit", async e => {
   if (dup) { alert(t("schools.duplicateError")); return; }
 
   let school;
+  let moved = null;
   if (id) {
     school = schools.find(x => x.id === id);
+    const before = { nome: school.nome, categoria: school.categoria, destino: school.destino };
+    if (before.nome !== data.nome || before.categoria !== data.categoria || before.destino !== data.destino) moved = before;
     Object.assign(school, data);
   } else {
-    school = { id: uid(), ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + 1, coverPath: null, ...data };
+    school = { id: uid(), ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + 1, coverPath: null, codigo: newSchoolCode(data.nome, data.destino), ...data };
     schools.push(school);
   }
 
@@ -3497,6 +3534,11 @@ schoolForm.addEventListener("submit", async e => {
   } else if (schoolCoverRemoved) {
     school.coverPath = null;
   }
+
+  /* o vínculo escola ↔ produtos é por categoria + destino + nome: se a
+     escola mudou de nome/destino, os produtos dela acompanham, senão o
+     comparativo perde os preços */
+  if (moved) await followSchoolChangeInCatalog(moved, school);
 
   const ok = await saveSchoolRemote(school);
   if (!ok) alert(t("schools.saveError"));
@@ -3521,6 +3563,7 @@ async function duplicateSchool(id) {
     ...src, id: uid(), nome: uniqueSchoolCopyName(src), inclusos: src.inclusos.slice(),
     ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + 1,
   };
+  copy.codigo = newSchoolCode(copy.nome, copy.destino);
   schools.push(copy);
   const ok = await saveSchoolRemote(copy);
   if (!ok) alert(t("schools.saveError"));
@@ -3801,7 +3844,7 @@ function catalogFromDb(r) {
     subgrupo: r.subgrupo || "", turno: r.turno || "", unidade: r.unidade,
     preco: Number(r.preco) || 0, ordem: r.ordem, detalhe: r.detalhe || "",
     qtdFixa: !!r.qtd_fixa, qtdPadrao: r.qtd_padrao || 1, ativo: r.ativo,
-    subs: Array.isArray(r.subs) ? r.subs : [],
+    subs: Array.isArray(r.subs) ? r.subs : [], escolaCodigo: r.escola_codigo || "",
   };
 }
 function catalogToDb(p) {
@@ -3809,7 +3852,7 @@ function catalogToDb(p) {
     id: p.id, nome: p.nome, categoria: p.categoria, destino: p.destino,
     subgrupo: p.subgrupo, turno: p.turno, unidade: p.unidade, preco: p.preco,
     ordem: p.ordem, detalhe: p.detalhe, qtd_fixa: p.qtdFixa, qtd_padrao: p.qtdPadrao,
-    ativo: p.ativo, subs: p.subs,
+    ativo: p.ativo, subs: p.subs, escola_codigo: p.escolaCodigo || null,
   };
 }
 
@@ -4008,6 +4051,23 @@ async function renameCatalogBox(navPath, levelIndex, oldName, newName) {
   if (!affected.length) return;
   affected.forEach(p => { p[field] = newName; });
   await bulkSaveCatalogItemsRemote(affected);
+  await followCatalogBoxRenameInSchools(navPath, levelIndex, oldName, newName);
+}
+/* renomear categoria/destino/escola em Produtos também renomeia a escola
+   ligada a ela (mesma chave categoria + destino + nome), pra não soltar o vínculo */
+async function followCatalogBoxRenameInSchools(navPath, levelIndex, oldName, newName) {
+  if (levelIndex > 2) return;
+  const touched = schools.filter(sc => {
+    if (levelIndex === 0) return sc.categoria === oldName;
+    if (levelIndex === 1) return sc.categoria === navPath[0] && sc.destino === oldName;
+    return sc.categoria === navPath[0] && sc.destino === navPath[1] && sc.nome === oldName;
+  });
+  for (const sc of touched) {
+    if (levelIndex === 0) sc.categoria = newName;
+    else if (levelIndex === 1) sc.destino = newName;
+    else sc.nome = newName;
+    await saveSchoolRemote(sc);
+  }
 }
 async function deleteCatalogBoxCascade(navPath, levelIndex, boxName) {
   const affected = catalogItemsInBox(navPath, levelIndex, boxName);
@@ -4178,6 +4238,25 @@ function populateCatalogDatalists() {
   fill("list-turnos", "turno");
 }
 
+/* "Escola" no cadastro de produto: escolher uma escola liga o produto pelo
+   código dela e preenche (e trava) categoria, destino e nome da escola */
+function renderProductSchoolOptions(selectedCode) {
+  const sel = document.getElementById("product-field-escola");
+  sel.innerHTML = `<option value="">${escapeHtml(t("products.schoolNone"))}</option>` +
+    schools.slice().sort((a, b) => a.destino.localeCompare(b.destino) || a.nome.localeCompare(b.nome))
+      .map(sc => `<option value="${escapeHtml(sc.codigo)}">${escapeHtml(sc.nome)} — ${escapeHtml(sc.destino)}</option>`).join("");
+  sel.value = selectedCode || "";
+  applyProductSchoolLock();
+}
+function applyProductSchoolLock() {
+  const sc = schools.find(x => x.codigo === document.getElementById("product-field-escola").value);
+  const set = (id, v) => { const el = document.getElementById(id); if (sc) el.value = v; el.readOnly = !!sc; };
+  set("product-field-categoria", sc ? sc.categoria : "");
+  set("product-field-destino", sc ? sc.destino : "");
+  set("product-field-subgrupo", sc ? sc.nome : "");
+}
+document.getElementById("product-field-escola").addEventListener("change", applyProductSchoolLock);
+
 function openProductModal(id) {
   productForm.reset();
   populateCatalogDatalists();
@@ -4198,6 +4277,8 @@ function openProductModal(id) {
     document.getElementById("product-field-qtdfixa").checked = p.qtdFixa;
     document.getElementById("product-field-ativo").checked = p.ativo;
     renderProductSubs(p.subs);
+    const matched = p.escolaCodigo || (schools.find(sc => sc.categoria === (p.categoria || "Outros") && sc.destino === (p.destino || "Todos") && sc.nome === (p.subgrupo || "")) || {}).codigo;
+    renderProductSchoolOptions(matched);
     productBtnDelete.style.display = "inline-block";
   } else {
     document.getElementById("product-modal-title").textContent = t("products.newTitle");
@@ -4207,6 +4288,7 @@ function openProductModal(id) {
     document.getElementById("product-field-qtdfixa").checked = true;
     document.getElementById("product-field-ativo").checked = true;
     renderProductSubs([]);
+    renderProductSchoolOptions("");
     productBtnDelete.style.display = "none";
   }
   productModalBackdrop.classList.add("open");
@@ -4247,6 +4329,7 @@ productForm.addEventListener("submit", async e => {
     qtdPadrao: Math.max(1, parseInt(document.getElementById("product-field-qtdpadrao").value, 10) || 1),
     ativo: document.getElementById("product-field-ativo").checked,
     subs: readProductSubs(),
+    escolaCodigo: document.getElementById("product-field-escola").value,
   };
   let item;
   if (id) {

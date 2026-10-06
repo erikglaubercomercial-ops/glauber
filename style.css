@@ -1916,3 +1916,18 @@ body {
   #view-produtos .cat-box-arrow { display: none; }
   #view-produtos .cat-items-grid { grid-template-columns: 1fr; padding: 16px; }
 }
+
+.school-code-line code { background: var(--content-bg); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; font-size: 12px; }
+.modal form input[readonly] { opacity: 0.7; cursor: not-allowed; }
+
+/* página pública das escolas, em PC/Mac: escolas lado a lado numa fila só
+   (4 por tela; passando disso, rola pro lado) em vez de quebrar em linhas */
+@media (min-width: 900px) {
+  .cmp-public-wrap { max-width: none; padding: 0 24px 36px; }
+  .cmp-public-wrap .cmp-topbar { margin: 10px 0 18px; }
+  .cmp-public-wrap .cmp-grid {
+    display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 22px;
+    padding: 4px 4px 24px; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-left: 4px;
+  }
+  .cmp-public-wrap .cmp-card { flex: 0 0 clamp(300px, calc((100vw - 126px) / 4), 420px); scroll-snap-align: start; }
+}
