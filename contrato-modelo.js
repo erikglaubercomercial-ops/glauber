@@ -103,8 +103,17 @@ function contratoPreencher(html, ctx, { marcarPendentes = false } = {}) {
   });
 }
 
+/* só na tela: o documento aparece como uma folha A4 centralizada (no PC o texto
+   não se espalha pela largura toda); a impressão/PDF não muda */
+const CONTRATO_TELA_CSS = `
+  @media screen {
+    html { background: #e9edf3; }
+    body { max-width: 210mm; margin: 14px auto !important; padding: 14mm 16mm !important; background: #fff; box-shadow: 0 2px 14px rgba(0, 0, 0, 0.12); }
+  }
+`;
+
 const CONTRATO_DOC_CSS = `
-  .ct-extra { font-family: "Segoe UI", Arial, sans-serif; color: #1a2233; font-size: 11pt; padding: 12mm 14mm; }
+  .ct-extra { font-family: "Segoe UI", Arial, sans-serif; color: #1a2233; font-size: 11pt; padding: 0; }
   .ct-extra h2 { margin: 0 0 4mm; font-size: 15pt; color: #1f4670; }
   .ct-extra .sub { color: #65768b; font-size: 9.5pt; margin-bottom: 4mm; }
   .ct-extra table { width: 100%; border-collapse: collapse; margin-top: 3mm; }
@@ -159,7 +168,7 @@ function contratoComprovanteHtml(snapshot) {
 function contratoMontarDocumento({ templateHtml, ctx, cotacao, snapshot, marcarPendentes = false }) {
   const contrato = contratoPreencher(templateHtml, ctx, { marcarPendentes });
   const extra = `<div class="ct-break"></div><div class="ct-extra">${contratoCotacaoHtml(cotacao)}${contratoComprovanteHtml(snapshot)}</div>`;
-  const style = `<style>${CONTRATO_DOC_CSS}</style>`;
+  const style = `<style>${CONTRATO_DOC_CSS}${CONTRATO_TELA_CSS}</style>`;
   if (/<\/body>/i.test(contrato)) {
     let out = contrato.replace(/<\/body>/i, `${style}${extra}</body>`);
     return out;
