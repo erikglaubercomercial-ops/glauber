@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Cotação e contrato — Peregrinos Intercâmbio</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div class="public-page">
+    <div class="public-card pp-card">
+      <img class="public-logo" src="assets/peregrinos-logo-stacked.png" alt="Peregrinos Intercâmbio">
+
+      <div id="pp-loading"><p class="public-subtitle">Carregando...</p></div>
+      <div id="pp-error" style="display:none;"><div class="public-message error" id="pp-error-text">Não encontramos esta proposta. Verifique se o link está correto ou fale com o seu consultor.</div></div>
+
+      <div id="pp-main" style="display:none;">
+        <h1 class="public-title" id="pp-title">Cotação e contrato</h1>
+        <p class="public-subtitle" id="pp-subtitle"></p>
+
+        <ol class="pp-steps" id="pp-steps">
+          <li data-step="1"><span>1</span> Seus dados</li>
+          <li data-step="2"><span>2</span> Ler o contrato</li>
+          <li data-step="3"><span>3</span> Assinar</li>
+        </ol>
+
+        <!-- ETAPA 1 -->
+        <section class="pp-step" data-step="1">
+          <p class="pp-lead">Confira e complete seus dados. Eles entram no contrato.</p>
+          <form class="public-form" id="pp-form" novalidate>
+            <div class="pp-grid" id="pp-fields"></div>
+            <div class="public-message error" id="pp-form-error" style="display:none;"></div>
+            <button type="submit" class="btn btn-primary" id="pp-save">Continuar</button>
+          </form>
+        </section>
+
+        <!-- ETAPA 2 -->
+        <section class="pp-step" data-step="2" style="display:none;">
+          <p class="pp-lead">Leia a cotação e o contrato até o final para continuar.</p>
+          <div class="pp-quote-bar" id="pp-quote-bar"></div>
+          <iframe class="pp-doc" id="pp-doc" sandbox="allow-same-origin" title="Contrato"></iframe>
+          <p class="pp-hint" id="pp-scroll-hint">Role até o final do documento para liberar o botão.</p>
+          <div class="pp-actions">
+            <button type="button" class="btn btn-ghost" id="pp-back-1">← Corrigir meus dados</button>
+            <button type="button" class="btn btn-primary" id="pp-to-3" disabled>Li o contrato — continuar</button>
+          </div>
+        </section>
+
+        <!-- ETAPA 3 -->
+        <section class="pp-step" data-step="3" style="display:none;">
+          <p class="pp-lead">Para assinar, aceite os termos e confirme com o código que enviaremos ao seu e-mail.</p>
+          <div class="pp-sign-box">
+            <label class="checkbox-label">
+              <input type="checkbox" id="pp-accept">
+              <span>Li e aceito os termos do contrato e da cotação apresentados.</span>
+            </label>
+            <div class="pp-send-row">
+              <button type="button" class="btn btn-primary" id="pp-send-code" disabled>Enviar código por e-mail</button>
+              <span class="pp-hint" id="pp-send-info"></span>
+            </div>
+            <div class="pp-code-row" id="pp-code-row" style="display:none;">
+              <label><span>Código de 6 dígitos recebido por e-mail</span>
+                <input type="text" id="pp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+              </label>
+              <button type="button" class="btn btn-primary" id="pp-sign" disabled>Assinar contrato</button>
+            </div>
+            <div class="public-message error" id="pp-sign-error" style="display:none;"></div>
+          </div>
+          <div class="pp-actions">
+            <button type="button" class="btn btn-ghost" id="pp-back-2">← Voltar para a leitura</button>
+          </div>
+        </section>
+
+        <!-- FINAL -->
+        <section class="pp-step" data-step="done" style="display:none;">
+          <div class="public-message success" id="pp-done-text">Contrato assinado com sucesso! Uma cópia fica guardada com a equipe Peregrinos.</div>
+          <div class="pp-actions" style="justify-content:center;">
+            <button type="button" class="btn btn-primary" id="pp-print">Salvar / imprimir minha cópia (PDF)</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="contrato-modelo.js"></script>
+  <script src="proposta-publica.js"></script>
+</body>
+</html>

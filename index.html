@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791295259">
+<link rel="stylesheet" href="style.css?v=1791298997">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -480,7 +480,10 @@
         <div class="panel">
           <div class="panel-header">
             <h2 data-i18n="nav.contratos">Contratos</h2>
-            <button type="button" class="btn btn-primary" id="btn-new-contract" data-i18n="contracts.new">+ Novo contrato</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-ghost" id="btn-contract-templates" style="display:none;" data-i18n="contracts.templates">Modelos</button>
+              <button type="button" class="btn btn-primary" id="btn-new-contract" data-i18n="contracts.new">+ Novo contrato</button>
+            </div>
           </div>
           <div class="filter-bar">
             <select id="contract-filter-status">
@@ -494,7 +497,7 @@
           </div>
           <table class="data-table data-table-list">
             <thead>
-              <tr><th data-i18n="common.lead">Lead</th><th data-i18n="common.titleField">Título</th><th data-i18n="common.value">Valor</th><th data-i18n="common.status">Status</th><th></th></tr>
+              <tr><th data-i18n="contracts.number">Nº</th><th data-i18n="common.lead">Lead</th><th data-i18n="common.titleField">Título</th><th data-i18n="common.value">Valor</th><th data-i18n="common.status">Status</th><th></th></tr>
             </thead>
             <tbody id="contracts-tbody"></tbody>
           </table>
@@ -632,6 +635,12 @@
               </div>
               <label class="f" style="margin-top:14px;"><span data-i18n="quotes.notesOptional">Observações (opcional)</span><textarea id="q-obs" rows="3" placeholder="Ex.: valores sujeitos a alteração de câmbio; pagamento em 3 parcelas."></textarea></label>
             </div>
+          </div>
+
+          <div class="panel" id="q-contracts-panel" style="margin-bottom:16px; display:none;">
+            <div class="panel-header"><h2 data-i18n="contracts.listTitle">Contratos</h2></div>
+            <p class="q-card-sub" data-i18n="contracts.listSub">Contratos gerados para este cliente, com o status de cada um.</p>
+            <div class="q-contracts-list" id="q-contracts-list"></div>
           </div>
 
           <div class="quote-summary-bar">
@@ -1198,6 +1207,67 @@
         <button class="btn-icon" id="appt-timeline-close" aria-label="Fechar">&times;</button>
       </div>
       <div class="appt-modal-body" id="appt-timeline-body"></div>
+    </div>
+  </div>
+
+  <!-- CONTRATO COM A COTAÇÃO: prévia, link e acompanhamento -->
+  <div class="modal-backdrop" id="proposal-modal-backdrop">
+    <div class="modal modal-xl">
+      <div class="modal-header">
+        <h2 id="proposal-modal-title" data-i18n="contracts.proposalTitle">Contrato com a cotação</h2>
+        <button class="btn-icon" id="proposal-modal-close">&times;</button>
+      </div>
+      <div class="proposal-body">
+        <div class="proposal-info" id="proposal-info"></div>
+        <div class="public-message info" id="proposal-pending" style="display:none;"></div>
+        <div class="public-message error" id="proposal-error" style="display:none;"></div>
+        <div class="proposal-link" id="proposal-link-row" style="display:none;">
+          <label><span data-i18n="contracts.proposalLink">Link para o cliente</span>
+            <input type="text" id="proposal-link" readonly>
+          </label>
+          <div class="proposal-link-btns">
+            <button type="button" class="btn btn-ghost btn-sm" id="proposal-copy" data-i18n="common.copyLink">Copiar link</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="proposal-whatsapp" data-i18n="contracts.shareWhatsapp">Enviar por WhatsApp</button>
+          </div>
+        </div>
+        <iframe class="proposal-frame" id="proposal-frame" sandbox="allow-same-origin" title="Contrato"></iframe>
+      </div>
+      <div class="modal-actions proposal-actions">
+        <button type="button" class="btn btn-danger" id="proposal-cancel-contract" style="display:none;" data-i18n="contracts.cancelContract">Cancelar contrato</button>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" id="proposal-print" style="display:none;" data-i18n="contracts.savePdf">Salvar em PDF</button>
+        <button type="button" class="btn btn-ghost" id="proposal-close" data-i18n="common.close">Fechar</button>
+        <button type="button" class="btn btn-primary" id="proposal-confirm" style="display:none;" data-i18n="contracts.proposalConfirm">Gerar contrato e link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODELOS DE CONTRATO (ADM) -->
+  <div class="modal-backdrop" id="templates-modal-backdrop">
+    <div class="modal modal-xl">
+      <div class="modal-header">
+        <h2 data-i18n="contracts.templatesTitle">Modelos de contrato</h2>
+        <button class="btn-icon" id="templates-modal-close">&times;</button>
+      </div>
+      <div class="proposal-body">
+        <div id="templates-list" class="templates-list"></div>
+        <div class="templates-new">
+          <label><span data-i18n="contracts.templateName">Nome do modelo</span>
+            <input type="text" id="template-name" placeholder="Contrato padrão Peregrinos">
+          </label>
+          <label><span data-i18n="contracts.templateHtml">HTML do modelo (use {{grupo.campo}})</span>
+            <textarea id="template-html" rows="10" placeholder="&lt;h1&gt;Contrato nº {{contrato.numero}}&lt;/h1&gt; ..."></textarea>
+          </label>
+          <div class="public-message info" id="template-vars" style="display:none;"></div>
+          <div class="public-message error" id="template-error" style="display:none;"></div>
+          <div class="templates-btns">
+            <button type="button" class="btn btn-ghost" id="template-preview" data-i18n="contracts.templatePreview">Prévia com dados de exemplo</button>
+            <label class="checkbox-label"><input type="checkbox" id="template-activate" checked><span data-i18n="contracts.templateActivateNow">Ativar esta versão</span></label>
+            <button type="button" class="btn btn-primary" id="template-save" data-i18n="contracts.templateSave">Salvar como nova versão</button>
+          </div>
+          <iframe class="proposal-frame" id="template-frame" sandbox="allow-same-origin" title="Prévia" style="display:none;"></iframe>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2263,11 +2333,13 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791295259"></script>
-  <script src="auth.js?v=1791295259"></script>
-  <script src="i18n.js?v=1791295259"></script>
-  <script src="comparativo.js?v=1791295259"></script>
-  <script src="script.js?v=1791295259"></script>
-  <script src="app-acompanhamento.js?v=1791295259"></script>
+  <script src="config.js?v=1791298997"></script>
+  <script src="auth.js?v=1791298997"></script>
+  <script src="i18n.js?v=1791298997"></script>
+  <script src="comparativo.js?v=1791298997"></script>
+  <script src="contrato-modelo.js?v=1791298997"></script>
+  <script src="script.js?v=1791298997"></script>
+  <script src="contratos-proposta.js?v=1791298997"></script>
+  <script src="app-acompanhamento.js?v=1791298997"></script>
 </body>
 </html>

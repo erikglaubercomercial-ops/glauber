@@ -2793,6 +2793,8 @@ function contractFromDb(r) {
     signerName: r.signer_name || "", signerDocument: r.signer_document || "",
     signedAt: r.signed_at ? new Date(r.signed_at).getTime() : null, signedIp: r.signed_ip || "",
     pdfPath: r.pdf_path || null, publicToken: r.public_token,
+    numero: r.numero || "", modo: r.modo || "simples", templateId: r.template_id || null,
+    dadosCliente: r.dados_cliente || {}, snapshot: r.dados_snapshot || null, aceiteEmail: r.aceite_email || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
 }
@@ -2838,6 +2840,7 @@ function renderContractsList() {
     const lead = c.leadId ? leads.find(l => l.id === c.leadId) : null;
     return `
       <tr data-id="${c.id}">
+        <td class="cell-muted">${escapeHtml(c.numero || "—")}</td>
         <td class="cell-primary">${escapeHtml(lead ? lead.name : "—")}</td>
         <td class="cell-muted">${escapeHtml(c.title)}</td>
         <td class="cell-muted">${currency(c.value)}</td>
@@ -2846,7 +2849,11 @@ function renderContractsList() {
       </tr>`;
   }).join("");
   tbody.querySelectorAll("tr[data-id]").forEach(tr => {
-    tr.addEventListener("click", () => openContractModal(tr.dataset.id));
+    tr.addEventListener("click", () => {
+      const c = contracts.find(x => x.id === tr.dataset.id);
+      if (c && c.modo === "proposta") openProposalManage(c.id);
+      else openContractModal(tr.dataset.id);
+    });
   });
 }
 
@@ -3095,7 +3102,7 @@ function quoteRowFromDb(r) {
     value: Number(r.value) || 0, validade: r.validade || "", status: r.status,
     leadId: r.lead_id || null, consultorId: r.consultor_id || null,
     consultorName: r.consultor_name || "", consultorEmail: r.consultor_email || "",
-    emissao: r.emissao || "", observacoes: r.observacoes || "",
+    emissao: r.emissao || "", observacoes: r.observacoes || "", numero: r.numero || "",
     itemsDetail: Array.isArray(r.items_detail) ? r.items_detail : [],
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
@@ -3774,6 +3781,7 @@ function openQuoteBuilder(id) {
   quoteMontaDestinos();
   quoteMontaCatalogo();
   if (!id) initQuoteBuilderDefaults();
+  renderQuoteContractsPanel(id ? quotes.find(x => x.id === id) : null);
   document.getElementById("q-nome").focus();
 }
 
@@ -4687,7 +4695,12 @@ async function buildAndSaveQuoteRecord() {
   const record = {
     id, client: nome, email, items: itemsSummary, value: total, validade, status,
     leadId, consultorId, consultorName: consultorNome, consultorEmail, emissao, observacoes: obs,
-    itemsDetail: linhas.map(l => ({ id: l.p.id, nome: l.p.nome, qtd: l.qtd, preco: l.p.preco, total: l.total })),
+    itemsDetail: linhas.map(l => ({
+      id: l.p.id, nome: l.p.nome, qtd: l.qtd, preco: l.p.preco, total: l.total,
+      /* guardados junto pra cotação anexada ao contrato sair completa mesmo se o catálogo mudar */
+      escola: l.p.subgrupo || "", turno: l.p.turno || "", unidade: l.p.unidade || "",
+      subs: (l.p.subs || []).map(sb => ({ nome: sb.nome, valor: Number(sb.valor) || 0 })),
+    })),
     createdAt: existing ? existing.createdAt : Date.now(),
   };
   if (existing) Object.assign(existing, record);
@@ -4716,16 +4729,17 @@ document.getElementById("q-btn-gerar-contrato").addEventListener("click", () => 
   const quoteId = document.getElementById("q-id").value;
   const quote = quotes.find(q => q.id === quoteId);
   if (!quote) { alert(t("quotes.saveFirst")); return; }
-  const existingContract = contracts.find(c => c.quoteId === quote.id);
+  const existingContract = contracts.find(c => c.quoteId === quote.id && c.status !== "Cancelado");
   if (existingContract) {
+    if (existingContract.modo === "proposta") { openProposalManage(existingContract.id); return; }
     switchView("contratos");
     openContractModal(existingContract.id);
     return;
   }
   if (quote.status !== "Aprovada") { alert(t("quotes.needApprovedForContract")); return; }
   if (!quote.leadId) { alert(t("quotes.needLeadForContract")); return; }
-  switchView("contratos");
-  openContractModal(null, quote);
+  /* contrato novo: modelo + dados do cliente + cotação, em um link de 3 etapas */
+  openProposalForQuote(quote);
 });
 
 async function quoteGerar() {
@@ -5781,6 +5795,7 @@ function enrollmentFromDb(r) {
     id: r.id, leadId: r.lead_id, consultorId: r.consultor_id,
     name: r.name, email: r.email || "", phone: r.phone || "",
     emergencyPhone: r.emergency_phone || "",
+    birthDate: r.birth_date || "", nationality: r.nationality || "", emergencyName: r.emergency_name || "",
     passportNumber: r.passport_number || "", passportPhotoPath: r.passport_photo_path || null,
     cpf: r.cpf || "",
     addressStreet: r.address_street || "", addressNumber: r.address_number || "",
@@ -8004,6 +8019,7 @@ document.addEventListener("keydown", e => {
   initNavigation();
   refreshMenuChevrons();
   initMenuEditor();
+  initContractTemplatesButton();
   renderStageOptions();
   renderPipelineFilterOptions();
   renderBoard();
