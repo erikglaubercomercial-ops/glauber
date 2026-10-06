@@ -4347,10 +4347,28 @@ function subRowHtml(s) {
     </div>`;
 }
 
+/* subitens padrão dos cursos de escola (o que está incluso no valor do curso).
+   "General English 25 weeks" não entra: o valor muda de produto pra produto,
+   então é cadastrado em cada um. */
+const DEFAULT_PRODUCT_SUBS = [
+  { nome: "Admission Fee", valor: 50 },
+  { nome: "Health Insurance", valor: 150 },
+  { nome: "Learner Protection", valor: 150 },
+  { nome: "TIE Exam", valor: 130 },
+  { nome: "Material (1st. book included)", valor: 50 },
+  { nome: "Holidays", valor: 0 },
+];
+/* acrescenta os padrões que ainda não estão na lista (compara pelo nome) */
+function addDefaultProductSubs() {
+  const current = readProductSubs();
+  const have = new Set(current.map(x => x.nome.trim().toLowerCase()));
+  renderProductSubs([...current, ...DEFAULT_PRODUCT_SUBS.filter(d => !have.has(d.nome.toLowerCase()))]);
+}
 function renderProductSubs(subs) {
   productSubsList.innerHTML = (subs || []).map(subRowHtml).join("");
 }
 
+document.getElementById("btn-add-default-subs").addEventListener("click", addDefaultProductSubs);
 document.getElementById("btn-add-sub").addEventListener("click", () => {
   productSubsList.insertAdjacentHTML("beforeend", subRowHtml());
 });
@@ -4391,7 +4409,10 @@ function applyProductSchoolLock() {
   set("product-field-destino", sc ? sc.destino : "");
   set("product-field-subgrupo", sc ? sc.nome : "");
 }
-document.getElementById("product-field-escola").addEventListener("change", applyProductSchoolLock);
+document.getElementById("product-field-escola").addEventListener("change", () => {
+  applyProductSchoolLock();
+  if (document.getElementById("product-field-escola").value && readProductSubs().length === 0) addDefaultProductSubs();
+});
 
 function openProductModal(id) {
   productForm.reset();
