@@ -132,7 +132,8 @@ const CONTRATO_DOC_CSS = `
 /* cotação (itens, subitens, total) para o final do documento */
 function contratoCotacaoHtml(cotacao) {
   if (!cotacao) return "";
-  const itens = Array.isArray(cotacao.items_detail) ? cotacao.items_detail : [];
+  /* escola primeiro, depois os serviços extras (cotações salvas em qualquer ordem) */
+  const itens = (Array.isArray(cotacao.items_detail) ? cotacao.items_detail : []).slice().sort((a, b) => (a.escola ? 0 : 1) - (b.escola ? 0 : 1));
   const linhas = itens.map(it => {
     const meta = [it.escola, it.turno].filter(Boolean).join(" · ");
     const subs = (it.subs || []).map(s => `<tr class="sub"><td colspan="3">↳ ${contratoEsc(s.nome)}</td><td class="r">${s.valor ? contratoMoney(s.valor) : ""}</td></tr>`).join("");

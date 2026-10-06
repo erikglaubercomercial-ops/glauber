@@ -4619,6 +4619,17 @@ function quoteMontaCatalogo() {
 
 function quotePorId(id) { return catalog.find(p => p.id === id) || null; }
 
+/* nome da escola do produto (pelo cadastro, via código; reserva: o texto do produto) */
+function quoteSchoolName(p) {
+  const sc = p.escolaCodigo ? schools.find(x => x.codigo === p.escolaCodigo) : null;
+  return (sc && sc.nome) || p.subgrupo || "";
+}
+/* "Escola · turno" que vai logo abaixo do nome do curso na cotação */
+function quoteItemMetaHtml(p) {
+  const meta = [quoteSchoolName(p), p.turno].filter(Boolean);
+  return meta.length ? `<div class="item-meta"><b>${escapeHtml(meta[0])}</b>${meta.length > 1 ? ` · ${escapeHtml(meta.slice(1).join(" · "))}` : ""}</div>` : "";
+}
+
 function quoteLinhas() {
   const out = [];
   quoteAtivos().forEach(p => {
@@ -4626,7 +4637,9 @@ function quoteLinhas() {
     const q = p.qtdFixa ? 1 : Math.max(1, parseInt(quoteSelecionados[p.id], 10) || 1);
     out.push({ p, qtd: q, total: q * (Number(p.preco) || 0) });
   });
-  return out;
+  /* a escola vem sempre primeiro; depois os serviços extras (acomodação, kit...) — a ordem
+     dentro de cada grupo é a do catálogo */
+  return out.sort((a, b) => (quoteSchoolName(a.p) ? 0 : 1) - (quoteSchoolName(b.p) ? 0 : 1));
 }
 function quoteTotal() { return quoteLinhas().reduce((a, l) => a + l.total, 0); }
 function quoteAtualizaPrevia() { document.getElementById("quote-preview-total").textContent = currency(quoteTotal()); }
@@ -4761,7 +4774,7 @@ async function buildAndSaveQuoteRecord() {
     itemsDetail: linhas.map(l => ({
       id: l.p.id, nome: l.p.nome, qtd: l.qtd, preco: l.p.preco, total: l.total,
       /* guardados junto pra cotação anexada ao contrato sair completa mesmo se o catálogo mudar */
-      escola: l.p.subgrupo || "", turno: l.p.turno || "", unidade: l.p.unidade || "",
+      escola: quoteSchoolName(l.p), turno: l.p.turno || "", unidade: l.p.unidade || "",
       subs: (l.p.subs || []).map(sb => ({ nome: sb.nome, valor: Number(sb.valor) || 0 })),
     })),
     createdAt: existing ? existing.createdAt : Date.now(),
@@ -4838,7 +4851,7 @@ async function quoteGerar() {
 
   let html = "";
   linhas.forEach(l => {
-    html += `<tr class="item"><td>${escapeHtml(l.p.nome)}</td><td class="c">${l.qtd}</td><td class="r">${currency(l.p.preco)}</td><td class="tot">${currency(l.total)}</td></tr>`;
+    html += `<tr class="item"><td>${escapeHtml(l.p.nome)}${quoteItemMetaHtml(l.p)}</td><td class="c">${l.qtd}</td><td class="r">${currency(l.p.preco)}</td><td class="tot">${currency(l.total)}</td></tr>`;
     (l.p.subs || []).forEach(s => {
       html += `<tr class="subrow-doc"><td class="name">${escapeHtml(s.nome)}</td><td class="c"></td><td class="r"></td><td class="tot">${currency(s.valor)}</td></tr>`;
     });

@@ -13,10 +13,13 @@ const QA_V = (document.querySelector('link[rel="stylesheet"]').getAttribute("hre
 /* a cotação em PDF: a mesma folha A4 que o CRM gera em "Gerar cotação (PDF)" */
 function qaSheetDocument(q) {
   const esc = contratoEsc, money = contratoMoney;
-  const itens = Array.isArray(q.items_detail) ? q.items_detail : [];
+  /* escola primeiro, depois os serviços extras */
+  const itens = (Array.isArray(q.items_detail) ? q.items_detail : []).slice().sort((a, b) => (a.escola ? 0 : 1) - (b.escola ? 0 : 1));
   const rows = itens.map(it => {
     const subs = (it.subs || []).map(sb => `<tr class="subrow-doc"><td class="name">${esc(sb.nome)}</td><td class="c"></td><td class="r"></td><td class="tot">${money(sb.valor)}</td></tr>`).join("");
-    return `<tr class="item"><td>${esc(it.nome)}</td><td class="c">${esc(it.qtd)}</td><td class="r">${money(it.preco)}</td><td class="tot">${money(it.total)}</td></tr>${subs}`;
+    const meta = [it.escola, it.turno].filter(Boolean);
+    const metaHtml = meta.length ? `<div class="item-meta"><b>${esc(meta[0])}</b>${meta.length > 1 ? ` · ${esc(meta.slice(1).join(" · "))}` : ""}</div>` : "";
+    return `<tr class="item"><td>${esc(it.nome)}${metaHtml}</td><td class="c">${esc(it.qtd)}</td><td class="r">${money(it.preco)}</td><td class="tot">${money(it.total)}</td></tr>${subs}`;
   }).join("");
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="style.css${QA_V ? `?v=${QA_V}` : ""}">
