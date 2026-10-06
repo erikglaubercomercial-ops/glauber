@@ -4802,10 +4802,16 @@ async function quoteSalvar() {
 
 document.getElementById("q-btn-salvar").addEventListener("click", quoteSalvar);
 
-document.getElementById("q-btn-gerar-contrato").addEventListener("click", () => {
+document.getElementById("q-btn-gerar-contrato").addEventListener("click", async () => {
   const quoteId = document.getElementById("q-id").value;
-  const quote = quotes.find(q => q.id === quoteId);
+  let quote = quotes.find(q => q.id === quoteId);
   if (!quote) { alert(t("quotes.saveFirst")); return; }
+  /* lead escolhido na tela mas ainda não gravado na cotação: salva antes de seguir */
+  const formLeadId = document.getElementById("q-lead-id").value || null;
+  if (formLeadId && formLeadId !== quote.leadId) {
+    if (!quoteValidaMinima()) return;
+    quote = (await buildAndSaveQuoteRecord()) || quote;
+  }
   const existingContract = contracts.find(c => c.quoteId === quote.id && c.status !== "Cancelado");
   if (existingContract) {
     if (existingContract.modo === "proposta") { openProposalManage(existingContract.id); return; }
@@ -4813,7 +4819,7 @@ document.getElementById("q-btn-gerar-contrato").addEventListener("click", () => 
     openContractModal(existingContract.id);
     return;
   }
-  if (!quote.leadId) { alert(t("quotes.needLeadForContract")); return; }
+  if (!quote.leadId) { alert(t("quotes.needLeadForContract") + "\n" + t("quotes.needLeadHint")); return; }
   /* o cliente precisa ter aprovado a cotação pelo link (confere no banco antes) */
   refreshQuoteApproval(quote).then(() => {
     if (!quote.aprovadaEm) { alert(t("quotes.needClientApproval")); openQuoteApprovalModal(quote); return; }
