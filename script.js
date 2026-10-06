@@ -1366,7 +1366,7 @@ function leadFromDb(r) {
     id: r.id, name: r.name, company: r.company || "", phone: r.phone || "", email: r.email || "",
     countryCode: r.country_code || "BR", phoneDdd: r.phone_ddd || "", phoneNumber: r.phone_number || "",
     source: r.source, category: r.category, status: r.status, temperature: r.temperature || "",
-    consultorId: r.consultor_id, active: r.active, notes: r.notes || "",
+    consultorId: r.consultor_id, active: r.active, notes: r.notes || "", pretendeVir: r.pretende_vir || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     rotationActive: !!r.rotation_active,
     rotationAssignedAt: r.rotation_assigned_at ? new Date(r.rotation_assigned_at).getTime() : null,
@@ -1380,7 +1380,7 @@ function leadToDb(l) {
     id: l.id, name: l.name, company: l.company, phone: l.phone, email: l.email,
     country_code: l.countryCode || "BR", phone_ddd: l.phoneDdd || "", phone_number: l.phoneNumber || "",
     source: l.source, category: l.category, status: l.status, temperature: l.temperature || null,
-    consultor_id: l.consultorId || null, active: l.active, notes: l.notes || "",
+    consultor_id: l.consultorId || null, active: l.active, notes: l.notes || "", pretende_vir: l.pretendeVir || "",
     created_at: new Date(l.createdAt).toISOString(),
     rotation_active: !!l.rotationActive,
     rotation_assigned_at: l.rotationAssignedAt ? new Date(l.rotationAssignedAt).toISOString() : null,
@@ -1670,6 +1670,7 @@ function renderLeads() {
           </div>` : "—"}
       </td>
       <td class="cell-muted">${originBadge(lead.source)}</td>
+      <td class="cell-muted">${lead.pretendeVir ? escapeHtml(lead.pretendeVir) : "—"}</td>
       <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : "—"}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
     `;
@@ -2216,6 +2217,7 @@ function openLeadModal(id) {
     document.getElementById("lead-field-temperature").value = lead.temperature || "";
     document.getElementById("lead-field-status").value = lead.status || "Novo";
     document.getElementById("lead-field-notes").value = lead.notes || "";
+    document.getElementById("lead-field-pretende-vir").value = lead.pretendeVir || "";
     document.getElementById("lead-field-active").checked = lead.active !== false;
     leadBtnDelete.style.display = "inline-block";
     const referredLead = lead.referredByLeadId ? leads.find(l => l.id === lead.referredByLeadId) : null;
@@ -2322,6 +2324,7 @@ leadForm.addEventListener("submit", async e => {
     temperature: document.getElementById("lead-field-temperature").value,
     status: document.getElementById("lead-field-status").value,
     notes: document.getElementById("lead-field-notes").value.trim(),
+    pretendeVir: document.getElementById("lead-field-pretende-vir").value.trim(),
     active: document.getElementById("lead-field-active").checked,
     referredByLeadId: document.getElementById("lead-field-referred-by").value || null,
   };
@@ -2379,9 +2382,9 @@ const IMPORT_FIELDS = [
   { key: "temperature", label: "Temperatura" },
   { key: "status", label: "Status" },
   { key: "entryDate", label: "Data de entrada" },
+  { key: "pretendeVir", label: "Quando pretende vir?" },
   { key: "consultor", label: "Consultor" },
   /* respostas do formulário/pesquisa: não têm campo próprio no lead, então entram nas Notas */
-  { key: "noteWhen", label: "Quando pretende vir? (vai p/ Notas)", noteLabel: "Quando pretende vir" },
   { key: "noteCompanion", label: "Vem sozinho(a) ou acompanhado(a)? (vai p/ Notas)", noteLabel: "Vem sozinho(a) ou acompanhado(a)" },
   { key: "noteSchool", label: "Qual escola gostaria de estudar? (vai p/ Notas)", noteLabel: "Escola de interesse" },
   { key: "noteHowFound", label: "Como chegou até nós? (vai p/ Notas)", noteLabel: "Como chegou até nós" },
@@ -2399,7 +2402,7 @@ const IMPORT_FIELD_GUESSES = {
   status: ["status", "etapa", "estagio"],
   entryDate: ["data de entrada", "data entrada", "entrada", "data de cadastro", "data cadastro", "cadastro", "data de criacao", "criado em", "criacao", "created", "data do lead"],
   consultor: ["consultor", "responsavel", "vendedor", "owner"],
-  noteWhen: ["quando pretende", "pretende vir", "quando vai", "quando quer"],
+  pretendeVir: ["quando pretende", "pretende vir", "quando vai", "quando quer"],
   noteCompanion: ["sozinho", "acompanhado"],
   noteSchool: ["qual escola", "escola voce", "escola gostaria", "escola de interesse"],
   noteHowFound: ["como voce chegou", "como chegou", "chegou ate", "como conheceu"],
@@ -2567,6 +2570,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
       id: uid(),
       name,
       company: "",
+      pretendeVir: get("pretendeVir"),
       notes: IMPORT_FIELDS.filter(f => f.noteLabel).map(f => get(f.key) ? `${f.noteLabel}: ${get(f.key)}` : "").filter(Boolean).join("\n"),
       phone: importedPhone,
       countryCode: "BR", phoneDdd: importedDdd, phoneNumber: importedNumber,

@@ -16,6 +16,8 @@ const I18N = {
   pt: {
     "lead.phoneAlreadyExists": "Já existe um lead com esse telefone:",
     "lead.duplicatePhoneSaveError": "Não foi possível salvar: já existe outro lead com esse telefone.",
+    "lead.whenToCome": "Quando pretende vir?",
+    "lead.whenToComePlaceholder": "Ex: 03/2027, em 6 meses",
     "nav.appacomp": "App · Acompanhamento",
     "appt.tabOverview": "Visão geral",
     "appt.tabUsers": "Usuários",
@@ -817,6 +819,8 @@ const I18N = {
   en: {
     "lead.phoneAlreadyExists": "A lead with this phone number already exists:",
     "lead.duplicatePhoneSaveError": "Could not save: another lead with this phone number already exists.",
+    "lead.whenToCome": "When do they plan to come?",
+    "lead.whenToComePlaceholder": "E.g.: 03/2027, in 6 months",
     "nav.appacomp": "App · Tracking",
     "appt.tabOverview": "Overview",
     "appt.tabUsers": "Users",
@@ -1618,6 +1622,8 @@ const I18N = {
   es: {
     "lead.phoneAlreadyExists": "Ya existe un lead con ese teléfono:",
     "lead.duplicatePhoneSaveError": "No fue posible guardar: ya existe otro lead con ese teléfono.",
+    "lead.whenToCome": "¿Cuándo piensa venir?",
+    "lead.whenToComePlaceholder": "Ej.: 03/2027, en 6 meses",
     "nav.appacomp": "App · Seguimiento",
     "appt.tabOverview": "Resumen",
     "appt.tabUsers": "Usuarios",

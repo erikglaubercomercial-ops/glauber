@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791315717">
+<link rel="stylesheet" href="style.css?v=1791315878">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -312,6 +312,7 @@
                   <th data-i18n="common.phone">Telefone</th>
                   <th data-i18n="common.email">E-mail</th>
                   <th data-i18n="common.source">Origem</th>
+                  <th data-i18n="lead.whenToCome">Quando pretende vir?</th>
                   <th data-i18n="common.consultant">Consultor</th>
                   <th></th>
                 </tr>
@@ -1339,6 +1340,9 @@
           </div>
           <input type="hidden" id="lead-field-referred-by">
         </label>
+        <label><span data-i18n="lead.whenToCome">Quando pretende vir?</span>
+          <input type="text" id="lead-field-pretende-vir" maxlength="80" placeholder="Ex: 03/2027, em 6 meses" data-i18n-placeholder="lead.whenToComePlaceholder">
+        </label>
         <label><span data-i18n="common.notes">Notas</span>
           <textarea id="lead-field-notes" rows="3" placeholder="Detalhes adicionais (ex: respostas de formulário)"></textarea>
         </label>
@@ -2348,13 +2352,13 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791315717"></script>
-  <script src="auth.js?v=1791315717"></script>
-  <script src="i18n.js?v=1791315717"></script>
-  <script src="comparativo.js?v=1791315717"></script>
-  <script src="contrato-modelo.js?v=1791315717"></script>
-  <script src="script.js?v=1791315717"></script>
-  <script src="contratos-proposta.js?v=1791315717"></script>
-  <script src="app-acompanhamento.js?v=1791315717"></script>
+  <script src="config.js?v=1791315878"></script>
+  <script src="auth.js?v=1791315878"></script>
+  <script src="i18n.js?v=1791315878"></script>
+  <script src="comparativo.js?v=1791315878"></script>
+  <script src="contrato-modelo.js?v=1791315878"></script>
+  <script src="script.js?v=1791315878"></script>
+  <script src="contratos-proposta.js?v=1791315878"></script>
+  <script src="app-acompanhamento.js?v=1791315878"></script>
 </body>
 </html>
