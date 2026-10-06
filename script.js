@@ -1513,11 +1513,14 @@ function canEditLeadSource() {
 }
 
 function renderLeadFilterOptions() {
-  const categorySel = document.getElementById("filter-category");
+  const statusSel = document.getElementById("filter-status");
   const sourceSel = document.getElementById("filter-source");
   const consultorSel = document.getElementById("filter-consultor");
 
-  categorySel.innerHTML = `<option value="">Categoria (todas)</option>` + CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join("");
+  const currentStatus = statusSel.value;
+  statusSel.innerHTML = `<option value="">${t("common.statusAll")}</option>` +
+    ["Novo", "Em contato", "Qualificado", "Descartado"].map(st => `<option value="${st}">${escapeHtml(statusLabel(st))}</option>`).join("");
+  statusSel.value = currentStatus;
   sourceSel.innerHTML = `<option value="">Origem (todas)</option>` + SOURCES.map(s => `<option value="${s}">${s}</option>`).join("");
 
   if (isOwnLeadsOnly() || leadsOwnOnlyMode) {
@@ -1528,14 +1531,15 @@ function renderLeadFilterOptions() {
     consultorSel.innerHTML = `<option value="">Consultor (todos)</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   }
 
-  [categorySel, sourceSel, consultorSel].forEach(sel => sel.addEventListener("change", renderLeads));
-  document.getElementById("filter-date-from").addEventListener("change", renderLeads);
-  document.getElementById("filter-date-to").addEventListener("change", renderLeads);
-  document.getElementById("filter-show-inactive").addEventListener("change", renderLeads);
+  /* onchange (e não addEventListener): esta função roda a cada abertura da tela, sem empilhar ouvintes */
+  [statusSel, sourceSel, consultorSel].forEach(sel => { sel.onchange = renderLeads; });
+  document.getElementById("filter-date-from").onchange = renderLeads;
+  document.getElementById("filter-date-to").onchange = renderLeads;
+  document.getElementById("filter-show-inactive").onchange = renderLeads;
 }
 
 document.getElementById("filter-clear").addEventListener("click", () => {
-  document.getElementById("filter-category").value = "";
+  document.getElementById("filter-status").value = "";
   document.getElementById("filter-source").value = "";
   document.getElementById("filter-consultor").value = "";
   document.getElementById("filter-date-from").value = "";
@@ -1610,14 +1614,14 @@ function getFilteredLeads() {
   const base = visibleLeadsBase();
   if (leadsSearchSelectedId) return base.filter(l => l.id === leadsSearchSelectedId);
 
-  const category = document.getElementById("filter-category").value;
+  const status = document.getElementById("filter-status").value;
   const source = document.getElementById("filter-source").value;
   const consultorId = document.getElementById("filter-consultor").value;
   const dateFrom = document.getElementById("filter-date-from").value;
   const dateTo = document.getElementById("filter-date-to").value;
 
   return base.filter(l => {
-    if (category && l.category !== category) return false;
+    if (status && (l.status || "Novo") !== status) return false;
     if (source && l.source !== source) return false;
     if (consultorId && l.consultorId !== consultorId) return false;
     if (dateFrom && l.createdAt < new Date(`${dateFrom}T00:00:00`).getTime()) return false;
