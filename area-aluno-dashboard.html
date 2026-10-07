@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Área do Aluno — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1791402264">
+<link rel="stylesheet" href="style.css?v=1791403577">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -80,32 +80,32 @@
             <!-- hero: progresso da jornada -->
             <div class="panel aluno-hero" style="margin-bottom:18px;">
               <div class="aluno-avatar-wrap">
-                <div class="aluno-avatar-ring" style="background: conic-gradient(var(--primary) 148deg, var(--border) 0deg);">
+                <div class="aluno-avatar-ring" id="aluno-ring" style="background: conic-gradient(var(--primary) 0deg, var(--border) 0deg);">
                   <div class="aluno-avatar-ring-inner">
                     <span class="aluno-avatar-initials" data-aluno-initials>--</span>
                   </div>
                 </div>
-                <span class="aluno-avatar-badge">41%</span>
+                <span class="aluno-avatar-badge" id="aluno-ring-pct" data-i18n-title="aluno.ringTitle" title="Pagamento realizado">0%</span>
               </div>
 
               <div class="aluno-hero-info">
                 <div class="aluno-hero-name" data-aluno-name>—</div>
-                <div class="aluno-hero-course">International — Academic Bridge · Dublin, Irlanda</div>
+                <div class="aluno-hero-course" id="aluno-hero-course">—</div>
                 <div class="aluno-hero-dates">
                   <div>
                     <div class="aluno-date-label" data-i18n="aluno.courseStart">Início do curso</div>
-                    <div class="aluno-date-value">10 jan 2026</div>
+                    <div class="aluno-date-value" id="aluno-date-start">—</div>
                   </div>
                   <div>
-                    <div class="aluno-date-label" data-i18n="aluno.courseEnd">Término previsto</div>
-                    <div class="aluno-date-value">10 dez 2026</div>
+                    <div class="aluno-date-label" data-i18n="aluno.arrivalIreland">Chegada na Irlanda</div>
+                    <div class="aluno-date-value" id="aluno-date-arrival">—</div>
                   </div>
                 </div>
               </div>
 
-              <div class="aluno-days-chip">
-                <div class="n">138</div>
-                <div class="lbl" data-i18n="aluno.daysOfJourney">de 334 dias na jornada</div>
+              <div class="aluno-days-chip" id="aluno-days-chip" style="display:none;">
+                <div class="n" id="aluno-days-n">0</div>
+                <div class="lbl" data-i18n="aluno.daysToArrival">dias para a chegada</div>
               </div>
             </div>
 
@@ -113,7 +113,7 @@
             <div class="stat-row" style="margin-bottom:18px;">
               <div class="stat-card">
                 <span class="stat-label" data-i18n="aluno.statDaysToDeparture">Dias até o embarque</span>
-                <span class="stat-value">47</span>
+                <span class="stat-value" id="aluno-stat-days">—</span>
               </div>
               <div class="stat-card">
                 <span class="stat-label" data-i18n="aluno.statPaid">Valor pago</span>
@@ -125,7 +125,7 @@
               </div>
               <div class="stat-card">
                 <span class="stat-label" data-i18n="aluno.statDocsSent">Documentos enviados</span>
-                <span class="stat-value">3 / 4</span>
+                <span class="stat-value" id="aluno-stat-docs">—</span>
               </div>
             </div>
 
@@ -147,21 +147,20 @@
               <div class="panel-header"><h2 data-i18n="aluno.travelDocs">Documentos de viagem</h2></div>
               <div style="padding:0 20px 20px;">
                 <div class="aluno-doc-grid">
-                  <div class="aluno-doc-card">
+                  <div class="aluno-doc-card is-pending" id="aluno-doc-passport">
                     <div class="aluno-doc-card-head">
                       <span class="aluno-doc-card-title" data-i18n="aluno.passport">Passaporte</span>
-                      <span class="aluno-doc-status ok" data-i18n="aluno.sent">Enviado</span>
+                      <span class="aluno-doc-status pending" id="aluno-doc-passport-status">Pendente</span>
                     </div>
-                    <span class="aluno-doc-meta">passaporte-anacarolina.pdf</span>
-                    <a href="#" data-i18n="aluno.viewSentFile">Ver arquivo enviado</a>
+                    <span class="aluno-doc-meta" id="aluno-doc-passport-meta">Nenhum arquivo enviado ainda.</span>
+                    <a href="#" id="aluno-doc-passport-link" style="display:none;" data-i18n="aluno.viewSentFile">Ver arquivo enviado</a>
                   </div>
                   <div class="aluno-doc-card is-pending">
                     <div class="aluno-doc-card-head">
                       <span class="aluno-doc-card-title" data-i18n="aluno.visa">Visto de estudante</span>
                       <span class="aluno-doc-status pending" data-i18n="aluno.pending">Pendente</span>
                     </div>
-                    <span class="aluno-doc-meta" data-i18n="aluno.noFileSent">Nenhum arquivo enviado ainda.</span>
-                    <button type="button" class="btn btn-ghost btn-sm" style="align-self:flex-start;" data-i18n="aluno.sendFile">Enviar arquivo</button>
+                    <span class="aluno-doc-meta" data-i18n="aluno.visaTeamWillSend">Sua consultora vai combinar com você o envio do visto.</span>
                   </div>
                 </div>
               </div>
@@ -171,18 +170,14 @@
             <div class="panel">
               <div class="panel-header"><h2 data-i18n="aluno.talkToTeam">Fale com nosso time</h2></div>
               <div style="padding:0 20px 20px;">
-                <div class="aluno-msg-bubble">
-                  <span class="aluno-msg-author">Sua consultora Erik</span>
-                  <span class="aluno-msg-text">Seu visto já pode ser enviado por aqui assim que estiver pronto — qualquer dúvida me chama!</span>
-                  <span class="aluno-msg-time">há 2 dias</span>
-                </div>
+                <div id="aluno-msg-thread"></div>
 
                 <form class="aluno-msg-form">
                   <label><span data-i18n="aluno.yourMessage">Sua mensagem</span>
-                    <textarea rows="3" placeholder="Escreva sua mensagem para a equipe Peregrinos..." data-i18n-placeholder="aluno.messagePlaceholder"></textarea>
+                    <textarea rows="3" id="aluno-msg-text" maxlength="2000" placeholder="Escreva sua mensagem para a equipe Peregrinos..." data-i18n-placeholder="aluno.messagePlaceholder"></textarea>
                   </label>
                   <div style="display:flex; justify-content:flex-end; margin-top:10px;">
-                    <button type="submit" class="btn btn-primary btn-sm" data-i18n="aluno.sendMessage">Enviar mensagem</button>
+                    <button type="submit" class="btn btn-primary btn-sm" id="aluno-msg-send" data-i18n="aluno.sendMessage">Enviar mensagem</button>
                   </div>
                 </form>
               </div>
@@ -195,74 +190,21 @@
               <div class="panel-header"><h2 data-i18n="aluno.navCalendario">Calendário</h2></div>
               <div class="dash-calendar">
                 <div class="dash-calendar-nav">
-                  <button type="button" aria-label="Mês anterior">&lsaquo;</button>
-                  <span class="dash-cal-label">Setembro de 2026</span>
-                  <button type="button" aria-label="Próximo mês">&rsaquo;</button>
+                  <button type="button" id="aluno-cal-prev" aria-label="Mês anterior">&lsaquo;</button>
+                  <span class="dash-cal-label" id="aluno-cal-label">—</span>
+                  <button type="button" id="aluno-cal-next" aria-label="Próximo mês">&rsaquo;</button>
                 </div>
-                <div class="dash-cal-grid">
-                  <div class="dash-cal-dow">D</div><div class="dash-cal-dow">S</div><div class="dash-cal-dow">T</div><div class="dash-cal-dow">Q</div><div class="dash-cal-dow">Q</div><div class="dash-cal-dow">S</div><div class="dash-cal-dow">S</div>
-                  <button type="button" class="dash-cal-day is-muted" disabled>30</button>
-                  <button type="button" class="dash-cal-day is-muted" disabled>31</button>
-                  <button type="button" class="dash-cal-day">1</button>
-                  <button type="button" class="dash-cal-day">2</button>
-                  <button type="button" class="dash-cal-day">3</button>
-                  <button type="button" class="dash-cal-day">4</button>
-                  <button type="button" class="dash-cal-day">5</button>
-                  <button type="button" class="dash-cal-day">6</button>
-                  <button type="button" class="dash-cal-day">7</button>
-                  <button type="button" class="dash-cal-day">8</button>
-                  <button type="button" class="dash-cal-day">9</button>
-                  <button type="button" class="dash-cal-day">10</button>
-                  <button type="button" class="dash-cal-day">11</button>
-                  <button type="button" class="dash-cal-day">12<span class="dash-cal-dots"><span class="dash-cal-dot dot-reuniao"></span></span></button>
-                  <button type="button" class="dash-cal-day">13</button>
-                  <button type="button" class="dash-cal-day">14</button>
-                  <button type="button" class="dash-cal-day">15</button>
-                  <button type="button" class="dash-cal-day">16</button>
-                  <button type="button" class="dash-cal-day">17</button>
-                  <button type="button" class="dash-cal-day">18</button>
-                  <button type="button" class="dash-cal-day">19</button>
-                  <button type="button" class="dash-cal-day">20<span class="dash-cal-dots"><span class="dash-cal-dot dot-aviso"></span></span></button>
-                  <button type="button" class="dash-cal-day">21</button>
-                  <button type="button" class="dash-cal-day">22</button>
-                  <button type="button" class="dash-cal-day is-today">23</button>
-                  <button type="button" class="dash-cal-day">24</button>
-                  <button type="button" class="dash-cal-day">25</button>
-                  <button type="button" class="dash-cal-day">26</button>
-                  <button type="button" class="dash-cal-day">27<span class="dash-cal-dots"><span class="dash-cal-dot dot-tarefa"></span></span></button>
-                  <button type="button" class="dash-cal-day">28</button>
-                  <button type="button" class="dash-cal-day">29</button>
-                  <button type="button" class="dash-cal-day">30</button>
-                  <button type="button" class="dash-cal-day is-muted" disabled>1</button>
-                  <button type="button" class="dash-cal-day is-muted" disabled>2</button>
-                  <button type="button" class="dash-cal-day is-muted" disabled>3</button>
-                </div>
+                <div class="dash-cal-grid" id="aluno-cal-grid"></div>
                 <div class="dash-cal-legend">
-                  <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-tarefa"></span><span data-i18n="aluno.legendTask">Tarefa</span></span>
-                  <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-reuniao"></span><span data-i18n="aluno.legendMeeting">Reunião</span></span>
-                  <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-aviso"></span><span data-i18n="aluno.legendNotice">Aviso</span></span>
+                  <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-tarefa"></span><span data-i18n="aluno.legendPayment">Pagamento</span></span>
+                  <span class="dash-cal-legend-item"><span class="dash-cal-dot dot-reuniao"></span><span data-i18n="aluno.legendTrip">Viagem</span></span>
                 </div>
               </div>
             </div>
 
             <div class="panel dash-agenda-panel">
               <div class="panel-header"><h2 data-i18n="aluno.upcoming">Próximos compromissos</h2></div>
-              <div>
-                <div class="dash-agenda-item">
-                  <span class="dash-agenda-item-badge dot-tarefa">12 NOV</span>
-                  <div class="dash-agenda-item-body">
-                    <div class="dash-agenda-item-title">Entrevista de visto</div>
-                    <div class="dash-agenda-item-meta">10h00 · online</div>
-                  </div>
-                </div>
-                <div class="dash-agenda-item">
-                  <span class="dash-agenda-item-badge dot-reuniao">20 NOV</span>
-                  <div class="dash-agenda-item-body">
-                    <div class="dash-agenda-item-title">Embarque para Dublin</div>
-                    <div class="dash-agenda-item-meta">Aeroporto de Guarulhos</div>
-                  </div>
-                </div>
-              </div>
+              <div id="aluno-agenda"></div>
             </div>
 
             <div class="aluno-english-teaser">
@@ -282,7 +224,7 @@
   </div>
 
   <script src="config.js"></script>
-  <script src="i18n.js?v=1791402264"></script>
-  <script src="area-aluno-dashboard.js?v=1791402264"></script>
+  <script src="i18n.js?v=1791403577"></script>
+  <script src="area-aluno-dashboard.js?v=1791403577"></script>
 </body>
 </html>

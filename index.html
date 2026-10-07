@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791402264">
+<link rel="stylesheet" href="style.css?v=1791403577">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -2106,6 +2106,13 @@
         <datalist id="enr-schools-list"></datalist>
         <datalist id="enr-turnos-list"></datalist>
 
+        <div class="enr-msgs" id="enr-msgs" style="display:none;">
+          <h3 class="enr-msgs-title" data-i18n="enr.msgTitle">Mensagens com o aluno</h3>
+          <div id="enr-msg-thread"></div>
+          <textarea id="enr-msg-text" rows="2" maxlength="2000" placeholder="Escreva uma resposta para o aluno..." data-i18n-placeholder="enr.msgPlaceholder"></textarea>
+          <div class="enr-msgs-actions"><button type="button" class="btn btn-primary btn-sm" id="enr-msg-send" data-i18n="enr.msgSend">Enviar resposta</button></div>
+        </div>
+
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="enr-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
           <div class="spacer"></div>
@@ -2421,13 +2428,13 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791402264"></script>
-  <script src="auth.js?v=1791402264"></script>
-  <script src="i18n.js?v=1791402264"></script>
-  <script src="comparativo.js?v=1791402264"></script>
-  <script src="contrato-modelo.js?v=1791402264"></script>
-  <script src="script.js?v=1791402264"></script>
-  <script src="contratos-proposta.js?v=1791402264"></script>
-  <script src="app-acompanhamento.js?v=1791402264"></script>
+  <script src="config.js?v=1791403577"></script>
+  <script src="auth.js?v=1791403577"></script>
+  <script src="i18n.js?v=1791403577"></script>
+  <script src="comparativo.js?v=1791403577"></script>
+  <script src="contrato-modelo.js?v=1791403577"></script>
+  <script src="script.js?v=1791403577"></script>
+  <script src="contratos-proposta.js?v=1791403577"></script>
+  <script src="app-acompanhamento.js?v=1791403577"></script>
 </body>
 </html>

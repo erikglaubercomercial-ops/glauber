@@ -6087,6 +6087,7 @@ const ENROLLMENT_STATUS_BADGE = {
 
 /* ---- lista ---- */
 let enrOnlyPending = false;
+let enrUnread = {};   /* mensagens do aluno ainda não lidas, por matrícula */
 function getFilteredEnrollments() {
   const status = document.getElementById("enr-filter-status").value;
   return enrollments.filter(e => (!status || e.status === status) && (!enrOnlyPending || e.matriculaPendente));
@@ -6113,7 +6114,7 @@ function renderEnrollments() {
     const tr = document.createElement("tr");
     if (e.matriculaPendente) tr.classList.add("enr-row-pending");
     tr.innerHTML = `
-      <td class="cell-primary">${escapeHtml(e.name || "—")}${e.matriculaPendente ? `<div><span class="badge badge-danger enr-pending-badge">⚠ ${escapeHtml(t("enr.pendingTitle"))}</span></div>` : ""}</td>
+      <td class="cell-primary">${escapeHtml(e.name || "—")}${e.matriculaPendente ? `<div><span class="badge badge-danger enr-pending-badge">⚠ ${escapeHtml(t("enr.pendingTitle"))}</span></div>` : ""}${enrUnread[e.id] ? `<div><span class="badge badge-warn enr-pending-badge">${escapeHtml(t("enr.msgNew").replace("{n}", enrUnread[e.id]))}</span></div>` : ""}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.turno || "—")}</td>
       <td><span class="badge ${ENROLLMENT_STATUS_BADGE[e.status] || "badge-neutral"}">${escapeHtml(statusLabel(e.status))}</span></td>
@@ -6266,6 +6267,7 @@ async function openEnrollmentModal(id) {
 
   document.getElementById("enrollment-modal-title").textContent = enr.name || t("enr.newTitle");
   document.getElementById("enr-pending-modal").style.display = enr.matriculaPendente ? "flex" : "none";
+  openEnrollmentMessages(enr);
   document.getElementById("enr-id").value = enr.id;
   document.getElementById("enr-field-name").value = enr.name || "";
   document.getElementById("enr-field-status").value = enr.status || "Aguardando aluno";
@@ -6303,6 +6305,55 @@ async function openEnrollmentModal(id) {
   enrollmentModalBackdrop.classList.add("open");
 }
 function closeEnrollmentModal() { enrollmentModalBackdrop.classList.remove("open"); }
+
+/* ---- mensagens com o aluno (Área do Aluno) ---- */
+async function refreshEnrUnread() {
+  const { data, error } = await supabase.from("aluno_mensagens").select("enrollment_id").eq("autor", "aluno").eq("lida", false);
+  if (error) { console.error("Erro ao carregar mensagens não lidas:", error); return; }
+  enrUnread = {};
+  (data || []).forEach(m => { enrUnread[m.enrollment_id] = (enrUnread[m.enrollment_id] || 0) + 1; });
+  renderEnrollments();
+}
+function renderEnrollmentMessages(list) {
+  const box = document.getElementById("enr-msg-thread");
+  if (!list.length) { box.innerHTML = `<div class="muted-note">${escapeHtml(t("enr.msgEmpty"))}</div>`; return; }
+  box.innerHTML = list.map(m => {
+    const mine = m.autor === "equipe";
+    const when = new Date(m.created_at).toLocaleString(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    return `<div class="enr-msg${mine ? " mine" : ""}"><span class="enr-msg-author">${escapeHtml(mine ? (m.autor_nome || "—") : t("enr.msgStudent"))} · ${escapeHtml(when)}</span><span>${escapeHtml(m.texto)}</span></div>`;
+  }).join("");
+  box.scrollTop = box.scrollHeight;
+}
+async function loadEnrollmentMessages(enrId) {
+  const { data, error } = await supabase.from("aluno_mensagens")
+    .select("id, autor, autor_nome, texto, created_at").eq("enrollment_id", enrId).order("created_at", { ascending: true });
+  if (error) { console.error("Erro ao carregar mensagens:", error); return []; }
+  renderEnrollmentMessages(data || []);
+  return data || [];
+}
+async function openEnrollmentMessages(enr) {
+  document.getElementById("enr-msgs").style.display = "";
+  document.getElementById("enr-msg-text").value = "";
+  document.getElementById("enr-msg-thread").innerHTML = "";
+  const list = await loadEnrollmentMessages(enr.id);
+  if (list.some(m => m.autor === "aluno")) {
+    const { error } = await supabase.from("aluno_mensagens").update({ lida: true }).eq("enrollment_id", enr.id).eq("autor", "aluno").eq("lida", false);
+    if (!error && enrUnread[enr.id]) { delete enrUnread[enr.id]; renderEnrollments(); }
+  }
+}
+document.getElementById("enr-msg-send").addEventListener("click", async () => {
+  const enrId = document.getElementById("enr-id").value;
+  const ta = document.getElementById("enr-msg-text");
+  const texto = ta.value.trim();
+  if (!enrId || !texto) return;
+  const btn = document.getElementById("enr-msg-send");
+  btn.disabled = true;
+  const { error } = await supabase.from("aluno_mensagens").insert({ enrollment_id: enrId, autor: "equipe", autor_nome: session.name || "", texto });
+  btn.disabled = false;
+  if (error) { console.error("Erro ao enviar resposta:", error); alert(t("enr.msgError")); return; }
+  ta.value = "";
+  loadEnrollmentMessages(enrId);
+});
 
 document.getElementById("enrollment-modal-close").addEventListener("click", closeEnrollmentModal);
 document.getElementById("enr-btn-cancel").addEventListener("click", closeEnrollmentModal);
@@ -8193,6 +8244,7 @@ document.addEventListener("keydown", e => {
   ]);
 
   renderSessionChip();
+  refreshEnrUnread();
   initSidebarToggle();
   applyMenuStructure(menuConfig);
   initNavigation();

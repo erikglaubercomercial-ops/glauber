@@ -2106,3 +2106,20 @@ body {
 /* Área do aluno: parcelas pendentes / em atraso */
 .aluno-receipt-status.pending { background: var(--warn-bg); color: var(--warn); }
 .aluno-receipt-status.overdue { background: var(--danger-bg); color: var(--danger); }
+
+/* Área do aluno: conversa com a equipe e estados vazios */
+#aluno-msg-thread { max-height: 320px; overflow-y: auto; }
+.aluno-msg-bubble.mine { background: color-mix(in srgb, var(--primary) 14%, transparent); margin-left: 24px; }
+.aluno-msg-bubble.mine .aluno-msg-author { color: var(--text); }
+.aluno-empty { font-size: 12.5px; color: var(--text-muted); padding: 10px 20px 14px; }
+#aluno-msg-thread .aluno-empty { padding: 4px 0 14px; }
+
+/* mensagens com o aluno dentro da matrícula (equipe) */
+.enr-msgs { margin: 16px 0 6px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.enr-msgs-title { font-size: 13px; font-weight: 800; margin: 0; }
+#enr-msg-thread { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.enr-msg { display: flex; flex-direction: column; gap: 2px; background: var(--content-bg); border-radius: 10px; padding: 8px 12px; font-size: 13px; max-width: 85%; align-self: flex-start; }
+.enr-msg.mine { align-self: flex-end; background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.enr-msg-author { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.enr-msgs textarea { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font: inherit; background: var(--content-bg); color: var(--text); resize: vertical; }
+.enr-msgs-actions { display: flex; justify-content: flex-end; }
