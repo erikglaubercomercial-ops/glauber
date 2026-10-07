@@ -29,13 +29,8 @@ const alunoFill = (str, vars) => Object.entries(vars).reduce((s, [k, v]) => s.re
   if (!session) { window.location.href = "area-aluno-login.html"; return; }
   alunoSession = session;
 
-  const { data: enr } = await supabase
-    .from("enrollments")
-    .select("id, name, school, turno, arrival_date, class_start_date, passport_photo_path, course_value")
-    .eq("student_user_id", session.user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: enr, error: enrError } = await supabase.rpc("aluno_matricula");
+  if (enrError) console.error("Erro ao carregar matrícula:", enrError);
   alunoEnr = enr || null;
 
   const fullName = (enr && enr.name) || session.user.user_metadata?.name || session.user.email;
