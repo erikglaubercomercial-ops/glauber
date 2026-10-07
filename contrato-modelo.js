@@ -15,6 +15,7 @@ const CONTRATO_CAMPOS = [
   { key: "passaporte_expedicao", label: "Passaporte — data de expedição", type: "date", autocomplete: "off" },
   { key: "passaporte_validade", label: "Passaporte — validade", type: "date", autocomplete: "off" },
   { key: "data_nascimento", label: "Data de nascimento", type: "date", autocomplete: "bday" },
+  { key: "data_chegada", label: "Data de chegada na Irlanda", type: "date", autocomplete: "off" },
   { key: "nacionalidade", label: "Nacionalidade", autocomplete: "off", placeholder: "Ex.: Brasileira" },
   { key: "endereco", label: "Endereço", autocomplete: "street-address", placeholder: "Rua, número, complemento, bairro", wide: true },
   { key: "cidade_estado", label: "Cidade / Estado", autocomplete: "off", placeholder: "Ex.: Curitiba / PR" },
@@ -54,6 +55,7 @@ function contratoContexto({ dados, numero, assinadoEm, cotacao }) {
   cliente.data_nascimento = contratoDataBr(cliente.data_nascimento);
   cliente.passaporte_expedicao = contratoDataBr(cliente.passaporte_expedicao);
   cliente.passaporte_validade = contratoDataBr(cliente.passaporte_validade);
+  cliente.data_chegada = contratoDataBr(cliente.data_chegada);
   const q = cotacao || {};
   return {
     cliente,
