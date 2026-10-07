@@ -2092,3 +2092,13 @@ body {
 .pp-passport-row .pp-hint { margin: 0; }
 .proposal-passport { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--content-bg); font-size: 13px; font-weight: 600; }
 .proposal-passport span { margin-right: auto; }
+
+/* aviso "Matrícula ainda não realizada" (contrato assinado) */
+.enr-pending-banner { display: flex; align-items: center; gap: 14px; padding: 14px 18px; margin-bottom: 16px; border-radius: 12px; border: 2px solid var(--danger); background: var(--danger-bg); color: var(--danger); }
+.enr-pending-banner.modal-banner { margin: 0 0 14px; }
+.enr-pending-icon { font-size: 26px; line-height: 1; }
+.enr-pending-text { display: flex; flex-direction: column; gap: 2px; margin-right: auto; font-size: 13px; }
+.enr-pending-text strong { font-size: 15px; font-weight: 800; }
+.enr-row-pending { box-shadow: inset 4px 0 0 var(--danger); background: var(--danger-bg); }
+.enr-pending-badge { margin-top: 4px; font-weight: 800; }
+.stat-value.stat-bad { color: var(--danger); }

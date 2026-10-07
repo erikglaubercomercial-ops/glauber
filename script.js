@@ -5884,6 +5884,7 @@ function enrollmentFromDb(r) {
     birthDate: r.birth_date || "", nationality: r.nationality || "", emergencyName: r.emergency_name || "",
     passportNumber: r.passport_number || "", passportPhotoPath: r.passport_photo_path || null,
     passportIssueDate: r.passport_issue_date || "", passportExpiryDate: r.passport_expiry_date || "",
+    matriculaPendente: !!r.matricula_pendente,
     cpf: r.cpf || "",
     addressStreet: r.address_street || "", addressNumber: r.address_number || "",
     addressComplement: r.address_complement || "", addressNeighborhood: r.address_neighborhood || "",
@@ -5906,6 +5907,7 @@ function enrollmentToDb(e) {
     emergency_phone: e.emergencyPhone,
     passport_number: e.passportNumber, passport_photo_path: e.passportPhotoPath,
     passport_issue_date: e.passportIssueDate || null, passport_expiry_date: e.passportExpiryDate || null,
+    matricula_pendente: !!e.matriculaPendente,
     cpf: e.cpf,
     address_street: e.addressStreet, address_number: e.addressNumber,
     address_complement: e.addressComplement, address_neighborhood: e.addressNeighborhood,
@@ -6084,9 +6086,10 @@ const ENROLLMENT_STATUS_BADGE = {
 };
 
 /* ---- lista ---- */
+let enrOnlyPending = false;
 function getFilteredEnrollments() {
   const status = document.getElementById("enr-filter-status").value;
-  return enrollments.filter(e => !status || e.status === status);
+  return enrollments.filter(e => (!status || e.status === status) && (!enrOnlyPending || e.matriculaPendente));
 }
 
 async function copyEnrollmentLink(enr, btnEl) {
@@ -6102,14 +6105,15 @@ async function copyEnrollmentLink(enr, btnEl) {
 }
 
 function renderEnrollments() {
-  const filtered = getFilteredEnrollments().slice().sort((a, b) => b.createdAt - a.createdAt);
+  const filtered = getFilteredEnrollments().slice().sort((a, b) => (b.matriculaPendente - a.matriculaPendente) || (b.createdAt - a.createdAt));
   const tbody = document.getElementById("enrollments-tbody");
   tbody.innerHTML = "";
   document.getElementById("enrollments-empty").style.display = filtered.length === 0 ? "block" : "none";
   filtered.forEach(e => {
     const tr = document.createElement("tr");
+    if (e.matriculaPendente) tr.classList.add("enr-row-pending");
     tr.innerHTML = `
-      <td class="cell-primary">${escapeHtml(e.name || "—")}</td>
+      <td class="cell-primary">${escapeHtml(e.name || "—")}${e.matriculaPendente ? `<div><span class="badge badge-danger enr-pending-badge">⚠ ${escapeHtml(t("enr.pendingTitle"))}</span></div>` : ""}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.turno || "—")}</td>
       <td><span class="badge ${ENROLLMENT_STATUS_BADGE[e.status] || "badge-neutral"}">${escapeHtml(statusLabel(e.status))}</span></td>
@@ -6126,6 +6130,13 @@ function renderEnrollments() {
 }
 
 function renderEnrollmentsDashboard() {
+  const pending = enrollments.filter(e => e.matriculaPendente).length;
+  document.getElementById("enr-stat-pending").textContent = pending;
+  const banner = document.getElementById("enr-pending-banner");
+  banner.style.display = pending ? "flex" : "none";
+  document.getElementById("enr-pending-title").textContent = pending === 1
+    ? t("enr.pendingBannerOne") : t("enr.pendingBannerMany").replace("{n}", pending);
+  document.getElementById("enr-pending-filter").textContent = enrOnlyPending ? t("enr.pendingShowAll") : t("enr.pendingSee");
   document.getElementById("enr-stat-total").textContent = enrollments.length;
   document.getElementById("enr-stat-waiting").textContent = enrollments.filter(e => e.status === "Aguardando aluno").length;
   document.getElementById("enr-stat-filled").textContent = enrollments.filter(e => e.status === "Preenchido pelo aluno").length;
@@ -6135,6 +6146,11 @@ function renderEnrollmentsDashboard() {
 document.getElementById("enr-filter-status").addEventListener("change", renderEnrollments);
 document.getElementById("enr-filter-clear").addEventListener("click", () => {
   document.getElementById("enr-filter-status").value = "";
+  enrOnlyPending = false;
+  renderEnrollments();
+});
+document.getElementById("enr-pending-filter").addEventListener("click", () => {
+  enrOnlyPending = !enrOnlyPending;
   renderEnrollments();
 });
 
@@ -6249,6 +6265,7 @@ async function openEnrollmentModal(id) {
   if (!enr) return;
 
   document.getElementById("enrollment-modal-title").textContent = enr.name || t("enr.newTitle");
+  document.getElementById("enr-pending-modal").style.display = enr.matriculaPendente ? "flex" : "none";
   document.getElementById("enr-id").value = enr.id;
   document.getElementById("enr-field-name").value = enr.name || "";
   document.getElementById("enr-field-status").value = enr.status || "Aguardando aluno";
@@ -6355,6 +6372,16 @@ enrollmentForm.addEventListener("submit", async e => {
       openStudentAccessModal(enr, result.password);
     }
   }
+});
+
+document.getElementById("enr-pending-done").addEventListener("click", async () => {
+  const enr = enrollments.find(x => x.id === document.getElementById("enr-id").value);
+  if (!enr) return;
+  enr.matriculaPendente = false;
+  document.getElementById("enr-pending-modal").style.display = "none";
+  renderEnrollments();
+  const saved = await saveEnrollmentRemote(enr);
+  if (!saved) { enr.matriculaPendente = true; renderEnrollments(); alert(t("enr.createError")); }
 });
 
 enrBtnDelete.addEventListener("click", async () => {
@@ -7296,13 +7323,15 @@ function renderDashboardStatCards() {
 
   if (hasModuleAccess(session.role, "matriculas")) {
     const waiting = enrollments.filter(e => e.status === "Aguardando aluno").length;
+    const pendingEnr = enrollments.filter(e => e.matriculaPendente).length;
+    if (pendingEnr) cards.push({ label: t("enr.pendingStat"), value: String(pendingEnr), bad: true });
     cards.push({ label: t("dash.statEnrollWaiting"), value: String(waiting) });
   }
 
   document.getElementById("dash-stat-row").innerHTML = cards.map(c => `
     <div class="stat-card">
       <span class="stat-label">${escapeHtml(c.label)}</span>
-      <span class="stat-value${c.good ? " stat-good" : ""}">${c.value}</span>
+      <span class="stat-value${c.good ? " stat-good" : ""}${c.bad ? " stat-bad" : ""}">${c.value}</span>
     </div>`).join("");
 }
 

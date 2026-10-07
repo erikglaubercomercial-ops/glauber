@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791385709">
+<link rel="stylesheet" href="style.css?v=1791386154">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -948,10 +948,22 @@
 
       <!-- MATRÍCULAS VIEW -->
       <section class="view" id="view-matriculas">
+        <div class="enr-pending-banner" id="enr-pending-banner" style="display:none;">
+          <span class="enr-pending-icon">⚠</span>
+          <div class="enr-pending-text">
+            <strong id="enr-pending-title"></strong>
+            <span data-i18n="enr.pendingBannerSub">Contrato assinado pelo cliente — conclua a matrícula na escola e marque como realizada.</span>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" id="enr-pending-filter" data-i18n="enr.pendingSee">Ver pendentes</button>
+        </div>
         <div class="stat-row">
           <div class="stat-card">
             <span class="stat-label" data-i18n="enr.statTotal">Total de matrículas</span>
             <span class="stat-value" id="enr-stat-total">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label" data-i18n="enr.pendingStat">Matrícula não realizada</span>
+            <span class="stat-value stat-bad" id="enr-stat-pending">0</span>
           </div>
           <div class="stat-card">
             <span class="stat-label" data-i18n="status.aguardandoAluno">Aguardando aluno</span>
@@ -1988,6 +2000,15 @@
       <form id="enrollment-form">
         <input type="hidden" id="enr-id">
 
+        <div class="enr-pending-banner modal-banner" id="enr-pending-modal" style="display:none;">
+          <span class="enr-pending-icon">⚠</span>
+          <div class="enr-pending-text">
+            <strong data-i18n="enr.pendingTitle">Matrícula ainda não realizada</strong>
+            <span data-i18n="enr.pendingModalSub">O cliente já assinou o contrato. Depois de concluir a matrícula na escola, marque abaixo.</span>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="enr-pending-done" data-i18n="enr.pendingDone">Marcar matrícula como realizada</button>
+        </div>
+
         <div class="enr-link-row" id="enr-link-row" style="display:none;">
           <span data-i18n="enr.linkForStudent">Link para o aluno preencher:</span>
           <input type="text" id="enr-public-link" readonly>
@@ -2400,13 +2421,13 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791385709"></script>
-  <script src="auth.js?v=1791385709"></script>
-  <script src="i18n.js?v=1791385709"></script>
-  <script src="comparativo.js?v=1791385709"></script>
-  <script src="contrato-modelo.js?v=1791385709"></script>
-  <script src="script.js?v=1791385709"></script>
-  <script src="contratos-proposta.js?v=1791385709"></script>
-  <script src="app-acompanhamento.js?v=1791385709"></script>
+  <script src="config.js?v=1791386154"></script>
+  <script src="auth.js?v=1791386154"></script>
+  <script src="i18n.js?v=1791386154"></script>
+  <script src="comparativo.js?v=1791386154"></script>
+  <script src="contrato-modelo.js?v=1791386154"></script>
+  <script src="script.js?v=1791386154"></script>
+  <script src="contratos-proposta.js?v=1791386154"></script>
+  <script src="app-acompanhamento.js?v=1791386154"></script>
 </body>
 </html>
