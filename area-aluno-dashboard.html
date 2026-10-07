@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Área do Aluno — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1791386154">
+<link rel="stylesheet" href="style.css?v=1791402264">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -117,11 +117,11 @@
               </div>
               <div class="stat-card">
                 <span class="stat-label" data-i18n="aluno.statPaid">Valor pago</span>
-                <span class="stat-value">€ 2.100,00</span>
+                <span class="stat-value" id="aluno-stat-paid">—</span>
               </div>
               <div class="stat-card">
                 <span class="stat-label" data-i18n="aluno.statPending">Valor pendente</span>
-                <span class="stat-value">€ 900,00</span>
+                <span class="stat-value" id="aluno-stat-pending">—</span>
               </div>
               <div class="stat-card">
                 <span class="stat-label" data-i18n="aluno.statDocsSent">Documentos enviados</span>
@@ -136,29 +136,9 @@
                 <button type="button" class="btn btn-primary btn-sm" data-i18n="aluno.sendReceipt">+ Enviar comprovante</button>
               </div>
               <div style="padding:0 20px 18px;">
-                <div class="aluno-pay-bar"><div class="aluno-pay-bar-fill" style="width:70%;"></div></div>
-                <div class="aluno-pay-caption">€ 2.100,00 pagos de € 3.000,00 — faltam € 900,00</div>
-
-                <div class="aluno-receipt-row">
-                  <span class="aluno-receipt-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
-                  </span>
-                  <span class="aluno-receipt-body">
-                    <span class="aluno-receipt-name">comprovante-parcela-2.pdf</span>
-                    <span class="aluno-receipt-meta">Enviado em 12 set 2026 · € 1.100,00</span>
-                  </span>
-                  <span class="aluno-receipt-status" data-i18n="aluno.confirmed">Confirmado</span>
-                </div>
-                <div class="aluno-receipt-row">
-                  <span class="aluno-receipt-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
-                  </span>
-                  <span class="aluno-receipt-body">
-                    <span class="aluno-receipt-name">comprovante-parcela-1.pdf</span>
-                    <span class="aluno-receipt-meta">Enviado em 15 ago 2026 · € 1.000,00</span>
-                  </span>
-                  <span class="aluno-receipt-status" data-i18n="aluno.confirmed">Confirmado</span>
-                </div>
+                <div class="aluno-pay-bar"><div class="aluno-pay-bar-fill" id="aluno-pay-fill" style="width:0%;"></div></div>
+                <div class="aluno-pay-caption" id="aluno-pay-caption">&nbsp;</div>
+                <div id="aluno-pay-list"></div>
               </div>
             </div>
 
@@ -302,7 +282,7 @@
   </div>
 
   <script src="config.js"></script>
-  <script src="i18n.js?v=1791386154"></script>
-  <script src="area-aluno-dashboard.js?v=1791386154"></script>
+  <script src="i18n.js?v=1791402264"></script>
+  <script src="area-aluno-dashboard.js?v=1791402264"></script>
 </body>
 </html>

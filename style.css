@@ -2102,3 +2102,7 @@ body {
 .enr-row-pending { box-shadow: inset 4px 0 0 var(--danger); background: var(--danger-bg); }
 .enr-pending-badge { margin-top: 4px; font-weight: 800; }
 .stat-value.stat-bad { color: var(--danger); }
+
+/* Área do aluno: parcelas pendentes / em atraso */
+.aluno-receipt-status.pending { background: var(--warn-bg); color: var(--warn); }
+.aluno-receipt-status.overdue { background: var(--danger-bg); color: var(--danger); }
