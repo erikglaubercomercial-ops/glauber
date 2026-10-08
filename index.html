@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791460396">
+<link rel="stylesheet" href="style.css?v=1791463185">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1176,11 +1176,19 @@
           </div>
           <table class="data-table data-table-list">
             <thead>
-              <tr><th data-i18n="common.name">Nome</th><th data-i18n="common.email">E-mail</th><th data-i18n="users.role">Função</th><th data-i18n="common.status">Status</th><th></th></tr>
+              <tr><th data-i18n="common.name">Nome</th><th data-i18n="common.email">E-mail</th><th data-i18n="users.role">Função</th><th data-i18n="users.team">Time</th><th data-i18n="common.status">Status</th><th></th></tr>
             </thead>
             <tbody id="users-tbody"></tbody>
           </table>
           <div class="empty-hint" id="users-empty" style="display:none;" data-i18n="users.emptyHint">Nenhum usuário cadastrado ainda.</div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-header"><h2 data-i18n="users.teamsTitle">Times</h2></div>
+          <table class="data-table data-table-list">
+            <thead><tr><th data-i18n="users.team">Time</th><th data-i18n="users.teamManager">Gerente</th><th data-i18n="users.teamCountries">Países</th><th data-i18n="users.teamMembers">Consultores</th><th></th></tr></thead>
+            <tbody id="teams-tbody"></tbody>
+          </table>
         </div>
 
         <div class="panel">
@@ -2002,6 +2010,27 @@
     </div>
   </div>
 
+  <!-- MODAL: TIME -->
+  <div class="modal-backdrop" id="team-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 data-i18n="users.teamEdit">Editar time</h2>
+        <button class="btn-icon" id="team-modal-close">&times;</button>
+      </div>
+      <form id="team-form">
+        <input type="hidden" id="team-id">
+        <label><span data-i18n="common.name">Nome</span><input type="text" id="team-field-name" required maxlength="60"></label>
+        <label><span data-i18n="users.teamManager">Gerente</span><select id="team-field-manager"></select></label>
+        <div><span class="team-label" data-i18n="users.teamCountries">Países</span><div class="team-countries" id="team-field-countries"></div></div>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="team-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: COMISSÃO DA ESCOLA -->
   <div class="modal-backdrop" id="scomm-modal-backdrop">
     <div class="modal">
@@ -2506,8 +2535,8 @@
         <label><span data-i18n="users.role">Função</span>
           <select id="user-field-role"></select>
         </label>
-        <label id="user-manager-wrap"><span data-i18n="users.manager">Gerente responsável</span>
-          <select id="user-field-manager"></select>
+        <label id="user-team-wrap"><span data-i18n="users.team">Time</span>
+          <select id="user-field-team"></select>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="user-field-active" checked>
@@ -2581,14 +2610,14 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791460396"></script>
-  <script src="auth.js?v=1791460396"></script>
-  <script src="i18n.js?v=1791460396"></script>
-  <script src="comparativo.js?v=1791460396"></script>
-  <script src="contrato-modelo.js?v=1791460396"></script>
-  <script src="script.js?v=1791460396"></script>
-  <script src="contratos-proposta.js?v=1791460396"></script>
-  <script src="ficha-cliente.js?v=1791460396"></script>
-  <script src="app-acompanhamento.js?v=1791460396"></script>
+  <script src="config.js?v=1791463185"></script>
+  <script src="auth.js?v=1791463185"></script>
+  <script src="i18n.js?v=1791463185"></script>
+  <script src="comparativo.js?v=1791463185"></script>
+  <script src="contrato-modelo.js?v=1791463185"></script>
+  <script src="script.js?v=1791463185"></script>
+  <script src="contratos-proposta.js?v=1791463185"></script>
+  <script src="ficha-cliente.js?v=1791463185"></script>
+  <script src="app-acompanhamento.js?v=1791463185"></script>
 </body>
 </html>

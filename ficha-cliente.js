@@ -161,6 +161,13 @@ function fichaRender() {
   fxRenderFoot(d);
 }
 
+function fxTeamName(d) {
+  if (!d.consultor || typeof teams === "undefined") return "";
+  const u = users.find(x => x.id === d.consultor.id);
+  const tm = u && teams.find(x => x.id === u.team_id);
+  return tm ? "time: " + tm.name : "";
+}
+
 function fxRenderHero(d) {
   const lead = d.lead, e = d.enrollment, deal = d.deal, post = fxIsPostSale(d), v = d.viewer || {};
   const recs = d.receivables || [];
@@ -199,7 +206,7 @@ function fxRenderHero(d) {
       <div class="fx-avatar">${fxEsc(fxInitials(lead.name))}</div>
       <div>
         <h2>${fxEsc(lead.name)}</h2>
-        <p>${[lead.email, lead.phone, lead.source ? "origem: " + lead.source : "", d.consultor ? "consultor: " + d.consultor.name : ""].filter(Boolean).map(fxEsc).join(" · ")}</p>
+        <p>${[lead.email, lead.phone, lead.source ? "origem: " + lead.source : "", d.consultor ? "consultor: " + d.consultor.name : "", fxTeamName(d)].filter(Boolean).map(fxEsc).join(" · ")}</p>
       </div>
     </div>
     <div class="fx-badges">${badges.join("")}</div>

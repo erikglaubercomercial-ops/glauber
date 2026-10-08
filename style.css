@@ -2234,3 +2234,8 @@ body {
 .lead-link { cursor: pointer; }
 .lead-link:hover { text-decoration: underline; color: var(--primary); }
 .ficha-backdrop { z-index: 35; }
+
+/* times */
+.team-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; }
+.team-countries { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 12px; max-height: 190px; overflow-y: auto; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--content-bg); }
+.team-country { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }

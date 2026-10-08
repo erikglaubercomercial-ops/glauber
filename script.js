@@ -8297,6 +8297,7 @@ function renderUsers() {
       <td class="cell-primary">${escapeHtml(u.name)}</td>
       <td class="cell-muted">${escapeHtml(u.email)}</td>
       <td><span class="badge ${u.role === "ADM" ? "badge-role-adm" : "badge-neutral"}">${escapeHtml(u.role)}</span></td>
+      <td class="cell-muted">${escapeHtml((teams.find(tm => tm.id === u.team_id) || {}).name || "—")}</td>
       <td><span class="badge ${u.active ? "badge-good" : "badge-danger"}">${u.active ? t("users.statusActive") : t("users.statusInactive")}</span></td>
       <td class="cell-actions">›</td>
     `;
@@ -8305,7 +8306,66 @@ function renderUsers() {
   });
 
   renderUsersDashboard();
+  renderTeams();
 }
+
+/* ---- times (Brasil, Time Latinos...) ---- */
+let teams = [];
+function teamFromDb(r) { return { id: r.id, name: r.name, managerId: r.manager_id || null, countries: r.countries || [] }; }
+async function loadTeams() {
+  const { data, error } = await supabase.from("teams").select("*").order("name");
+  if (error) { console.error("Erro ao carregar times:", error); return []; }
+  return data.map(teamFromDb);
+}
+function teamCountryLabel(code) { const c = COUNTRIES.find(x => x.code === code); return c ? `${c.flag} ${c.name}` : code; }
+function renderTeams() {
+  const tbody = document.getElementById("teams-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = teams.map(tm => {
+    const mgr = users.find(u => u.id === tm.managerId);
+    const members = users.filter(u => u.team_id === tm.id && u.active);
+    return `<tr data-id="${tm.id}">
+      <td class="cell-primary">${escapeHtml(tm.name)}</td>
+      <td class="cell-muted">${escapeHtml(mgr ? mgr.name : "—")}</td>
+      <td class="cell-muted">${escapeHtml(tm.countries.map(teamCountryLabel).join(", ") || "—")}</td>
+      <td class="cell-muted">${escapeHtml(members.map(m => m.name).join(", ") || "—")}</td>
+      <td class="cell-actions">${session && session.role === "ADM" ? "›" : ""}</td>
+    </tr>`;
+  }).join("");
+  tbody.querySelectorAll("tr").forEach(tr => tr.addEventListener("click", () => { if (session && session.role === "ADM") openTeamModal(tr.dataset.id); }));
+}
+const teamModalBackdrop = document.getElementById("team-modal-backdrop");
+function openTeamModal(id) {
+  const tm = teams.find(x => x.id === id);
+  if (!tm) return;
+  document.getElementById("team-id").value = tm.id;
+  document.getElementById("team-field-name").value = tm.name;
+  document.getElementById("team-field-manager").innerHTML = `<option value="">—</option>` + users.filter(u => u.active)
+    .sort((a, b) => a.name.localeCompare(b.name)).map(u => `<option value="${u.id}">${escapeHtml(u.name)} (${escapeHtml(u.role)})</option>`).join("");
+  document.getElementById("team-field-manager").value = tm.managerId || "";
+  document.getElementById("team-field-countries").innerHTML = COUNTRIES.map(c => `<label class="team-country"><input type="checkbox" value="${c.code}" ${tm.countries.includes(c.code) ? "checked" : ""}> ${c.flag} ${escapeHtml(c.name)}</label>`).join("");
+  teamModalBackdrop.classList.add("open");
+}
+function closeTeamModal() { teamModalBackdrop.classList.remove("open"); }
+document.getElementById("team-modal-close").addEventListener("click", closeTeamModal);
+document.getElementById("team-btn-cancel").addEventListener("click", closeTeamModal);
+teamModalBackdrop.addEventListener("click", e => { if (e.target === teamModalBackdrop) closeTeamModal(); });
+document.getElementById("team-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const tm = teams.find(x => x.id === document.getElementById("team-id").value);
+  if (!tm) return;
+  const name = document.getElementById("team-field-name").value.trim();
+  if (!name) return;
+  const patch = {
+    name, manager_id: document.getElementById("team-field-manager").value || null,
+    countries: [...document.querySelectorAll("#team-field-countries input:checked")].map(i => i.value),
+  };
+  const { error } = await supabase.from("teams").update(patch).eq("id", tm.id);
+  if (error) { console.error(error); alert(t("users.teamSaveError")); return; }
+  Object.assign(tm, { name: patch.name, managerId: patch.manager_id, countries: patch.countries });
+  renderTeams(); renderUsers();
+  closeTeamModal();
+});
 
 function renderUsersDashboard() {
   document.getElementById("users-stat-total").textContent = users.length;
@@ -8326,13 +8386,12 @@ function openUserModal(id) {
   document.getElementById("user-field-email").value = u.email;
   document.getElementById("user-field-role").value = u.role;
   document.getElementById("user-field-active").checked = !!u.active;
-  const mgrSel = document.getElementById("user-field-manager");
-  mgrSel.innerHTML = `<option value="">${escapeHtml(t("users.noManager"))}</option>` + users
-    .filter(x => (x.role === "Gerente" || x.role === "ADM") && x.active && x.id !== u.id)
-    .map(x => `<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");
-  mgrSel.value = u.manager_id || "";
-  document.getElementById("user-manager-wrap").style.display = u.role === "Consultor" ? "" : "none";
-  document.getElementById("user-field-role").onchange = ev => { document.getElementById("user-manager-wrap").style.display = ev.target.value === "Consultor" ? "" : "none"; };
+  const teamSel = document.getElementById("user-field-team");
+  teamSel.innerHTML = `<option value="">${escapeHtml(t("users.noTeam"))}</option>` + teams.map(tm => `<option value="${tm.id}">${escapeHtml(tm.name)}</option>`).join("");
+  teamSel.value = u.team_id || "";
+  const showTeam = r => r === "Consultor" || r === "Gerente";
+  document.getElementById("user-team-wrap").style.display = showTeam(u.role) ? "" : "none";
+  document.getElementById("user-field-role").onchange = ev => { document.getElementById("user-team-wrap").style.display = showTeam(ev.target.value) ? "" : "none"; };
   document.getElementById("user-field-role").disabled = isLastAdmin;
   document.getElementById("user-field-active").disabled = isLastAdmin;
   document.getElementById("user-adm-hint").style.display = isLastAdmin ? "block" : "none";
@@ -8393,11 +8452,12 @@ userForm.addEventListener("submit", async e => {
   u.name = document.getElementById("user-field-name").value.trim();
   u.role = role;
   u.active = active;
-  u.manager_id = role === "Consultor" ? (document.getElementById("user-field-manager").value || null) : null;
+  u.team_id = (role === "Consultor" || role === "Gerente") ? (document.getElementById("user-field-team").value || null) : null;
 
   renderUsers();
   closeUserModal();
-  await updateUserProfile(u.id, { name: u.name, role: u.role, active: u.active, managerId: u.manager_id });
+  await updateUserProfile(u.id, { name: u.name, role: u.role, active: u.active, teamId: u.team_id });
+  renderTeams();
 });
 
 userBtnDelete.addEventListener("click", async () => {
@@ -8469,6 +8529,7 @@ document.addEventListener("keydown", e => {
   if (adSpendModalBackdrop.classList.contains("open")) closeAdSpendModal();
   if (transferModalBackdrop.classList.contains("open")) closeTransferModal();
   if (scommModalBackdrop.classList.contains("open")) closeSchoolCommModal();
+  if (teamModalBackdrop.classList.contains("open")) closeTeamModal();
   if (collaboratorModalBackdrop.classList.contains("open")) closeCollaboratorModal();
   if (followUpModalBackdrop.classList.contains("open")) closeFollowUpModal();
   if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
@@ -8492,7 +8553,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits, schoolCommissions] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits, schoolCommissions, teams] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -8521,6 +8582,7 @@ document.addEventListener("keydown", e => {
     loadSchoolTransfers(),
     loadSaleSplits(),
     loadSchoolCommissions(),
+    loadTeams(),
   ]);
 
   renderSessionChip();
