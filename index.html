@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791458971">
+<link rel="stylesheet" href="style.css?v=1791459644">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1963,6 +1963,44 @@
     </div>
   </div>
 
+  <!-- FICHA DO CLIENTE (jornada completa do lead) -->
+  <div class="modal-backdrop ficha-backdrop" id="ficha-backdrop">
+    <div class="ficha-sheet" id="ficha-sheet">
+      <div class="ficha-loading" id="ficha-loading">Carregando a ficha...</div>
+      <div id="ficha-body" style="display:none;">
+        <div class="prod-hero fx-hero" id="ficha-hero"></div>
+        <div class="prod-surface fx-sec fx-pad" id="ficha-journey"></div>
+        <div class="fx-grid" id="ficha-cards"></div>
+        <div class="fx-grid">
+          <div class="fx-card">
+            <h3><span class="ic">📅</span>Follow-ups agendados</h3>
+            <div id="ficha-followups"></div>
+            <button type="button" class="btn btn-primary btn-sm" id="ficha-btn-schedule" style="margin-top:12px;">+ Agendar follow-up</button>
+            <div class="fx-form" id="ficha-fu-form">
+              <div class="row">
+                <label>Tipo<select id="ficha-fu-kind"><option>Ligação</option><option>WhatsApp</option><option>Reunião</option><option>Enviar cotação</option><option>Cobrar documento</option><option>Outro</option></select></label>
+                <label>Data<input type="date" id="ficha-fu-date"></label>
+                <label>Hora<input type="time" id="ficha-fu-time" value="10:00"></label>
+                <label>Avisar<select id="ficha-fu-remind"><option value="0">Na hora</option><option value="15">15 min antes</option><option value="60">1 hora antes</option><option value="1440">1 dia antes</option></select></label>
+              </div>
+              <label style="margin-top:10px;">O que fazer<input type="text" id="ficha-fu-note" placeholder="Ex.: confirmar valor do curso" maxlength="300"></label>
+              <div class="fx-form-err" id="ficha-fu-err"></div>
+              <div style="display:flex;gap:8px;margin-top:12px;"><button type="button" class="btn btn-primary btn-sm" id="ficha-fu-save">Salvar agendamento</button><button type="button" class="btn btn-ghost btn-sm" id="ficha-fu-cancel">Cancelar</button></div>
+            </div>
+          </div>
+          <div class="fx-card fx-note">
+            <h3><span class="ic">✎</span>Anotações</h3>
+            <textarea id="ficha-note-text" rows="3" maxlength="4000" placeholder="O que combinou, dúvidas, objeções, valores citados..."></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;flex-wrap:wrap;"><span class="fx-mu" style="font-size:11.5px;">Fica registrado com data, hora e autor</span><button type="button" class="btn btn-primary btn-sm" id="ficha-note-save">Salvar anotação</button></div>
+            <div id="ficha-notes" style="margin-top:8px;"></div>
+          </div>
+        </div>
+        <div class="prod-surface fx-sec fx-pad" id="ficha-timeline"></div>
+        <div class="fx-foot" id="ficha-foot"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: ENVIO PARA ESCOLA -->
   <div class="modal-backdrop" id="transfer-modal-backdrop">
     <div class="modal">
@@ -2509,13 +2547,14 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791458971"></script>
-  <script src="auth.js?v=1791458971"></script>
-  <script src="i18n.js?v=1791458971"></script>
-  <script src="comparativo.js?v=1791458971"></script>
-  <script src="contrato-modelo.js?v=1791458971"></script>
-  <script src="script.js?v=1791458971"></script>
-  <script src="contratos-proposta.js?v=1791458971"></script>
-  <script src="app-acompanhamento.js?v=1791458971"></script>
+  <script src="config.js?v=1791459644"></script>
+  <script src="auth.js?v=1791459644"></script>
+  <script src="i18n.js?v=1791459644"></script>
+  <script src="comparativo.js?v=1791459644"></script>
+  <script src="contrato-modelo.js?v=1791459644"></script>
+  <script src="script.js?v=1791459644"></script>
+  <script src="contratos-proposta.js?v=1791459644"></script>
+  <script src="ficha-cliente.js?v=1791459644"></script>
+  <script src="app-acompanhamento.js?v=1791459644"></script>
 </body>
 </html>

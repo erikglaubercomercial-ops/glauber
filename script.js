@@ -829,7 +829,7 @@ function renderCard(deal) {
   const followUpTitle = deal.followUpAt ? `Follow-up: ${formatDate(deal.followUpAt)}` : "Marcar follow-up";
 
   card.innerHTML = `
-    <div class="card-name">${escapeHtml(deal.name)}</div>
+    <div class="card-name${deal.leadId ? " cell-name-link" : ""}" ${deal.leadId ? 'data-act="ficha"' : ""}>${escapeHtml(deal.name)}</div>
     <div class="card-meta">${new Date(deal.createdAt).toLocaleDateString("pt-BR")}</div>
     ${phoneText ? `
       <div class="card-contact-row">
@@ -868,6 +868,8 @@ function renderCard(deal) {
     recordFirstInteraction(deal);
     unstickLeadIfNew(deal.leadId);
   });
+  const nameLink = card.querySelector('[data-act="ficha"]');
+  if (nameLink) nameLink.addEventListener("click", e => { e.stopPropagation(); openFicha(deal.leadId); });
   card.querySelector('[data-act="followup"]').addEventListener("click", e => {
     e.stopPropagation();
     openFollowUpModal(deal.id);
@@ -1714,7 +1716,7 @@ function renderLeads() {
 
     tr.addEventListener("click", e => {
       if (e.target.closest(".wpp-btn")) return;
-      openLeadModal(lead.id);
+      openFicha(lead.id);
     });
     leadsTbody.appendChild(tr);
   });
@@ -1928,6 +1930,7 @@ function toggleRowMenu(lead, triggerEl) {
   menu.style.left = `${Math.max(8, rect.right - 190)}px`;
   const isInactive = lead.active === false;
   menu.innerHTML = `
+    <button type="button" class="row-menu-item" data-action="edit">Editar lead</button>
     <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
     <button type="button" class="row-menu-item" data-action="status">Mudar status</button>
     <button type="button" class="row-menu-item" data-action="temperature">Mudar temperatura</button>
@@ -1942,6 +1945,10 @@ function toggleRowMenu(lead, triggerEl) {
   document.body.appendChild(menu);
   openRowMenuEl = menu;
 
+  menu.querySelector('[data-action="edit"]').addEventListener("click", () => {
+    closeRowMenu();
+    openLeadModal(lead.id);
+  });
   menu.querySelector('[data-action="assign"]').addEventListener("click", () => {
     closeRowMenu();
     openAssignModal([lead.id]);
@@ -6073,7 +6080,7 @@ function enrollmentFromDb(r) {
     birthDate: r.birth_date || "", nationality: r.nationality || "", emergencyName: r.emergency_name || "",
     passportNumber: r.passport_number || "", passportPhotoPath: r.passport_photo_path || null,
     passportIssueDate: r.passport_issue_date || "", passportExpiryDate: r.passport_expiry_date || "",
-    matriculaPendente: !!r.matricula_pendente,
+    matriculaPendente: !!r.matricula_pendente, preEmbarkAt: r.pre_embark_at || null,
     cpf: r.cpf || "",
     addressStreet: r.address_street || "", addressNumber: r.address_number || "",
     addressComplement: r.address_complement || "", addressNeighborhood: r.address_neighborhood || "",
@@ -7364,7 +7371,7 @@ function renderFormResponses() {
     btn.addEventListener("click", () => {
       if (!canAccessView("leads")) return;
       switchView("leads");
-      openLeadModal(btn.dataset.leadId);
+      openFicha(btn.dataset.leadId);
     });
   });
   tbody.querySelectorAll(".fr-row-checkbox").forEach(cb => {
