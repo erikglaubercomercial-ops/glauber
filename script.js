@@ -497,7 +497,7 @@ function escapeHtml(str) {
    (ex.: origem, categoria, escola) não estão aqui de propósito, pois são
    editáveis pelo ADM e não têm tradução automática possível */
 const STATUS_I18N_MAP = {
-  "Novo": "status.novo", "Em contato": "status.emContato", "Qualificado": "status.qualificado", "Descartado": "status.descartado",
+  "Novo": "status.novo", "Em contato": "status.emContato", "Qualificado": "status.qualificado", "Venda realizada": "status.vendaRealizada", "Descartado": "status.descartado",
   "Quente": "status.quente", "Morno": "status.morno", "Frio": "status.frio",
   "Aguardando aluno": "status.aguardandoAluno", "Preenchido pelo aluno": "status.preenchidoPeloAluno", "Completo": "status.completo",
   "Aguardando colaborador": "status.aguardandoColaborador", "Preenchido pelo colaborador": "status.preenchidoPeloColaborador",
@@ -1200,7 +1200,7 @@ stagesNewInput.addEventListener("keydown", e => {
    ============================================================ */
 const CATEGORIES = ["Intercâmbio de Idiomas", "High School", "Au Pair", "Work and Travel", "Graduação/Pós no Exterior", "Vistos e Documentação", "Outro"];
 const TEMPERATURES = ["Quente", "Morno", "Frio"];
-const STATUSES = ["Novo", "Em contato", "Qualificado", "Descartado"];
+const STATUSES = ["Novo", "Em contato", "Qualificado", "Venda realizada", "Descartado"];
 
 /* configuração de comissão de influencer por origem (chave = nome da
    origem) — carregada junto com SOURCES, mantida em memória à parte
@@ -1250,6 +1250,7 @@ const LEAD_STATUS_BADGE = {
   "Novo": "badge-neutral",
   "Em contato": "badge-warn",
   "Qualificado": "badge-good",
+  "Venda realizada": "badge-good",
   "Descartado": "badge-danger",
 };
 const TEMPERATURE_BADGE = {
@@ -1530,7 +1531,7 @@ function renderLeadFilterOptions() {
 
   const currentStatus = statusSel.value;
   statusSel.innerHTML = `<option value="">${t("common.statusAll")}</option>` +
-    ["Novo", "Em contato", "Qualificado", "Descartado"].map(st => `<option value="${st}">${escapeHtml(statusLabel(st))}</option>`).join("");
+    ["Novo", "Em contato", "Qualificado", "Venda realizada", "Descartado"].map(st => `<option value="${st}">${escapeHtml(statusLabel(st))}</option>`).join("");
   statusSel.value = currentStatus;
   sourceSel.innerHTML = `<option value="">Origem (todas)</option>` + SOURCES.map(s => `<option value="${s}">${s}</option>`).join("");
 
@@ -2608,7 +2609,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
       category: matchEnum(get("category"), CATEGORIES, "Outro"),
       source: matchEnum(get("source"), SOURCES, "Outro"),
       temperature: matchEnum(get("temperature"), TEMPERATURES, ""),
-      status: matchEnum(get("status"), ["Novo", "Em contato", "Qualificado", "Descartado"], "Novo"),
+      status: matchEnum(get("status"), ["Novo", "Em contato", "Qualificado", "Venda realizada", "Descartado"], "Novo"),
       consultorId,
       active: true,
       /* data de entrada da planilha (se vier e for válida e não for do futuro); senão, hoje */
