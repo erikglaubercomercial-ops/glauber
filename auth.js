@@ -78,14 +78,16 @@ function hasModuleAccess(role, moduleId) {
 async function loadUsers() {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, email, role, active, created_at")
+    .select("id, name, email, role, active, created_at, manager_id")
     .order("name");
   if (error) { console.error("Erro ao carregar usuários:", error); return []; }
   return (data || []).map(u => ({ ...u, createdAt: u.created_at ? new Date(u.created_at).getTime() : Date.now() }));
 }
 
-async function updateUserProfile(id, { name, role, active }) {
-  const { error } = await supabase.from("profiles").update({ name, role, active }).eq("id", id);
+async function updateUserProfile(id, { name, role, active, managerId }) {
+  const patch = { name, role, active };
+  if (managerId !== undefined) patch.manager_id = managerId || null;
+  const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   return !error;
 }
 

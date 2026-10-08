@@ -970,10 +970,10 @@ function moveDeal(id, newStage) {
       saveLeads();
     }
   }
-  saveDeals([deal]);
+  const saving = saveDeals([deal]);
   renderBoard();
   renderLeads();
-  if (isWonStage(newStage)) handleDealWon(deal);
+  if (isWonStage(newStage)) handleDealWon(deal, saving);
 }
 
 function renderPipelineDashboard() {
@@ -1083,8 +1083,9 @@ dealForm.addEventListener("submit", async e => {
   renderBoard();
   renderLeads();
   closeDealModal();
-  await saveDeals([deal]);
-  if (isWonStage(deal.stage)) handleDealWon(deal);
+  const saving = saveDeals([deal]);
+  await saving;
+  if (isWonStage(deal.stage)) handleDealWon(deal, saving);
 });
 
 btnDelete.addEventListener("click", async () => {
@@ -4904,7 +4905,7 @@ let influencerCommissions = [];
 let adSpend = [];
 let schoolTransfers = [];
 let receivables = [];
-let commissionSettings = { defaultPercentage: 10 };
+let commissionSettings = { defaultPercentage: 25, platformFee: 530, platformPct: 25, managerFixed: 100, cacFixed: 100, releaseMinPaid: 500 };
 
 async function loadExpenseCategories() {
   const { data, error } = await supabase.from("expense_categories").select("name").order("ordem");
@@ -4957,14 +4958,41 @@ async function deleteExpenseRemote(id) {
   if (error) console.error("Erro ao excluir despesa:", error);
 }
 
+const COMMISSION_DEFAULTS = { defaultPercentage: 25, platformFee: 530, platformPct: 25, managerFixed: 100, cacFixed: 100, releaseMinPaid: 500 };
 async function loadCommissionSettings() {
-  const { data, error } = await supabase.from("commission_settings").select("default_percentage").eq("id", 1).single();
-  if (error || !data) return { defaultPercentage: 10 };
-  return { defaultPercentage: Number(data.default_percentage) || 10 };
+  const { data, error } = await supabase.from("commission_settings").select("*").eq("id", 1).single();
+  if (error || !data) return { ...COMMISSION_DEFAULTS };
+  const n = (v, d) => (v == null || v === "" ? d : Number(v));
+  return {
+    defaultPercentage: n(data.default_percentage, COMMISSION_DEFAULTS.defaultPercentage),
+    platformFee: n(data.platform_fee, COMMISSION_DEFAULTS.platformFee),
+    platformPct: n(data.platform_pct, COMMISSION_DEFAULTS.platformPct),
+    managerFixed: n(data.manager_fixed, COMMISSION_DEFAULTS.managerFixed),
+    cacFixed: n(data.cac_fixed, COMMISSION_DEFAULTS.cacFixed),
+    releaseMinPaid: n(data.release_min_paid, COMMISSION_DEFAULTS.releaseMinPaid),
+  };
 }
-async function updateCommissionSettingRemote(pct) {
-  const { error } = await supabase.from("commission_settings").update({ default_percentage: pct }).eq("id", 1);
-  if (error) console.error("Erro ao salvar comissão padrão:", error);
+async function updateCommissionSettingsRemote(cfg) {
+  const { error } = await supabase.from("commission_settings").update({
+    default_percentage: cfg.defaultPercentage, platform_fee: cfg.platformFee, platform_pct: cfg.platformPct,
+    manager_fixed: cfg.managerFixed, cac_fixed: cfg.cacFixed, release_min_paid: cfg.releaseMinPaid,
+  }).eq("id", 1);
+  if (error) console.error("Erro ao salvar regras de comissão:", error);
+  return !error;
+}
+
+/* partilha de cada venda (Peregrinos, gerente, CAC) — só quem acessa o Financeiro recebe linhas */
+let saleSplits = [];
+function saleSplitFromDb(r) {
+  return { dealId: r.deal_id, courseTotal: Number(r.course_total) || 0, fee: Number(r.fee) || 0, base: Number(r.base) || 0,
+    peregrinosGross: Number(r.peregrinos_gross) || 0, consultorAmount: Number(r.consultor_amount) || 0,
+    managerId: r.manager_id || null, managerAmount: Number(r.manager_amount) || 0, cacAmount: Number(r.cac_amount) || 0,
+    peregrinosNet: Number(r.peregrinos_net) || 0 };
+}
+async function loadSaleSplits() {
+  const { data, error } = await supabase.from("sale_splits").select("*");
+  if (error) { console.error("Erro ao carregar partilha das vendas:", error); return []; }
+  return data.map(saleSplitFromDb);
 }
 
 function commissionFromDb(r) {
@@ -5158,23 +5186,16 @@ async function handleEnrollmentInfluencerCommission(enr) {
 }
 
 /* ---- ao marcar um negócio como Ganho: gera comissão e pede as parcelas ---- */
-async function handleDealWon(deal) {
+async function handleDealWon(deal, saving) {
   if (!isWonStage(deal.stage)) return;
 
   const lead = deal.leadId ? leads.find(l => l.id === deal.leadId) : null;
 
-  if (!commissions.some(c => c.dealId === deal.id)) {
-    const pct = commissionSettings.defaultPercentage;
-    const commission = {
-      id: uid(), dealId: deal.id, consultorId: lead ? lead.consultorId : null,
-      dealName: deal.name, dealValue: deal.value,
-      percentage: pct, amount: round2(deal.value * pct / 100),
-      status: "Pendente", paidAt: null, createdAt: Date.now(),
-    };
-    commissions.push(commission);
-    renderCommissions();
-    await saveCommission(commission);
-  }
+  /* a comissão do consultor e a partilha da venda são calculadas pelo banco (migração 047):
+     (valor − taxa) × % da Peregrinos × % do consultor. Aqui só recarregamos o resultado. */
+  if (saving) await saving;
+  [commissions, saleSplits] = await Promise.all([loadCommissions(), loadSaleSplits()]);
+  renderCommissions();
 
   if (lead && lead.source && !influencerCommissions.some(c => c.dealId === deal.id && !c.enrollmentId)) {
     const cfg = sourceInfluencerConfig[lead.source];
@@ -5643,6 +5664,7 @@ function renderCommissions() {
   document.getElementById("fin-commissions-empty").style.display = list.length === 0 ? "block" : "none";
   list.forEach(c => {
     const consultant = users.find(u => u.id === c.consultorId);
+    const rel = commissionRelease(c.dealId);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-primary">${escapeHtml(consultant ? consultant.name : "—")}</td>
@@ -5650,6 +5672,7 @@ function renderCommissions() {
       <td class="cell-muted">${currency(c.dealValue)}</td>
       <td class="cell-muted">${c.percentage}%</td>
       <td class="cell-primary">${currency(c.amount)}</td>
+      <td class="cell-muted">${c.status === "Pago" ? "—" : (rel.released ? `<span class="badge badge-good">${escapeHtml(t("fin.releasedYes"))}</span>` : `<span class="badge badge-warn" title="${escapeHtml(t("fin.releasedWait").replace("{min}", currency(rel.min)).replace("{paid}", currency(rel.paid)))}">${escapeHtml(t("fin.releasedWaitShort"))}</span>`)}</td>
       <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${escapeHtml(statusLabel(c.status))}</span></td>
       <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? t("fin.markPending") : t("fin.markPaid")}</button></td>
     `;
@@ -5658,6 +5681,41 @@ function renderCommissions() {
 
   document.getElementById("fin-commission-setting-wrap").style.display = session && session.role === "ADM" ? "flex" : "none";
   document.getElementById("fin-commission-pct").value = commissionSettings.defaultPercentage;
+  document.getElementById("fin-rule-fee").value = commissionSettings.platformFee;
+  document.getElementById("fin-rule-platform-pct").value = commissionSettings.platformPct;
+  document.getElementById("fin-rule-manager").value = commissionSettings.managerFixed;
+  document.getElementById("fin-rule-cac").value = commissionSettings.cacFixed;
+  document.getElementById("fin-rule-release").value = commissionSettings.releaseMinPaid;
+  renderSaleSplits();
+}
+
+/* o cliente já pagou o mínimo de matrícula? (libera a comissão do consultor) */
+function commissionRelease(dealId) {
+  const paid = receivables.filter(r => r.dealId === dealId && r.paid).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const min = commissionSettings.releaseMinPaid;
+  return { released: paid >= min, paid, min };
+}
+
+/* partilha por venda: tudo sai do ganho da Peregrinos (só ADM, Gerente e Financeiro enxergam) */
+function renderSaleSplits() {
+  const tbody = document.getElementById("fin-splits-tbody");
+  if (!tbody) return;
+  const list = saleSplits.slice().sort((a, b) => (commissions.find(c => c.dealId === b.dealId) || {}).createdAt - (commissions.find(c => c.dealId === a.dealId) || {}).createdAt);
+  document.getElementById("fin-splits-empty").style.display = list.length === 0 ? "block" : "none";
+  tbody.innerHTML = list.map(sp => {
+    const deal = deals.find(d => d.id === sp.dealId);
+    const mgr = users.find(u => u.id === sp.managerId);
+    return `<tr>
+      <td class="cell-primary">${escapeHtml(deal ? deal.name : "—")}</td>
+      <td class="cell-muted">${currency(sp.courseTotal)}</td>
+      <td class="cell-muted">${currency(sp.base)}</td>
+      <td class="cell-primary">${currency(sp.peregrinosGross)}</td>
+      <td class="cell-muted">${currency(sp.consultorAmount)}</td>
+      <td class="cell-muted">${currency(sp.managerAmount)}${mgr ? ` <span class="muted-note">(${escapeHtml(mgr.name)})</span>` : ""}</td>
+      <td class="cell-muted">${currency(sp.cacAmount)}</td>
+      <td class="cell-primary ${sp.peregrinosNet < 0 ? "neg" : ""}">${currency(sp.peregrinosNet)}</td>
+    </tr>`;
+  }).join("");
 }
 
 document.getElementById("fin-commissions-tbody").addEventListener("click", async e => {
@@ -5665,6 +5723,10 @@ document.getElementById("fin-commissions-tbody").addEventListener("click", async
   if (!btn) return;
   const c = commissions.find(x => x.id === btn.dataset.id);
   if (!c) return;
+  if (c.status !== "Pago") {
+    const rel = commissionRelease(c.dealId);
+    if (!rel.released) { alert(t("fin.commissionNotReleased").replace("{min}", currency(rel.min))); return; }
+  }
   c.status = c.status === "Pago" ? "Pendente" : "Pago";
   c.paidAt = c.status === "Pago" ? Date.now() : null;
   renderCommissions();
@@ -5672,9 +5734,18 @@ document.getElementById("fin-commissions-tbody").addEventListener("click", async
 });
 
 document.getElementById("fin-commission-pct-save").addEventListener("click", async () => {
-  const pct = parseFloat(document.getElementById("fin-commission-pct").value) || 0;
-  commissionSettings.defaultPercentage = pct;
-  await updateCommissionSettingRemote(pct);
+  const num = (id, d) => { const v = parseFloat(document.getElementById(id).value); return Number.isFinite(v) && v >= 0 ? v : d; };
+  const cfg = {
+    defaultPercentage: Math.min(100, num("fin-commission-pct", commissionSettings.defaultPercentage)),
+    platformFee: num("fin-rule-fee", commissionSettings.platformFee),
+    platformPct: Math.min(100, num("fin-rule-platform-pct", commissionSettings.platformPct)),
+    managerFixed: num("fin-rule-manager", commissionSettings.managerFixed),
+    cacFixed: num("fin-rule-cac", commissionSettings.cacFixed),
+    releaseMinPaid: num("fin-rule-release", commissionSettings.releaseMinPaid),
+  };
+  const ok = await updateCommissionSettingsRemote(cfg);
+  if (!ok) { alert(t("fin.commissionSaveError")); return; }
+  commissionSettings = cfg;
   alert(t("fin.commissionUpdated"));
 });
 
@@ -8177,6 +8248,13 @@ function openUserModal(id) {
   document.getElementById("user-field-email").value = u.email;
   document.getElementById("user-field-role").value = u.role;
   document.getElementById("user-field-active").checked = !!u.active;
+  const mgrSel = document.getElementById("user-field-manager");
+  mgrSel.innerHTML = `<option value="">${escapeHtml(t("users.noManager"))}</option>` + users
+    .filter(x => (x.role === "Gerente" || x.role === "ADM") && x.active && x.id !== u.id)
+    .map(x => `<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");
+  mgrSel.value = u.manager_id || "";
+  document.getElementById("user-manager-wrap").style.display = u.role === "Consultor" ? "" : "none";
+  document.getElementById("user-field-role").onchange = ev => { document.getElementById("user-manager-wrap").style.display = ev.target.value === "Consultor" ? "" : "none"; };
   document.getElementById("user-field-role").disabled = isLastAdmin;
   document.getElementById("user-field-active").disabled = isLastAdmin;
   document.getElementById("user-adm-hint").style.display = isLastAdmin ? "block" : "none";
@@ -8237,10 +8315,11 @@ userForm.addEventListener("submit", async e => {
   u.name = document.getElementById("user-field-name").value.trim();
   u.role = role;
   u.active = active;
+  u.manager_id = role === "Consultor" ? (document.getElementById("user-field-manager").value || null) : null;
 
   renderUsers();
   closeUserModal();
-  await updateUserProfile(u.id, { name: u.name, role: u.role, active: u.active });
+  await updateUserProfile(u.id, { name: u.name, role: u.role, active: u.active, managerId: u.manager_id });
 });
 
 userBtnDelete.addEventListener("click", async () => {
@@ -8334,7 +8413,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -8361,6 +8440,7 @@ document.addEventListener("keydown", e => {
     loadSchools(),
     loadSchoolCities(),
     loadSchoolTransfers(),
+    loadSaleSplits(),
   ]);
 
   renderSessionChip();

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791444399">
+<link rel="stylesheet" href="style.css?v=1791458971">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -851,17 +851,42 @@
             <div class="panel-header">
               <h2 data-i18n="fin.consultantCommissions">Comissões dos Consultores</h2>
               <div class="fin-commission-setting" id="fin-commission-setting-wrap" style="display:none;">
-                <label><span data-i18n="fin.defaultCommission">Comissão padrão (%)</span>
-                  <input type="number" id="fin-commission-pct" min="0" max="100" step="0.1" style="width:80px;">
+                <label><span data-i18n="fin.ruleFee">Taxa descontada do curso (€)</span>
+                  <input type="number" id="fin-rule-fee" min="0" step="0.01" style="width:90px;">
+                </label>
+                <label><span data-i18n="fin.rulePlatformPct">Ganho da Peregrinos (% da base)</span>
+                  <input type="number" id="fin-rule-platform-pct" min="0" max="100" step="0.1" style="width:90px;">
+                </label>
+                <label><span data-i18n="fin.defaultCommission">Comissão do consultor (% do ganho da Peregrinos)</span>
+                  <input type="number" id="fin-commission-pct" min="0" max="100" step="0.1" style="width:90px;">
+                </label>
+                <label><span data-i18n="fin.ruleManager">Gerente do time (€ por venda)</span>
+                  <input type="number" id="fin-rule-manager" min="0" step="0.01" style="width:90px;">
+                </label>
+                <label><span data-i18n="fin.ruleCac">CAC provisório (€ por venda)</span>
+                  <input type="number" id="fin-rule-cac" min="0" step="0.01" style="width:90px;">
+                </label>
+                <label><span data-i18n="fin.ruleRelease">Pago pelo cliente para liberar (€)</span>
+                  <input type="number" id="fin-rule-release" min="0" step="0.01" style="width:90px;">
                 </label>
                 <button type="button" class="btn btn-ghost btn-sm" id="fin-commission-pct-save" data-i18n="common.save">Salvar</button>
               </div>
             </div>
             <table class="data-table">
-              <thead><tr><th data-i18n="common.consultant">Consultor</th><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.dealValue">Valor do negócio</th><th>%</th><th data-i18n="fin.commission">Comissão</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
+              <thead><tr><th data-i18n="common.consultant">Consultor</th><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.dealValue">Valor do negócio</th><th>%</th><th data-i18n="fin.commission">Comissão</th><th data-i18n="fin.release">Liberação</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
               <tbody id="fin-commissions-tbody"></tbody>
             </table>
             <div class="empty-hint" id="fin-commissions-empty" style="display:none;" data-i18n="fin.noCommissions">Nenhuma comissão gerada ainda.</div>
+          </div>
+          <div class="panel" style="margin-top:16px;">
+            <div class="panel-header">
+              <h2 data-i18n="fin.splitsTitle">Partilha por venda</h2>
+            </div>
+            <table class="data-table">
+              <thead><tr><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.splitCourse">Curso</th><th data-i18n="fin.splitBase">Base (− taxa)</th><th data-i18n="fin.splitGross">Ganho Peregrinos</th><th data-i18n="fin.splitConsultor">Consultor</th><th data-i18n="fin.splitManager">Gerente</th><th data-i18n="fin.splitCac">CAC</th><th data-i18n="fin.splitNet">Sobra Peregrinos</th></tr></thead>
+              <tbody id="fin-splits-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="fin-splits-empty" style="display:none;" data-i18n="fin.noSplits">Nenhuma venda com partilha calculada ainda.</div>
           </div>
           <div class="panel" style="margin-top:16px;">
             <div class="panel-header">
@@ -2409,6 +2434,9 @@
         <label><span data-i18n="users.role">Função</span>
           <select id="user-field-role"></select>
         </label>
+        <label id="user-manager-wrap"><span data-i18n="users.manager">Gerente responsável</span>
+          <select id="user-field-manager"></select>
+        </label>
         <label class="checkbox-label">
           <input type="checkbox" id="user-field-active" checked>
           <span data-i18n="users.activeUser">Usuário ativo</span>
@@ -2481,13 +2509,13 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791444399"></script>
-  <script src="auth.js?v=1791444399"></script>
-  <script src="i18n.js?v=1791444399"></script>
-  <script src="comparativo.js?v=1791444399"></script>
-  <script src="contrato-modelo.js?v=1791444399"></script>
-  <script src="script.js?v=1791444399"></script>
-  <script src="contratos-proposta.js?v=1791444399"></script>
-  <script src="app-acompanhamento.js?v=1791444399"></script>
+  <script src="config.js?v=1791458971"></script>
+  <script src="auth.js?v=1791458971"></script>
+  <script src="i18n.js?v=1791458971"></script>
+  <script src="comparativo.js?v=1791458971"></script>
+  <script src="contrato-modelo.js?v=1791458971"></script>
+  <script src="script.js?v=1791458971"></script>
+  <script src="contratos-proposta.js?v=1791458971"></script>
+  <script src="app-acompanhamento.js?v=1791458971"></script>
 </body>
 </html>
