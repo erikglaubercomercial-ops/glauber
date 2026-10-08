@@ -2227,10 +2227,8 @@ function openLeadModal(id) {
     document.getElementById("lead-modal-title").textContent = t("lead.editTitle");
     document.getElementById("lead-id").value = lead.id;
     document.getElementById("lead-field-name").value = lead.name;
-    document.getElementById("lead-field-company").value = lead.company || "";
     document.getElementById("lead-field-country").value = lead.countryCode || "BR";
-    document.getElementById("lead-field-ddd").value = lead.phoneDdd || "";
-    document.getElementById("lead-field-phone").value = lead.phoneNumber || "";
+    document.getElementById("lead-field-phone").value = [lead.phoneDdd, lead.phoneNumber].filter(Boolean).join(" ");
     document.getElementById("lead-field-email").value = lead.email || "";
     document.getElementById("lead-field-category").value = lead.category || "Outro";
     document.getElementById("lead-field-source").value = lead.source || "Indicação";
@@ -2255,6 +2253,14 @@ function openLeadModal(id) {
     document.getElementById("lead-referred-search").value = "";
     leadBtnDelete.style.display = "none";
   }
+
+  /* consultor: ADM/Gerente já atribuem na criação (vazio = rodízio automático) */
+  const consultorSel = document.getElementById("lead-field-consultor");
+  consultorSel.innerHTML = `<option value="">${escapeHtml(t("lead.consultorAuto"))}</option>` + users
+    .filter(u => isSellRole(u.role) && u.active !== false).sort((a, b) => a.name.localeCompare(b.name))
+    .map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join("");
+  consultorSel.value = existingLead && existingLead.consultorId ? existingLead.consultorId : "";
+  document.getElementById("lead-consultor-wrap").style.display = isOwnLeadsOnly() ? "none" : "";
 
   /* origem só pode ser alterada por ADM/Gerente depois que o lead já
      existe — na criação, qualquer função pode escolher a origem */
@@ -2320,22 +2326,23 @@ leadForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("lead-id").value;
   const countryCode = document.getElementById("lead-field-country").value;
-  const phoneDdd = document.getElementById("lead-field-ddd").value.trim().replace(/\D/g, "");
-  const phoneNumber = document.getElementById("lead-field-phone").value.trim().replace(/\D/g, "");
-  const dddField = document.getElementById("lead-field-ddd");
+  /* campo único "DDD + número": separa o DDD (2 dígitos; 3 em EUA/Canadá) do restante */
   const phoneField = document.getElementById("lead-field-phone");
-  const dddVazio = !phoneDdd, phoneVazio = !phoneNumber;
-  dddField.classList.toggle("err", dddVazio);
-  phoneField.classList.toggle("err", phoneVazio);
-  if (dddVazio || phoneVazio) {
+  let digits = phoneField.value.replace(/\D/g, "");
+  if (countryCode === "BR" && digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) digits = digits.slice(2);
+  const dddLen = (countryCode === "US" || countryCode === "CA") ? 3 : 2;
+  const phoneDdd = digits.slice(0, dddLen);
+  const phoneNumber = digits.slice(dddLen);
+  const phoneInvalido = digits.length < dddLen + 6;
+  phoneField.classList.toggle("err", phoneInvalido);
+  if (phoneInvalido) {
     alert(t("lead.fillPhoneForWhatsapp"));
-    (dddVazio ? dddField : phoneField).focus();
+    phoneField.focus();
     return;
   }
 
   const data = {
     name: document.getElementById("lead-field-name").value.trim(),
-    company: document.getElementById("lead-field-company").value.trim(),
     countryCode, phoneDdd, phoneNumber,
     phone: `(${phoneDdd}) ${phoneNumber}`,
     email: document.getElementById("lead-field-email").value.trim(),
@@ -2365,12 +2372,15 @@ leadForm.addEventListener("submit", async e => {
     }
   }
 
+  const chosenConsultor = document.getElementById("lead-field-consultor").value || null;
   let newLead = null;
   if (id) {
-    Object.assign(leads.find(l => l.id === id), data);
+    const target = leads.find(l => l.id === id);
+    Object.assign(target, data);
+    if (!isOwnLeadsOnly()) target.consultorId = chosenConsultor;
   } else {
-    const consultorId = isOwnLeadsOnly() ? session.id : null;
-    newLead = { id: uid(), ...data, consultorId, createdAt: Date.now() };
+    const consultorId = isOwnLeadsOnly() ? session.id : chosenConsultor;
+    newLead = { id: uid(), ...data, company: "", consultorId, createdAt: Date.now() };
     leads.push(newLead);
   }
   renderLeads();

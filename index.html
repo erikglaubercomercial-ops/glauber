@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791463185">
+<link rel="stylesheet" href="style.css?v=1791468520">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1402,22 +1402,17 @@
         <label><span data-i18n="common.name">Nome</span>
           <input type="text" id="lead-field-name" required placeholder="Ex: João Pereira">
         </label>
-        <label><span data-i18n="lead.company">Empresa</span>
-          <input type="text" id="lead-field-company" placeholder="Ex: Mercado Central">
+        <label><span data-i18n="common.email">E-mail</span>
+          <input type="email" id="lead-field-email" placeholder="Ex: joao@empresa.com">
         </label>
         <label><span data-i18n="lead.country">País (bandeira / DDI)</span>
           <select id="lead-field-country" required></select>
         </label>
-        <div class="lead-phone-row">
-          <label class="lead-phone-ddd"><span data-i18n="lead.ddd">DDD</span>
-            <input type="text" id="lead-field-ddd" required inputmode="numeric" maxlength="4" placeholder="11">
-          </label>
-          <label class="lead-phone-number"><span data-i18n="lead.phoneNumber">Número (WhatsApp)</span>
-            <input type="text" id="lead-field-phone" required inputmode="numeric" placeholder="99999-0000">
-          </label>
-        </div>
-        <label><span data-i18n="common.email">E-mail</span>
-          <input type="email" id="lead-field-email" placeholder="Ex: joao@empresa.com">
+        <label><span data-i18n="lead.phoneFull">Telefone / WhatsApp (DDD + número)</span>
+          <input type="text" id="lead-field-phone" required inputmode="tel" placeholder="Ex: 63 99290-8964" data-i18n-placeholder="lead.phoneFullPlaceholder">
+        </label>
+        <label id="lead-consultor-wrap"><span data-i18n="lead.consultorField">Consultor</span>
+          <select id="lead-field-consultor"></select>
         </label>
         <label><span data-i18n="common.category">Categoria</span>
           <select id="lead-field-category"></select>
@@ -2610,14 +2605,14 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791463185"></script>
-  <script src="auth.js?v=1791463185"></script>
-  <script src="i18n.js?v=1791463185"></script>
-  <script src="comparativo.js?v=1791463185"></script>
-  <script src="contrato-modelo.js?v=1791463185"></script>
-  <script src="script.js?v=1791463185"></script>
-  <script src="contratos-proposta.js?v=1791463185"></script>
-  <script src="ficha-cliente.js?v=1791463185"></script>
-  <script src="app-acompanhamento.js?v=1791463185"></script>
+  <script src="config.js?v=1791468520"></script>
+  <script src="auth.js?v=1791468520"></script>
+  <script src="i18n.js?v=1791468520"></script>
+  <script src="comparativo.js?v=1791468520"></script>
+  <script src="contrato-modelo.js?v=1791468520"></script>
+  <script src="script.js?v=1791468520"></script>
+  <script src="contratos-proposta.js?v=1791468520"></script>
+  <script src="ficha-cliente.js?v=1791468520"></script>
+  <script src="app-acompanhamento.js?v=1791468520"></script>
 </body>
 </html>
