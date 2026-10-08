@@ -478,6 +478,14 @@ function currency(v) {
   return (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "EUR" });
 }
 
+/* nome do lead clicável: abre a ficha do cliente em qualquer tela (ver ficha-cliente.js) */
+function leadLink(leadId, text) {
+  const safe = escapeHtml(text == null ? "" : String(text));
+  return leadId ? `<span class="lead-link" data-lead-id="${leadId}" title="Abrir a ficha do cliente">${safe}</span>` : safe;
+}
+function leadIdOfDeal(dealId) { const d = deals.find(x => x.id === dealId); return d ? d.leadId : null; }
+function leadIdOfEnrollment(enrId) { const e = enrollments.find(x => x.id === enrId); return e ? e.leadId : null; }
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str || "";
@@ -2142,7 +2150,7 @@ function renderStuckDetailTable() {
     return `
       <tr>
         <td class="cell-check"><input type="checkbox" class="stuck-row-checkbox" data-id="${l.id}" ${selectedStuckLeadIds.has(l.id) ? "checked" : ""}></td>
-        <td class="cell-primary">${escapeHtml(l.name)}</td>
+        <td class="cell-primary">${leadLink(l.id, l.name)}</td>
         <td class="cell-muted">${escapeHtml(l.email || l.phone || "—")}</td>
         <td class="cell-muted">${escapeHtml(l.source || "—")}</td>
         <td><span class="badge ${TEMPERATURE_BADGE[l.temperature] || "badge-neutral"}">${escapeHtml(statusLabel(l.temperature) || "—")}</span></td>
@@ -2889,7 +2897,7 @@ function renderContractsList() {
     return `
       <tr data-id="${c.id}">
         <td class="cell-muted">${escapeHtml(c.numero || "—")}</td>
-        <td class="cell-primary">${escapeHtml(lead ? lead.name : "—")}</td>
+        <td class="cell-primary">${leadLink(c.leadId, lead ? lead.name : "—")}</td>
         <td class="cell-muted">${escapeHtml(c.title)}</td>
         <td class="cell-muted">${currency(c.value)}</td>
         <td><span class="badge ${CONTRACT_STATUS_BADGE[c.status] || "badge-neutral"}">${escapeHtml(statusLabel(c.status))}</span></td>
@@ -3250,7 +3258,7 @@ function renderQuotes() {
     const consultant = users.find(u => u.id === q.consultorId);
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="cell-primary">${escapeHtml(q.client)}</td>
+      <td class="cell-primary">${leadLink(q.leadId, q.client)}</td>
       <td class="cell-muted">${escapeHtml(q.email || "—")}</td>
       <td class="cell-muted">${escapeHtml(q.items || "—")}</td>
       <td class="cell-muted">${escapeHtml((consultant && consultant.name) || q.consultorName || "—")}</td>
@@ -5348,7 +5356,7 @@ function renderFinanceiroOverview() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-check"><input type="checkbox" class="fin-overview-checkbox" data-id="${d.id}" ${finOverviewSelectedIds.has(d.id) ? "checked" : ""}></td>
-      <td class="cell-primary">${escapeHtml(d.name)}</td>
+      <td class="cell-primary">${leadLink(d.leadId, d.name)}</td>
       <td class="cell-muted">${lead ? escapeHtml(lead.source || "—") : "—"}</td>
       <td class="cell-muted">${lead ? escapeHtml(lead.email || "—") : "—"}</td>
       <td><span class="badge ${badgeClass}">${escapeHtml(dealStatusLabel(d))}</span></td>
@@ -5435,7 +5443,7 @@ function renderReceivables() {
     const deal = deals.find(d => d.id === r.dealId);
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="cell-primary">${escapeHtml(r.clientName)}</td>
+      <td class="cell-primary">${leadLink(leadIdOfDeal(r.dealId), r.clientName)}</td>
       <td class="cell-muted">${escapeHtml(deal ? deal.name : "—")}</td>
       <td class="cell-muted">${r.installmentNumber}/${r.installmentsTotal}</td>
       <td>${currency(r.amount)}</td>
@@ -5675,7 +5683,7 @@ function renderCommissions() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-primary">${escapeHtml(consultant ? consultant.name : "—")}</td>
-      <td class="cell-muted">${escapeHtml(c.dealName)}</td>
+      <td class="cell-muted">${leadLink(leadIdOfDeal(c.dealId), c.dealName)}</td>
       <td class="cell-muted">${currency(c.dealValue)}</td>
       <td class="cell-muted">${c.percentage}%</td>
       <td class="cell-primary">${currency(c.amount)}</td>
@@ -5713,7 +5721,7 @@ function renderSaleSplits() {
     const deal = deals.find(d => d.id === sp.dealId);
     const mgr = users.find(u => u.id === sp.managerId);
     return `<tr>
-      <td class="cell-primary">${escapeHtml(deal ? deal.name : "—")}</td>
+      <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}</td>
       <td class="cell-muted">${currency(sp.courseTotal)}</td>
       <td class="cell-muted">${currency(sp.base)}</td>
       <td class="cell-primary">${currency(sp.peregrinosGross)}</td>
@@ -5766,7 +5774,7 @@ function renderInfluencerCommissions() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-primary">${escapeHtml(c.source)}</td>
-      <td class="cell-muted">${escapeHtml(c.dealName)}</td>
+      <td class="cell-muted">${leadLink(leadIdOfDeal(c.dealId), c.dealName)}</td>
       <td class="cell-muted">${currency(c.dealValue)}</td>
       <td class="cell-muted">${c.percentage}%</td>
       <td class="cell-primary">${currency(c.amount)}</td>
@@ -5788,31 +5796,43 @@ document.getElementById("fin-influencer-commissions-tbody").addEventListener("cl
   await saveInfluencerCommission(c);
 });
 
-/* ---- comissão de escola (lançada dentro de cada Matrícula) ---- */
-function getSchoolCommissionEnrollments() {
-  const status = document.getElementById("fin-schoolcomm-filter-status").value;
-  return enrollments.filter(e => {
-    if (e.schoolCommissionAmount == null) return false;
-    if (status && (e.schoolCommissionStatus || "Pendente") !== status) return false;
-    return true;
+/* ---- comissão da escola: tabela própria, só quem acessa o Financeiro lê e grava ---- */
+let schoolCommissions = [];
+function schoolCommissionFromDb(r) {
+  return { enrollmentId: r.enrollment_id, amount: Number(r.amount) || 0, status: r.status || "Pendente",
+    expected: r.expected || null, received: r.received || null,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now() };
+}
+async function loadSchoolCommissions() {
+  const { data, error } = await supabase.from("school_commissions").select("*");
+  if (error) { console.error("Erro ao carregar comissões de escolas:", error); return []; }
+  return data.map(schoolCommissionFromDb);
+}
+async function saveSchoolCommissionRemote(c) {
+  const { error } = await supabase.from("school_commissions").upsert({
+    enrollment_id: c.enrollmentId, amount: c.amount, status: c.status, expected: c.expected, received: c.received, updated_at: new Date().toISOString(),
   });
+  if (error) { console.error("Erro ao salvar comissão da escola:", error); return false; }
+  return true;
 }
 function renderSchoolCommissions() {
-  const list = getSchoolCommissionEnrollments().slice().sort((a, b) => b.createdAt - a.createdAt);
+  const status = document.getElementById("fin-schoolcomm-filter-status").value;
+  const list = schoolCommissions.filter(c => !status || c.status === status).sort((a, b) => b.createdAt - a.createdAt);
   const tbody = document.getElementById("fin-schoolcomm-tbody");
   tbody.innerHTML = "";
   document.getElementById("fin-schoolcomm-empty").style.display = list.length === 0 ? "block" : "none";
-  list.forEach(e => {
+  list.forEach(c => {
+    const e = enrollments.find(x => x.id === c.enrollmentId) || {};
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="cell-primary">${escapeHtml(e.name || "—")}</td>
+      <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
-      <td class="cell-primary">${currency(e.schoolCommissionAmount)}</td>
-      <td class="cell-muted">${e.schoolCommissionExpected ? formatDate(e.schoolCommissionExpected) : "—"}</td>
-      <td><span class="badge ${e.schoolCommissionStatus === "Recebido" ? "badge-good" : "badge-warn"}">${e.schoolCommissionStatus === "Recebido" ? t("fin.received") : t("status.pendente")}</span></td>
+      <td class="cell-primary">${currency(c.amount)}</td>
+      <td class="cell-muted">${c.expected ? formatDate(c.expected) : "—"}</td>
+      <td><span class="badge ${c.status === "Recebido" ? "badge-good" : "badge-warn"}">${c.status === "Recebido" ? t("fin.received") : t("status.pendente")}</span></td>
       <td class="cell-actions">›</td>
     `;
-    tr.addEventListener("click", () => openEnrollmentModal(e.id));
+    tr.addEventListener("click", () => openSchoolCommModal(c.enrollmentId));
     tbody.appendChild(tr);
   });
 }
@@ -5820,6 +5840,63 @@ document.getElementById("fin-schoolcomm-filter-status").addEventListener("change
 document.getElementById("fin-schoolcomm-filter-clear").addEventListener("click", () => {
   document.getElementById("fin-schoolcomm-filter-status").value = "";
   renderSchoolCommissions();
+});
+
+const scommModalBackdrop = document.getElementById("scomm-modal-backdrop");
+const scommForm = document.getElementById("scomm-form");
+const scommBtnDelete = document.getElementById("scomm-btn-delete");
+function openSchoolCommModal(enrollmentId) {
+  scommForm.reset();
+  const sel = document.getElementById("scomm-field-enrollment");
+  const cur = enrollmentId ? schoolCommissions.find(c => c.enrollmentId === enrollmentId) : null;
+  const taken = new Set(schoolCommissions.map(c => c.enrollmentId));
+  sel.innerHTML = enrollments.slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+    .filter(e => cur ? e.id === enrollmentId : !taken.has(e.id))
+    .map(e => `<option value="${e.id}">${escapeHtml(e.name || "—")}${e.school ? " — " + escapeHtml(e.school) : ""}</option>`).join("");
+  sel.disabled = !!cur;
+  document.getElementById("scomm-modal-title").textContent = cur ? t("fin.schoolCommEdit") : t("fin.schoolCommNew");
+  if (cur) {
+    sel.value = cur.enrollmentId;
+    document.getElementById("scomm-field-amount").value = cur.amount;
+    document.getElementById("scomm-field-expected").value = cur.expected || "";
+    document.getElementById("scomm-field-status").value = cur.status;
+    document.getElementById("scomm-field-received").value = cur.received || "";
+  }
+  scommBtnDelete.style.display = cur ? "inline-block" : "none";
+  scommModalBackdrop.classList.add("open");
+}
+function closeSchoolCommModal() { scommModalBackdrop.classList.remove("open"); }
+document.getElementById("btn-new-scomm").addEventListener("click", () => openSchoolCommModal(null));
+document.getElementById("scomm-modal-close").addEventListener("click", closeSchoolCommModal);
+document.getElementById("scomm-btn-cancel").addEventListener("click", closeSchoolCommModal);
+scommModalBackdrop.addEventListener("click", e => { if (e.target === scommModalBackdrop) closeSchoolCommModal(); });
+scommForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const enrollmentId = document.getElementById("scomm-field-enrollment").value;
+  const amount = round2(parseFloat(document.getElementById("scomm-field-amount").value));
+  if (!enrollmentId || !(amount >= 0)) return;
+  const status = document.getElementById("scomm-field-status").value;
+  const data = {
+    enrollmentId, amount, status,
+    expected: document.getElementById("scomm-field-expected").value || null,
+    received: status === "Recebido" ? (document.getElementById("scomm-field-received").value || new Date().toISOString().slice(0, 10)) : null,
+    createdAt: (schoolCommissions.find(c => c.enrollmentId === enrollmentId) || {}).createdAt || Date.now(),
+  };
+  const ok = await saveSchoolCommissionRemote(data);
+  if (!ok) { alert(t("fin.schoolCommError")); return; }
+  const i = schoolCommissions.findIndex(c => c.enrollmentId === enrollmentId);
+  if (i >= 0) schoolCommissions[i] = data; else schoolCommissions.push(data);
+  renderSchoolCommissions();
+  closeSchoolCommModal();
+});
+scommBtnDelete.addEventListener("click", async () => {
+  const enrollmentId = document.getElementById("scomm-field-enrollment").value;
+  if (!enrollmentId || !confirm(t("fin.confirmDeleteSchoolComm"))) return;
+  const { error } = await supabase.from("school_commissions").delete().eq("enrollment_id", enrollmentId);
+  if (error) { alert(t("fin.schoolCommError")); return; }
+  schoolCommissions = schoolCommissions.filter(c => c.enrollmentId !== enrollmentId);
+  renderSchoolCommissions();
+  closeSchoolCommModal();
 });
 
 /* ---- envios às escolas ---- */
@@ -5841,7 +5918,7 @@ function renderSchoolTransfers() {
   document.getElementById("fin-transfers-by-student").innerHTML = [...byStudent.entries()]
     .sort((a, b) => b[1].total - a[1].total).map(([id, r]) => {
       const e = enrById(id) || {};
-      return `<tr><td class="cell-primary">${escapeHtml(e.name || "—")}</td><td class="cell-muted">${escapeHtml(e.school || "—")}</td>
+      return `<tr><td class="cell-primary">${leadLink(e.leadId, e.name || "—")}</td><td class="cell-muted">${escapeHtml(e.school || "—")}</td>
         <td class="cell-primary">${currency(r.total)}</td><td class="cell-muted">${r.count}</td><td class="cell-muted">${r.last ? formatDate(r.last) : "—"}</td></tr>`;
     }).join("");
 
@@ -5852,7 +5929,7 @@ function renderSchoolTransfers() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-muted">${x.sentAt ? formatDate(x.sentAt) : "—"}</td>
-      <td class="cell-primary">${escapeHtml(e.name || "—")}</td>
+      <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
       <td class="cell-primary">${currency(x.amount)}</td>
       <td class="cell-muted">${escapeHtml(x.notes || "—")}</td>
@@ -6090,10 +6167,6 @@ function enrollmentFromDb(r) {
     arrivalDate: r.arrival_date, classStartDate: r.class_start_date,
     status: r.status, publicToken: r.public_token, studentUserId: r.student_user_id || null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
-    schoolCommissionAmount: r.school_commission_amount != null ? Number(r.school_commission_amount) : null,
-    schoolCommissionStatus: r.school_commission_status || "Pendente",
-    schoolCommissionExpected: r.school_commission_expected || null,
-    schoolCommissionReceived: r.school_commission_received || null,
   };
 }
 function enrollmentToDb(e) {
@@ -6112,10 +6185,6 @@ function enrollmentToDb(e) {
     course_value: e.courseValue,
     arrival_date: e.arrivalDate || null, class_start_date: e.classStartDate || null,
     status: e.status, student_user_id: e.studentUserId || null,
-    school_commission_amount: e.schoolCommissionAmount != null && e.schoolCommissionAmount !== "" ? e.schoolCommissionAmount : null,
-    school_commission_status: e.schoolCommissionStatus || "Pendente",
-    school_commission_expected: e.schoolCommissionExpected || null,
-    school_commission_received: e.schoolCommissionReceived || null,
   };
 }
 
@@ -6310,7 +6379,7 @@ function renderEnrollments() {
     const tr = document.createElement("tr");
     if (e.matriculaPendente) tr.classList.add("enr-row-pending");
     tr.innerHTML = `
-      <td class="cell-primary">${escapeHtml(e.name || "—")}${e.matriculaPendente ? `<div><span class="badge badge-danger enr-pending-badge">⚠ ${escapeHtml(t("enr.pendingTitle"))}</span></div>` : ""}${enrUnread[e.id] ? `<div><span class="badge badge-warn enr-pending-badge">${escapeHtml(t("enr.msgNew").replace("{n}", enrUnread[e.id]))}</span></div>` : ""}</td>
+      <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}${e.matriculaPendente ? `<div><span class="badge badge-danger enr-pending-badge">⚠ ${escapeHtml(t("enr.pendingTitle"))}</span></div>` : ""}${enrUnread[e.id] ? `<div><span class="badge badge-warn enr-pending-badge">${escapeHtml(t("enr.msgNew").replace("{n}", enrUnread[e.id]))}</span></div>` : ""}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.turno || "—")}</td>
       <td><span class="badge ${ENROLLMENT_STATUS_BADGE[e.status] || "badge-neutral"}">${escapeHtml(statusLabel(e.status))}</span></td>
@@ -7804,7 +7873,7 @@ function renderDashboardAlertas() {
   const items = [
     ...overdueReceivables.map(r => ({
       title: `${r.clientName || t("dash.clientFallback")} — ${t("dash.installmentWord")} ${r.installmentNumber}/${r.installmentsTotal}`,
-      sub: `${t("dash.overdueSub")} ${formatDate(r.dueDate)}`, value: currency(r.amount), date: r.dueDate,
+      sub: `${t("dash.overdueSub")} ${formatDate(r.dueDate)}`, value: currency(r.amount), date: r.dueDate, leadId: leadIdOfDeal(r.dealId),
     })),
     ...overdueExpenses.map(e => ({
       title: e.description, sub: `${t("dash.expenseDueSub")} ${formatDate(e.dueDate)}`, value: currency(e.amount), date: e.dueDate,
@@ -7823,7 +7892,7 @@ function renderDashboardAlertas() {
     <div class="dash-list-item">
       <span class="dash-list-icon warn">!</span>
       <div class="dash-list-body">
-        <div class="dash-list-title">${escapeHtml(it.title)}</div>
+        <div class="dash-list-title">${leadLink(it.leadId, it.title)}</div>
         <div class="dash-list-sub">${escapeHtml(it.sub)}</div>
       </div>
       <span class="dash-list-value danger">${it.value}</span>
@@ -7870,12 +7939,12 @@ function renderDashboardAtividade() {
     el.addEventListener("click", () => {
       const kind = el.dataset.kind;
       const id = el.dataset.id;
-      if (kind === "lead" && canAccessView("leads")) {
-        switchView("leads");
-        openLeadModal(id);
-      } else if (kind === "deal" && canAccessView("pipeline")) {
-        switchView("pipeline");
-        openDealModal(id);
+      if (kind === "lead") {
+        openFicha(id);
+      } else if (kind === "deal") {
+        const dl = deals.find(x => x.id === id);
+        if (dl && dl.leadId) openFicha(dl.leadId);
+        else if (canAccessView("pipeline")) { switchView("pipeline"); openDealModal(id); }
       }
     });
   });
@@ -8158,6 +8227,8 @@ function renderDashFollowupsPanel() {
   document.getElementById("dash-followup-list").querySelectorAll(".dash-aviso-item").forEach(el => {
     el.style.cursor = "pointer";
     el.addEventListener("click", () => {
+      const dl = deals.find(x => x.id === el.dataset.dealId);
+      if (dl && dl.leadId) { openFicha(dl.leadId); return; }
       if (!canAccessView("pipeline")) return;
       switchView("pipeline");
       openDealModal(el.dataset.dealId);
@@ -8179,7 +8250,7 @@ function renderDashFinanceiroVencidoPanel() {
 
   const items = [
     ...overdueReceivables.map(r => ({
-      title: `${r.clientName || "Cliente"} — a receber`, value: currency(r.amount), date: r.dueDate,
+      title: `${r.clientName || "Cliente"} — a receber`, value: currency(r.amount), date: r.dueDate, leadId: leadIdOfDeal(r.dealId),
     })),
     ...overdueExpenses.map(e => ({
       title: `${e.description} — a pagar`, value: currency(e.amount), date: e.dueDate,
@@ -8194,7 +8265,7 @@ function renderDashFinanceiroVencidoPanel() {
 
   document.getElementById("dash-financeiro-vencido-list").innerHTML = `<div class="dash-aviso-list">${items.map(it => `
     <div class="dash-aviso-item is-overdue">
-      <span class="dash-aviso-item-title">${escapeHtml(it.title)}</span>
+      <span class="dash-aviso-item-title">${leadLink(it.leadId, it.title)}</span>
       <span class="dash-aviso-item-meta">Venceu em ${formatDate(it.date)} · ${it.value}</span>
     </div>`).join("")}</div>`;
 }
@@ -8397,6 +8468,7 @@ document.addEventListener("keydown", e => {
   if (rotationModalBackdrop.classList.contains("open")) closeRotationModal();
   if (adSpendModalBackdrop.classList.contains("open")) closeAdSpendModal();
   if (transferModalBackdrop.classList.contains("open")) closeTransferModal();
+  if (scommModalBackdrop.classList.contains("open")) closeSchoolCommModal();
   if (collaboratorModalBackdrop.classList.contains("open")) closeCollaboratorModal();
   if (followUpModalBackdrop.classList.contains("open")) closeFollowUpModal();
   if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
@@ -8420,7 +8492,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits, schoolCommissions] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -8448,6 +8520,7 @@ document.addEventListener("keydown", e => {
     loadSchoolCities(),
     loadSchoolTransfers(),
     loadSaleSplits(),
+    loadSchoolCommissions(),
   ]);
 
   renderSessionChip();

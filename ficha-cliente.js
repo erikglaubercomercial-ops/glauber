@@ -417,7 +417,7 @@ function fxBindCards(d) {
     catch { prompt("Copie o link:", buildPublicEnrollmentUrl(local.publicToken)); }
   });
   const openEnr = $fx("fx-open-enr");
-  if (openEnr) openEnr.addEventListener("click", () => { openEnrollmentModal(e.id); });
+  if (openEnr) openEnr.addEventListener("click", () => { closeFicha(); openEnrollmentModal(e.id); });
   const ct = $fx("fx-open-contract");
   if (ct) ct.addEventListener("click", () => { closeFicha(); switchView("contratos"); openContractModal(d.contract.id); });
 }
@@ -476,8 +476,8 @@ function fxRenderFoot(d) {
     <button type="button" class="btn btn-ghost btn-sm" id="fx-edit">Editar lead</button>
     ${d.enrollment ? '<button type="button" class="btn btn-ghost btn-sm" id="fx-foot-enr">Abrir matrícula</button>' : ""}
     ${digits ? `<a class="btn btn-ghost btn-sm" href="${buildWhatsAppLink(digits)}" target="_blank" rel="noopener">WhatsApp</a>` : ""}`;
-  $fx("fx-edit").addEventListener("click", () => openLeadModal(d.lead.id));
-  const fe = $fx("fx-foot-enr"); if (fe) fe.addEventListener("click", () => openEnrollmentModal(d.enrollment.id));
+  $fx("fx-edit").addEventListener("click", () => { closeFicha(); openLeadModal(d.lead.id); });
+  const fe = $fx("fx-foot-enr"); if (fe) fe.addEventListener("click", () => { closeFicha(); openEnrollmentModal(d.enrollment.id); });
 }
 
 /* ---------------- ações estáticas (formulário de follow-up e anotações) ---------------- */
@@ -513,6 +513,16 @@ $fx("ficha-note-save").addEventListener("click", async () => {
   ta.value = ""; fichaJson = ""; fichaLoad();
 });
 $fx("ficha-backdrop").addEventListener("click", e => { if (e.target === $fx("ficha-backdrop")) closeFicha(); });
+
+/* qualquer nome de lead marcado com .lead-link abre a ficha, em qualquer tela
+   (fase de captura: vale mesmo dentro de linhas que têm clique próprio) */
+document.addEventListener("click", e => {
+  const el = e.target.closest(".lead-link[data-lead-id]");
+  if (!el) return;
+  e.preventDefault();
+  e.stopPropagation();
+  openFicha(el.dataset.leadId);
+}, true);
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && $fx("ficha-backdrop").classList.contains("open") && !document.querySelector(".modal-backdrop.open:not(#ficha-backdrop)")) closeFicha();
 });

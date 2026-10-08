@@ -580,7 +580,7 @@ function apptOpenLead(leadId) {
   if (!leadId) return;
   if (!leads.some(l => l.id === leadId)) { alert(t("appt.leadNotFound")); return; }
   document.getElementById("appt-timeline-backdrop").classList.remove("open");
-  openLeadModal(leadId);
+  openFicha(leadId);
 }
 
 /* ============================================================
