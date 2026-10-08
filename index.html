@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791405894">
+<link rel="stylesheet" href="style.css?v=1791444399">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -758,6 +758,7 @@
           <button type="button" class="subtab" data-fin-subtab="expenses" data-i18n="fin.tabExpenses">Despesas</button>
           <button type="button" class="subtab" data-fin-subtab="commissions" data-i18n="fin.tabCommissions">Comissões</button>
           <button type="button" class="subtab" data-fin-subtab="schoolcommissions" data-i18n="fin.tabSchoolCommissions">Comissão de Escolas</button>
+          <button type="button" class="subtab" data-fin-subtab="schooltransfers" data-i18n="fin.tabSchoolTransfers">Envios às Escolas</button>
           <button type="button" class="subtab" data-fin-subtab="adspend" data-i18n="fin.tabAdSpend">Tráfego Pago</button>
           <button type="button" class="subtab" data-fin-subtab="metrics" data-i18n="fin.tabMetrics">Métricas</button>
         </div>
@@ -893,6 +894,27 @@
               <tbody id="fin-schoolcomm-tbody"></tbody>
             </table>
             <div class="empty-hint" id="fin-schoolcomm-empty" style="display:none;" data-i18n="fin.noSchoolCommissions">Nenhuma comissão de escola cadastrada ainda.</div>
+          </div>
+        </div>
+
+        <!-- ENVIOS ÀS ESCOLAS -->
+        <div class="subview" id="subview-fin-schooltransfers">
+          <div class="panel">
+            <div class="panel-header">
+              <h2 data-i18n="fin.tabSchoolTransfers">Envios às Escolas</h2>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-new-transfer" data-i18n="fin.newTransfer">+ Registrar envio</button>
+            </div>
+            <div class="transfers-total" id="fin-transfers-total"></div>
+            <table class="data-table">
+              <thead><tr><th data-i18n="common.client">Cliente</th><th data-i18n="enr.school">Escola</th><th data-i18n="fin.transfersSent">Enviado à escola</th><th data-i18n="fin.transfersCount">Envios</th><th data-i18n="fin.transfersLast">Último envio</th></tr></thead>
+              <tbody id="fin-transfers-by-student"></tbody>
+            </table>
+            <h3 class="transfers-subtitle" data-i18n="fin.transfersHistory">Histórico de envios</h3>
+            <table class="data-table">
+              <thead><tr><th data-i18n="common.date">Data</th><th data-i18n="common.client">Cliente</th><th data-i18n="enr.school">Escola</th><th data-i18n="common.value">Valor</th><th data-i18n="common.notes">Notas</th><th></th></tr></thead>
+              <tbody id="fin-transfers-tbody"></tbody>
+            </table>
+            <div class="empty-hint" id="fin-transfers-empty" style="display:none;" data-i18n="fin.noTransfers">Nenhum envio para escola registrado ainda.</div>
           </div>
         </div>
 
@@ -1916,6 +1938,37 @@
     </div>
   </div>
 
+  <!-- MODAL: ENVIO PARA ESCOLA -->
+  <div class="modal-backdrop" id="transfer-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="transfer-modal-title" data-i18n="fin.newTransferTitle">Registrar envio para a escola</h2>
+        <button class="btn-icon" id="transfer-modal-close">&times;</button>
+      </div>
+      <form id="transfer-form">
+        <input type="hidden" id="transfer-id">
+        <label><span data-i18n="common.client">Cliente</span>
+          <select id="transfer-field-enrollment" required></select>
+        </label>
+        <label><span data-i18n="contracts.valueEur">Valor (€)</span>
+          <input type="number" id="transfer-field-amount" min="0.01" step="0.01" placeholder="0,00" required>
+        </label>
+        <label><span data-i18n="fin.transferDate">Data do envio</span>
+          <input type="date" id="transfer-field-date" required>
+        </label>
+        <label><span data-i18n="common.notes">Notas</span>
+          <textarea id="transfer-field-notes" rows="2" placeholder="Detalhes (opcional)"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="transfer-btn-delete" style="display:none;" data-i18n="common.delete">Excluir</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="transfer-btn-cancel" data-i18n="common.cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: GERENCIAR CATEGORIAS DE DESPESA -->
   <div class="modal-backdrop" id="expense-categories-modal-backdrop">
     <div class="modal">
@@ -2428,13 +2481,13 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791405894"></script>
-  <script src="auth.js?v=1791405894"></script>
-  <script src="i18n.js?v=1791405894"></script>
-  <script src="comparativo.js?v=1791405894"></script>
-  <script src="contrato-modelo.js?v=1791405894"></script>
-  <script src="script.js?v=1791405894"></script>
-  <script src="contratos-proposta.js?v=1791405894"></script>
-  <script src="app-acompanhamento.js?v=1791405894"></script>
+  <script src="config.js?v=1791444399"></script>
+  <script src="auth.js?v=1791444399"></script>
+  <script src="i18n.js?v=1791444399"></script>
+  <script src="comparativo.js?v=1791444399"></script>
+  <script src="contrato-modelo.js?v=1791444399"></script>
+  <script src="script.js?v=1791444399"></script>
+  <script src="contratos-proposta.js?v=1791444399"></script>
+  <script src="app-acompanhamento.js?v=1791444399"></script>
 </body>
 </html>

@@ -4902,6 +4902,7 @@ let expenses = [];
 let commissions = [];
 let influencerCommissions = [];
 let adSpend = [];
+let schoolTransfers = [];
 let receivables = [];
 let commissionSettings = { defaultPercentage: 10 };
 
@@ -5051,6 +5052,29 @@ async function saveAdSpendRemote(a) {
 async function deleteAdSpendRemote(id) {
   const { error } = await supabase.from("ad_spend").delete().eq("id", id);
   if (error) console.error("Erro ao excluir tráfego pago:", error);
+}
+
+/* ---- envios de dinheiro para a escola de cada aluno ---- */
+function schoolTransferFromDb(r) {
+  return { id: r.id, enrollmentId: r.enrollment_id, amount: Number(r.amount) || 0, sentAt: r.sent_at, notes: r.notes || "",
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now() };
+}
+function schoolTransferToDb(x) {
+  return { id: x.id, enrollment_id: x.enrollmentId, amount: x.amount, sent_at: x.sentAt, notes: x.notes };
+}
+async function loadSchoolTransfers() {
+  const { data, error } = await supabase.from("school_transfers").select("*").order("sent_at", { ascending: false });
+  if (error) { console.error("Erro ao carregar envios para escolas:", error); return []; }
+  return data.map(schoolTransferFromDb);
+}
+async function saveSchoolTransferRemote(x) {
+  const { error } = await supabase.from("school_transfers").upsert(schoolTransferToDb(x));
+  if (error) { console.error("Erro ao salvar envio para escola:", error); return false; }
+  return true;
+}
+async function deleteSchoolTransferRemote(id) {
+  const { error } = await supabase.from("school_transfers").delete().eq("id", id);
+  if (error) console.error("Erro ao excluir envio para escola:", error);
 }
 
 function receivableFromDb(r) {
@@ -5232,6 +5256,7 @@ function initFinanceiroSubtabs() {
       document.getElementById("subview-fin-expenses").classList.toggle("active", target === "expenses");
       document.getElementById("subview-fin-commissions").classList.toggle("active", target === "commissions");
       document.getElementById("subview-fin-schoolcommissions").classList.toggle("active", target === "schoolcommissions");
+      document.getElementById("subview-fin-schooltransfers").classList.toggle("active", target === "schooltransfers");
       document.getElementById("subview-fin-adspend").classList.toggle("active", target === "adspend");
       document.getElementById("subview-fin-metrics").classList.toggle("active", target === "metrics");
       if (target === "metrics") renderMetrics();
@@ -5717,6 +5742,99 @@ document.getElementById("fin-schoolcomm-filter-status").addEventListener("change
 document.getElementById("fin-schoolcomm-filter-clear").addEventListener("click", () => {
   document.getElementById("fin-schoolcomm-filter-status").value = "";
   renderSchoolCommissions();
+});
+
+/* ---- envios às escolas ---- */
+function renderSchoolTransfers() {
+  const enrById = id => enrollments.find(e => e.id === id);
+  const sorted = schoolTransfers.slice().sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt)) || b.createdAt - a.createdAt);
+  document.getElementById("fin-transfers-empty").style.display = sorted.length === 0 ? "block" : "none";
+
+  const byStudent = new Map();
+  sorted.forEach(x => {
+    const row = byStudent.get(x.enrollmentId) || { total: 0, count: 0, last: x.sentAt };
+    row.total += x.amount; row.count += 1;
+    byStudent.set(x.enrollmentId, row);
+  });
+  const grand = sorted.reduce((s, x) => s + x.amount, 0);
+  document.getElementById("fin-transfers-total").textContent = sorted.length
+    ? `${t("fin.transfersTotal")}: ${currency(grand)} · ${byStudent.size} ${t("fin.transfersStudents")}` : "";
+
+  document.getElementById("fin-transfers-by-student").innerHTML = [...byStudent.entries()]
+    .sort((a, b) => b[1].total - a[1].total).map(([id, r]) => {
+      const e = enrById(id) || {};
+      return `<tr><td class="cell-primary">${escapeHtml(e.name || "—")}</td><td class="cell-muted">${escapeHtml(e.school || "—")}</td>
+        <td class="cell-primary">${currency(r.total)}</td><td class="cell-muted">${r.count}</td><td class="cell-muted">${r.last ? formatDate(r.last) : "—"}</td></tr>`;
+    }).join("");
+
+  const tbody = document.getElementById("fin-transfers-tbody");
+  tbody.innerHTML = "";
+  sorted.forEach(x => {
+    const e = enrById(x.enrollmentId) || {};
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-muted">${x.sentAt ? formatDate(x.sentAt) : "—"}</td>
+      <td class="cell-primary">${escapeHtml(e.name || "—")}</td>
+      <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
+      <td class="cell-primary">${currency(x.amount)}</td>
+      <td class="cell-muted">${escapeHtml(x.notes || "—")}</td>
+      <td class="cell-actions">›</td>`;
+    tr.addEventListener("click", () => openTransferModal(x.id));
+    tbody.appendChild(tr);
+  });
+}
+
+const transferModalBackdrop = document.getElementById("transfer-modal-backdrop");
+const transferForm = document.getElementById("transfer-form");
+const transferBtnDelete = document.getElementById("transfer-btn-delete");
+
+function openTransferModal(id, enrollmentId) {
+  transferForm.reset();
+  const sel = document.getElementById("transfer-field-enrollment");
+  sel.innerHTML = enrollments.slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+    .map(e => `<option value="${e.id}">${escapeHtml(e.name || "—")}${e.school ? " — " + escapeHtml(e.school) : ""}</option>`).join("");
+  const x = id ? schoolTransfers.find(v => v.id === id) : null;
+  if (id && !x) return;
+  document.getElementById("transfer-modal-title").textContent = x ? t("fin.editTransferTitle") : t("fin.newTransferTitle");
+  document.getElementById("transfer-id").value = x ? x.id : "";
+  if (x || enrollmentId) sel.value = x ? x.enrollmentId : enrollmentId;
+  document.getElementById("transfer-field-amount").value = x ? x.amount : "";
+  document.getElementById("transfer-field-date").value = x ? x.sentAt : new Date().toISOString().slice(0, 10);
+  document.getElementById("transfer-field-notes").value = x ? (x.notes || "") : "";
+  transferBtnDelete.style.display = x ? "inline-block" : "none";
+  transferModalBackdrop.classList.add("open");
+}
+function closeTransferModal() { transferModalBackdrop.classList.remove("open"); }
+document.getElementById("btn-new-transfer").addEventListener("click", () => openTransferModal(null));
+document.getElementById("transfer-modal-close").addEventListener("click", closeTransferModal);
+document.getElementById("transfer-btn-cancel").addEventListener("click", closeTransferModal);
+transferModalBackdrop.addEventListener("click", e => { if (e.target === transferModalBackdrop) closeTransferModal(); });
+
+transferForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const id = document.getElementById("transfer-id").value;
+  const data = {
+    id: id || uid(),
+    enrollmentId: document.getElementById("transfer-field-enrollment").value,
+    amount: round2(parseFloat(document.getElementById("transfer-field-amount").value) || 0),
+    sentAt: document.getElementById("transfer-field-date").value,
+    notes: document.getElementById("transfer-field-notes").value.trim(),
+    createdAt: id ? (schoolTransfers.find(v => v.id === id) || {}).createdAt || Date.now() : Date.now(),
+  };
+  if (!data.enrollmentId || !(data.amount > 0)) return;
+  const ok = await saveSchoolTransferRemote(data);
+  if (!ok) { alert(t("fin.transferError")); return; }
+  if (id) Object.assign(schoolTransfers.find(v => v.id === id), data); else schoolTransfers.push(data);
+  renderSchoolTransfers();
+  closeTransferModal();
+});
+transferBtnDelete.addEventListener("click", async () => {
+  const id = document.getElementById("transfer-id").value;
+  if (!id || !confirm(t("fin.confirmDeleteTransfer"))) return;
+  schoolTransfers = schoolTransfers.filter(v => v.id !== id);
+  renderSchoolTransfers();
+  closeTransferModal();
+  await deleteSchoolTransferRemote(id);
 });
 
 /* ---- tráfego pago ---- */
@@ -8192,6 +8310,7 @@ document.addEventListener("keydown", e => {
   if (sourcesModalBackdrop.classList.contains("open")) closeSourcesModal();
   if (rotationModalBackdrop.classList.contains("open")) closeRotationModal();
   if (adSpendModalBackdrop.classList.contains("open")) closeAdSpendModal();
+  if (transferModalBackdrop.classList.contains("open")) closeTransferModal();
   if (collaboratorModalBackdrop.classList.contains("open")) closeCollaboratorModal();
   if (followUpModalBackdrop.classList.contains("open")) closeFollowUpModal();
   if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
@@ -8215,7 +8334,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -8241,6 +8360,7 @@ document.addEventListener("keydown", e => {
     loadRotationSettings(),
     loadSchools(),
     loadSchoolCities(),
+    loadSchoolTransfers(),
   ]);
 
   renderSessionChip();
@@ -8268,6 +8388,7 @@ document.addEventListener("keydown", e => {
   renderCommissions();
   renderInfluencerCommissions();
   renderAdSpend();
+  renderSchoolTransfers();
   renderEnrollments();
   renderSchoolCommissions();
   renderCollaborators();
