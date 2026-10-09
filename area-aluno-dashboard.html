@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Área do Aluno — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1791552907">
+<link rel="stylesheet" href="style.css?v=1791562491">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -24,27 +24,27 @@
       <nav class="sidebar-nav">
         <div class="nav-label" data-i18n="nav.areaaluno">Área do aluno</div>
 
-        <button class="nav-item active" type="button">
+        <button class="nav-item active" type="button" data-nav="dashboard">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
           <span data-i18n="nav.dashboard">Dashboard</span>
         </button>
-        <button class="nav-item" type="button">
+        <button class="nav-item" type="button" data-nav="pagamentos">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
           <span data-i18n="aluno.navPagamentos">Pagamentos</span>
         </button>
-        <button class="nav-item" type="button">
+        <button class="nav-item" type="button" data-nav="documentos">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
           <span data-i18n="aluno.navDocumentos">Documentos</span>
         </button>
-        <button class="nav-item" type="button">
+        <button class="nav-item" type="button" data-nav="mensagens">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span data-i18n="aluno.navMensagens">Mensagens</span>
         </button>
-        <button class="nav-item" type="button">
+        <button class="nav-item" type="button" data-nav="calendario">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2.5"/><path d="M3 9h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
           <span data-i18n="aluno.navCalendario">Calendário</span>
         </button>
-        <button class="nav-item aluno-nav-soon" type="button">
+        <button class="nav-item aluno-nav-soon" type="button" data-nav="ingles">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>
           <span style="flex:1;" data-i18n="aluno.navIngles">Aulas de Inglês</span>
           <span class="aluno-soon-badge" style="margin-left:0;" data-i18n="aluno.soon">Em breve</span>
@@ -73,7 +73,7 @@
         </div>
       </header>
 
-      <section class="view active">
+      <section class="view active" id="aluno-view-dashboard">
         <div class="dashboard-layout">
           <div class="dashboard-main">
 
@@ -161,6 +161,7 @@
                       <span class="aluno-doc-status pending" data-i18n="aluno.pending">Pendente</span>
                     </div>
                     <span class="aluno-doc-meta" data-i18n="aluno.visaTeamWillSend">Sua consultora vai combinar com você o envio do visto.</span>
+                    <button type="button" class="btn btn-ghost btn-sm" id="aluno-go-docs" style="align-self:flex-start;" data-i18n="aluno.docsSendAll">Enviar documentos</button>
                   </div>
                 </div>
               </div>
@@ -220,11 +221,22 @@
           </aside>
         </div>
       </section>
+    <section class="view" id="aluno-view-docs">
+        <div class="panel aluno-docs-panel">
+          <div class="panel-header">
+            <h2 data-i18n="aluno.docsTitle">Documentos da jornada</h2>
+            <button type="button" class="btn btn-ghost btn-sm" id="aluno-docs-back" data-i18n="aluno.docsBack">← Voltar ao dashboard</button>
+          </div>
+          <p class="aluno-docs-intro" data-i18n="aluno.docsIntro">Envie aqui os documentos da sua viagem. Aceitamos PDF ou foto, de até 10 MB cada. Sua consultora recebe o arquivo na hora.</p>
+          <div id="aluno-docs-list"></div>
+        </div>
+      </section>
     </main>
   </div>
 
   <script src="config.js"></script>
-  <script src="i18n.js?v=1791552907"></script>
-  <script src="area-aluno-dashboard.js?v=1791552907"></script>
+  <script src="i18n.js?v=1791562491"></script>
+  <script src="area-aluno-dashboard.js?v=1791562491"></script>
+  <div class="aluno-toast" id="aluno-toast" role="status" aria-live="polite"></div>
 </body>
 </html>

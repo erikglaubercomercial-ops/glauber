@@ -113,7 +113,8 @@ function fxDocState(d) {
     let label = doc.label;
     if (doc.kind === "comprovante_financeiro" && d.settings) label = `Comprovante financeiro · ${currency(d.settings.financial_proof_eur)}`;
     const autoPassport = doc.kind === "passaporte" && !rec && !!e.passport_photo_path && passportValid === true;
-    return { ...doc, label, received: rec ? !!rec.received : autoPassport, passportValid: doc.kind === "passaporte" ? passportValid : null };
+    return { ...doc, label, received: rec ? !!rec.received : autoPassport, passportValid: doc.kind === "passaporte" ? passportValid : null,
+      filePath: rec && rec.file_path ? rec.file_path : null, fileName: rec && rec.file_name ? rec.file_name : "", byStudent: !!(rec && rec.by_student) };
   });
 }
 
@@ -339,7 +340,7 @@ function fxRenderCards(d) {
     docs.forEach(x => {
       let st = x.received ? '<span class="fx-ok">em mãos</span>' : '<span class="fx-wr">pendente</span>';
       if (x.kind === "passaporte" && x.passportValid !== null) st += `<br><small class="${x.passportValid ? "fx-ok" : "fx-bad"}" style="font-weight:700">${x.passportValid ? `validade ok · até ${fxFull(e.passport_expiry_date + "T12:00:00")}` : "validade menor que 6 meses na chegada"}</small>`;
-      h += `<label class="fx-doc"><input type="checkbox" data-doc="${x.kind}" ${x.received ? "checked" : ""}><span class="nm">${fxEsc(x.label)}</span><span class="st">${st}</span></label>`;
+      h += `<div class="fx-doc-wrap"><label class="fx-doc"><input type="checkbox" data-doc="${x.kind}" ${x.received ? "checked" : ""}><span class="nm">${fxEsc(x.label)}</span><span class="st">${st}</span></label>${x.filePath ? `<div class="fx-doc-file"><span>📎 ${fxEsc(x.fileName || "arquivo")}${x.byStudent ? " · enviado pelo aluno" : ""}</span><button type="button" class="btn btn-ghost btn-sm" data-docfile="${fxEsc(x.filePath)}">Ver</button></div>` : ""}</div>`;
     });
     h += `<div class="fx-mu" style="font-size:11.5px;padding-top:6px">${got} de ${docs.length} documentos em mãos</div>
       <div id="fx-all-data" class="fx-all" style="display:${fichaShowAll ? "" : "none"}">${fichaShowAll && fichaPersonal ? fxPersonalHtml(fichaPersonal) : ""}</div>
@@ -393,6 +394,11 @@ function fxBindCards(d) {
       fichaJson = ""; fichaLoad();
     });
   });
+  document.querySelectorAll("#ficha-cards [data-docfile]").forEach(b => b.addEventListener("click", async () => {
+    const { data, error } = await supabase.storage.from("student-docs").createSignedUrl(b.dataset.docfile, 3600);
+    if (error || !data) { alert("Não foi possível abrir o arquivo."); return; }
+    window.open(data.signedUrl, "_blank", "noopener");
+  }));
   const allBtn = $fx("fx-btn-all");
   if (allBtn) allBtn.addEventListener("click", async () => {
     if (fichaShowAll) { fichaShowAll = false; fichaPersonal = null; fichaJson = ""; fichaLoad(); return; }

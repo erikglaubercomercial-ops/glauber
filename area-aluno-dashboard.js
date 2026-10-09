@@ -10,6 +10,7 @@
 let alunoSession = null;
 let alunoEnr = null;
 let alunoFin = null;
+let alunoDocsData = null;
 let alunoCalMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 const $al = id => document.getElementById(id);
@@ -42,6 +43,7 @@ const alunoFill = (str, vars) => Object.entries(vars).reduce((s, [k, v]) => s.re
 
   renderAlunoAll();
   loadAlunoMessages();
+  loadAlunoDocs();
 
   const { data: fin, error } = await supabase.rpc("aluno_financeiro");
   if (error) console.error("Erro ao carregar pagamentos:", error);
@@ -59,6 +61,7 @@ function renderAlunoAll() {
   renderAlunoDocs();
   renderAlunoCalendar();
   renderAlunoMessages();
+  renderAlunoDocsView();
 }
 
 /* ---- topo: escola, datas, contagem regressiva, anel de pagamento ---- */
@@ -112,26 +115,134 @@ function renderAlunoPayments() {
   }).join("");
 }
 
-/* ---- documentos ---- */
-function renderAlunoDocs() {
-  const path = alunoEnr && alunoEnr.passport_photo_path;
-  const card = $al("aluno-doc-passport");
-  card.classList.toggle("is-pending", !path);
-  const st = $al("aluno-doc-passport-status");
-  st.className = "aluno-doc-status " + (path ? "ok" : "pending");
-  st.textContent = path ? t("aluno.sent") : t("aluno.pending");
-  $al("aluno-doc-passport-meta").textContent = path ? `${t("aluno.passport")}.${(path.split(".").pop() || "").toLowerCase()}` : t("aluno.noFileSent");
-  $al("aluno-doc-passport-link").style.display = path ? "" : "none";
-  $al("aluno-stat-docs").textContent = (path ? 1 : 0) + " / 2";
+/* ---- documentos da jornada ---- */
+const ALUNO_DOC_KINDS = ["passaporte", "passagens", "comprovante_financeiro", "matricula_seguros", "visto"];
+const ALUNO_DOC_REQUIRED = ["passaporte", "passagens", "comprovante_financeiro", "matricula_seguros"];
+const ALUNO_DOC_MAX = 10 * 1024 * 1024;
+
+function alunoDocRecord(kind) { return alunoDocsData && (alunoDocsData.docs || []).find(d => d.kind === kind) || null; }
+function alunoDocSent(kind) {
+  const rec = alunoDocRecord(kind);
+  if (rec && rec.received && rec.file_path) return true;
+  return kind === "passaporte" && !!(alunoDocsData ? alunoDocsData.passport_legacy : (alunoEnr && alunoEnr.passport_photo_path));
 }
-$al("aluno-doc-passport-link").addEventListener("click", async e => {
-  e.preventDefault();
-  const path = alunoEnr && alunoEnr.passport_photo_path;
-  if (!path) return;
-  const { data, error } = await supabase.storage.from("passport-photos").createSignedUrl(path, 3600);
-  if (error || !data) { alert(t("aluno.fileError")); return; }
+async function alunoOpenFile(bucket, path) {
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
+  if (error || !data) { alunoToast(t("aluno.fileError")); return; }
   window.open(data.signedUrl, "_blank", "noopener");
+}
+async function loadAlunoDocs() {
+  const { data, error } = await supabase.rpc("aluno_documentos");
+  if (error) { console.error("Erro ao carregar documentos:", error); return; }
+  alunoDocsData = data;
+  renderAlunoDocs();
+  renderAlunoDocsView();
+}
+
+function renderAlunoDocs() {
+  const sent = alunoDocSent("passaporte");
+  const rec = alunoDocRecord("passaporte");
+  const card = $al("aluno-doc-passport");
+  card.classList.toggle("is-pending", !sent);
+  const st = $al("aluno-doc-passport-status");
+  st.className = "aluno-doc-status " + (sent ? "ok" : "pending");
+  st.textContent = sent ? t("aluno.sent") : t("aluno.pending");
+  $al("aluno-doc-passport-meta").textContent = sent ? (rec && rec.file_name ? rec.file_name : t("aluno.passport")) : t("aluno.noFileSent");
+  $al("aluno-doc-passport-link").style.display = sent ? "" : "none";
+  const got = ALUNO_DOC_REQUIRED.filter(alunoDocSent).length;
+  $al("aluno-stat-docs").textContent = `${got} / ${ALUNO_DOC_REQUIRED.length}`;
+}
+$al("aluno-doc-passport-link").addEventListener("click", e => {
+  e.preventDefault();
+  const rec = alunoDocRecord("passaporte");
+  if (rec && rec.file_path) alunoOpenFile("student-docs", rec.file_path);
+  else if (alunoEnr && alunoEnr.passport_photo_path) alunoOpenFile("passport-photos", alunoEnr.passport_photo_path);
 });
+
+/* tela Documentos: o aluno envia cada documento da jornada */
+function renderAlunoDocsView() {
+  const box = $al("aluno-docs-list");
+  if (!box) return;
+  if (!alunoEnr) { box.innerHTML = `<p class="aluno-empty">${alunoEsc(t("aluno.noMessages"))}</p>`; return; }
+  box.innerHTML = ALUNO_DOC_KINDS.map(kind => {
+    const sent = alunoDocSent(kind);
+    const rec = alunoDocRecord(kind);
+    const required = ALUNO_DOC_REQUIRED.includes(kind);
+    const when = rec && rec.uploaded_at ? alunoDate(rec.uploaded_at.slice(0, 10)) : "";
+    const meta = sent ? (rec && rec.file_name ? `${rec.file_name}${when ? " · " + t("aluno.docSentOn").replace("{date}", when) : ""}` : t("aluno.docSentOnSignup")) : t("aluno.noFileSent");
+    return `
+      <div class="aluno-doc-row ${sent ? "is-sent" : ""}">
+        <div class="aluno-doc-row-main">
+          <div class="aluno-doc-row-title">${alunoEsc(t("aluno.docName." + kind))}${required ? "" : ` <small>(${alunoEsc(t("aluno.docOptional"))})</small>`}</div>
+          <div class="aluno-doc-row-desc">${alunoEsc(t("aluno.docDesc." + kind))}</div>
+          <div class="aluno-doc-row-meta">${alunoEsc(meta)}</div>
+        </div>
+        <span class="aluno-doc-status ${sent ? "ok" : "pending"}">${alunoEsc(sent ? t("aluno.sent") : t("aluno.pending"))}</span>
+        <div class="aluno-doc-row-acts">
+          ${sent ? `<button type="button" class="btn btn-ghost btn-sm" data-doc-view="${kind}">${alunoEsc(t("aluno.docView"))}</button>` : ""}
+          <button type="button" class="btn btn-primary btn-sm" data-doc-upload="${kind}">${alunoEsc(sent ? t("aluno.docReplace") : t("aluno.docUpload"))}</button>
+          <input type="file" accept="image/*,application/pdf" hidden data-doc-file="${kind}">
+        </div>
+      </div>`;
+  }).join("");
+}
+
+$al("aluno-docs-list").addEventListener("click", e => {
+  const up = e.target.closest("[data-doc-upload]");
+  if (up) { document.querySelector(`[data-doc-file="${up.dataset.docUpload}"]`).click(); return; }
+  const vw = e.target.closest("[data-doc-view]");
+  if (vw) {
+    const kind = vw.dataset.docView, rec = alunoDocRecord(kind);
+    if (rec && rec.file_path) alunoOpenFile("student-docs", rec.file_path);
+    else if (kind === "passaporte" && alunoEnr && alunoEnr.passport_photo_path) alunoOpenFile("passport-photos", alunoEnr.passport_photo_path);
+  }
+});
+$al("aluno-docs-list").addEventListener("change", async e => {
+  const input = e.target.closest("[data-doc-file]");
+  if (!input) return;
+  const kind = input.dataset.docFile, file = input.files[0];
+  input.value = "";
+  if (!file || !alunoEnr) return;
+  if (file.size > ALUNO_DOC_MAX) { alunoToast(t("aluno.docTooBig")); return; }
+  if (!(file.type.startsWith("image/") || file.type === "application/pdf")) { alunoToast(t("aluno.docBadType")); return; }
+  const btn = document.querySelector(`[data-doc-upload="${kind}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = t("aluno.docUploading"); }
+  const ext = (file.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "pdf";
+  const path = `${alunoEnr.id}/${kind}-${Date.now()}.${ext}`;
+  const up = await supabase.storage.from("student-docs").upload(path, file);
+  if (up.error) { console.error(up.error); alunoToast(t("aluno.docError")); renderAlunoDocsView(); return; }
+  const reg = await supabase.rpc("aluno_registrar_documento", { p_kind: kind, p_path: path, p_name: file.name });
+  if (reg.error) { console.error(reg.error); alunoToast(t("aluno.docError")); renderAlunoDocsView(); return; }
+  alunoToast(t("aluno.docSentOk"));
+  await loadAlunoDocs();
+});
+
+/* ---- menu lateral: Dashboard e Documentos funcionam; o resto avisa que vem em breve ---- */
+let alunoToastTimer = null;
+function alunoToast(msg) {
+  const el = $al("aluno-toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(alunoToastTimer);
+  alunoToastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+function showAlunoView(view) {
+  $al("aluno-view-dashboard").classList.toggle("active", view === "dashboard");
+  $al("aluno-view-docs").classList.toggle("active", view === "docs");
+  document.querySelectorAll(".sidebar-nav [data-nav]").forEach(b => b.classList.toggle("active", (b.dataset.nav === "documentos" ? "docs" : b.dataset.nav) === view));
+  window.scrollTo({ top: 0 });
+  if (view === "docs") loadAlunoDocs();
+}
+document.querySelectorAll(".sidebar-nav [data-nav]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const nav = btn.dataset.nav;
+    if (nav === "dashboard") showAlunoView("dashboard");
+    else if (nav === "documentos") showAlunoView("docs");
+    else alunoToast(t("aluno.soonToast"));
+  });
+});
+$al("aluno-docs-back").addEventListener("click", () => showAlunoView("dashboard"));
+$al("aluno-go-docs").addEventListener("click", () => showAlunoView("docs"));
 
 /* ---- calendário e próximos compromissos: chegada, início das aulas e vencimento das parcelas ---- */
 function alunoEvents() {
