@@ -1269,7 +1269,7 @@ let sourceInfluencerConfig = {};
 
 async function loadSources() {
   const { data, error } = await supabase.from("lead_sources")
-    .select("name, is_influencer, commission_pct, commission_mode, commission_fixed_am, commission_fixed_pm").order("ordem");
+    .select("name, is_influencer, commission_pct, commission_mode, commission_fixed_am, commission_fixed_pm, is_paid").order("ordem");
   if (error || !data || !data.length) return ["Indicação", "Site", "Redes Sociais", "Anúncio", "Evento", "Outro"];
   sourceInfluencerConfig = {};
   data.forEach(r => {
@@ -1277,6 +1277,7 @@ async function loadSources() {
       isInfluencer: !!r.is_influencer, commissionPct: Number(r.commission_pct) || 0,
       mode: r.commission_mode || "percentage",
       fixedAm: Number(r.commission_fixed_am) || 0, fixedPm: Number(r.commission_fixed_pm) || 0,
+      isPaid: !!r.is_paid,
     };
   });
   return data.map(r => r.name);
@@ -1304,6 +1305,8 @@ async function updateSourceInfluencerRemote(name, cfg) {
 }
 
 let SOURCES = [];
+/* origem de tráfego pago (azul no gráfico de leads por mês); o resto é orgânico */
+function sourceIsPaid(name) { return !!(sourceInfluencerConfig[name] && sourceInfluencerConfig[name].isPaid); }
 
 const LEAD_STATUS_BADGE = {
   "Novo": "badge-neutral",
@@ -2746,6 +2749,10 @@ function renderSourcesList() {
       <input type="text" value="${escapeHtml(s)}" data-index="${i}">
       <span class="source-usage">${sourceUsageCount(s)} lead(s)</span>
       <label class="checkbox-label source-influencer-toggle">
+        <input type="checkbox" class="source-paid-checkbox" data-name="${escapeHtml(s)}" ${cfg.isPaid ? "checked" : ""}>
+        <span>${t("leads.sourceIsPaid")}</span>
+      </label>
+      <label class="checkbox-label source-influencer-toggle">
         <input type="checkbox" class="source-influencer-checkbox" data-name="${escapeHtml(s)}" ${cfg.isInfluencer ? "checked" : ""}>
         <span>${t("leads.sourceIsInfluencer")}</span>
       </label>
@@ -2828,6 +2835,17 @@ sourcesListEl.addEventListener("click", async e => {
   await deleteSourceRemote(name);
 });
 
+sourcesListEl.addEventListener("change", async e => {
+  const paidCb = e.target.closest(".source-paid-checkbox");
+  if (!paidCb) return;
+  const name = paidCb.dataset.name;
+  const cfg = sourceInfluencerConfig[name] || { isInfluencer: false, commissionPct: 0, mode: "percentage", fixedAm: 0, fixedPm: 0 };
+  cfg.isPaid = paidCb.checked;
+  sourceInfluencerConfig[name] = cfg;
+  const { error } = await supabase.from("lead_sources").update({ is_paid: cfg.isPaid }).eq("name", name);
+  if (error) { console.error("Erro ao salvar origem paga:", error); paidCb.checked = !cfg.isPaid; cfg.isPaid = paidCb.checked; return; }
+  renderDashboardLeadsMonth();
+});
 sourcesListEl.addEventListener("change", async e => {
   const cb = e.target.closest(".source-influencer-checkbox");
   const modeSel = e.target.closest(".source-influencer-mode");
@@ -7824,14 +7842,14 @@ function renderDashboardLeadsMonth() {
   yearSel.value = String(selected);
   yearSel.onchange = renderDashboardLeadsMonth;
 
-  const responded = Array(12).fill(0), total = Array(12).fill(0);
+  const paid = Array(12).fill(0), total = Array(12).fill(0);
   leads.forEach(l => {
     const d = new Date(l.createdAt);
     if (d.getFullYear() !== selected) return;
     total[d.getMonth()] += 1;
-    if (LEAD_RESPONDED_STATUSES.includes(l.status)) responded[d.getMonth()] += 1;
+    if (sourceIsPaid(l.source)) paid[d.getMonth()] += 1;
   });
-  const noResponse = total.map((v, i) => v - responded[i]);
+  const organic = total.map((v, i) => v - paid[i]);
   const hasData = total.some(v => v > 0);
   canvas.style.display = hasData ? "" : "none";
   emptyEl.style.display = hasData ? "none" : "";
@@ -7844,8 +7862,8 @@ function renderDashboardLeadsMonth() {
     data: {
       labels: MONTH_ABBR,
       datasets: [
-        { label: t("dash.leadsResponded"), data: responded, backgroundColor: LEADS_MONTH_NAVY, borderColor: "#fff", borderWidth: { top: 2, right: 0, bottom: 0, left: 0 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
-        { label: t("dash.leadsNoResponse"), data: noResponse, backgroundColor: LEADS_MONTH_ORANGE, borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
+        { label: t("dash.leadsPaid"), data: paid, backgroundColor: LEADS_MONTH_NAVY, borderColor: "#fff", borderWidth: { top: 2, right: 0, bottom: 0, left: 0 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
+        { label: t("dash.leadsOrganic"), data: organic, backgroundColor: LEADS_MONTH_ORANGE, borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
       ],
     },
     options: {
@@ -7905,6 +7923,43 @@ function renderDashboardOrigemChart() {
 }
 
 /* ---- gráfico: faturamento últimos 6 meses (barras) ---- */
+/* metas mensais do ano todo: a barra clara é a meta e a escura "sobe" conforme o faturamento realizado do mês */
+let monthlyGoals = [];
+async function loadMonthlyGoals() {
+  const { data, error } = await supabase.from("monthly_goals").select("year, month, amount");
+  if (error) { console.error("Erro ao carregar metas:", error); return []; }
+  return data.map(r => ({ year: r.year, month: r.month, amount: Number(r.amount) || 0 }));
+}
+function goalCompact(v) {
+  v = Number(v) || 0;
+  return v >= 1000 ? `${(v / 1000).toFixed(1).replace(".", ",").replace(",0", "")}k` : String(Math.round(v));
+}
+const goalsLabelsPlugin = {
+  id: "goalsLabels",
+  afterDatasetsDraw(chart) {
+    const opt = chart.options.plugins.goalsLabels;
+    const goalMeta = chart.getDatasetMeta(0), doneMeta = chart.getDatasetMeta(1);
+    const { ctx } = chart;
+    ctx.save();
+    ctx.textAlign = "center";
+    goalMeta.data.forEach((bar, i) => {
+      const done = opt.actual[i], goal = opt.goals[i];
+      const topY = Math.min(bar.y, doneMeta.data[i].y);
+      const isNow = i === opt.currentIdx;
+      if (done > 0) {
+        ctx.font = `${isNow ? "800" : "700"} 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.fillStyle = goal > 0 && done >= goal ? "#16a34a" : LEADS_MONTH_NAVY;
+        ctx.fillText(goalCompact(done), bar.x, topY - 8);
+      } else if (goal > 0) {
+        ctx.font = "500 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        ctx.fillStyle = "#8ea0bd";
+        ctx.fillText(goalCompact(goal), bar.x, topY - 8);
+      }
+    });
+    ctx.restore();
+  },
+};
+
 function renderDashboardFaturamentoChart() {
   const panel = document.getElementById("dash-panel-faturamento");
   const grid = document.getElementById("dash-row-charts");
@@ -7918,35 +7973,111 @@ function renderDashboardFaturamentoChart() {
 
   const canvas = document.getElementById("dash-chart-faturamento");
   destroyDashChart("faturamento");
+  const yearSel = document.getElementById("dash-goals-year");
+  const nowYear = new Date().getFullYear();
+  const years = [nowYear - 1, nowYear, nowYear + 1];
+  const selected = years.includes(Number(yearSel.value)) ? Number(yearSel.value) : nowYear;
+  yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join("");
+  yearSel.value = String(selected);
+  yearSel.onchange = renderDashboardFaturamentoChart;
+  document.getElementById("btn-edit-goals").style.display = (session.role === "ADM" || session.role === "Gerente") ? "" : "none";
 
-  const now = new Date();
-  const labels = [];
-  const data = [];
-  for (let i = 5; i >= 0; i--) {
-    const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthStart = monthDate.getTime();
-    const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1).getTime();
-    const total = deals
-      .filter(d => isWonStage(d.stage) && d.closedAt >= monthStart && d.closedAt < monthEnd)
-      .reduce((s, d) => s + (Number(d.value) || 0), 0);
-    labels.push(MONTH_ABBR[monthDate.getMonth()]);
-    data.push(total);
-  }
+  const goals = Array(12).fill(0), actual = Array(12).fill(0);
+  monthlyGoals.filter(g => g.year === selected).forEach(g => { goals[g.month - 1] = g.amount; });
+  deals.forEach(d => {
+    if (!isWonStage(d.stage) || !d.closedAt) return;
+    const c = new Date(d.closedAt);
+    if (c.getFullYear() === selected) actual[c.getMonth()] += Number(d.value) || 0;
+  });
+  const sumGoal = goals.reduce((s, v) => s + v, 0), sumDone = actual.reduce((s, v) => s + v, 0);
+  const summary = document.getElementById("dash-goals-summary");
+  summary.textContent = sumGoal > 0
+    ? `${t("dash.goalYear")}: ${currency(sumDone)} ${t("dash.goalOf")} ${currency(sumGoal)} (${Math.round(sumDone / sumGoal * 100)}%)`
+    : t("dash.goalNone");
 
+  const currentIdx = selected === nowYear ? new Date().getMonth() : -1;
+  const max = Math.max(1, ...goals, ...actual);
   dashCharts.faturamento = new Chart(canvas, {
     type: "bar",
-    data: { labels, datasets: [{ data, backgroundColor: "#4f7df3", borderRadius: 6, maxBarThickness: 40 }] },
+    plugins: [goalsLabelsPlugin],
+    data: {
+      labels: MONTH_ABBR,
+      datasets: [
+        { label: t("dash.goalGoal"), data: goals, backgroundColor: "#dde5f2", borderRadius: 6, grouped: false, order: 2, maxBarThickness: 34 },
+        { label: t("dash.goalDone"), data: actual, backgroundColor: actual.map((v, i) => (goals[i] > 0 && v >= goals[i] ? "#16a34a" : LEADS_MONTH_NAVY)),
+          borderRadius: { topLeft: 6, topRight: 6 }, grouped: false, order: 1, maxBarThickness: 34 },
+      ],
+    },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => currency(ctx.parsed.y) } } },
+      layout: { padding: { top: 22 } },
+      plugins: {
+        goalsLabels: { goals, actual, currentIdx },
+        legend: { position: "bottom", labels: {
+          usePointStyle: true, pointStyle: "rectRounded", boxWidth: 12, boxHeight: 12, padding: 16, color: "#3c4a66", font: { size: 12 },
+          generateLabels: chart => Chart.defaults.plugins.legend.labels.generateLabels(chart)
+            .map(l => (l.datasetIndex === 1 ? { ...l, fillStyle: LEADS_MONTH_NAVY, strokeStyle: LEADS_MONTH_NAVY } : l)),
+        } },
+        tooltip: { callbacks: {
+          label: ctx => `${ctx.dataset.label}: ${currency(ctx.parsed.y)}`,
+          footer: items => (goals[items[0].dataIndex] > 0 ? `${Math.round(actual[items[0].dataIndex] / goals[items[0].dataIndex] * 100)}% ${t("dash.goalOfGoal")}` : ""),
+        } },
+      },
       scales: {
-        y: { beginAtZero: true, ticks: { callback: v => currency(v).replace(",00", "") } },
-        x: { grid: { display: false } },
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: "#3c4a66", font: { size: 12 } } },
+        y: { display: false, beginAtZero: true, max: max * 1.12 },
       },
     },
   });
 }
+
+/* modal: definir as metas do ano */
+const goalsModalBackdrop = document.getElementById("goals-modal-backdrop");
+function openGoalsModal() {
+  const year = Number(document.getElementById("dash-goals-year").value) || new Date().getFullYear();
+  document.getElementById("goals-modal-year").textContent = year;
+  const grid = document.getElementById("goals-fields");
+  grid.innerHTML = MONTH_ABBR.map((m, i) => {
+    const g = monthlyGoals.find(x => x.year === year && x.month === i + 1);
+    return `<label><span>${m}</span><input type="number" min="0" step="0.01" data-goal-month="${i + 1}" value="${g ? g.amount : ""}" placeholder="0"></label>`;
+  }).join("");
+  document.getElementById("goals-start").value = "";
+  document.getElementById("goals-growth").value = "";
+  goalsModalBackdrop.dataset.year = String(year);
+  goalsModalBackdrop.classList.add("open");
+}
+function closeGoalsModal() { goalsModalBackdrop.classList.remove("open"); }
+document.getElementById("btn-edit-goals").addEventListener("click", openGoalsModal);
+document.getElementById("goals-modal-close").addEventListener("click", closeGoalsModal);
+document.getElementById("goals-btn-cancel").addEventListener("click", closeGoalsModal);
+goalsModalBackdrop.addEventListener("click", e => { if (e.target === goalsModalBackdrop) closeGoalsModal(); });
+document.getElementById("goals-btn-generate").addEventListener("click", () => {
+  const start = parseFloat(document.getElementById("goals-start").value);
+  const growth = parseFloat(document.getElementById("goals-growth").value) || 0;
+  if (!(start >= 0)) return;
+  document.querySelectorAll("#goals-fields [data-goal-month]").forEach((inp, i) => {
+    inp.value = (Math.round(start * Math.pow(1 + growth / 100, i) * 100) / 100).toString();
+  });
+});
+document.getElementById("goals-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const year = Number(goalsModalBackdrop.dataset.year);
+  const rows = [], toRemove = [];
+  document.querySelectorAll("#goals-fields [data-goal-month]").forEach(inp => {
+    const month = Number(inp.dataset.goalMonth), v = parseFloat(inp.value);
+    if (v > 0) rows.push({ year, month, amount: Math.round(v * 100) / 100, updated_at: new Date().toISOString() });
+    else toRemove.push(month);
+  });
+  if (rows.length) {
+    const { error } = await supabase.from("monthly_goals").upsert(rows);
+    if (error) { console.error(error); alert(t("dash.goalSaveError")); return; }
+  }
+  if (toRemove.length) await supabase.from("monthly_goals").delete().eq("year", year).in("month", toRemove);
+  monthlyGoals = monthlyGoals.filter(g => g.year !== year).concat(rows.map(r => ({ year: r.year, month: r.month, amount: r.amount })));
+  renderDashboardFaturamentoChart();
+  closeGoalsModal();
+});
 
 /* ---- gráfico: ranking de consultores (barras) ---- */
 function renderDashboardRankingChart() {
@@ -8682,6 +8813,7 @@ document.addEventListener("keydown", e => {
   if (transferModalBackdrop.classList.contains("open")) closeTransferModal();
   if (scommModalBackdrop.classList.contains("open")) closeSchoolCommModal();
   if (teamModalBackdrop.classList.contains("open")) closeTeamModal();
+  if (goalsModalBackdrop.classList.contains("open")) closeGoalsModal();
   if (collaboratorModalBackdrop.classList.contains("open")) closeCollaboratorModal();
   if (followUpModalBackdrop.classList.contains("open")) closeFollowUpModal();
   if (notesModalBackdrop.classList.contains("open")) closeNotesModal();
@@ -8705,7 +8837,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits, schoolCommissions, teams, openFollowups] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits, schoolCommissions, teams, openFollowups, monthlyGoals] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -8736,6 +8868,7 @@ document.addEventListener("keydown", e => {
     loadSchoolCommissions(),
     loadTeams(),
     loadOpenFollowups(),
+    loadMonthlyGoals(),
   ]);
 
   renderSessionChip();

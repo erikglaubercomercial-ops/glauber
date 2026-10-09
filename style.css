@@ -2256,3 +2256,13 @@ body {
 /* dashboard: leads recebidos por mês */
 .dash-leadsmonth-box { height: 300px; }
 .dash-year-select { border: 1px solid var(--border); border-radius: 10px; padding: 5px 10px; font: inherit; font-size: 13px; font-weight: 700; background: #fff; color: var(--text); }
+
+/* dashboard: metas mensais */
+.dash-panel-tools { display: flex; align-items: center; gap: 8px; }
+.dash-goals-summary { padding: 10px 20px 0; font-size: 13px; font-weight: 700; color: var(--primary-deep); }
+.dash-goals-box { height: 300px; }
+.goals-gen { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin: 6px 0 14px; padding: 12px; background: var(--content-bg); border-radius: 14px; }
+.goals-gen label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.goals-gen input { width: 130px; }
+.goals-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.goals-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
