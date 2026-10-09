@@ -1305,8 +1305,6 @@ async function updateSourceInfluencerRemote(name, cfg) {
 }
 
 let SOURCES = [];
-/* origem de tráfego pago (azul no gráfico de leads por mês); o resto é orgânico */
-function sourceIsPaid(name) { return !!(sourceInfluencerConfig[name] && sourceInfluencerConfig[name].isPaid); }
 
 const LEAD_STATUS_BADGE = {
   "Novo": "badge-neutral",
@@ -2749,10 +2747,6 @@ function renderSourcesList() {
       <input type="text" value="${escapeHtml(s)}" data-index="${i}">
       <span class="source-usage">${sourceUsageCount(s)} lead(s)</span>
       <label class="checkbox-label source-influencer-toggle">
-        <input type="checkbox" class="source-paid-checkbox" data-name="${escapeHtml(s)}" ${cfg.isPaid ? "checked" : ""}>
-        <span>${t("leads.sourceIsPaid")}</span>
-      </label>
-      <label class="checkbox-label source-influencer-toggle">
         <input type="checkbox" class="source-influencer-checkbox" data-name="${escapeHtml(s)}" ${cfg.isInfluencer ? "checked" : ""}>
         <span>${t("leads.sourceIsInfluencer")}</span>
       </label>
@@ -2835,17 +2829,6 @@ sourcesListEl.addEventListener("click", async e => {
   await deleteSourceRemote(name);
 });
 
-sourcesListEl.addEventListener("change", async e => {
-  const paidCb = e.target.closest(".source-paid-checkbox");
-  if (!paidCb) return;
-  const name = paidCb.dataset.name;
-  const cfg = sourceInfluencerConfig[name] || { isInfluencer: false, commissionPct: 0, mode: "percentage", fixedAm: 0, fixedPm: 0 };
-  cfg.isPaid = paidCb.checked;
-  sourceInfluencerConfig[name] = cfg;
-  const { error } = await supabase.from("lead_sources").update({ is_paid: cfg.isPaid }).eq("name", name);
-  if (error) { console.error("Erro ao salvar origem paga:", error); paidCb.checked = !cfg.isPaid; cfg.isPaid = paidCb.checked; return; }
-  renderDashboardLeadsMonth();
-});
 sourcesListEl.addEventListener("change", async e => {
   const cb = e.target.closest(".source-influencer-checkbox");
   const modeSel = e.target.closest(".source-influencer-mode");
@@ -7842,14 +7825,14 @@ function renderDashboardLeadsMonth() {
   yearSel.value = String(selected);
   yearSel.onchange = renderDashboardLeadsMonth;
 
-  const paid = Array(12).fill(0), total = Array(12).fill(0);
+  const responded = Array(12).fill(0), total = Array(12).fill(0);
   leads.forEach(l => {
     const d = new Date(l.createdAt);
     if (d.getFullYear() !== selected) return;
     total[d.getMonth()] += 1;
-    if (sourceIsPaid(l.source)) paid[d.getMonth()] += 1;
+    if (LEAD_RESPONDED_STATUSES.includes(l.status)) responded[d.getMonth()] += 1;
   });
-  const organic = total.map((v, i) => v - paid[i]);
+  const noResponse = total.map((v, i) => v - responded[i]);
   const hasData = total.some(v => v > 0);
   canvas.style.display = hasData ? "" : "none";
   emptyEl.style.display = hasData ? "none" : "";
@@ -7862,8 +7845,8 @@ function renderDashboardLeadsMonth() {
     data: {
       labels: MONTH_ABBR,
       datasets: [
-        { label: t("dash.leadsPaid"), data: paid, backgroundColor: LEADS_MONTH_NAVY, borderColor: "#fff", borderWidth: { top: 2, right: 0, bottom: 0, left: 0 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
-        { label: t("dash.leadsOrganic"), data: organic, backgroundColor: LEADS_MONTH_ORANGE, borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
+        { label: t("dash.leadsResponded"), data: responded, backgroundColor: LEADS_MONTH_NAVY, borderColor: "#fff", borderWidth: { top: 2, right: 0, bottom: 0, left: 0 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
+        { label: t("dash.leadsNoResponse"), data: noResponse, backgroundColor: LEADS_MONTH_ORANGE, borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
       ],
     },
     options: {
@@ -7938,22 +7921,26 @@ const goalsLabelsPlugin = {
   id: "goalsLabels",
   afterDatasetsDraw(chart) {
     const opt = chart.options.plugins.goalsLabels;
-    const goalMeta = chart.getDatasetMeta(0), doneMeta = chart.getDatasetMeta(1);
+    const doneMeta = chart.getDatasetMeta(0), topMeta = chart.getDatasetMeta(1);
     const { ctx } = chart;
     ctx.save();
     ctx.textAlign = "center";
-    goalMeta.data.forEach((bar, i) => {
-      const done = opt.actual[i], goal = opt.goals[i];
-      const topY = Math.min(bar.y, doneMeta.data[i].y);
+    const font = (w, s) => `${w} ${s}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    topMeta.data.forEach((bar, i) => {
+      const goal = opt.goals[i], done = opt.actual[i], total = Math.max(goal, done);
+      if (!total) return;
       const isNow = i === opt.currentIdx;
-      if (done > 0) {
-        ctx.font = `${isNow ? "800" : "700"} 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-        ctx.fillStyle = goal > 0 && done >= goal ? "#16a34a" : LEADS_MONTH_NAVY;
-        ctx.fillText(goalCompact(done), bar.x, topY - 8);
-      } else if (goal > 0) {
-        ctx.font = "500 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-        ctx.fillStyle = "#8ea0bd";
-        ctx.fillText(goalCompact(goal), bar.x, topY - 8);
+      /* total do mês (a meta, ou o realizado se passou da meta) em cima da barra */
+      ctx.font = font(isNow ? "800" : "500", 12);
+      ctx.fillStyle = isNow ? LEADS_MONTH_NAVY : "#3c4a66";
+      ctx.fillText((goal > 0 && done >= goal ? "✓ " : "") + goalCompact(total), bar.x, bar.y - 8);
+      /* realizado dentro da parte azul, quando cabe */
+      const seg = doneMeta.data[i];
+      const h = seg.base - seg.y;
+      if (done > 0 && h >= 20) {
+        ctx.font = font("700", 11);
+        ctx.fillStyle = "#fff";
+        ctx.fillText(goalCompact(done), seg.x, seg.y + h / 2 + 4);
       }
     });
     ctx.restore();
@@ -7996,16 +7983,15 @@ function renderDashboardFaturamentoChart() {
     : t("dash.goalNone");
 
   const currentIdx = selected === nowYear ? new Date().getMonth() : -1;
-  const max = Math.max(1, ...goals, ...actual);
+  const missing = goals.map((g, i) => Math.max(g - actual[i], 0));
   dashCharts.faturamento = new Chart(canvas, {
     type: "bar",
     plugins: [goalsLabelsPlugin],
     data: {
       labels: MONTH_ABBR,
       datasets: [
-        { label: t("dash.goalGoal"), data: goals, backgroundColor: "#dde5f2", borderRadius: 6, grouped: false, order: 2, maxBarThickness: 34 },
-        { label: t("dash.goalDone"), data: actual, backgroundColor: actual.map((v, i) => (goals[i] > 0 && v >= goals[i] ? "#16a34a" : LEADS_MONTH_NAVY)),
-          borderRadius: { topLeft: 6, topRight: 6 }, grouped: false, order: 1, maxBarThickness: 34 },
+        { label: t("dash.goalDone"), data: actual, backgroundColor: LEADS_MONTH_NAVY, borderColor: "#fff", borderWidth: { top: 2, right: 0, bottom: 0, left: 0 }, borderSkipped: false, maxBarThickness: 34, stack: "g" },
+        { label: t("dash.goalMissing"), data: missing, backgroundColor: LEADS_MONTH_ORANGE, borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: false, maxBarThickness: 34, stack: "g" },
       ],
     },
     options: {
@@ -8014,19 +8000,18 @@ function renderDashboardFaturamentoChart() {
       layout: { padding: { top: 22 } },
       plugins: {
         goalsLabels: { goals, actual, currentIdx },
-        legend: { position: "bottom", labels: {
-          usePointStyle: true, pointStyle: "rectRounded", boxWidth: 12, boxHeight: 12, padding: 16, color: "#3c4a66", font: { size: 12 },
-          generateLabels: chart => Chart.defaults.plugins.legend.labels.generateLabels(chart)
-            .map(l => (l.datasetIndex === 1 ? { ...l, fillStyle: LEADS_MONTH_NAVY, strokeStyle: LEADS_MONTH_NAVY } : l)),
-        } },
+        legend: { position: "bottom", labels: { usePointStyle: true, pointStyle: "rectRounded", boxWidth: 12, boxHeight: 12, padding: 16, color: "#3c4a66", font: { size: 12 } } },
         tooltip: { callbacks: {
           label: ctx => `${ctx.dataset.label}: ${currency(ctx.parsed.y)}`,
-          footer: items => (goals[items[0].dataIndex] > 0 ? `${Math.round(actual[items[0].dataIndex] / goals[items[0].dataIndex] * 100)}% ${t("dash.goalOfGoal")}` : ""),
+          footer: items => {
+            const k = items[0].dataIndex;
+            return goals[k] > 0 ? `${t("dash.goalGoal")}: ${currency(goals[k])} · ${Math.round(actual[k] / goals[k] * 100)}% ${t("dash.goalOfGoal")}` : "";
+          },
         } },
       },
       scales: {
-        x: { grid: { display: false }, border: { display: false }, ticks: { color: "#3c4a66", font: { size: 12 } } },
-        y: { display: false, beginAtZero: true, max: max * 1.12 },
+        x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: "#3c4a66", font: { size: 12 } } },
+        y: { stacked: true, display: false, beginAtZero: true },
       },
     },
   });
