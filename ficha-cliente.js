@@ -452,10 +452,12 @@ function fxRenderFollowups(d) {
   $fx("ficha-followups").querySelectorAll("[data-fu-done]").forEach(b => b.addEventListener("click", async () => {
     const { error } = await supabase.from("lead_followups").update({ done: true, done_at: new Date().toISOString() }).eq("id", b.dataset.fuDone);
     if (error) alert("Não foi possível concluir."); fichaJson = ""; fichaLoad();
+    if (typeof refreshOpenFollowups === "function") refreshOpenFollowups();
   }));
   $fx("ficha-followups").querySelectorAll("[data-fu-del]").forEach(b => b.addEventListener("click", async () => {
     if (!confirm("Excluir este follow-up?")) return;
     await supabase.from("lead_followups").delete().eq("id", b.dataset.fuDel); fichaJson = ""; fichaLoad();
+    if (typeof refreshOpenFollowups === "function") refreshOpenFollowups();
   }));
 }
 
@@ -515,6 +517,7 @@ $fx("ficha-fu-save").addEventListener("click", async () => {
   if (error) { console.error(error); err.textContent = "Não foi possível salvar o agendamento."; return; }
   $fx("ficha-fu-note").value = ""; $fx("ficha-fu-form").style.display = "none";
   fichaJson = ""; fichaLoad(); fxCheckAlerts();
+  if (typeof refreshOpenFollowups === "function") refreshOpenFollowups();
 });
 $fx("ficha-note-save").addEventListener("click", async () => {
   const ta = $fx("ficha-note-text"), body = ta.value.trim();
@@ -604,7 +607,7 @@ async function fxCheckFollowups() {
     const snooze = async ms => { await supabase.from("lead_followups").update({ snoozed_until: new Date(Date.now() + ms).toISOString() }).eq("id", due.id); close(); };
     document.getElementById("fxp-1h").onclick = () => snooze(3600000);
     document.getElementById("fxp-tm").onclick = () => { const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); snooze(t - Date.now()); };
-    document.getElementById("fxp-done").onclick = async () => { await supabase.from("lead_followups").update({ done: true, done_at: new Date().toISOString() }).eq("id", due.id); close(); if (fichaLeadId) { fichaJson = ""; fichaLoad(); } };
+    document.getElementById("fxp-done").onclick = async () => { await supabase.from("lead_followups").update({ done: true, done_at: new Date().toISOString() }).eq("id", due.id); close(); if (fichaLeadId) { fichaJson = ""; fichaLoad(); } if (typeof refreshOpenFollowups === "function") refreshOpenFollowups(); };
     document.getElementById("fxp-open").onclick = () => { close(); openFicha(due.lead_id); };
   });
   return true;

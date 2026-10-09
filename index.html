@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791545253">
+<link rel="stylesheet" href="style.css?v=1791545956">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -326,22 +326,27 @@
 
       <!-- PIPELINE VIEW -->
       <section class="view" id="view-pipeline">
-        <div class="stat-row">
-          <div class="stat-card">
-            <span class="stat-label" data-i18n="pipeline.statOpenDeals">Negócios abertos</span>
-            <span class="stat-value" id="stat-open">0</span>
+        <div class="stat-row stat-row-5">
+          <div class="stat-card stat-card-click" data-pipe-kpi="month" title="Leads criados neste mês, do dia 1º até hoje">
+            <span class="stat-label" data-i18n="pipeline.kpiMonth">Leads do mês (até hoje)</span>
+            <span class="stat-value" id="stat-month">0</span>
           </div>
-          <div class="stat-card">
-            <span class="stat-label" data-i18n="pipeline.statPipelineValue">Valor em pipeline</span>
-            <span class="stat-value" id="stat-pipeline-value">€ 0</span>
+          <div class="stat-card stat-card-click" data-pipe-kpi="nocontact" title="Leads ainda com status Novo">
+            <span class="stat-label" data-i18n="pipeline.kpiNoContact">Leads sem contato</span>
+            <span class="stat-value" id="stat-nocontact">0</span>
           </div>
-          <div class="stat-card">
-            <span class="stat-label" data-i18n="pipeline.statWonMonth">Ganhos (mês)</span>
-            <span class="stat-value stat-good" id="stat-won">€ 0</span>
+          <div class="stat-card stat-card-click" data-pipe-kpi="followup" title="Follow-up de hoje ou atrasado">
+            <span class="stat-label" data-i18n="pipeline.kpiFollowupLate">Follow-up atrasado</span>
+            <span class="stat-value" id="stat-followup">0</span>
           </div>
-          <div class="stat-card">
-            <span class="stat-label" data-i18n="dash.statConversion">Taxa de conversão</span>
-            <span class="stat-value" id="stat-conversion">0%</span>
+          <div class="stat-card stat-card-click" data-pipe-kpi="meeting" title="Negócios que chegaram a Reunião feita ou além">
+            <span class="stat-label" data-i18n="pipeline.kpiMeetings">Reuniões realizadas</span>
+            <span class="stat-value" id="stat-meeting">0</span>
+          </div>
+          <div class="stat-card stat-card-click" data-pipe-kpi="responded" title="Dos leads novos do mês, quantos já responderam">
+            <span class="stat-label" data-i18n="pipeline.kpiResponded">Conversão: responderam</span>
+            <span class="stat-value" id="stat-rate">0%</span>
+            <span class="stat-sub" id="stat-rate-sub"></span>
           </div>
         </div>
 
@@ -2606,14 +2611,14 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791545253"></script>
-  <script src="auth.js?v=1791545253"></script>
-  <script src="i18n.js?v=1791545253"></script>
-  <script src="comparativo.js?v=1791545253"></script>
-  <script src="contrato-modelo.js?v=1791545253"></script>
-  <script src="script.js?v=1791545253"></script>
-  <script src="contratos-proposta.js?v=1791545253"></script>
-  <script src="ficha-cliente.js?v=1791545253"></script>
-  <script src="app-acompanhamento.js?v=1791545253"></script>
+  <script src="config.js?v=1791545956"></script>
+  <script src="auth.js?v=1791545956"></script>
+  <script src="i18n.js?v=1791545956"></script>
+  <script src="comparativo.js?v=1791545956"></script>
+  <script src="contrato-modelo.js?v=1791545956"></script>
+  <script src="script.js?v=1791545956"></script>
+  <script src="contratos-proposta.js?v=1791545956"></script>
+  <script src="ficha-cliente.js?v=1791545956"></script>
+  <script src="app-acompanhamento.js?v=1791545956"></script>
 </body>
 </html>

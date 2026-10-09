@@ -723,7 +723,68 @@ function renderPipelineFilterOptions() {
 
 let pipelineSearchQuery = "";
 
+/* KPIs do topo do Pipeline (só contagens, sem valores): cada um filtra o quadro */
+let pipelineQuick = null;   /* null | "month" | "nocontact" | "followup" | "meeting" | "responded" */
+
+/* follow-ups agendados na ficha (em aberto), para o KPI de follow-up atrasado do Pipeline */
+let openFollowups = [];
+async function loadOpenFollowups() {
+  const { data, error } = await supabase.from("lead_followups").select("lead_id, due_at").eq("done", false);
+  if (error) { console.error("Erro ao carregar follow-ups em aberto:", error); return []; }
+  return data;
+}
+async function refreshOpenFollowups() {
+  openFollowups = await loadOpenFollowups();
+  if (document.getElementById("view-pipeline").classList.contains("active")) renderBoard();
+}
+
+function dealLead(d) { return d.leadId ? leads.find(l => l.id === d.leadId) : null; }
+function localIsoDate(d) { const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
+function dealIsFollowupLate(d) {
+  if (isClosedStage(d.stage)) return false;
+  const today = localIsoDate(new Date());
+  if (d.followUpAt && d.followUpAt <= today) return true;
+  return !!d.leadId && openFollowups.some(f => f.lead_id === d.leadId && localIsoDate(new Date(f.due_at)) <= today);
+}
+function dealIsNoContact(d) {
+  const lead = dealLead(d);
+  return !isClosedStage(d.stage) && !!lead && lead.active !== false && lead.status === "Novo";
+}
+/* lead criado neste mês, do dia 1º até hoje */
+function dealCreatedThisMonth(d) {
+  const lead = dealLead(d);
+  if (lead && lead.active === false) return false;
+  const created = new Date(lead ? lead.createdAt : d.createdAt), now = new Date();
+  return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth() && created <= now;
+}
+const LEAD_RESPONDED_STATUSES = ["Em contato", "Qualificado", "Venda realizada"];
+function dealLeadResponded(d) {
+  const lead = dealLead(d);
+  return !!lead && LEAD_RESPONDED_STATUSES.includes(lead.status);
+}
+/* chegou a "Reunião feita" (etapa de reunião) ou além, até a Venda */
+function dealHadMeeting(d) {
+  let mi = STAGES.findIndex(s => /reuni/i.test(s.label));
+  if (mi < 0) mi = STAGES.findIndex(s => s.id === "negociacao");
+  const wi = STAGES.findIndex(s => s.isWon);
+  const idx = STAGES.findIndex(s => s.id === d.stage);
+  return mi >= 0 && wi >= 0 && idx >= mi && idx <= wi;
+}
+const PIPELINE_QUICK_TESTS = {
+  month: dealCreatedThisMonth,
+  nocontact: dealIsNoContact,
+  followup: dealIsFollowupLate,
+  meeting: dealHadMeeting,
+  responded: d => dealCreatedThisMonth(d) && dealLeadResponded(d),
+};
+
 function getFilteredDeals() {
+  const list = getScopedDeals();
+  return pipelineQuick ? list.filter(PIPELINE_QUICK_TESTS[pipelineQuick]) : list;
+}
+
+/* negócios do consultor/busca escolhidos, antes do filtro rápido dos KPIs */
+function getScopedDeals() {
   let list = deals;
   if (isOwnLeadsOnly()) {
     list = list.filter(d => dealConsultorId(d) === session.id);
@@ -736,7 +797,14 @@ function getFilteredDeals() {
 }
 
 document.getElementById("pipeline-filter-consultor").addEventListener("change", () => { renderBoard(); });
+document.querySelectorAll("#view-pipeline [data-pipe-kpi]").forEach(card => {
+  card.addEventListener("click", () => {
+    pipelineQuick = pipelineQuick === card.dataset.pipeKpi ? null : card.dataset.pipeKpi;
+    renderBoard();
+  });
+});
 document.getElementById("pipeline-filter-clear").addEventListener("click", () => {
+  pipelineQuick = null;
   document.getElementById("pipeline-filter-consultor").value = "";
   pipelineSearchQuery = "";
   document.getElementById("pipeline-search-input").value = "";
@@ -851,7 +919,7 @@ function renderCard(deal) {
       </div>` : ""}
     ${consultant ? `<div class="card-consultor">${escapeHtml(consultant.name)}</div>` : ""}
     <div class="card-footer">
-      <span class="card-value">${deal.value ? currency(deal.value) : "—"}</span>
+      <span></span>
       <div class="card-actions">
         ${phoneText ? (waDigits
           ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="${t("common.openWhatsapp")}">${WPP_ICON_SVG}</a>`
@@ -987,25 +1055,16 @@ function moveDeal(id, newStage) {
 }
 
 function renderPipelineDashboard() {
-  const scopedDeals = getFilteredDeals();
-  const open = scopedDeals.filter(d => !isClosedStage(d.stage));
-  const pipelineValue = open.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
-
-  const now = new Date();
-  const wonThisMonth = scopedDeals.filter(d => {
-    if (!isWonStage(d.stage) || !d.closedAt) return false;
-    const closed = new Date(d.closedAt);
-    return closed.getMonth() === now.getMonth() && closed.getFullYear() === now.getFullYear();
-  });
-  const wonValue = wonThisMonth.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
-
-  const closed = scopedDeals.filter(d => isClosedStage(d.stage));
-  const conversion = closed.length === 0 ? 0 : Math.round((scopedDeals.filter(d => isWonStage(d.stage)).length / closed.length) * 100);
-
-  document.getElementById("stat-open").textContent = open.length;
-  document.getElementById("stat-pipeline-value").textContent = currency(pipelineValue);
-  document.getElementById("stat-won").textContent = currency(wonValue);
-  document.getElementById("stat-conversion").textContent = `${conversion}%`;
+  const scoped = getScopedDeals();
+  const month = scoped.filter(PIPELINE_QUICK_TESTS.month);
+  const responded = scoped.filter(PIPELINE_QUICK_TESTS.responded);
+  document.getElementById("stat-month").textContent = month.length;
+  document.getElementById("stat-nocontact").textContent = scoped.filter(PIPELINE_QUICK_TESTS.nocontact).length;
+  document.getElementById("stat-followup").textContent = scoped.filter(PIPELINE_QUICK_TESTS.followup).length;
+  document.getElementById("stat-meeting").textContent = scoped.filter(PIPELINE_QUICK_TESTS.meeting).length;
+  document.getElementById("stat-rate").textContent = month.length ? `${Math.round(responded.length / month.length * 100)}%` : "0%";
+  document.getElementById("stat-rate-sub").textContent = `${responded.length} ${t("pipeline.kpiOf")} ${month.length} ${t("pipeline.kpiNewLeadsMonth")}`;
+  document.querySelectorAll("#view-pipeline [data-pipe-kpi]").forEach(c => c.classList.toggle("is-active", c.dataset.pipeKpi === pipelineQuick));
 }
 
 function openDealModal(id) {
@@ -8592,7 +8651,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits, schoolCommissions, teams] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits, schoolCommissions, teams, openFollowups] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -8622,6 +8681,7 @@ document.addEventListener("keydown", e => {
     loadSaleSplits(),
     loadSchoolCommissions(),
     loadTeams(),
+    loadOpenFollowups(),
   ]);
 
   renderSessionChip();
