@@ -578,7 +578,6 @@ const APPT_CHECK_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="no
 /* abre a ficha do lead (por cima de qualquer modal da tela) */
 function apptOpenLead(leadId) {
   if (!leadId) return;
-  if (!leads.some(l => l.id === leadId)) { alert(t("appt.leadNotFound")); return; }
   document.getElementById("appt-timeline-backdrop").classList.remove("open");
   openFicha(leadId);
 }

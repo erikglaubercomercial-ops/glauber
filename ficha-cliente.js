@@ -43,6 +43,10 @@ const fxInitials = name => (name || "").trim().split(/\s+/).filter(Boolean).slic
 /* ---------------- abrir / fechar / atualizar ---------------- */
 async function openFicha(leadId) {
   if (!leadId) return;
+  /* lead criado depois que a tela abriu (ex.: capturado pelo app): busca no banco antes de abrir */
+  if (!leads.some(l => l.id === leadId)) {
+    try { leads = await loadLeads(); renderLeads(); } catch (e) { console.error("Erro ao atualizar leads:", e); }
+  }
   fichaLeadId = leadId;
   fichaData = null; fichaJson = ""; fichaShowAll = false; fichaPersonal = null;
   $fx("ficha-loading").style.display = "";
@@ -72,7 +76,9 @@ async function fichaLoad() {
   if (id !== fichaLeadId) return;
   if (error || !data) {
     console.error("Erro ao carregar a ficha:", error);
-    $fx("ficha-loading").textContent = "Não foi possível abrir a ficha deste cliente.";
+    $fx("ficha-loading").textContent = error && /sem_acesso/.test(error.message || "")
+      ? "Esse lead não está disponível para você."
+      : "Não foi possível abrir a ficha deste cliente.";
     $fx("ficha-loading").style.display = "";
     return;
   }
