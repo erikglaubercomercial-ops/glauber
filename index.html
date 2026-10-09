@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791545956">
+<link rel="stylesheet" href="style.css?v=1791551175">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -178,9 +178,15 @@
                 <div class="panel-header"><h2 data-i18n="dash.funnel">Funil de Vendas</h2></div>
                 <div class="dash-funnel" id="dash-funnel"></div>
               </div>
-              <div class="panel" id="dash-panel-temperatura">
-                <div class="panel-header"><h2 data-i18n="dash.temperature">Temperatura dos leads</h2></div>
-                <div class="dash-temp" id="dash-temp"></div>
+              <div class="panel" id="dash-panel-leadsmonth">
+                <div class="panel-header">
+                  <h2 data-i18n="dash.leadsPerMonth">Leads recebidos por mês</h2>
+                  <select id="dash-leads-year" class="dash-year-select" aria-label="Ano"></select>
+                </div>
+                <div class="dash-chart-box dash-leadsmonth-box">
+                  <canvas id="dash-chart-leadsmonth"></canvas>
+                  <p class="muted-note" id="dash-chart-leadsmonth-empty" style="display:none;" data-i18n="dash.noLeadsYet">Nenhum lead cadastrado ainda.</p>
+                </div>
               </div>
             </div>
 
@@ -2611,14 +2617,14 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791545956"></script>
-  <script src="auth.js?v=1791545956"></script>
-  <script src="i18n.js?v=1791545956"></script>
-  <script src="comparativo.js?v=1791545956"></script>
-  <script src="contrato-modelo.js?v=1791545956"></script>
-  <script src="script.js?v=1791545956"></script>
-  <script src="contratos-proposta.js?v=1791545956"></script>
-  <script src="ficha-cliente.js?v=1791545956"></script>
-  <script src="app-acompanhamento.js?v=1791545956"></script>
+  <script src="config.js?v=1791551175"></script>
+  <script src="auth.js?v=1791551175"></script>
+  <script src="i18n.js?v=1791551175"></script>
+  <script src="comparativo.js?v=1791551175"></script>
+  <script src="contrato-modelo.js?v=1791551175"></script>
+  <script src="script.js?v=1791551175"></script>
+  <script src="contratos-proposta.js?v=1791551175"></script>
+  <script src="ficha-cliente.js?v=1791551175"></script>
+  <script src="app-acompanhamento.js?v=1791551175"></script>
 </body>
 </html>

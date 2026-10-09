@@ -7690,7 +7690,7 @@ function destroyDashChart(key) {
 function renderDashboardView() {
   renderDashboardStatCards();
   renderDashboardFunnel();
-  renderDashboardTemperature();
+  renderDashboardLeadsMonth();
   renderDashboardOrigemChart();
   renderDashboardFaturamentoChart();
   renderDashboardRankingChart();
@@ -7787,30 +7787,84 @@ function renderDashboardFunnel() {
 
 /* ---- leads por temperatura (barras compactas, ao lado do funil) ---- */
 const TEMP_COLORS = { "Quente": "#e2483d", "Morno": "#fb9d2d", "Frio": "#3167a1", "": "#8891a5" };
-function renderDashboardTemperature() {
-  const el = document.getElementById("dash-temp");
-  const active = leads.filter(l => l.active !== false);
-  if (!active.length) {
-    el.innerHTML = `<p class="muted-note">${t("dash.noLeadsYet")}</p>`;
-    return;
-  }
-  const order = ["Quente", "Morno", "Frio", ""];
-  const counts = order.map(k => active.filter(l => (TEMPERATURES.includes(l.temperature) ? l.temperature : "") === k).length);
-  const max = Math.max(1, ...counts);
-  const rows = order.map((k, i) => {
-    const pct = Math.round((counts[i] / active.length) * 100);
-    const width = counts[i] === 0 ? 0 : Math.max(4, Math.round((counts[i] / max) * 100));
-    return `
-      <div class="dash-temp-row" style="--temp-color:${TEMP_COLORS[k]}">
-        <div class="dash-temp-label"><span class="dash-temp-dot"></span>${escapeHtml(k ? statusLabel(k) : t("dash.tempNone"))}</div>
-        <div class="dash-temp-track"><div class="dash-temp-fill" style="width:${width}%"></div></div>
-        <div class="dash-temp-count">${counts[i]} <small>(${pct}%)</small></div>
-      </div>`;
-  }).join("");
-  el.innerHTML = `<div class="dash-temp-total">${active.length} ${t("dash.tempLeads")}</div>${rows}`;
+/* leads recebidos por mês (barras empilhadas: responderam x ainda sem resposta), com o total em cima de cada mês */
+const LEADS_MONTH_NAVY = "#14254d";
+const LEADS_MONTH_ORANGE = "#e8751a";
+const leadsMonthTotalsPlugin = {
+  id: "leadsMonthTotals",
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const totals = chart.options.plugins.leadsMonthTotals.totals || [];
+    const currentIdx = chart.options.plugins.leadsMonthTotals.currentIdx;
+    const top = chart.getDatasetMeta(chart.data.datasets.length - 1);
+    ctx.save();
+    ctx.textAlign = "center";
+    top.data.forEach((bar, i) => {
+      if (!totals[i]) return;
+      ctx.font = `${i === currentIdx ? "800" : "500"} 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.fillStyle = i === currentIdx ? LEADS_MONTH_NAVY : "#3c4a66";
+      ctx.fillText(String(totals[i]), bar.x, bar.y - 8);
+    });
+    ctx.restore();
+  },
+};
+
+function renderDashboardLeadsMonth() {
+  const canvas = document.getElementById("dash-chart-leadsmonth");
+  const emptyEl = document.getElementById("dash-chart-leadsmonth-empty");
+  const yearSel = document.getElementById("dash-leads-year");
+  destroyDashChart("leadsmonth");
+
+  const nowYear = new Date().getFullYear();
+  const firstYear = leads.reduce((m, l) => Math.min(m, new Date(l.createdAt).getFullYear()), nowYear);
+  const years = [];
+  for (let y = nowYear; y >= firstYear; y--) years.push(y);
+  const selected = years.includes(Number(yearSel.value)) ? Number(yearSel.value) : nowYear;
+  yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join("");
+  yearSel.value = String(selected);
+  yearSel.onchange = renderDashboardLeadsMonth;
+
+  const responded = Array(12).fill(0), total = Array(12).fill(0);
+  leads.forEach(l => {
+    const d = new Date(l.createdAt);
+    if (d.getFullYear() !== selected) return;
+    total[d.getMonth()] += 1;
+    if (LEAD_RESPONDED_STATUSES.includes(l.status)) responded[d.getMonth()] += 1;
+  });
+  const noResponse = total.map((v, i) => v - responded[i]);
+  const hasData = total.some(v => v > 0);
+  canvas.style.display = hasData ? "" : "none";
+  emptyEl.style.display = hasData ? "none" : "";
+  if (!hasData) return;
+
+  const currentIdx = selected === nowYear ? new Date().getMonth() : -1;
+  dashCharts.leadsmonth = new Chart(canvas, {
+    type: "bar",
+    plugins: [leadsMonthTotalsPlugin],
+    data: {
+      labels: MONTH_ABBR,
+      datasets: [
+        { label: t("dash.leadsResponded"), data: responded, backgroundColor: LEADS_MONTH_NAVY, borderColor: "#fff", borderWidth: { top: 2, right: 0, bottom: 0, left: 0 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
+        { label: t("dash.leadsNoResponse"), data: noResponse, backgroundColor: LEADS_MONTH_ORANGE, borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: false, maxBarThickness: 34, stack: "s" },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 22 } },
+      plugins: {
+        leadsMonthTotals: { totals: total, currentIdx },
+        legend: { position: "bottom", labels: { usePointStyle: true, pointStyle: "rectRounded", boxWidth: 12, boxHeight: 12, padding: 16, color: "#3c4a66", font: { size: 12 } } },
+        tooltip: { callbacks: { footer: items => `${t("dash.leadsTotal")}: ${total[items[0].dataIndex]}` } },
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: "#3c4a66", font: { size: 12 } } },
+        y: { stacked: true, display: false, beginAtZero: true },
+      },
+    },
+  });
 }
 
-/* ---- gráfico: leads por origem (pizza) ---- */
 function renderDashboardOrigemChart() {
   const canvas = document.getElementById("dash-chart-origem");
   const emptyEl = document.getElementById("dash-chart-origem-empty");
