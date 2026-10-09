@@ -1550,16 +1550,41 @@ function renderLeadFilterOptions() {
   document.getElementById("filter-show-inactive").onchange = renderLeads;
 }
 
-document.getElementById("filter-clear").addEventListener("click", () => {
+/* "Novos (7 dias)": filtro rápido pelo card do topo (mesma contagem do número exibido) */
+let leadsRecentOnly = false;
+
+function resetLeadFilters() {
   document.getElementById("filter-status").value = "";
   document.getElementById("filter-source").value = "";
   document.getElementById("filter-consultor").value = "";
   document.getElementById("filter-date-from").value = "";
   document.getElementById("filter-date-to").value = "";
   document.getElementById("filter-show-inactive").checked = false;
+  leadsRecentOnly = false;
   clearLeadsSearch();
+}
+document.getElementById("filter-clear").addEventListener("click", () => {
+  resetLeadFilters();
   renderLeads();
 });
+
+/* cards do topo clicáveis: Total (tudo), Novos (últimos 7 dias) e Qualificados */
+document.querySelectorAll("#view-leads [data-leads-card]").forEach(card => {
+  card.addEventListener("click", () => {
+    const kind = card.dataset.leadsCard;
+    const alreadyOn = card.classList.contains("is-active");
+    resetLeadFilters();
+    if (!alreadyOn && kind === "new") leadsRecentOnly = true;
+    if (!alreadyOn && kind === "qualified") document.getElementById("filter-status").value = "Qualificado";
+    renderLeads();
+  });
+});
+function updateLeadStatCardsActive() {
+  const statusVal = document.getElementById("filter-status").value;
+  const flags = { new: leadsRecentOnly, qualified: !leadsRecentOnly && statusVal === "Qualificado" };
+  flags.total = !flags.new && !flags.qualified && !statusVal && !leadsSearchSelectedId;
+  document.querySelectorAll("#view-leads [data-leads-card]").forEach(c => c.classList.toggle("is-active", !!flags[c.dataset.leadsCard]));
+}
 
 /* ---- busca de lead na própria barra de filtros: digitar mostra um
    dropdown por nome/e-mail; clicar num resultado deixa só aquele
@@ -1625,6 +1650,7 @@ leadsSearchResults.addEventListener("mousedown", e => {
 function getFilteredLeads() {
   const base = visibleLeadsBase();
   if (leadsSearchSelectedId) return base.filter(l => l.id === leadsSearchSelectedId);
+  const recentLimit = leadsRecentOnly ? Date.now() - 7 * 86400000 : null;
 
   const status = document.getElementById("filter-status").value;
   const source = document.getElementById("filter-source").value;
@@ -1638,6 +1664,7 @@ function getFilteredLeads() {
     if (consultorId && l.consultorId !== consultorId) return false;
     if (dateFrom && l.createdAt < new Date(`${dateFrom}T00:00:00`).getTime()) return false;
     if (dateTo && l.createdAt > new Date(`${dateTo}T23:59:59`).getTime()) return false;
+    if (recentLimit && l.createdAt < recentLimit) return false;
     return true;
   });
 }
@@ -1743,6 +1770,7 @@ function renderLeadsDashboard() {
   document.getElementById("leads-stat-total").textContent = activeLeads.length;
   document.getElementById("leads-stat-new").textContent = activeLeads.filter(l => l.createdAt >= sevenDaysAgo).length;
   document.getElementById("leads-stat-qualified").textContent = activeLeads.filter(l => l.status === "Qualificado").length;
+  updateLeadStatCardsActive();
 }
 
 /* ---- seleção em massa ---- */
