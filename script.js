@@ -610,8 +610,10 @@ function dealToDb(d) {
 function createDealForLead(lead) {
   const firstStage = STAGES[0];
   if (!firstStage) return null;
+  /* mesmo id do lead: o trigger do banco (migração 056) cria o mesmo card,
+     então o upsert cai no registro existente em vez de duplicar */
   const deal = {
-    id: uid(),
+    id: lead.id,
     name: lead.name,
     contact: lead.phone || lead.email || "",
     info: lead.email || lead.phone || "",
@@ -2488,6 +2490,38 @@ leadBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("lead-id").value;
   if (id && await removeLead(id)) closeLeadModal();
 });
+
+/* ---- atualização automática: leads e negócios que chegam por fora (App
+   Intercâmbio, formulário, outro consultor) aparecem sem recarregar a página.
+   Só roda com a aba visível e sem modal aberto ou card sendo arrastado, para
+   não atropelar o que a pessoa está fazendo ---- */
+const AUTO_REFRESH_MS = 30000;
+let autoRefreshBusy = false;
+async function refreshLeadsAndDeals() {
+  if (autoRefreshBusy || document.hidden) return;
+  if (document.querySelector(".modal-backdrop.open, .card.dragging")) return;
+  autoRefreshBusy = true;
+  try {
+    const [freshLeads, freshDeals] = await Promise.all([loadLeads(), loadDeals()]);
+    /* erro de rede devolve [] — não troca a tela por uma lista vazia */
+    if (!freshLeads.length && leads.length) return;
+    if (document.querySelector(".modal-backdrop.open, .card.dragging")) return;
+    leads = freshLeads;
+    deals = freshDeals;
+    renderBoard();
+    renderLeads();
+    const dash = document.getElementById("view-dashboard");
+    if (dash && dash.classList.contains("active")) renderDashboardView();
+  } catch (err) {
+    console.error("Erro ao atualizar leads/pipeline:", err);
+  } finally {
+    autoRefreshBusy = false;
+  }
+}
+function startAutoRefreshLeadsDeals() {
+  setInterval(refreshLeadsAndDeals, AUTO_REFRESH_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshLeadsAndDeals(); });
+}
 
 /* ============================================================
    IMPORTAR LEADS VIA CSV
@@ -8869,6 +8903,7 @@ document.addEventListener("keydown", e => {
   renderBoard();
   renderLeadFilterOptions();
   renderLeads();
+  startAutoRefreshLeadsDeals();
   renderQuotes();
   renderCatalogList();
   quoteMontaDestinos();
