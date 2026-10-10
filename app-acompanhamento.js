@@ -183,8 +183,8 @@ function apptInit() {
     apptLoadUsers();
   });
   document.getElementById("appt-u-unassigned").addEventListener("click", e => {
-    if (e.target.closest("[data-appt-assign-all]")) openAssignModal(getUnassignedLeads().map(l => l.id));
-    else if (e.target.closest("[data-appt-rotate]")) distributeUnassignedByRotation(getUnassignedLeads().map(l => l.id));
+    if (e.target.closest("[data-appt-assign-all]")) openAssignModal(getUnassignedAppLeads().map(l => l.id));
+    else if (e.target.closest("[data-appt-rotate]")) distributeUnassignedByRotation(getUnassignedAppLeads().map(l => l.id));
   });
   document.getElementById("appt-u-tbody").addEventListener("click", e => {
     const assign = e.target.closest("[data-appt-assign]");
@@ -603,12 +603,12 @@ function apptConsultorCell(u) {
   if (c) return `<span class="appt-consultor">${escapeHtml(c.name)}</span>`;
   const btn = canDirectLeads()
     ? ` <button type="button" class="btn btn-primary btn-sm" data-appt-assign="${escapeHtml(lead.id)}">${escapeHtml(t("appt.assign"))}</button>` : "";
-  return `<span class="badge badge-danger ua-badge">⚠ ${escapeHtml(t("appt.noConsultor"))}</span>${btn}`;
+  return `<span class="ua-none">${noConsultorMark()} ${escapeHtml(t("appt.noConsultor"))}</span>${btn}`;
 }
 function apptRenderUnassignedBanner() {
   const el = document.getElementById("appt-u-unassigned");
   if (!el) return;
-  const list = canDirectLeads() ? getUnassignedLeads() : [];
+  const list = canDirectLeads() ? getUnassignedAppLeads() : [];
   if (!list.length) { el.style.display = "none"; el.innerHTML = ""; return; }
   const rot = rotationSettings.enabled && (rotationSettings.memberUserIds || []).length > 0;
   const title = list.length === 1 ? t("appt.unassignedOne") : t("appt.unassignedMany").replace("{n}", list.length);

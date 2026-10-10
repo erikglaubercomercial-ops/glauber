@@ -919,7 +919,7 @@ function renderCard(deal) {
         ${lead.source ? originBadge(lead.source) : ""}
         ${lead.temperature ? `<span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(statusLabel(lead.temperature))}</span>` : ""}
       </div>` : ""}
-    ${consultant ? `<div class="card-consultor">${escapeHtml(consultant.name)}</div>` : ""}
+    ${consultant ? `<div class="card-consultor">${escapeHtml(consultant.name)}</div>` : `<div class="card-consultor card-consultor-none">${noConsultorMark()} ${escapeHtml(t("appt.noConsultor"))}</div>`}
     <div class="card-footer">
       <span></span>
       <div class="card-actions">
@@ -1524,20 +1524,15 @@ function canDirectLeads() { return !!session && (session.role === "ADM" || sessi
 function getUnassignedLeads() {
   return leads.filter(l => !l.consultorId && l.active !== false && l.status !== "Descartado");
 }
-function setNavAlertBadge(view, n) {
-  const btn = document.querySelector(`#sidebar-nav .nav-item[data-view="${view}"]`);
-  if (!btn) return;
-  let badge = btn.querySelector(".nav-alert-badge");
-  if (!n) { if (badge) badge.remove(); return; }
-  if (!badge) { badge = document.createElement("span"); badge.className = "nav-alert-badge"; btn.appendChild(badge); }
-  badge.textContent = n;
-  badge.title = t("alert.navTitle");
+/* lead que se cadastrou pelo App de Intercâmbio (origem "App ...") */
+function leadIsFromApp(l) { return /^app\b/i.test(String(l.source || "")); }
+function getUnassignedAppLeads() { return getUnassignedLeads().filter(leadIsFromApp); }
+/* "?" vermelho que marca visualmente o lead sem consultor */
+function noConsultorMark() {
+  return `<span class="lead-q" title="${escapeHtml(t("appt.noConsultor"))}">?</span>`;
 }
 function refreshUnassignedAlerts() {
   if (!canDirectLeads()) return;
-  const n = getUnassignedLeads().length;
-  setNavAlertBadge("leads", n);
-  setNavAlertBadge("appacomp", n);
   if (typeof apptRenderUnassignedBanner === "function") apptRenderUnassignedBanner();
   if (currentView === "appacomp" && typeof apptState !== "undefined" && apptState.tab === "users" && apptState.users.data) apptRenderUsers();
 }
@@ -1836,7 +1831,7 @@ function renderLeads() {
       </td>
       <td class="cell-muted">${originBadge(lead.source)}</td>
       <td class="cell-muted">${lead.pretendeVir ? escapeHtml(lead.pretendeVir) : "—"}</td>
-      <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : "—"}</td>
+      <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : (lead.active === false ? "—" : noConsultorMark())}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
     `;
 
@@ -2567,10 +2562,10 @@ async function refreshLeadsAndDeals() {
     /* erro de rede devolve [] — não troca a tela por uma lista vazia */
     if (!freshLeads.length && leads.length) return;
     if (document.querySelector(".modal-backdrop.open, .card.dragging")) return;
-    const before = new Set(getUnassignedLeads().map(l => l.id));
+    const before = new Set(getUnassignedAppLeads().map(l => l.id));
     leads = freshLeads;
     deals = freshDeals;
-    const arrived = canDirectLeads() ? getUnassignedLeads().filter(l => !before.has(l.id)) : [];
+    const arrived = canDirectLeads() ? getUnassignedAppLeads().filter(l => !before.has(l.id)) : [];
     renderBoard();
     renderLeads();
     const dash = document.getElementById("view-dashboard");
