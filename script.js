@@ -1517,6 +1517,66 @@ async function maybeAssignRotation(lead) {
   renderLeads();
 }
 
+/* ---- leads sem consultor: alerta visual para ADM/Gerente direcionarem
+   (selo no menu, faixa na tela App · Acompanhamento e aviso quando entra
+   um novo). Com o rodízio ligado o banco já atribui sozinho. ---- */
+function canDirectLeads() { return !!session && (session.role === "ADM" || session.role === "Gerente"); }
+function getUnassignedLeads() {
+  return leads.filter(l => !l.consultorId && l.active !== false && l.status !== "Descartado");
+}
+function setNavAlertBadge(view, n) {
+  const btn = document.querySelector(`#sidebar-nav .nav-item[data-view="${view}"]`);
+  if (!btn) return;
+  let badge = btn.querySelector(".nav-alert-badge");
+  if (!n) { if (badge) badge.remove(); return; }
+  if (!badge) { badge = document.createElement("span"); badge.className = "nav-alert-badge"; btn.appendChild(badge); }
+  badge.textContent = n;
+  badge.title = t("alert.navTitle");
+}
+function refreshUnassignedAlerts() {
+  if (!canDirectLeads()) return;
+  const n = getUnassignedLeads().length;
+  setNavAlertBadge("leads", n);
+  setNavAlertBadge("appacomp", n);
+  if (typeof apptRenderUnassignedBanner === "function") apptRenderUnassignedBanner();
+  if (currentView === "appacomp" && typeof apptState !== "undefined" && apptState.tab === "users" && apptState.users.data) apptRenderUsers();
+}
+let unassignedToastIds = [];
+function showUnassignedToast(fresh) {
+  let box = document.getElementById("lead-alert-toast");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "lead-alert-toast";
+    box.className = "lead-alert-toast";
+    box.addEventListener("click", e => {
+      if (e.target.closest("[data-lat-assign]")) { box.classList.remove("show"); openAssignModal(unassignedToastIds.filter(id => leads.some(l => l.id === id && !l.consultorId))); }
+      else if (e.target.closest("[data-lat-close]")) box.classList.remove("show");
+    });
+    document.body.appendChild(box);
+  }
+  unassignedToastIds = fresh.map(l => l.id);
+  const names = fresh.slice(0, 3).map(l => l.name).join(", ") + (fresh.length > 3 ? ` +${fresh.length - 3}` : "");
+  const title = fresh.length === 1 ? t("alert.newUnassignedOne") : t("alert.newUnassignedMany").replace("{n}", fresh.length);
+  box.innerHTML = `
+    <span class="lat-icon">⚠</span>
+    <div class="lat-body"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(names)}</span></div>
+    <button type="button" class="btn btn-primary btn-sm" data-lat-assign>${escapeHtml(t("appt.assign"))}</button>
+    <button type="button" class="btn-icon" data-lat-close aria-label="×">&times;</button>`;
+  box.classList.add("show");
+}
+/* distribui pelo rodízio os leads que ficaram sem consultor (rodízio ligado) */
+async function distributeUnassignedByRotation(ids) {
+  if (!ids.length || !confirm(t("appt.distributeConfirm").replace("{n}", ids.length))) return;
+  for (const id of ids) {
+    const lead = leads.find(l => l.id === id);
+    if (!lead || lead.consultorId) continue;
+    const { data, error } = await supabase.rpc("assign_lead_rotation", { p_lead_id: id });
+    if (error) { console.error("Erro ao atribuir rodízio:", error); continue; }
+    if (data) Object.assign(lead, leadFromDb(data));
+  }
+  renderLeads();
+}
+
 async function deleteLeadsRemote(ids) {
   const { error } = await supabase.from("leads").delete().in("id", ids);
   if (error) console.error("Erro ao excluir lead(s):", error);
@@ -1822,6 +1882,7 @@ function renderLeads() {
   updateSelectAllState(filtered);
   updateBulkBar();
   renderLeadsDashboard();
+  refreshUnassignedAlerts();
 }
 
 function renderLeadsDashboard() {
@@ -2506,12 +2567,15 @@ async function refreshLeadsAndDeals() {
     /* erro de rede devolve [] — não troca a tela por uma lista vazia */
     if (!freshLeads.length && leads.length) return;
     if (document.querySelector(".modal-backdrop.open, .card.dragging")) return;
+    const before = new Set(getUnassignedLeads().map(l => l.id));
     leads = freshLeads;
     deals = freshDeals;
+    const arrived = canDirectLeads() ? getUnassignedLeads().filter(l => !before.has(l.id)) : [];
     renderBoard();
     renderLeads();
     const dash = document.getElementById("view-dashboard");
     if (dash && dash.classList.contains("active")) renderDashboardView();
+    if (arrived.length) showUnassignedToast(arrived);
   } catch (err) {
     console.error("Erro ao atualizar leads/pipeline:", err);
   } finally {

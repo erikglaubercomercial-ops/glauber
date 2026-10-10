@@ -2286,3 +2286,23 @@ body {
 .fx-doc-wrap .fx-doc { border-top: 0; }
 .fx-doc-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -2px 0 8px 27px; font-size: 12px; color: var(--text-muted); font-weight: 600; }
 .fx-doc-file span { overflow-wrap: anywhere; }
+
+/* ---- alerta: lead sem consultor ---- */
+.nav-alert-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 0 rgba(229, 72, 77, .6); animation: navAlertPulse 1.8s infinite; }
+@keyframes navAlertPulse { 0% { box-shadow: 0 0 0 0 rgba(229, 72, 77, .55); } 70% { box-shadow: 0 0 0 8px rgba(229, 72, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0); } }
+.appt-unassigned { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; padding: 12px 18px; border-radius: 16px; background: var(--danger-bg); border: 1.5px solid var(--danger); color: var(--danger); }
+.appt-unassigned .ua-icon { font-size: 22px; line-height: 1; }
+.appt-unassigned .ua-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; }
+.appt-unassigned .ua-text strong { font-size: 14.5px; font-weight: 800; }
+.appt-unassigned .ua-text small { font-size: 12.5px; font-weight: 600; opacity: .85; }
+.appt-unassigned .ua-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+tr.appt-row-unassigned > td:first-child { box-shadow: inset 4px 0 0 var(--danger); }
+tr.appt-row-unassigned { background: var(--danger-bg); }
+.ua-badge { margin-right: 6px; font-weight: 800; white-space: nowrap; }
+.appt-consultor { font-weight: 700; }
+.lead-alert-toast { position: fixed; right: 24px; bottom: 24px; z-index: 90; display: flex; align-items: center; gap: 12px; max-width: 420px; padding: 14px 16px; border-radius: 16px; background: var(--surface); border: 2px solid var(--danger); box-shadow: 0 16px 36px rgba(10, 25, 50, .28); opacity: 0; transform: translateY(16px); pointer-events: none; transition: opacity .2s, transform .2s; }
+.lead-alert-toast.show { opacity: 1; transform: none; pointer-events: auto; }
+.lead-alert-toast .lat-icon { color: var(--danger); font-size: 22px; }
+.lead-alert-toast .lat-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.lead-alert-toast .lat-body strong { font-size: 13.5px; font-weight: 800; }
+.lead-alert-toast .lat-body span { font-size: 12.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

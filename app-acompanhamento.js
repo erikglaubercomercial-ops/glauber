@@ -182,7 +182,13 @@ function apptInit() {
     apptState.users.page = Number(btn.dataset.apptPage);
     apptLoadUsers();
   });
+  document.getElementById("appt-u-unassigned").addEventListener("click", e => {
+    if (e.target.closest("[data-appt-assign-all]")) openAssignModal(getUnassignedLeads().map(l => l.id));
+    else if (e.target.closest("[data-appt-rotate]")) distributeUnassignedByRotation(getUnassignedLeads().map(l => l.id));
+  });
   document.getElementById("appt-u-tbody").addEventListener("click", e => {
+    const assign = e.target.closest("[data-appt-assign]");
+    if (assign) { e.stopPropagation(); openAssignModal([assign.dataset.apptAssign]); return; }
     const openLead = e.target.closest("[data-appt-open-lead]");
     if (openLead) { e.stopPropagation(); apptOpenLead(openLead.dataset.apptOpenLead); return; }
     const row = e.target.closest("tr[data-appt-visitor]");
@@ -525,6 +531,12 @@ async function apptLoadUsers() {
   apptRenderUsers();
   const { data, error } = await apptRpc("app_usuarios", { p });
   if (req !== st.req) return;
+  /* lead recém-criado pelo app ainda não está na memória: recarrega pra mostrar o consultor */
+  if (data && Array.isArray(data.usuarios) && data.usuarios.some(u => u.lead_id && !leads.some(l => l.id === u.lead_id))) {
+    const fresh = await loadLeads();
+    if (req !== st.req) return;
+    if (fresh.length) leads = fresh;
+  }
   st.loading = false;
   st.data = data;
   st.error = error;
@@ -532,6 +544,7 @@ async function apptLoadUsers() {
 }
 
 function apptRenderUsers() {
+  apptRenderUnassignedBanner();
   const st = apptState.users;
   const tbody = document.getElementById("appt-u-tbody");
   const stateEl = document.getElementById("appt-u-state");
@@ -547,12 +560,13 @@ function apptRenderUsers() {
   table.style.display = "";
 
   tbody.innerHTML = list.map(u => `
-    <tr data-appt-visitor="${escapeHtml(u.visitor_id)}">
+    <tr data-appt-visitor="${escapeHtml(u.visitor_id)}"${apptLeadUnassigned(u) ? ' class="appt-row-unassigned"' : ""}>
       <td>
         <div class="appt-user-name">${escapeHtml(u.rotulo || "—")}${u.lead_id ? "" : ` <span class="badge badge-neutral">${escapeHtml(t("appt.anonymous"))}</span>`}</div>
         <div class="appt-user-sub">${escapeHtml(apptLabel(u.plataforma))} · ${escapeHtml(apptLabel(u.idioma))} · ${apptNum(u.acoes)} ${escapeHtml(t("appt.actionsShort"))}</div>
       </td>
       <td>${escapeHtml(u.origem || "—")}</td>
+      <td>${apptConsultorCell(u)}</td>
       <td><span class="badge badge-cold">${escapeHtml(u.etapa || "—")}</span></td>
       <td>${escapeHtml(u.destino ? apptLabel(u.destino) : "—")}</td>
       <td>${apptTempBadge(u.temperatura)}</td>
@@ -570,6 +584,42 @@ function apptRenderUsers() {
     <div class="appt-pager-btns">
       <button type="button" class="btn btn-ghost btn-sm" data-appt-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>${escapeHtml(t("appt.prev"))}</button>
       <button type="button" class="btn btn-ghost btn-sm" data-appt-page="${page + 1}" ${page >= pages ? "disabled" : ""}>${escapeHtml(t("appt.next"))}</button>
+    </div>`;
+}
+
+/* ---- consultor dono do lead + alerta de lead sem consultor ----
+   O consultor vem do próprio lead (leads em memória): se o visitante já era
+   um lead com consultor, ele continua sendo o dono. */
+function apptLeadOf(u) { return u.lead_id ? leads.find(l => l.id === u.lead_id) : null; }
+function apptLeadUnassigned(u) {
+  const lead = apptLeadOf(u);
+  return !!lead && !lead.consultorId && lead.active !== false;
+}
+function apptConsultorCell(u) {
+  if (!u.lead_id) return `<span class="muted-note">—</span>`;
+  const lead = apptLeadOf(u);
+  if (!lead) return `<span class="muted-note">—</span>`;
+  const c = lead.consultorId ? users.find(x => x.id === lead.consultorId) : null;
+  if (c) return `<span class="appt-consultor">${escapeHtml(c.name)}</span>`;
+  const btn = canDirectLeads()
+    ? ` <button type="button" class="btn btn-primary btn-sm" data-appt-assign="${escapeHtml(lead.id)}">${escapeHtml(t("appt.assign"))}</button>` : "";
+  return `<span class="badge badge-danger ua-badge">⚠ ${escapeHtml(t("appt.noConsultor"))}</span>${btn}`;
+}
+function apptRenderUnassignedBanner() {
+  const el = document.getElementById("appt-u-unassigned");
+  if (!el) return;
+  const list = canDirectLeads() ? getUnassignedLeads() : [];
+  if (!list.length) { el.style.display = "none"; el.innerHTML = ""; return; }
+  const rot = rotationSettings.enabled && (rotationSettings.memberUserIds || []).length > 0;
+  const title = list.length === 1 ? t("appt.unassignedOne") : t("appt.unassignedMany").replace("{n}", list.length);
+  const hint = t("appt.unassignedHint").replace("{rot}", rot ? t("appt.unassignedHintRot") : "");
+  el.style.display = "";
+  el.innerHTML = `
+    <span class="ua-icon">⚠</span>
+    <div class="ua-text"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small></div>
+    <div class="ua-actions">
+      <button type="button" class="btn btn-primary btn-sm" data-appt-assign-all>${escapeHtml(t("appt.assignAll"))}</button>
+      ${rot ? `<button type="button" class="btn btn-ghost btn-sm" data-appt-rotate>${escapeHtml(t("appt.distribute"))}</button>` : ""}
     </div>`;
 }
 
