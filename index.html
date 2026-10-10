@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791666311">
+<link rel="stylesheet" href="style.css?v=1791666940">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1762,11 +1762,16 @@
         <label><span data-i18n="dash.messageForTeam">Mensagem para o time</span>
           <textarea id="team-message-field-text" rows="6" placeholder="Escreva um aviso para toda a equipe..."></textarea>
         </label>
+        <div class="ag-guests-wrap">
+          <span class="ag-guests-label">Destinatários</span>
+          <div class="ag-guests" id="team-message-recipients"></div>
+        </div>
+        <p class="muted-note">Quem for destinatário vê o aviso em um popup na primeira vez que entrar no sistema depois do envio.</p>
         <p class="muted-note" data-i18n="dash.teamNoticeHint">Deixe em branco e salve para remover o aviso.</p>
         <div class="modal-actions">
           <div class="spacer"></div>
           <button type="button" class="btn btn-ghost" id="team-message-btn-cancel" data-i18n="common.cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
+          <button type="submit" class="btn btn-primary">Enviar aviso</button>
         </div>
       </form>
     </div>
@@ -2713,15 +2718,15 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791666311"></script>
-  <script src="auth.js?v=1791666311"></script>
-  <script src="i18n.js?v=1791666311"></script>
-  <script src="comparativo.js?v=1791666311"></script>
-  <script src="contrato-modelo.js?v=1791666311"></script>
-  <script src="script.js?v=1791666311"></script>
-  <script src="contratos-proposta.js?v=1791666311"></script>
-  <script src="ficha-cliente.js?v=1791666311"></script>
-  <script src="agenda-reunioes.js?v=1791666311"></script>
-  <script src="app-acompanhamento.js?v=1791666311"></script>
+  <script src="config.js?v=1791666940"></script>
+  <script src="auth.js?v=1791666940"></script>
+  <script src="i18n.js?v=1791666940"></script>
+  <script src="comparativo.js?v=1791666940"></script>
+  <script src="contrato-modelo.js?v=1791666940"></script>
+  <script src="script.js?v=1791666940"></script>
+  <script src="contratos-proposta.js?v=1791666940"></script>
+  <script src="ficha-cliente.js?v=1791666940"></script>
+  <script src="agenda-reunioes.js?v=1791666940"></script>
+  <script src="app-acompanhamento.js?v=1791666940"></script>
 </body>
 </html>

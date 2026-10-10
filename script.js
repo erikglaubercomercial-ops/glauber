@@ -7014,22 +7014,88 @@ const COLLAB_STATUS_BADGE = {
 let collaborators = [];
 
 /* ---- aviso do time (dashboard, linha única de configuração) ---- */
-let teamAnnouncement = { message: "", updatedByName: "", updatedAt: null };
+let teamAnnouncement = { message: "", updatedByName: "", updatedAt: null, recipients: ["todos"], readAt: null };
+
+/* destinatários do aviso do time */
+const ANNOUNCE_RECIPIENTS = [
+  { key: "todos", label: "Todos" },
+  { key: "consultores", label: "Consultores" },
+  { key: "gerentes", label: "Gerentes" },
+  { key: "mkt", label: "MKT" },
+  { key: "time_brasil", label: "Time Brasil" },
+  { key: "time_latino", label: "Time Latino" },
+];
+function announcementRecipientsLabel(list) {
+  return (list || ["todos"]).map(k => (ANNOUNCE_RECIPIENTS.find(r => r.key === k) || { label: k }).label).join(", ");
+}
+/* o aviso é para a pessoa logada? (ADM sempre vê; os demais conforme função e time) */
+function announcementTargetsMe(a) {
+  if (!session) return false;
+  if (session.role === "ADM") return true;
+  const r = a.recipients && a.recipients.length ? a.recipients : ["todos"];
+  if (r.includes("todos")) return true;
+  if (session.role === "Consultor" && r.includes("consultores")) return true;
+  if (session.role === "Gerente" && r.includes("gerentes")) return true;
+  if (session.role === "MKT" && r.includes("mkt")) return true;
+  const me = users.find(u => u.id === session.id);
+  const team = me && me.team_id ? teams.find(tm => tm.id === me.team_id) : null;
+  if (team) {
+    const n = team.name.toLowerCase();
+    if (n.includes("brasil") && r.includes("time_brasil")) return true;
+    if (n.includes("latino") && r.includes("time_latino")) return true;
+  }
+  return false;
+}
 
 async function loadTeamAnnouncement() {
+  const empty = { message: "", updatedByName: "", updatedAt: null, recipients: ["todos"], readAt: null };
   const { data, error } = await supabase.from("team_announcements").select("*").eq("id", 1).single();
-  if (error || !data) return { message: "", updatedByName: "", updatedAt: null };
+  if (error || !data) return empty;
+  let readAt = null;
+  if (session) {
+    const { data: rd } = await supabase.from("team_announcement_reads").select("read_at").eq("user_id", session.id).maybeSingle();
+    if (rd && rd.read_at) readAt = new Date(rd.read_at).getTime();
+  }
   return {
     message: data.message || "",
     updatedByName: data.updated_by_name || "",
     updatedAt: data.updated_at ? new Date(data.updated_at).getTime() : null,
+    recipients: data.recipients && data.recipients.length ? data.recipients : ["todos"],
+    readAt,
   };
 }
-async function updateTeamAnnouncementRemote(message) {
-  const { error } = await supabase.from("team_announcements")
-    .update({ message, updated_by_name: session.name || "", updated_at: new Date().toISOString() })
-    .eq("id", 1);
-  if (error) console.error("Erro ao salvar aviso do time:", error);
+async function updateTeamAnnouncementRemote(message, recipients) {
+  const { data, error } = await supabase.from("team_announcements")
+    .update({ message, recipients, updated_by_name: session.name || "" })
+    .eq("id", 1).select().single();
+  if (error) { console.error("Erro ao salvar aviso do time:", error); return false; }
+  if (data && data.updated_at) teamAnnouncement.updatedAt = new Date(data.updated_at).getTime();
+  return true;
+}
+
+/* popup de aviso: aparece na primeira entrada depois de cada envio */
+function showTeamAnnouncementPopup() {
+  const a = teamAnnouncement;
+  if (!session || session.role === "ADM" || !a.message || !announcementTargetsMe(a)) return;
+  if (a.readAt && a.updatedAt && a.readAt >= a.updatedAt) return;
+  const box = document.createElement("div");
+  box.className = "modal-backdrop open tm-popup-backdrop";
+  const when = a.updatedAt ? new Date(a.updatedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+  box.innerHTML = `
+    <div class="modal tm-popup">
+      <div class="tm-popup-icon">📢</div>
+      <h2>Aviso do time</h2>
+      <p class="tm-popup-text">${escapeHtml(a.message)}</p>
+      <p class="tm-popup-meta">${escapeHtml(a.updatedByName || "ADM")}${when ? " · " + when : ""}</p>
+      <button type="button" class="btn btn-primary" id="tm-popup-ok">Entendi</button>
+    </div>`;
+  document.body.appendChild(box);
+  box.querySelector("#tm-popup-ok").addEventListener("click", async () => {
+    box.remove();
+    a.readAt = Date.now();
+    const { error } = await supabase.rpc("team_announcement_mark_read");
+    if (error) console.error("Erro ao registrar leitura do aviso:", error);
+  });
 }
 
 /* ---- agenda do dashboard (tarefas, reuniões, avisos) ---- */
@@ -8667,16 +8733,30 @@ function renderTeamMessagePanel() {
   const isAdmin = !!(session && session.role === "ADM");
   document.getElementById("btn-edit-team-message").style.display = isAdmin ? "" : "none";
   const body = document.getElementById("dash-team-message-body");
-  body.innerHTML = teamAnnouncement.message
-    ? `<p class="dash-team-message-text">${escapeHtml(teamAnnouncement.message)}</p>`
+  const visible = teamAnnouncement.message && announcementTargetsMe(teamAnnouncement);
+  body.innerHTML = visible
+    ? `<p class="dash-team-message-text">${escapeHtml(teamAnnouncement.message)}</p>` +
+      (isAdmin ? `<p class="dash-team-message-to">Para: ${escapeHtml(announcementRecipientsLabel(teamAnnouncement.recipients))}</p>` : "")
     : `<p class="dash-team-message-empty">Nenhum aviso no momento.</p>`;
 }
 
 const teamMessageModalBackdrop = document.getElementById("team-message-modal-backdrop");
 const teamMessageForm = document.getElementById("team-message-form");
 
+function renderTeamMessageRecipients(selected) {
+  const box = document.getElementById("team-message-recipients");
+  const all = selected.includes("todos");
+  box.innerHTML = ANNOUNCE_RECIPIENTS.map(r => `
+    <label class="ag-guest"><input type="checkbox" value="${r.key}" ${selected.includes(r.key) ? "checked" : ""} ${all && r.key !== "todos" ? "disabled" : ""}><span>${r.label}</span></label>`).join("");
+}
+document.getElementById("team-message-recipients").addEventListener("change", e => {
+  const checked = Array.from(document.querySelectorAll("#team-message-recipients input:checked")).map(i => i.value);
+  /* "Todos" é exclusivo: marcado, desmarca e trava os outros */
+  renderTeamMessageRecipients(checked.includes("todos") ? ["todos"] : checked);
+});
 function openTeamMessageModal() {
   document.getElementById("team-message-field-text").value = teamAnnouncement.message || "";
+  renderTeamMessageRecipients(teamAnnouncement.recipients && teamAnnouncement.recipients.length ? teamAnnouncement.recipients : ["todos"]);
   teamMessageModalBackdrop.classList.add("open");
   document.getElementById("team-message-field-text").focus();
 }
@@ -8690,10 +8770,14 @@ teamMessageModalBackdrop.addEventListener("click", e => { if (e.target === teamM
 teamMessageForm.addEventListener("submit", async e => {
   e.preventDefault();
   const message = document.getElementById("team-message-field-text").value.trim();
+  const recipients = Array.from(document.querySelectorAll("#team-message-recipients input:checked")).map(i => i.value);
+  if (message && !recipients.length) { alert("Escolha pelo menos um destinatário."); return; }
   teamAnnouncement.message = message;
+  teamAnnouncement.recipients = recipients.length ? recipients : ["todos"];
   renderTeamMessagePanel();
   closeTeamMessageModal();
-  await updateTeamAnnouncementRemote(message);
+  const ok = await updateTeamAnnouncementRemote(message, teamAnnouncement.recipients);
+  if (!ok) alert("Não foi possível enviar o aviso.");
 });
 
 /* ---- barra lateral do dashboard: follow-ups pendentes do pipeline ---- */
@@ -9123,4 +9207,5 @@ document.addEventListener("keydown", e => {
   }
 
   document.body.style.visibility = "visible";
+  showTeamAnnouncementPopup();
 })();
