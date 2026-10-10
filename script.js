@@ -8319,6 +8319,12 @@ function dashCalMonthLabel(i) {
   const keys = ["monthJan", "monthFeb", "monthMar", "monthApr", "monthMay", "monthJun", "monthJul", "monthAug", "monthSep", "monthOct", "monthNov", "monthDec"];
   return t(`dash.${keys[i]}`);
 }
+/* "Outubro de 2026" (pt/es) ou "October 2026" (en): só o mês em maiúscula */
+function dashCalTitle(month, year) {
+  const name = dashCalMonthLabel(month);
+  const cap = name.charAt(0).toUpperCase() + name.slice(1);
+  return getLang() === "en" ? `${cap} ${year}` : `${cap} de ${year}`;
+}
 function agendaTypeLabel(type) {
   return { tarefa: t("agenda.taskType"), reuniao: t("agenda.meetingType"), aviso: t("agenda.noticeType") }[type] || type;
 }
@@ -8366,7 +8372,7 @@ function renderDashCalendar() {
   grid.innerHTML = `
     <div class="dash-calendar-nav">
       <button type="button" id="dash-cal-prev" aria-label="${t("dash.prevMonth")}">&lsaquo;</button>
-      <span class="dash-cal-label">${dashCalMonthLabel(month)} de ${year}</span>
+      <span class="dash-cal-label">${dashCalTitle(month, year)}</span>
       <button type="button" id="dash-cal-next" aria-label="${t("dash.nextMonth")}">&rsaquo;</button>
     </div>
     <div class="dash-cal-grid">${dowHtml}${daysHtml}</div>
@@ -8408,7 +8414,7 @@ function renderDashAgendaDay() {
 
   const list = document.getElementById("dash-agenda-day-list");
   if (!items.length) {
-    list.innerHTML = `<p class="muted-note" style="padding:4px 0;">${t("dash.nothingScheduled")}</p>`;
+    list.innerHTML = `<p class="muted-note dash-empty-note">${t("dash.nothingScheduled")}</p>`;
     return;
   }
 
