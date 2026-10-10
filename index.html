@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791665738">
+<link rel="stylesheet" href="style.css?v=1791666311">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -52,6 +52,11 @@
         <button class="nav-item" data-view="pipeline">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg>
           <span data-i18n="nav.pipeline">Pipeline</span>
+        </button>
+
+        <button class="nav-item" data-view="agenda" id="nav-agenda">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span data-i18n="nav.agenda">Agenda</span>
         </button>
 
         <button class="nav-item" data-view="cotacao">
@@ -384,6 +389,36 @@
           </div>
         </div>
         <div class="board" id="board"></div>
+      </section>
+
+      <!-- AGENDA DO TIME VIEW -->
+      <section class="view" id="view-agenda">
+        <div class="ag-toolbar">
+          <div class="ag-nav">
+            <button type="button" class="btn btn-ghost btn-sm" id="ag-prev" aria-label="Anterior">&lsaquo;</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="ag-today">Hoje</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="ag-next" aria-label="Próximo">&rsaquo;</button>
+            <h2 class="ag-title" id="ag-title"></h2>
+          </div>
+          <div class="ag-controls">
+            <div class="subtabs ag-modes" id="ag-modes">
+              <button type="button" class="subtab" data-ag-mode="day">Dia</button>
+              <button type="button" class="subtab active" data-ag-mode="week">Semana</button>
+              <button type="button" class="subtab" data-ag-mode="month">Mês</button>
+            </div>
+            <select id="ag-filter-who" aria-label="Responsável"></select>
+            <select id="ag-filter-status" aria-label="Status">
+              <option value="">Todos os status</option>
+              <option value="agendada">Agendada</option>
+              <option value="realizada">Realizada</option>
+              <option value="nao_compareceu">Não compareceu</option>
+              <option value="remarcada">Remarcada</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="ag-new">+ Nova reunião</button>
+          </div>
+        </div>
+        <div class="ag-body" id="ag-body"></div>
       </section>
 
       <!-- APP · ACOMPANHAMENTO VIEW (ADM/Gerente: visão geral + usuários; Consultor: só usuários) -->
@@ -1786,7 +1821,7 @@
         </div>
         <input type="hidden" id="agenda-field-type" value="tarefa">
         <label><span data-i18n="common.titleField">Título</span>
-          <input type="text" id="agenda-field-title" required placeholder="Ex: Ligar para o cliente">
+          <input type="text" id="agenda-field-title" required placeholder="Ex: Reunião de apresentação">
         </label>
         <div class="grid-2">
           <label><span data-i18n="common.date">Data</span>
@@ -1796,9 +1831,37 @@
             <input type="time" id="agenda-field-time">
           </label>
         </div>
-        <label><span data-i18n="agenda.consultorOptional">Consultor (opcional)</span>
+        <div class="grid-2">
+          <label><span>Término (opcional)</span>
+            <input type="time" id="agenda-field-end">
+          </label>
+          <label id="agenda-status-wrap" style="display:none;"><span>Status</span>
+            <select id="agenda-field-status">
+              <option value="agendada">Agendada</option>
+              <option value="realizada">Realizada</option>
+              <option value="nao_compareceu">Não compareceu</option>
+              <option value="remarcada">Remarcada</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+          </label>
+        </div>
+        <label><span>Link ou local (opcional)</span>
+          <input type="text" id="agenda-field-location" placeholder="Link do Meet/Zoom ou endereço" autocomplete="off">
+        </label>
+        <label><span>Lead (opcional)</span>
+          <div class="ag-lead-picker">
+            <input type="text" id="agenda-lead-search" placeholder="Buscar lead por nome, e-mail ou telefone" autocomplete="off">
+            <input type="hidden" id="agenda-field-lead">
+            <div class="ag-lead-results" id="agenda-lead-results" style="display:none;"></div>
+          </div>
+        </label>
+        <label><span>Responsável</span>
           <select id="agenda-field-consultor"></select>
         </label>
+        <div class="ag-guests-wrap">
+          <span class="ag-guests-label">Convidar colegas</span>
+          <div class="ag-guests" id="agenda-guests"></div>
+        </div>
         <label><span data-i18n="common.notes">Notas</span>
           <textarea id="agenda-field-notes" rows="3" placeholder="Detalhes (opcional)"></textarea>
         </label>
@@ -2650,14 +2713,15 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791665738"></script>
-  <script src="auth.js?v=1791665738"></script>
-  <script src="i18n.js?v=1791665738"></script>
-  <script src="comparativo.js?v=1791665738"></script>
-  <script src="contrato-modelo.js?v=1791665738"></script>
-  <script src="script.js?v=1791665738"></script>
-  <script src="contratos-proposta.js?v=1791665738"></script>
-  <script src="ficha-cliente.js?v=1791665738"></script>
-  <script src="app-acompanhamento.js?v=1791665738"></script>
+  <script src="config.js?v=1791666311"></script>
+  <script src="auth.js?v=1791666311"></script>
+  <script src="i18n.js?v=1791666311"></script>
+  <script src="comparativo.js?v=1791666311"></script>
+  <script src="contrato-modelo.js?v=1791666311"></script>
+  <script src="script.js?v=1791666311"></script>
+  <script src="contratos-proposta.js?v=1791666311"></script>
+  <script src="ficha-cliente.js?v=1791666311"></script>
+  <script src="agenda-reunioes.js?v=1791666311"></script>
+  <script src="app-acompanhamento.js?v=1791666311"></script>
 </body>
 </html>

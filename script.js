@@ -12,6 +12,7 @@ function canAccessView(view) {
      como os demais módulos */
   if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
   if (view === "usuarios") return session.role === "ADM";
+  if (view === "agenda") return session.role !== "Influencer";
   if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
   /* uso do App de Intercâmbio: ADM/Gerente veem tudo; Consultor só a aba
      Usuários (e o banco só devolve os leads dele). Quem restringe de
@@ -188,6 +189,7 @@ function switchView(view) {
   }
   if (view === "escolas") renderEscolas();
   if (view === "appacomp") renderAppTracking();
+  if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();
   if (view === "leadsparados") {
     document.getElementById("subview-stuck-detalhe").classList.remove("active");
     document.getElementById("subview-stuck-overview").classList.add("active");
@@ -214,6 +216,7 @@ const DEFAULT_MENU_STRUCTURE = {
       { id: "dashboard" },
       { id: "leads", children: ["meusleads", "leadsparados"] },
       { id: "pipeline" },
+      { id: "agenda" },
       { id: "cotacao" },
       { id: "contratos" },
       { id: "produtos" },
@@ -260,6 +263,9 @@ function applyMenuStructure(structure) {
   const escolasEl = navElementFor("escolas");
   const produtosEl = navElementFor("produtos");
   if (escolasEl && produtosEl && !inStructure("escolas")) nav.insertBefore(escolasEl, produtosEl.nextSibling);
+  const agendaEl = navElementFor("agenda");
+  const pipelineEl = navElementFor("pipeline");
+  if (agendaEl && pipelineEl && !inStructure("agenda")) nav.insertBefore(agendaEl, pipelineEl.nextSibling);
   (structure.sections || []).forEach(section => {
     const label = document.querySelector(`#sidebar-nav .nav-label[data-nav-section="${section.id}"]`);
     if (!label) return;
@@ -2558,16 +2564,20 @@ async function refreshLeadsAndDeals() {
   if (document.querySelector(".modal-backdrop.open, .card.dragging")) return;
   autoRefreshBusy = true;
   try {
-    const [freshLeads, freshDeals] = await Promise.all([loadLeads(), loadDeals()]);
+    const [freshLeads, freshDeals, freshAgenda] = await Promise.all([loadLeads(), loadDeals(), loadAgendaItems()]);
     /* erro de rede devolve [] — não troca a tela por uma lista vazia */
     if (!freshLeads.length && leads.length) return;
     if (document.querySelector(".modal-backdrop.open, .card.dragging")) return;
     const before = new Set(getUnassignedAppLeads().map(l => l.id));
     leads = freshLeads;
     deals = freshDeals;
+    agendaItems = freshAgenda;
     const arrived = canDirectLeads() ? getUnassignedAppLeads().filter(l => !before.has(l.id)) : [];
     renderBoard();
     renderLeads();
+    renderDashCalendar();
+    renderDashAgendaDay();
+    if (currentView === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();
     const dash = document.getElementById("view-dashboard");
     if (dash && dash.classList.contains("active")) renderDashboardView();
     if (arrived.length) showUnassignedToast(arrived);
@@ -7028,6 +7038,8 @@ let agendaItems = [];
 function agendaItemFromDb(r) {
   return {
     id: r.id, title: r.title, type: r.type, itemDate: r.item_date, itemTime: r.item_time,
+    endTime: r.end_time || null, location: r.location || "", leadId: r.lead_id || null,
+    status: r.status || "agendada", participantIds: r.participant_ids || [],
     consultorId: r.consultor_id, notes: r.notes || "", done: r.done,
     googleEventId: r.google_event_id, createdBy: r.created_by,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
@@ -7036,6 +7048,8 @@ function agendaItemFromDb(r) {
 function agendaItemToDb(a) {
   return {
     id: a.id, title: a.title, type: a.type, item_date: a.itemDate, item_time: a.itemTime,
+    end_time: a.endTime || null, location: a.location || "", lead_id: a.leadId || null,
+    status: a.status || "agendada", participant_ids: a.participantIds || [],
     consultor_id: a.consultorId || null, notes: a.notes || "", done: !!a.done,
     google_event_id: a.googleEventId || null, created_by: a.createdBy || null,
   };
@@ -7045,8 +7059,15 @@ async function loadAgendaItems() {
   if (error) { console.error("Erro ao carregar agenda:", error); return []; }
   return data.map(agendaItemFromDb);
 }
+/* item novo = insert; item existente = update (assim ADM/Gerente editam o item de
+   outra pessoa sem trocar o criador) */
 async function saveAgendaItemRemote(a) {
-  const { data, error } = await supabase.from("agenda_items").upsert(agendaItemToDb(a)).select().single();
+  const row = agendaItemToDb(a);
+  const isNew = !agendaItems.some(x => x.id === a.id);
+  const q = isNew
+    ? supabase.from("agenda_items").insert(row)
+    : supabase.from("agenda_items").update({ ...row, id: undefined, created_by: undefined }).eq("id", a.id);
+  const { data, error } = await q.select().single();
   if (error) { console.error("Erro ao salvar item da agenda:", error); return null; }
   return agendaItemFromDb(data);
 }
@@ -8325,6 +8346,7 @@ function dashCalTitle(month, year) {
   const cap = name.charAt(0).toUpperCase() + name.slice(1);
   return getLang() === "en" ? `${cap} ${year}` : `${cap} de ${year}`;
 }
+const AGENDA_STATUS_LABEL = { agendada: "Agendada", realizada: "Realizada", nao_compareceu: "Não compareceu", remarcada: "Remarcada", cancelada: "Cancelada" };
 function agendaTypeLabel(type) {
   return { tarefa: t("agenda.taskType"), reuniao: t("agenda.meetingType"), aviso: t("agenda.noticeType") }[type] || type;
 }
@@ -8421,8 +8443,11 @@ function renderDashAgendaDay() {
   list.innerHTML = items.map(a => {
     const consultor = a.consultorId ? users.find(u => u.id === a.consultorId) : null;
     const metaParts = [agendaTypeLabel(a.type)];
-    if (a.itemTime) metaParts.push(a.itemTime.slice(0, 5));
+    if (a.itemTime) metaParts.push(a.itemTime.slice(0, 5) + (a.endTime ? "–" + a.endTime.slice(0, 5) : ""));
     if (consultor) metaParts.push(consultor.name);
+    const lead = a.leadId ? leads.find(l => l.id === a.leadId) : null;
+    if (lead) metaParts.push(lead.name);
+    if (a.status && a.status !== "agendada") metaParts.push(AGENDA_STATUS_LABEL[a.status] || a.status);
     return `
       <div class="dash-agenda-item" data-id="${a.id}">
         <span class="dash-agenda-item-badge dot-${a.type}">${a.itemTime ? a.itemTime.slice(0, 5) : "—"}</span>
@@ -8452,39 +8477,113 @@ document.querySelectorAll(".agenda-type-btn").forEach(btn => {
   btn.addEventListener("click", () => setAgendaType(btn.dataset.type));
 });
 
+/* quem pode ser responsável/convidado: time ativo que atende (ADM, Gerente, Consultor) */
+function agendaTeamUsers() {
+  return users.filter(u => u.active !== false && ["ADM", "Gerente", "Consultor"].includes(u.role))
+    .slice().sort((x, y) => x.name.localeCompare(y.name));
+}
 function renderAgendaConsultorOptions(currentId) {
   const sel = document.getElementById("agenda-field-consultor");
-  const consultants = users.filter(u => isSellRole(u.role));
-  sel.innerHTML = `<option value="">${t("agenda.noSpecificConsultant")}</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  sel.innerHTML = `<option value="">${t("agenda.noSpecificConsultant")}</option>` + agendaTeamUsers().map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   if (currentId) sel.value = currentId;
-  else if (session && isSellRole(session.role)) sel.value = session.id;
+  else if (session) sel.value = session.id;
 }
+function renderAgendaGuests(selectedIds) {
+  document.getElementById("agenda-guests").innerHTML = agendaTeamUsers().map(u => `
+    <label class="ag-guest"><input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id) ? "checked" : ""}><span>${escapeHtml(u.name)}</span></label>`).join("");
+}
+function agendaSetLead(leadId) {
+  const lead = leadId ? leads.find(l => l.id === leadId) : null;
+  document.getElementById("agenda-field-lead").value = lead ? lead.id : "";
+  document.getElementById("agenda-lead-search").value = lead ? lead.name : "";
+  document.getElementById("agenda-lead-results").style.display = "none";
+}
+document.getElementById("agenda-lead-search").addEventListener("input", e => {
+  const box = document.getElementById("agenda-lead-results");
+  document.getElementById("agenda-field-lead").value = "";
+  const q = normalizeImportStr(e.target.value);
+  const qDigits = e.target.value.replace(/\D/g, "");
+  if (q.length < 2) { box.style.display = "none"; return; }
+  const found = leads.filter(l => l.active !== false && (
+    normalizeImportStr(`${l.name} ${l.email}`).includes(q) ||
+    (qDigits.length >= 4 && String(l.phone || "").replace(/\D/g, "").includes(qDigits))
+  )).slice(0, 8);
+  box.innerHTML = found.length
+    ? found.map(l => `<button type="button" class="ag-lead-opt" data-lead-id="${l.id}"><strong>${escapeHtml(l.name)}</strong><small>${escapeHtml(l.email || l.phone || "")}</small></button>`).join("")
+    : `<div class="ag-lead-none">Nenhum lead encontrado</div>`;
+  box.style.display = "block";
+});
+document.getElementById("agenda-lead-results").addEventListener("click", e => {
+  const opt = e.target.closest("[data-lead-id]");
+  if (opt) agendaSetLead(opt.dataset.leadId);
+});
 
-function openAgendaModal(id, presetDate) {
+/* opts: { leadId, time } — pré-preenchimento (ex.: botão "Agendar reunião" da ficha) */
+function openAgendaModal(id, presetDate, opts) {
+  opts = opts || {};
   agendaForm.reset();
   const existing = id ? agendaItems.find(a => a.id === id) : null;
+  const canEdit = !existing || agendaCanEdit(existing);
+  agendaForm.querySelectorAll("input, select, textarea").forEach(el => { el.disabled = !canEdit; });
+  document.querySelectorAll(".agenda-type-btn").forEach(b => { b.disabled = !canEdit; });
+  document.querySelector("#agenda-form button[type=submit]").style.display = canEdit ? "" : "none";
 
   if (existing) {
-    document.getElementById("agenda-modal-title").textContent = t("agenda.editTitle");
+    document.getElementById("agenda-modal-title").textContent = canEdit ? t("agenda.editTitle") : existing.title;
     document.getElementById("agenda-id").value = existing.id;
     document.getElementById("agenda-field-title").value = existing.title;
     document.getElementById("agenda-field-date").value = existing.itemDate;
-    document.getElementById("agenda-field-time").value = existing.itemTime || "";
+    document.getElementById("agenda-field-time").value = existing.itemTime ? existing.itemTime.slice(0, 5) : "";
+    document.getElementById("agenda-field-end").value = existing.endTime ? existing.endTime.slice(0, 5) : "";
+    document.getElementById("agenda-field-location").value = existing.location || "";
     document.getElementById("agenda-field-notes").value = existing.notes || "";
+    document.getElementById("agenda-field-status").value = existing.status || "agendada";
+    document.getElementById("agenda-status-wrap").style.display = "";
     renderAgendaConsultorOptions(existing.consultorId);
+    renderAgendaGuests(existing.participantIds || []);
+    agendaSetLead(existing.leadId);
     setAgendaType(existing.type);
-    agendaBtnDelete.style.display = "inline-block";
+    agendaBtnDelete.style.display = canEdit ? "inline-block" : "none";
   } else {
     document.getElementById("agenda-modal-title").textContent = t("agenda.newTitle");
     document.getElementById("agenda-id").value = "";
     document.getElementById("agenda-field-date").value = presetDate || dashCalendarSelectedDate;
+    if (opts.time) document.getElementById("agenda-field-time").value = opts.time;
+    document.getElementById("agenda-status-wrap").style.display = "none";
     renderAgendaConsultorOptions(null);
-    setAgendaType("tarefa");
+    renderAgendaGuests([]);
+    agendaSetLead(opts.leadId || null);
+    if (opts.leadId) {
+      const lead = leads.find(l => l.id === opts.leadId);
+      if (lead) document.getElementById("agenda-field-title").value = `Reunião com ${lead.name}`;
+    }
+    setAgendaType("reuniao");
     agendaBtnDelete.style.display = "none";
   }
 
   agendaModalBackdrop.classList.add("open");
   document.getElementById("agenda-field-title").focus();
+}
+/* quem pode alterar o item: criador, responsável, ADM e Gerente (convidado só vê) */
+function agendaCanEdit(a) {
+  if (!session) return false;
+  return session.role === "ADM" || session.role === "Gerente" || a.createdBy === session.id || a.consultorId === session.id;
+}
+/* compromissos do mesmo dia que se sobrepõem em horário para o responsável ou convidados */
+function agendaFindConflicts(item) {
+  if (!item.itemTime) return [];
+  const toMin = tm => { const [h, m] = tm.split(":"); return Number(h) * 60 + Number(m); };
+  const start = toMin(item.itemTime);
+  const end = item.endTime ? toMin(item.endTime) : start + 60;
+  const people = new Set([item.consultorId, ...(item.participantIds || [])].filter(Boolean));
+  if (!people.size) return [];
+  return agendaItems.filter(o => {
+    if (o.id === item.id || o.itemDate !== item.itemDate || !o.itemTime || o.type === "aviso") return false;
+    if (o.status === "cancelada" || o.status === "remarcada") return false;
+    const os = toMin(o.itemTime), oe = o.endTime ? toMin(o.endTime) : os + 60;
+    if (!(start < oe && os < end)) return false;
+    return [o.consultorId, ...(o.participantIds || [])].some(p => p && people.has(p));
+  });
 }
 function closeAgendaModal() { agendaModalBackdrop.classList.remove("open"); }
 
@@ -8495,22 +8594,37 @@ agendaModalBackdrop.addEventListener("click", e => { if (e.target === agendaModa
 agendaForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("agenda-id").value;
+  const existing = id ? agendaItems.find(a => a.id === id) : null;
+  const consultorId = document.getElementById("agenda-field-consultor").value || null;
   const data = {
     id: id || uid(),
     title: document.getElementById("agenda-field-title").value.trim(),
     type: agendaFieldType.value,
     itemDate: document.getElementById("agenda-field-date").value,
     itemTime: document.getElementById("agenda-field-time").value || null,
-    consultorId: document.getElementById("agenda-field-consultor").value || null,
+    endTime: document.getElementById("agenda-field-end").value || null,
+    location: document.getElementById("agenda-field-location").value.trim(),
+    leadId: document.getElementById("agenda-field-lead").value || null,
+    status: existing ? document.getElementById("agenda-field-status").value : "agendada",
+    participantIds: Array.from(document.querySelectorAll("#agenda-guests input:checked")).map(i => i.value).filter(v => v !== consultorId),
+    consultorId,
     notes: document.getElementById("agenda-field-notes").value.trim(),
-    done: false,
-    createdBy: session.id,
+    done: existing ? existing.done : false,
+    createdBy: existing ? existing.createdBy : session.id,
   };
+  if (data.endTime && data.itemTime && data.endTime <= data.itemTime) { alert("O término precisa ser depois do início."); return; }
+  if (data.status === "agendada" || !existing) {
+    const conflicts = agendaFindConflicts(data);
+    if (conflicts.length) {
+      const list = conflicts.slice(0, 3).map(c => `• ${c.itemTime.slice(0, 5)} ${c.title}`).join("\n");
+      if (!confirm(`Choque de horário com:\n${list}\n\nSalvar mesmo assim?`)) return;
+    }
+  }
 
   const saved = await saveAgendaItemRemote(data);
   if (!saved) { alert(t("agenda.saveError")); return; }
 
-  if (id) {
+  if (existing) {
     const idx = agendaItems.findIndex(a => a.id === id);
     if (idx >= 0) agendaItems[idx] = saved; else agendaItems.push(saved);
   } else {
@@ -8521,7 +8635,21 @@ agendaForm.addEventListener("submit", async e => {
   renderDashCalendar();
   renderDashAgendaDay();
   closeAgendaModal();
+  if (typeof renderAgendaScreen === "function") renderAgendaScreen();
+  if (typeof fichaRefreshIfOpen === "function") fichaRefreshIfOpen();
+
+  if (existing && existing.status !== "realizada" && saved.status === "realizada") agendaOfferMoveDeal(saved);
 });
+
+/* reunião realizada: oferece avançar o negócio do lead para "Reunião feita" */
+function agendaOfferMoveDeal(item) {
+  if (!item.leadId) return;
+  const deal = deals.find(d => d.leadId === item.leadId);
+  const target = STAGES.find(s => s.id === "negociacao");
+  if (!deal || !target || isClosedStage(deal.stage)) return;
+  if (STAGES.findIndex(s => s.id === deal.stage) >= STAGES.findIndex(s => s.id === target.id)) return;
+  if (confirm(`Mover o negócio de ${deal.name} para "${stageLabel(target.label)}" no Pipeline?`)) moveDeal(deal.id, target.id);
+}
 
 agendaBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("agenda-id").value;
@@ -8530,6 +8658,7 @@ agendaBtnDelete.addEventListener("click", async () => {
   renderDashCalendar();
   renderDashAgendaDay();
   closeAgendaModal();
+  if (typeof renderAgendaScreen === "function") renderAgendaScreen();
   await deleteAgendaItemRemote(id);
 });
 
@@ -8969,6 +9098,7 @@ document.addEventListener("keydown", e => {
   renderLeadFilterOptions();
   renderLeads();
   startAutoRefreshLeadsDeals();
+  if (typeof startAgendaReminders === "function") startAgendaReminders();
   renderQuotes();
   renderCatalogList();
   quoteMontaDestinos();

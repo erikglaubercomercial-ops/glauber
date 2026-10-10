@@ -484,6 +484,13 @@ function fxRenderTimeline(d) {
     if (!e.pre_embark_at && mk(meetD).getTime() > nowMs) items.push({ at: mk(meetD).toISOString(), text: "Aviso para agendar a reunião de pré-embarque", fut: true });
     if (fxDateObj(e.arrival_date).getTime() > nowMs) items.push({ at: fxDateObj(e.arrival_date).toISOString(), text: "Embarque para a Irlanda", fut: true });
   }
+  /* reuniões agendadas na Agenda do time para este lead */
+  if (typeof agendaItems !== "undefined") {
+    agendaItems.filter(a => a.leadId === d.lead.id && a.type === "reuniao" && (a.status || "agendada") === "agendada").forEach(a => {
+      const when = new Date(`${a.itemDate}T${(a.itemTime || "23:59").slice(0, 5)}:00`);
+      if (when.getTime() > nowMs) items.push({ at: when.toISOString(), text: `Reunião agendada: ${a.title}${a.itemTime ? " às " + a.itemTime.slice(0, 5) : ""}`, fut: true });
+    });
+  }
   if (e && e.pre_embark_at && new Date(e.pre_embark_at).getTime() > nowMs) items.push({ at: e.pre_embark_at, text: "Reunião de pré-embarque", fut: true });
   items.sort((a, b) => new Date(b.at) - new Date(a.at));
   $fx("ficha-timeline").innerHTML = `<h3><span class="ic">⟲</span>Linha do tempo</h3><div class="fx-tl">` + items.map(it =>
@@ -495,9 +502,11 @@ function fxRenderFoot(d) {
   const digits = lead ? leadWhatsAppDigits(lead) : null;
   $fx("ficha-foot").innerHTML = `
     <button type="button" class="btn btn-ghost btn-sm" id="fx-edit">Editar lead</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="fx-agendar">Agendar reunião</button>
     ${d.enrollment ? '<button type="button" class="btn btn-ghost btn-sm" id="fx-foot-enr">Abrir matrícula</button>' : ""}
     ${digits ? `<a class="btn btn-ghost btn-sm" href="${buildWhatsAppLink(digits)}" target="_blank" rel="noopener">WhatsApp</a>` : ""}`;
   $fx("fx-edit").addEventListener("click", () => { closeFicha(); openLeadModal(d.lead.id); });
+  $fx("fx-agendar").addEventListener("click", () => { closeFicha(); openAgendaModal(null, new Date().toISOString().slice(0, 10), { leadId: d.lead.id }); });
   const fe = $fx("fx-foot-enr"); if (fe) fe.addEventListener("click", () => { closeFicha(); openEnrollmentModal(d.enrollment.id); });
 }
 
