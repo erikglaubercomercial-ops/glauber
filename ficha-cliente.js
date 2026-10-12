@@ -487,8 +487,8 @@ function fxRenderTimeline(d) {
   /* reuniões agendadas na Agenda do time para este lead */
   if (typeof agendaItems !== "undefined") {
     agendaItems.filter(a => a.leadId === d.lead.id && a.type === "reuniao" && (a.status || "agendada") === "agendada").forEach(a => {
-      const when = new Date(`${a.itemDate}T${(a.itemTime || "23:59").slice(0, 5)}:00`);
-      if (when.getTime() > nowMs) items.push({ at: when.toISOString(), text: `Reunião agendada: ${a.title}${a.itemTime ? " às " + a.itemTime.slice(0, 5) : ""}`, fut: true });
+      const when = a.itemTime ? agendaItemSpan(a).start : new Date(`${a.itemDate}T23:59:00`).getTime();
+      if (when > nowMs) items.push({ at: new Date(when).toISOString(), text: `Reunião agendada: ${a.title}${a.itemTime ? " · " + agendaTimeText(a) : ""}`, fut: true });
     });
   }
   if (e && e.pre_embark_at && new Date(e.pre_embark_at).getTime() > nowMs) items.push({ at: e.pre_embark_at, text: "Reunião de pré-embarque", fut: true });

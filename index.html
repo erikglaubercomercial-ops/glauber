@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791666940">
+<link rel="stylesheet" href="style.css?v=1791799942">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -400,6 +400,7 @@
             <button type="button" class="btn btn-ghost btn-sm" id="ag-next" aria-label="Próximo">&rsaquo;</button>
             <h2 class="ag-title" id="ag-title"></h2>
           </div>
+          <div class="ag-clocks" id="ag-clocks" title="Hora agora em Brasília e na Irlanda"></div>
           <div class="ag-controls">
             <div class="subtabs ag-modes" id="ag-modes">
               <button type="button" class="subtab" data-ag-mode="day">Dia</button>
@@ -418,6 +419,7 @@
             <button type="button" class="btn btn-primary" id="ag-new">+ Nova reunião</button>
           </div>
         </div>
+        <p class="ag-tz-legend">Cada horário mostra o fuso em que foi marcado primeiro, com a conversão ao lado: 🇧🇷 Brasília · 🇮🇪 Irlanda.</p>
         <div class="ag-body" id="ag-body"></div>
       </section>
 
@@ -1832,24 +1834,31 @@
           <label><span data-i18n="common.date">Data</span>
             <input type="date" id="agenda-field-date" required>
           </label>
-          <label><span data-i18n="agenda.timeOptional">Hora (opcional)</span>
-            <input type="time" id="agenda-field-time">
-          </label>
-        </div>
-        <div class="grid-2">
-          <label><span>Término (opcional)</span>
-            <input type="time" id="agenda-field-end">
-          </label>
-          <label id="agenda-status-wrap" style="display:none;"><span>Status</span>
-            <select id="agenda-field-status">
-              <option value="agendada">Agendada</option>
-              <option value="realizada">Realizada</option>
-              <option value="nao_compareceu">Não compareceu</option>
-              <option value="remarcada">Remarcada</option>
-              <option value="cancelada">Cancelada</option>
+          <label><span>Fuso do horário</span>
+            <select id="agenda-field-tz">
+              <option value="America/Sao_Paulo">🇧🇷 Brasília</option>
+              <option value="Europe/Dublin">🇮🇪 Irlanda</option>
             </select>
           </label>
         </div>
+        <div class="grid-2">
+          <label><span data-i18n="agenda.timeOptional">Hora (opcional)</span>
+            <input type="time" id="agenda-field-time">
+          </label>
+          <label><span>Término (opcional)</span>
+            <input type="time" id="agenda-field-end">
+          </label>
+        </div>
+        <p class="ag-tz-preview" id="agenda-tz-preview"></p>
+        <label id="agenda-status-wrap" style="display:none;"><span>Status</span>
+          <select id="agenda-field-status">
+            <option value="agendada">Agendada</option>
+            <option value="realizada">Realizada</option>
+            <option value="nao_compareceu">Não compareceu</option>
+            <option value="remarcada">Remarcada</option>
+            <option value="cancelada">Cancelada</option>
+          </select>
+        </label>
         <label><span>Link ou local (opcional)</span>
           <input type="text" id="agenda-field-location" placeholder="Link do Meet/Zoom ou endereço" autocomplete="off">
         </label>
@@ -2718,15 +2727,15 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791666940"></script>
-  <script src="auth.js?v=1791666940"></script>
-  <script src="i18n.js?v=1791666940"></script>
-  <script src="comparativo.js?v=1791666940"></script>
-  <script src="contrato-modelo.js?v=1791666940"></script>
-  <script src="script.js?v=1791666940"></script>
-  <script src="contratos-proposta.js?v=1791666940"></script>
-  <script src="ficha-cliente.js?v=1791666940"></script>
-  <script src="agenda-reunioes.js?v=1791666940"></script>
-  <script src="app-acompanhamento.js?v=1791666940"></script>
+  <script src="config.js?v=1791799942"></script>
+  <script src="auth.js?v=1791799942"></script>
+  <script src="i18n.js?v=1791799942"></script>
+  <script src="comparativo.js?v=1791799942"></script>
+  <script src="contrato-modelo.js?v=1791799942"></script>
+  <script src="script.js?v=1791799942"></script>
+  <script src="contratos-proposta.js?v=1791799942"></script>
+  <script src="ficha-cliente.js?v=1791799942"></script>
+  <script src="agenda-reunioes.js?v=1791799942"></script>
+  <script src="app-acompanhamento.js?v=1791799942"></script>
 </body>
 </html>

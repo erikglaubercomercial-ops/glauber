@@ -49,24 +49,36 @@ function agFilteredItems() {
 function agByDate(items) {
   const map = {};
   items.forEach(a => { (map[a.itemDate] = map[a.itemDate] || []).push(a); });
-  Object.values(map).forEach(list => list.sort((x, y) => (x.itemTime || "99:99").localeCompare(y.itemTime || "99:99")));
+  const startOf = a => { const sp = agendaItemSpan(a); return sp ? sp.start : Infinity; };
+  Object.values(map).forEach(list => list.sort((x, y) => startOf(x) - startOf(y)));
   return map;
 }
 
+/* horário nos dois fusos, bandeira ao lado; o fuso de marcação fica em destaque */
+function agTimesHtml(a) {
+  if (!a.itemTime) return `<span class="ag-time">Dia todo</span>`;
+  const own = agendaItemTz(a), other = AGENDA_TZS[own].other;
+  const o = agendaTimeIn(a, own), x = agendaTimeIn(a, other);
+  const shift = x.shift ? ` <i title="Cai em outro dia neste fuso">${x.shift > 0 ? "+" : ""}${x.shift}d</i>` : "";
+  return `<span class="ag-times">
+    <span class="ag-time ag-tz-own" title="Marcado no horário de ${AGENDA_TZS[own].name}">${AGENDA_TZS[own].flag} ${escapeHtml(o.text)}</span>
+    <span class="ag-time ag-tz-other" title="Horário de ${AGENDA_TZS[other].name}">${AGENDA_TZS[other].flag} ${escapeHtml(x.text)}${shift}</span>
+  </span>`;
+}
 function agCardHtml(a, opts) {
   opts = opts || {};
   const status = a.status || "agendada";
   const lead = a.leadId ? leads.find(l => l.id === a.leadId) : null;
   const who = [agName(a.consultorId), ...(a.participantIds || []).map(agName)].filter(Boolean);
   const conflict = a.itemTime && status === "agendada" && agendaFindConflicts(a).length > 0;
-  const range = a.itemTime ? agTime(a.itemTime) + (a.endTime ? "–" + agTime(a.endTime) : "") : "Dia todo";
+  const times = agTimesHtml(a);
   const isUrl = /^https?:\/\//i.test(a.location || "");
   const quick = status === "agendada" && a.type === "reuniao" && agendaCanEdit(a)
     ? `<button type="button" class="ag-quick" data-ag-done="${a.id}" title="Marcar como realizada">✓ Realizada</button>` : "";
   return `
     <div class="ag-card ag-t-${a.type} ag-s-${status}" data-ag-id="${a.id}">
       <div class="ag-card-top">
-        <span class="ag-time">${escapeHtml(range)}</span>
+        ${times}
         ${conflict ? `<span class="ag-conflict" title="Choque de horário com outro compromisso">⚠ choque</span>` : ""}
         ${status !== "agendada" ? `<span class="ag-status ag-st-${status}">${AG_STATUS[status] || status}</span>` : ""}
       </div>
@@ -89,6 +101,7 @@ function renderAgendaScreen() {
   if (!body) return;
   if (!agState.inited) agInit();
   document.getElementById("ag-title").textContent = agTitleText();
+  document.getElementById("ag-clocks").textContent = "Agora: " + agendaNowClocks();
   document.querySelectorAll("#ag-modes [data-ag-mode]").forEach(b => b.classList.toggle("active", b.dataset.agMode === agState.mode));
   agFillWhoOptions();
 
@@ -118,7 +131,7 @@ function renderAgendaScreen() {
       const inMonth = d.getMonth() === c.getMonth();
       cells += `<div class="ag-mcell${inMonth ? "" : " is-out"}${iso === todayIso ? " is-today" : ""}" data-ag-goto="${iso}">
         <span class="ag-mnum">${d.getDate()}</span>
-        ${list.slice(0, 3).map(a => `<div class="ag-chip ag-t-${a.type} ag-s-${a.status || "agendada"}" data-ag-id="${a.id}" title="${escapeHtml(a.title)}">${a.itemTime ? `<b>${agTime(a.itemTime)}</b> ` : ""}${escapeHtml(a.title)}</div>`).join("")}
+        ${list.slice(0, 3).map(a => `<div class="ag-chip ag-t-${a.type} ag-s-${a.status || "agendada"}" data-ag-id="${a.id}" title="${escapeHtml(a.title)}${a.itemTime ? " · " + escapeHtml(agendaTimeText(a)) : ""}">${a.itemTime ? `<b>${AGENDA_TZS[agendaItemTz(a)].flag}${agTime(a.itemTime)}</b> ` : ""}${escapeHtml(a.title)}</div>`).join("")}
         ${list.length > 3 ? `<div class="ag-chip-more">+${list.length - 3} mais</div>` : ""}
       </div>`;
     }
@@ -200,15 +213,14 @@ function agRememberReminded(set) {
 }
 function agCheckReminders() {
   if (!session || document.hidden) return;
-  const now = new Date(), todayIso = agIso(now), nowMin = now.getHours() * 60 + now.getMinutes();
+  const now = Date.now();
   const done = agRemindedSet();
   const due = agendaItems.filter(a => {
-    if (a.type !== "reuniao" || (a.status || "agendada") !== "agendada" || a.itemDate !== todayIso || !a.itemTime || done.has(a.id)) return false;
+    if (a.type !== "reuniao" || (a.status || "agendada") !== "agendada" || !a.itemTime || done.has(a.id)) return false;
     const mine = a.consultorId === session.id || (a.participantIds || []).includes(session.id) || a.createdBy === session.id;
     if (!mine) return false;
-    const [h, m] = a.itemTime.split(":").map(Number);
-    const diff = h * 60 + m - nowMin;
-    return diff <= 15 && diff >= -5;
+    const diffMin = (agendaItemSpan(a).start - now) / 60000;
+    return diffMin <= 15 && diffMin >= -5;
   });
   if (!due.length) return;
   due.forEach(a => done.add(a.id));
@@ -231,12 +243,16 @@ function agShowReminder(a, extra) {
   const lead = a.leadId ? leads.find(l => l.id === a.leadId) : null;
   box.innerHTML = `
     <span class="lat-icon" style="color:var(--primary)">⏰</span>
-    <div class="lat-body"><strong>Reunião às ${escapeHtml(agTime(a.itemTime))}</strong><span>${escapeHtml(a.title)}${lead ? " · " + escapeHtml(lead.name) : ""}${extra > 0 ? ` (+${extra})` : ""}</span></div>
+    <div class="lat-body"><strong>Reunião começando · ${escapeHtml(agendaTimeText(a))}</strong><span>${escapeHtml(a.title)}${lead ? " · " + escapeHtml(lead.name) : ""}${extra > 0 ? ` (+${extra})` : ""}</span></div>
     <button type="button" class="btn btn-primary btn-sm" data-ag-r-open>Abrir</button>
     <button type="button" class="btn-icon" data-ag-r-close aria-label="×">&times;</button>`;
   box.classList.add("show");
 }
 function startAgendaReminders() {
+  setInterval(() => {
+    const c = document.getElementById("ag-clocks");
+    if (c && currentView === "agenda") c.textContent = "Agora: " + agendaNowClocks();
+  }, 30000);
   setInterval(agCheckReminders, 30000);
   setTimeout(agCheckReminders, 4000);
 }

@@ -7104,7 +7104,7 @@ let agendaItems = [];
 function agendaItemFromDb(r) {
   return {
     id: r.id, title: r.title, type: r.type, itemDate: r.item_date, itemTime: r.item_time,
-    endTime: r.end_time || null, location: r.location || "", leadId: r.lead_id || null,
+    endTime: r.end_time || null, tz: r.tz || "America/Sao_Paulo", location: r.location || "", leadId: r.lead_id || null,
     status: r.status || "agendada", participantIds: r.participant_ids || [],
     consultorId: r.consultor_id, notes: r.notes || "", done: r.done,
     googleEventId: r.google_event_id, createdBy: r.created_by,
@@ -7114,7 +7114,7 @@ function agendaItemFromDb(r) {
 function agendaItemToDb(a) {
   return {
     id: a.id, title: a.title, type: a.type, item_date: a.itemDate, item_time: a.itemTime,
-    end_time: a.endTime || null, location: a.location || "", lead_id: a.leadId || null,
+    end_time: a.endTime || null, tz: a.tz || "America/Sao_Paulo", location: a.location || "", lead_id: a.leadId || null,
     status: a.status || "agendada", participant_ids: a.participantIds || [],
     consultor_id: a.consultorId || null, notes: a.notes || "", done: !!a.done,
     google_event_id: a.googleEventId || null, created_by: a.createdBy || null,
@@ -8412,6 +8412,73 @@ function dashCalTitle(month, year) {
   const cap = name.charAt(0).toUpperCase() + name.slice(1);
   return getLang() === "en" ? `${cap} ${year}` : `${cap} de ${year}`;
 }
+/* ---- fusos da agenda: todo horário é marcado em Brasília 🇧🇷 ou Irlanda 🇮🇪 e
+   mostrado nos dois (a Irlanda muda de horário de verão, por isso a conversão
+   usa as regras reais de cada fuso) ---- */
+const AGENDA_TZS = {
+  "America/Sao_Paulo": { flag: "🇧🇷", name: "Brasília", other: "Europe/Dublin" },
+  "Europe/Dublin": { flag: "🇮🇪", name: "Irlanda", other: "America/Sao_Paulo" },
+};
+const AGENDA_TZ_KEY = "crm-agenda-fuso";
+function agendaTzParts(ms, tz) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date(ms));
+  const g = k => Number(parts.find(p => p.type === k).value);
+  return { y: g("year"), mo: g("month"), d: g("day"), h: g("hour"), mi: g("minute"), s: g("second") };
+}
+function agendaTzOffsetMs(ms, tz) {
+  const p = agendaTzParts(ms, tz);
+  return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) - Math.floor(ms / 1000) * 1000;
+}
+/* instante (ms) de "data + hora" no fuso informado */
+function agendaInstant(dateIso, time, tz) {
+  const [y, m, d] = dateIso.split("-").map(Number);
+  const [h, mi] = (time || "00:00").split(":").map(Number);
+  const guess = Date.UTC(y, m - 1, d, h, mi);
+  let t = guess - agendaTzOffsetMs(guess, tz);
+  t = guess - agendaTzOffsetMs(t, tz);
+  return t;
+}
+/* data e hora (parede) de um instante num fuso */
+function agendaWall(ms, tz) {
+  const p = agendaTzParts(ms, tz), z = n => String(n).padStart(2, "0");
+  return { date: `${p.y}-${z(p.mo)}-${z(p.d)}`, time: `${z(p.h)}:${z(p.mi)}` };
+}
+function agendaDayShift(fromIso, toIso) {
+  const a = Date.UTC(...fromIso.split("-").map((v, i) => i === 1 ? v - 1 : +v));
+  const b = Date.UTC(...toIso.split("-").map((v, i) => i === 1 ? v - 1 : +v));
+  return Math.round((b - a) / 86400000);
+}
+function agendaItemTz(a) { return AGENDA_TZS[a.tz] ? a.tz : "America/Sao_Paulo"; }
+/* início/fim do compromisso como instantes (ms); sem término = 1 hora */
+function agendaItemSpan(a) {
+  if (!a.itemTime) return null;
+  const tz = agendaItemTz(a);
+  const start = agendaInstant(a.itemDate, a.itemTime.slice(0, 5), tz);
+  const end = a.endTime ? agendaInstant(a.itemDate, a.endTime.slice(0, 5), tz) : start + 3600000;
+  return { start, end };
+}
+/* horário do compromisso no fuso pedido: { text: "14:00–15:00", shift: -1|0|1 } */
+function agendaTimeIn(a, tz) {
+  const span = agendaItemSpan(a);
+  if (!span) return null;
+  const s = agendaWall(span.start, tz);
+  const own = agendaWall(span.start, agendaItemTz(a));
+  const e = a.endTime ? agendaWall(span.end, tz).time : null;
+  return { text: s.time + (e ? "–" + e : ""), shift: agendaDayShift(own.date, s.date) };
+}
+/* "🇧🇷 14:00–15:00 · 🇮🇪 18:00–19:00" (o fuso em que foi marcado vem primeiro) */
+function agendaTimeText(a) {
+  const own = agendaItemTz(a), other = AGENDA_TZS[own].other;
+  const o = agendaTimeIn(a, own), x = agendaTimeIn(a, other);
+  if (!o) return "";
+  const shiftTxt = x.shift ? ` (${x.shift > 0 ? "+" : ""}${x.shift}d)` : "";
+  return `${AGENDA_TZS[own].flag} ${o.text} · ${AGENDA_TZS[other].flag} ${x.text}${shiftTxt}`;
+}
+function agendaNowClocks() {
+  const now = Date.now();
+  return Object.keys(AGENDA_TZS).map(tz => `${AGENDA_TZS[tz].flag} ${agendaWall(now, tz).time}`).join(" · ");
+}
+
 const AGENDA_STATUS_LABEL = { agendada: "Agendada", realizada: "Realizada", nao_compareceu: "Não compareceu", remarcada: "Remarcada", cancelada: "Cancelada" };
 function agendaTypeLabel(type) {
   return { tarefa: t("agenda.taskType"), reuniao: t("agenda.meetingType"), aviso: t("agenda.noticeType") }[type] || type;
@@ -8498,7 +8565,7 @@ function renderDashAgendaDay() {
 
   const items = agendaItems
     .filter(a => a.itemDate === dashCalendarSelectedDate)
-    .sort((a, b) => (a.itemTime || "99:99").localeCompare(b.itemTime || "99:99"));
+    .sort((a, b) => ((agendaItemSpan(a) || { start: Infinity }).start) - ((agendaItemSpan(b) || { start: Infinity }).start));
 
   const list = document.getElementById("dash-agenda-day-list");
   if (!items.length) {
@@ -8509,7 +8576,7 @@ function renderDashAgendaDay() {
   list.innerHTML = items.map(a => {
     const consultor = a.consultorId ? users.find(u => u.id === a.consultorId) : null;
     const metaParts = [agendaTypeLabel(a.type)];
-    if (a.itemTime) metaParts.push(a.itemTime.slice(0, 5) + (a.endTime ? "–" + a.endTime.slice(0, 5) : ""));
+    if (a.itemTime) metaParts.push(agendaTimeText(a));
     if (consultor) metaParts.push(consultor.name);
     const lead = a.leadId ? leads.find(l => l.id === a.leadId) : null;
     if (lead) metaParts.push(lead.name);
@@ -8601,6 +8668,7 @@ function openAgendaModal(id, presetDate, opts) {
     document.getElementById("agenda-field-date").value = existing.itemDate;
     document.getElementById("agenda-field-time").value = existing.itemTime ? existing.itemTime.slice(0, 5) : "";
     document.getElementById("agenda-field-end").value = existing.endTime ? existing.endTime.slice(0, 5) : "";
+    document.getElementById("agenda-field-tz").value = agendaItemTz(existing);
     document.getElementById("agenda-field-location").value = existing.location || "";
     document.getElementById("agenda-field-notes").value = existing.notes || "";
     document.getElementById("agenda-field-status").value = existing.status || "agendada";
@@ -8615,6 +8683,9 @@ function openAgendaModal(id, presetDate, opts) {
     document.getElementById("agenda-id").value = "";
     document.getElementById("agenda-field-date").value = presetDate || dashCalendarSelectedDate;
     if (opts.time) document.getElementById("agenda-field-time").value = opts.time;
+    let lastTz = "";
+    try { lastTz = localStorage.getItem(AGENDA_TZ_KEY) || ""; } catch (err) { /* sem storage */ }
+    document.getElementById("agenda-field-tz").value = AGENDA_TZS[lastTz] ? lastTz : "America/Sao_Paulo";
     document.getElementById("agenda-status-wrap").style.display = "none";
     renderAgendaConsultorOptions(null);
     renderAgendaGuests([]);
@@ -8628,8 +8699,25 @@ function openAgendaModal(id, presetDate, opts) {
   }
 
   agendaModalBackdrop.classList.add("open");
+  agendaUpdateTzPreview();
   document.getElementById("agenda-field-title").focus();
 }
+/* mostra, ao lado do horário digitado, quanto dá no outro fuso */
+function agendaUpdateTzPreview() {
+  const el = document.getElementById("agenda-tz-preview");
+  const time = document.getElementById("agenda-field-time").value;
+  const tz = document.getElementById("agenda-field-tz").value;
+  if (!time) { el.textContent = "Sem horário definido: o compromisso fica como dia todo."; return; }
+  const item = {
+    itemDate: document.getElementById("agenda-field-date").value || new Date().toISOString().slice(0, 10),
+    itemTime: time, endTime: document.getElementById("agenda-field-end").value || null, tz,
+  };
+  el.textContent = agendaTimeText(item);
+}
+["agenda-field-time", "agenda-field-end", "agenda-field-tz", "agenda-field-date"].forEach(id => {
+  document.getElementById(id).addEventListener("input", agendaUpdateTzPreview);
+  document.getElementById(id).addEventListener("change", agendaUpdateTzPreview);
+});
 /* quem pode alterar o item: criador, responsável, ADM e Gerente (convidado só vê) */
 function agendaCanEdit(a) {
   if (!session) return false;
@@ -8637,25 +8725,18 @@ function agendaCanEdit(a) {
 }
 /* compromissos do mesmo dia que se sobrepõem em horário para o responsável ou convidados */
 function agendaFindConflicts(item) {
-  if (!item.itemTime) return [];
-  const toMin = tm => { const [h, m] = tm.split(":"); return Number(h) * 60 + Number(m); };
-  const start = toMin(item.itemTime);
-  const end = item.endTime ? toMin(item.endTime) : start + 60;
+  const span = agendaItemSpan(item);
+  if (!span) return [];
   const people = new Set([item.consultorId, ...(item.participantIds || [])].filter(Boolean));
   if (!people.size) return [];
   return agendaItems.filter(o => {
-    if (o.id === item.id || o.itemDate !== item.itemDate || !o.itemTime || o.type === "aviso") return false;
+    if (o.id === item.id || !o.itemTime || o.type === "aviso") return false;
     if (o.status === "cancelada" || o.status === "remarcada") return false;
-    const os = toMin(o.itemTime), oe = o.endTime ? toMin(o.endTime) : os + 60;
-    if (!(start < oe && os < end)) return false;
+    const os = agendaItemSpan(o);
+    if (!(span.start < os.end && os.start < span.end)) return false;
     return [o.consultorId, ...(o.participantIds || [])].some(p => p && people.has(p));
   });
 }
-function closeAgendaModal() { agendaModalBackdrop.classList.remove("open"); }
-
-document.getElementById("agenda-modal-close").addEventListener("click", closeAgendaModal);
-document.getElementById("agenda-btn-cancel").addEventListener("click", closeAgendaModal);
-agendaModalBackdrop.addEventListener("click", e => { if (e.target === agendaModalBackdrop) closeAgendaModal(); });
 
 agendaForm.addEventListener("submit", async e => {
   e.preventDefault();
@@ -8669,6 +8750,7 @@ agendaForm.addEventListener("submit", async e => {
     itemDate: document.getElementById("agenda-field-date").value,
     itemTime: document.getElementById("agenda-field-time").value || null,
     endTime: document.getElementById("agenda-field-end").value || null,
+    tz: document.getElementById("agenda-field-tz").value,
     location: document.getElementById("agenda-field-location").value.trim(),
     leadId: document.getElementById("agenda-field-lead").value || null,
     status: existing ? document.getElementById("agenda-field-status").value : "agendada",
@@ -8679,10 +8761,11 @@ agendaForm.addEventListener("submit", async e => {
     createdBy: existing ? existing.createdBy : session.id,
   };
   if (data.endTime && data.itemTime && data.endTime <= data.itemTime) { alert("O término precisa ser depois do início."); return; }
+  try { localStorage.setItem(AGENDA_TZ_KEY, data.tz); } catch (err) { /* sem storage */ }
   if (data.status === "agendada" || !existing) {
     const conflicts = agendaFindConflicts(data);
     if (conflicts.length) {
-      const list = conflicts.slice(0, 3).map(c => `• ${c.itemTime.slice(0, 5)} ${c.title}`).join("\n");
+      const list = conflicts.slice(0, 3).map(c => `• ${agendaTimeText(c)} ${c.title}`).join("\n");
       if (!confirm(`Choque de horário com:\n${list}\n\nSalvar mesmo assim?`)) return;
     }
   }
