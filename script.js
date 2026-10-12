@@ -1540,6 +1540,7 @@ function noConsultorMark() {
 function refreshUnassignedAlerts() {
   if (!canDirectLeads()) return;
   if (typeof apptRenderUnassignedBanner === "function") apptRenderUnassignedBanner();
+  if (currentView === "formularios" && formResponsesFormId) renderFormResponses();
   if (currentView === "appacomp" && typeof apptState !== "undefined" && apptState.tab === "users" && apptState.users.data) apptRenderUsers();
 }
 let unassignedToastIds = [];
@@ -7665,6 +7666,7 @@ function renderFormResponses() {
     <th class="cell-check"><input type="checkbox" id="fr-select-all"></th>
     ${form.fields.map(f => `<th>${escapeHtml(f.label)}</th>`).join("")}
     <th>${t("forms.receivedOn")}</th>
+    <th>${t("appt.colConsultor")}</th>
     <th>${t("common.lead")}</th>
   </tr>`;
 
@@ -7696,9 +7698,20 @@ function renderFormResponses() {
       leadCell = "—";
     }
 
+    /* consultor dono do lead gerado por esta resposta */
+    let consultorCell = `<span class="muted-note">—</span>`;
+    const linkedLead = s.leadId ? leads.find(l => l.id === s.leadId) : null;
+    if (linkedLead) {
+      const owner = linkedLead.consultorId ? users.find(u => u.id === linkedLead.consultorId) : null;
+      consultorCell = owner
+        ? `<span class="appt-consultor">${escapeHtml(owner.name)}</span>`
+        : `<span class="ua-none">${noConsultorMark()} ${escapeHtml(t("appt.noConsultor"))}</span>` +
+          (canDirectLeads() ? ` <button type="button" class="btn btn-primary btn-sm" data-act="assign-lead" data-lead-id="${linkedLead.id}">${escapeHtml(t("appt.assign"))}</button>` : "");
+    }
+
     return `<tr>
       <td class="cell-check"><input type="checkbox" class="fr-row-checkbox" data-id="${s.id}" ${frSelectedIds.has(s.id) ? "checked" : ""}></td>
-      ${cells}<td>${when}</td><td>${leadCell}</td>
+      ${cells}<td>${when}</td><td>${consultorCell}</td><td>${leadCell}</td>
     </tr>`;
   }).join("");
 
@@ -7714,6 +7727,9 @@ function renderFormResponses() {
         renderFormResponses();
       }
     });
+  });
+  tbody.querySelectorAll('[data-act="assign-lead"]').forEach(btn => {
+    btn.addEventListener("click", () => openAssignModal([btn.dataset.leadId]));
   });
   tbody.querySelectorAll('[data-act="view-lead"]').forEach(btn => {
     btn.addEventListener("click", () => {
