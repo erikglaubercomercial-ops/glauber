@@ -8754,6 +8754,21 @@ function agendaFindConflicts(item) {
   });
 }
 
+function closeAgendaModal() { agendaModalBackdrop.classList.remove("open"); }
+
+document.getElementById("agenda-modal-close").addEventListener("click", closeAgendaModal);
+document.getElementById("agenda-btn-cancel").addEventListener("click", closeAgendaModal);
+agendaModalBackdrop.addEventListener("click", e => { if (e.target === agendaModalBackdrop) closeAgendaModal(); });
+
+let agendaSaving = false;
+function agendaToast(msg) {
+  let el = document.getElementById("ag-toast");
+  if (!el) { el = document.createElement("div"); el.id = "ag-toast"; el.className = "aluno-toast"; document.body.appendChild(el); }
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(agendaToast.timer);
+  agendaToast.timer = setTimeout(() => el.classList.remove("show"), 4500);
+}
 agendaForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("agenda-id").value;
@@ -8778,15 +8793,31 @@ agendaForm.addEventListener("submit", async e => {
   };
   if (data.endTime && data.itemTime && data.endTime <= data.itemTime) { alert("O término precisa ser depois do início."); return; }
   try { localStorage.setItem(AGENDA_TZ_KEY, data.tz); } catch (err) { /* sem storage */ }
+  if (agendaSaving) return;
   if (data.status === "agendada" || !existing) {
     const conflicts = agendaFindConflicts(data);
     if (conflicts.length) {
-      const list = conflicts.slice(0, 3).map(c => `• ${agendaTimeText(c)} ${c.title}`).join("\n");
-      if (!confirm(`Choque de horário com:\n${list}\n\nSalvar mesmo assim?`)) return;
+      /* mesmo título, dia e horário = provável duplicado; o resto é choque de agendas */
+      const sameAs = c => c.title.trim().toLowerCase() === data.title.toLowerCase() && c.itemDate === data.itemDate && c.itemTime === data.itemTime;
+      const dupes = conflicts.filter(sameAs).length;
+      const groups = new Map();
+      conflicts.forEach(c => {
+        const line = `• ${formatDate(c.itemDate)} · ${agendaTimeText(c)} · ${c.title}`;
+        groups.set(line, (groups.get(line) || 0) + 1);
+      });
+      const list = Array.from(groups).slice(0, 4).map(([line, n]) => n > 1 ? `${line} (${n}×)` : line).join("\n");
+      const head = dupes ? `Já existe${dupes > 1 ? "m" : ""} ${dupes} reunião(ões) igual(is) a esta (mesmo título, dia e horário):` : "Choque de horário com:";
+      if (!confirm(`${head}\n${list}\n\nSalvar mesmo assim?`)) return;
     }
   }
 
-  const saved = await saveAgendaItemRemote(data);
+  /* trava o botão enquanto salva: clique duplo não pode criar dois compromissos */
+  agendaSaving = true;
+  const submitBtn = agendaForm.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  let saved;
+  try { saved = await saveAgendaItemRemote(data); }
+  finally { agendaSaving = false; submitBtn.disabled = false; }
   if (!saved) { alert(t("agenda.saveError")); return; }
 
   if (existing) {
@@ -8800,8 +8831,11 @@ agendaForm.addEventListener("submit", async e => {
   renderDashCalendar();
   renderDashAgendaDay();
   closeAgendaModal();
+  /* a Agenda pula para o dia salvo (senão o compromisso "some" quando é de outra semana) */
+  if (typeof agendaFocusDate === "function") agendaFocusDate(saved.itemDate);
   if (typeof renderAgendaScreen === "function") renderAgendaScreen();
   if (typeof fichaRefreshIfOpen === "function") fichaRefreshIfOpen();
+  agendaToast(`Salvo: ${saved.title} · ${formatDate(saved.itemDate)}${saved.itemTime ? " · " + agendaTimeText(saved) : ""}`);
 
   if (existing && existing.status !== "realizada" && saved.status === "realizada") agendaOfferMoveDeal(saved);
 });

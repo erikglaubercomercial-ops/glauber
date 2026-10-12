@@ -150,6 +150,11 @@ function agFillWhoOptions() {
   sel.value = wanted;
 }
 
+/* leva a Agenda para o dia informado (usado depois de salvar um compromisso) */
+function agendaFocusDate(iso) {
+  if (!iso) return;
+  agState.cursor = agParse(iso);
+}
 function agShift(dir) {
   const c = agState.cursor;
   if (agState.mode === "month") agState.cursor = new Date(c.getFullYear(), c.getMonth() + dir, 1);
