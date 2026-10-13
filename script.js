@@ -190,6 +190,7 @@ function switchView(view) {
   if (view === "escolas") renderEscolas();
   if (view === "appacomp") renderAppTracking();
   if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();
+  if (view === "financeiro" && typeof showFinanceiroDashboard === "function") showFinanceiroDashboard();
   if (view === "leadsparados") {
     document.getElementById("subview-stuck-detalhe").classList.remove("active");
     document.getElementById("subview-stuck-overview").classList.add("active");
@@ -5490,6 +5491,9 @@ function initFinanceiroSubtabs() {
     btn.addEventListener("click", () => {
       document.querySelectorAll("#financeiro-subtabs .subtab").forEach(b => b.classList.toggle("active", b === btn));
       const target = btn.dataset.finSubtab;
+      document.getElementById("subview-fin-dashboard").classList.toggle("active", target === "dashboard");
+      /* os 4 cartões antigos continuam nas demais abas; no Dashboard seus números já estão nos KPIs */
+      document.getElementById("fin-stat-row").style.display = target === "dashboard" ? "none" : "";
       document.getElementById("subview-fin-overview").classList.toggle("active", target === "overview");
       document.getElementById("subview-fin-receivables").classList.toggle("active", target === "receivables");
       document.getElementById("subview-fin-expenses").classList.toggle("active", target === "expenses");
@@ -5499,6 +5503,7 @@ function initFinanceiroSubtabs() {
       document.getElementById("subview-fin-adspend").classList.toggle("active", target === "adspend");
       document.getElementById("subview-fin-metrics").classList.toggle("active", target === "metrics");
       if (target === "metrics") renderMetrics();
+      if (target === "dashboard" && typeof renderFinDashboard === "function") renderFinDashboard();
     });
   });
 }

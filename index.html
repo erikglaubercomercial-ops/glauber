@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791841478">
+<link rel="stylesheet" href="style.css?v=1791922649">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -790,7 +790,7 @@
       </section>
 
       <section class="view" id="view-financeiro">
-        <div class="stat-row">
+        <div class="stat-row" id="fin-stat-row" style="display:none;">
           <div class="stat-card">
             <span class="stat-label" data-i18n="dash.statRevenue">Faturamento (mês)</span>
             <span class="stat-value stat-good" id="fin-stat-revenue">€ 0</span>
@@ -810,7 +810,8 @@
         </div>
 
         <div class="subtabs" id="financeiro-subtabs">
-          <button type="button" class="subtab active" data-fin-subtab="overview" data-i18n="fin.tabOverview">Visão Geral</button>
+          <button type="button" class="subtab active" data-fin-subtab="dashboard">Dashboard</button>
+          <button type="button" class="subtab" data-fin-subtab="overview" data-i18n="fin.tabOverview">Visão Geral</button>
           <button type="button" class="subtab" data-fin-subtab="receivables" data-i18n="fin.tabReceivables">Contas a Receber</button>
           <button type="button" class="subtab" data-fin-subtab="expenses" data-i18n="fin.tabExpenses">Despesas</button>
           <button type="button" class="subtab" data-fin-subtab="commissions" data-i18n="fin.tabCommissions">Comissões</button>
@@ -820,8 +821,13 @@
           <button type="button" class="subtab" data-fin-subtab="metrics" data-i18n="fin.tabMetrics">Métricas</button>
         </div>
 
+        <!-- DASHBOARD (primeira tela do Financeiro) -->
+        <div class="subview active" id="subview-fin-dashboard">
+          <div id="fd-root"></div>
+        </div>
+
         <!-- VISÃO GERAL -->
-        <div class="subview active" id="subview-fin-overview">
+        <div class="subview" id="subview-fin-overview">
           <div class="panel">
             <div class="panel-header"><h2 data-i18n="fin.recentDeals">Negócios fechados recentemente</h2></div>
             <div class="filter-bar">
@@ -2727,15 +2733,16 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791841478"></script>
-  <script src="auth.js?v=1791841478"></script>
-  <script src="i18n.js?v=1791841478"></script>
-  <script src="comparativo.js?v=1791841478"></script>
-  <script src="contrato-modelo.js?v=1791841478"></script>
-  <script src="script.js?v=1791841478"></script>
-  <script src="contratos-proposta.js?v=1791841478"></script>
-  <script src="ficha-cliente.js?v=1791841478"></script>
-  <script src="agenda-reunioes.js?v=1791841478"></script>
-  <script src="app-acompanhamento.js?v=1791841478"></script>
+  <script src="config.js?v=1791922649"></script>
+  <script src="auth.js?v=1791922649"></script>
+  <script src="i18n.js?v=1791922649"></script>
+  <script src="comparativo.js?v=1791922649"></script>
+  <script src="contrato-modelo.js?v=1791922649"></script>
+  <script src="script.js?v=1791922649"></script>
+  <script src="contratos-proposta.js?v=1791922649"></script>
+  <script src="ficha-cliente.js?v=1791922649"></script>
+  <script src="agenda-reunioes.js?v=1791922649"></script>
+  <script src="financeiro-dashboard.js?v=1791922649"></script>
+  <script src="app-acompanhamento.js?v=1791922649"></script>
 </body>
 </html>
