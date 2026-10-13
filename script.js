@@ -7682,7 +7682,12 @@ function renderFormResponses() {
   tbody.innerHTML = rows.map(s => {
     const cells = form.fields.map(f => {
       const raw = s.answers ? s.answers[f.id] : "";
-      const value = f.type === "date" && raw ? formatDate(raw) : (raw || "—");
+      let value = f.type === "date" && raw ? formatDate(raw) : (raw || "—");
+      /* telefone: mostra a bandeira e o DDI do país escolhido no formulário */
+      if (f.type === "phone_br" && raw) {
+        const c = COUNTRIES.find(x => x.code === (s.answers[`${f.id}__pais`] || "BR")) || COUNTRIES[0];
+        value = `${c.flag} +${c.ddi} ${raw}`;
+      }
       return `<td>${escapeHtml(value)}</td>`;
     }).join("");
     const when = new Date(s.createdAt).toLocaleString("pt-BR");
@@ -7822,16 +7827,21 @@ document.getElementById("fr-bulk-assign").addEventListener("click", async () => 
 
 function buildLeadFromSubmission(form, submission) {
   const answers = submission.answers || {};
-  let name = "", email = "", ddd = "", number = "", source = "Outro", notes = "";
+  let name = "", email = "", ddd = "", number = "", source = "Outro", notes = "", countryCode = "BR";
 
   form.fields.forEach(f => {
     const val = (answers[f.id] || "").toString().trim();
     if (f.type === "name") name = val;
     else if (f.type === "email") email = val;
     else if (f.type === "phone_br") {
-      const digits = val.replace(/\D/g, "");
-      ddd = digits.slice(0, 2);
-      number = digits.slice(2);
+      /* o formulário público guarda o país escolhido em "<campo>__pais" (DDI); sem ele, Brasil */
+      const chosen = String(answers[`${f.id}__pais`] || "BR");
+      countryCode = COUNTRIES.some(c => c.code === chosen) ? chosen : "BR";
+      let digits = val.replace(/\D/g, "");
+      if (countryCode === "BR" && digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) digits = digits.slice(2);
+      const dddLen = (countryCode === "US" || countryCode === "CA") ? 3 : 2;
+      ddd = digits.slice(0, dddLen);
+      number = digits.slice(dddLen);
     } else if (f.type === "source") {
       source = val || "Outro";
     } else if (val) {
@@ -7841,7 +7851,7 @@ function buildLeadFromSubmission(form, submission) {
 
   return {
     id: uid(), name: name || t("forms.leadNoName"), company: "", email,
-    countryCode: "BR", phoneDdd: ddd, phoneNumber: number,
+    countryCode, phoneDdd: ddd, phoneNumber: number,
     phone: ddd && number ? `(${ddd}) ${number}` : "",
     source, category: "Outro", status: "Novo", temperature: "",
     consultorId: null, active: true, notes: notes.trim(),

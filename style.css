@@ -2454,3 +2454,12 @@ tr.appt-row-unassigned { background: var(--danger-bg); }
 .stat-row .stat-card.fd-kpi[data-tone="red"] { background: var(--danger); }
 .fd-kpi .stat-sub, .fd-kpi .stat-sub * { color: #fff; }
 .fd-kpi .fd-vs { opacity: .85; }
+
+/* telefone com país/DDI nos formulários públicos */
+.public-phone-row { display: flex; gap: 8px; }
+.public-phone-row .public-phone-country { flex: 0 0 42%; max-width: 42%; min-width: 0; text-overflow: ellipsis; }
+.public-phone-row input { flex: 1 1 auto; min-width: 0; }
+/* o conteúdo (ex.: o seletor de país) não pode alargar a página pública além da tela */
+body > .public-page { width: 100%; min-width: 0; }
+.public-card { min-width: 0; }
+.public-phone-row .public-phone-country { width: 42%; }
