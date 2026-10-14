@@ -1448,6 +1448,7 @@ function leadFromDb(r) {
     countryCode: r.country_code || "BR", phoneDdd: r.phone_ddd || "", phoneNumber: r.phone_number || "",
     source: r.source, category: r.category, status: r.status, temperature: r.temperature || "",
     consultorId: r.consultor_id, active: r.active, notes: r.notes || "", pretendeVir: r.pretende_vir || "",
+    bookingToken: r.booking_token || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     rotationActive: !!r.rotation_active,
     rotationAssignedAt: r.rotation_assigned_at ? new Date(r.rotation_assigned_at).getTime() : null,
@@ -7114,6 +7115,9 @@ function agendaItemFromDb(r) {
     status: r.status || "agendada", participantIds: r.participant_ids || [],
     consultorId: r.consultor_id, notes: r.notes || "", done: r.done,
     googleEventId: r.google_event_id, createdBy: r.created_by,
+    bookingToken: r.booking_token || null, bookedByClient: !!r.booked_by_client,
+    clientName: r.client_name || "", clientEmail: r.client_email || "", clientPhone: r.client_phone || "",
+    bookingEvent: r.booking_event || null, bookingSeenAt: r.booking_seen_at || null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
 }
@@ -8703,6 +8707,9 @@ function openAgendaModal(id, presetDate, opts) {
     document.getElementById("agenda-field-location").value = existing.location || "";
     document.getElementById("agenda-field-notes").value = existing.notes || "";
     document.getElementById("agenda-field-status").value = existing.status || "agendada";
+    const ci = document.getElementById("agenda-client-info");
+    ci.style.display = existing.bookedByClient ? "" : "none";
+    ci.textContent = existing.bookedByClient ? `🌐 Agendado pelo cliente pelo link online — ${existing.clientName} · ${existing.clientEmail} · ${existing.clientPhone}` : "";
     document.getElementById("agenda-status-wrap").style.display = "";
     renderAgendaConsultorOptions(existing.consultorId);
     renderAgendaGuests(existing.participantIds || []);
@@ -8718,6 +8725,7 @@ function openAgendaModal(id, presetDate, opts) {
     try { lastTz = localStorage.getItem(AGENDA_TZ_KEY) || ""; } catch (err) { /* sem storage */ }
     document.getElementById("agenda-field-tz").value = AGENDA_TZS[lastTz] ? lastTz : "America/Sao_Paulo";
     document.getElementById("agenda-status-wrap").style.display = "none";
+    document.getElementById("agenda-client-info").style.display = "none";
     renderAgendaConsultorOptions(null);
     renderAgendaGuests([]);
     agendaSetLead(opts.leadId || null);

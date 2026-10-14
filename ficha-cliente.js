@@ -503,9 +503,11 @@ function fxRenderFoot(d) {
   $fx("ficha-foot").innerHTML = `
     <button type="button" class="btn btn-ghost btn-sm" id="fx-edit">Editar lead</button>
     <button type="button" class="btn btn-ghost btn-sm" id="fx-agendar">Agendar reunião</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="fx-booklink" title="Copia o link para o cliente escolher o horário da reunião">🔗 Link de agendamento</button>
     ${d.enrollment ? '<button type="button" class="btn btn-ghost btn-sm" id="fx-foot-enr">Abrir matrícula</button>' : ""}
     ${digits ? `<a class="btn btn-ghost btn-sm" href="${buildWhatsAppLink(digits)}" target="_blank" rel="noopener">WhatsApp</a>` : ""}`;
   $fx("fx-edit").addEventListener("click", () => { closeFicha(); openLeadModal(d.lead.id); });
+  $fx("fx-booklink").addEventListener("click", () => { if (typeof copyBookingLinkForLead === "function") copyBookingLinkForLead(d.lead.id, d.consultor && d.consultor.id); });
   $fx("fx-agendar").addEventListener("click", () => { closeFicha(); openAgendaModal(null, new Date().toISOString().slice(0, 10), { leadId: d.lead.id }); });
   const fe = $fx("fx-foot-enr"); if (fe) fe.addEventListener("click", () => { closeFicha(); openEnrollmentModal(d.enrollment.id); });
 }

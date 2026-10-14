@@ -85,6 +85,7 @@ function agCardHtml(a, opts) {
       <div class="ag-card-title">${escapeHtml(a.title)}</div>
       ${lead ? `<div class="ag-card-lead">${leadLink(lead.id, lead.name)}</div>` : ""}
       ${who.length ? `<div class="ag-card-who">${escapeHtml(who[0])}${who.length > 1 ? ` <span class="ag-more">+${who.length - 1}</span>` : ""}</div>` : ""}
+      ${a.bookedByClient ? `<div class="ag-card-web" title="${escapeHtml(a.clientEmail)} · ${escapeHtml(a.clientPhone)}">🌐 pelo link · ${escapeHtml(a.clientName)}</div>` : ""}
       ${a.location ? `<div class="ag-card-loc">${isUrl ? `<a href="${escapeHtml(a.location)}" target="_blank" rel="noopener" data-ag-link>Entrar na reunião</a>` : escapeHtml(a.location)}</div>` : ""}
       ${opts.full && a.notes ? `<div class="ag-card-notes">${escapeHtml(a.notes)}</div>` : ""}
       ${quick}
@@ -260,4 +261,39 @@ function startAgendaReminders() {
   }, 30000);
   setInterval(agCheckReminders, 30000);
   setTimeout(agCheckReminders, 4000);
+  setInterval(agCheckBookingNotices, 30000);
+  setTimeout(agCheckBookingNotices, 5000);
+}
+
+/* ---- avisos de agendamento online: cliente marcou, remarcou ou cancelou ---- */
+function agCheckBookingNotices() {
+  if (!session || document.hidden) return;
+  const pending = agendaItems.filter(a => a.bookedByClient && a.bookingEvent && !a.bookingSeenAt && a.consultorId === session.id);
+  if (!pending.length) return;
+  const a = pending[0];
+  const verb = { novo: "agendou uma reunião", remarcado: "remarcou a reunião", cancelado: "cancelou a reunião" }[a.bookingEvent] || "atualizou a reunião";
+  let box = document.getElementById("ag-booking-notice");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "ag-booking-notice";
+    box.className = "lead-alert-toast ag-reminder";
+    box.addEventListener("click", e => {
+      if (e.target.closest("[data-bn-open]")) { box.classList.remove("show"); openAgendaModal(box.dataset.itemId); }
+      else if (e.target.closest("[data-bn-close]")) box.classList.remove("show");
+    });
+    document.body.appendChild(box);
+  }
+  box.dataset.itemId = a.id;
+  box.innerHTML = `
+    <span class="lat-icon" style="color:var(--primary)">🌐</span>
+    <div class="lat-body"><strong>${escapeHtml(a.clientName || "Cliente")} ${verb}</strong><span>${escapeHtml(agendaTimeText(a))} · ${formatDate(a.itemDate)}${pending.length > 1 ? ` (+${pending.length - 1})` : ""}</span></div>
+    <button type="button" class="btn btn-primary btn-sm" data-bn-open>Ver</button>
+    <button type="button" class="btn-icon" data-bn-close aria-label="×">&times;</button>`;
+  box.classList.add("show");
+  /* marca como visto (só este consultor; os demais itens aparecem no próximo ciclo) */
+  const seen = new Date().toISOString();
+  a.bookingSeenAt = seen;
+  supabase.from("agenda_items").update({ booking_seen_at: seen }).eq("id", a.id).then(({ error }) => {
+    if (error) { console.error("Erro ao marcar aviso de agendamento:", error); a.bookingSeenAt = null; }
+  });
 }

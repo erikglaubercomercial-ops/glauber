@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1791929373">
+<link rel="stylesheet" href="style.css?v=1791984555">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -416,6 +416,7 @@
               <option value="remarcada">Remarcada</option>
               <option value="cancelada">Cancelada</option>
             </select>
+            <button type="button" class="btn btn-ghost" id="ag-booking" title="Link para o cliente marcar reunião e horários travados">🔗 Agendamento online</button>
             <button type="button" class="btn btn-primary" id="ag-new">+ Nova reunião</button>
           </div>
         </div>
@@ -1818,6 +1819,78 @@
     </div>
   </div>
 
+  <!-- MODAL: AGENDAMENTO ONLINE (link do cliente, horários de atendimento e travas) -->
+  <div class="modal-backdrop" id="booking-modal-backdrop">
+    <div class="modal modal-lg bka-modal">
+      <div class="modal-header">
+        <h2>Agendamento online</h2>
+        <button class="btn-icon" id="booking-modal-close">&times;</button>
+      </div>
+      <div class="bka-body">
+        <div id="booking-who-wrap" style="display:none;">
+          <label><span>Consultor</span><select id="booking-who"></select></label>
+        </div>
+        <div class="bka-link">
+          <label class="bka-switch"><input type="checkbox" id="booking-enabled"><span>Link ativo (o cliente consegue agendar)</span></label>
+          <div class="bka-link-row">
+            <input type="text" id="booking-link" readonly>
+            <button type="button" class="btn btn-primary btn-sm" id="booking-copy">Copiar link</button>
+            <a class="btn btn-ghost btn-sm" id="booking-open" target="_blank" rel="noopener">Abrir</a>
+          </div>
+          <p class="muted-note">Envie este link ao cliente. Os horários livres vêm da sua Agenda: reuniões já marcadas e horários travados não aparecem. Na ficha de cada lead há um link personalizado (já com os dados do cliente).</p>
+        </div>
+
+        <h3 class="bka-h">Horários de atendimento</h3>
+        <div class="bka-week" id="booking-week"></div>
+        <div class="grid-2">
+          <label><span>Fuso dos horários acima</span>
+            <select id="booking-tz"><option value="America/Sao_Paulo">🇧🇷 Brasília</option><option value="Europe/Dublin">🇮🇪 Irlanda</option></select>
+          </label>
+          <label><span>Duração de cada reunião</span>
+            <select id="booking-duration"><option value="15">15 min</option><option value="20">20 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hora</option><option value="90">1h30</option></select>
+          </label>
+        </div>
+        <div class="grid-3">
+          <label><span>Intervalo entre reuniões</span>
+            <select id="booking-buffer"><option value="0">Nenhum</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option></select>
+          </label>
+          <label><span>Antecedência mínima (horas)</span><input type="number" id="booking-notice" min="0" max="720"></label>
+          <label><span>Agenda aberta por (dias)</span><input type="number" id="booking-window" min="1" max="180"></label>
+        </div>
+        <label><span>Nome exibido ao cliente</span><input type="text" id="booking-display" maxlength="80"></label>
+        <label><span>Mensagem de boas-vindas (opcional)</span><input type="text" id="booking-intro" maxlength="160" placeholder="Ex: Vamos conversar sobre o seu intercâmbio"></label>
+        <div class="bka-actions"><button type="button" class="btn btn-primary" id="booking-save">Salvar configurações</button><span class="muted-note" id="booking-saved"></span></div>
+
+        <h3 class="bka-h">Horários travados</h3>
+        <p class="muted-note">Nesses horários o cliente não consegue agendar. Reuniões que você já tem na Agenda também bloqueiam sozinhas.</p>
+        <div id="booking-blocks"></div>
+        <form id="booking-block-form" class="bka-block-form">
+          <div class="bka-presets">
+            <button type="button" class="btn btn-ghost btn-sm" data-bka-preset="lunch">Almoço 12h–13h todos os dias</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-bka-preset="weekend">Fins de semana inteiros</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-bka-preset="today">Hoje inteiro</button>
+          </div>
+          <div class="grid-2">
+            <label><span>A partir de</span><input type="date" id="bkb-from" required></label>
+            <label><span>Até (vazio = sem data final)</span><input type="date" id="bkb-to"></label>
+          </div>
+          <label class="bka-switch"><input type="checkbox" id="bkb-allday"><span>Dia inteiro</span></label>
+          <div class="grid-2" id="bkb-times">
+            <label><span>Das</span><input type="time" id="bkb-tfrom"></label>
+            <label><span>Às</span><input type="time" id="bkb-tto"></label>
+          </div>
+          <div class="bka-days"><span class="bka-days-label">Só nestes dias da semana (nenhum marcado = todos):</span>
+            <div id="bkb-weekdays"></div></div>
+          <div class="grid-2">
+            <label><span>Fuso</span><select id="bkb-tz"><option value="America/Sao_Paulo">🇧🇷 Brasília</option><option value="Europe/Dublin">🇮🇪 Irlanda</option></select></label>
+            <label><span>Motivo (só você vê)</span><input type="text" id="bkb-note" maxlength="80" placeholder="Ex: Almoço, férias, médico"></label>
+          </div>
+          <button type="submit" class="btn btn-primary">🔒 Travar horário</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: NOVO COMPROMISSO NA AGENDA (tarefa / reunião / aviso) -->
   <div class="modal-backdrop" id="agenda-modal-backdrop">
     <div class="modal">
@@ -1833,6 +1906,7 @@
           <button type="button" class="agenda-type-btn" data-type="aviso" data-i18n="aluno.legendNotice">Aviso</button>
         </div>
         <input type="hidden" id="agenda-field-type" value="tarefa">
+        <p class="ag-client-info" id="agenda-client-info" style="display:none;"></p>
         <label><span data-i18n="common.titleField">Título</span>
           <input type="text" id="agenda-field-title" required placeholder="Ex: Reunião de apresentação">
         </label>
@@ -2733,16 +2807,17 @@
     </div>
   </div>
 
-  <script src="config.js?v=1791929373"></script>
-  <script src="auth.js?v=1791929373"></script>
-  <script src="i18n.js?v=1791929373"></script>
-  <script src="comparativo.js?v=1791929373"></script>
-  <script src="contrato-modelo.js?v=1791929373"></script>
-  <script src="script.js?v=1791929373"></script>
-  <script src="contratos-proposta.js?v=1791929373"></script>
-  <script src="ficha-cliente.js?v=1791929373"></script>
-  <script src="agenda-reunioes.js?v=1791929373"></script>
-  <script src="financeiro-dashboard.js?v=1791929373"></script>
-  <script src="app-acompanhamento.js?v=1791929373"></script>
+  <script src="config.js?v=1791984555"></script>
+  <script src="auth.js?v=1791984555"></script>
+  <script src="i18n.js?v=1791984555"></script>
+  <script src="comparativo.js?v=1791984555"></script>
+  <script src="contrato-modelo.js?v=1791984555"></script>
+  <script src="script.js?v=1791984555"></script>
+  <script src="contratos-proposta.js?v=1791984555"></script>
+  <script src="ficha-cliente.js?v=1791984555"></script>
+  <script src="agenda-reunioes.js?v=1791984555"></script>
+  <script src="agendamento-online.js?v=1791984555"></script>
+  <script src="financeiro-dashboard.js?v=1791984555"></script>
+  <script src="app-acompanhamento.js?v=1791984555"></script>
 </body>
 </html>

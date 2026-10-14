@@ -2463,3 +2463,75 @@ tr.appt-row-unassigned { background: var(--danger-bg); }
 body > .public-page { width: 100%; min-width: 0; }
 .public-card { min-width: 0; }
 .public-phone-row .public-phone-country { width: 42%; }
+
+/* ===== AGENDAMENTO ONLINE (página pública) ===== */
+.bk-card { max-width: 760px; }
+.bk-tz { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+.bk-tz-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--text-muted); }
+.bk-tz-btn.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.bk-picker { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 640px) { .bk-picker { grid-template-columns: 1fr; } }
+.bk-cal { border: 1px solid var(--border); border-radius: 14px; padding: 12px; }
+.bk-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.bk-nav { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-size: 16px; line-height: 1; color: var(--text-muted); }
+.bk-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.bk-dow { text-align: center; font-size: 10.5px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; padding: 4px 0; }
+.bk-day { aspect-ratio: 1; border: none; background: transparent; border-radius: 50%; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--border); cursor: default; }
+.bk-day.is-empty { visibility: hidden; }
+.bk-day.has-slots { color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); font-weight: 800; cursor: pointer; }
+.bk-day.has-slots:hover { background: color-mix(in srgb, var(--primary) 24%, transparent); }
+.bk-day.is-selected { background: var(--primary); color: #fff; }
+.bk-sub { margin: 0 0 10px; font-size: 14px; }
+.bk-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; max-height: 330px; overflow-y: auto; padding: 2px; }
+.bk-slot { border: 1.5px solid var(--primary); background: var(--surface); color: var(--primary); border-radius: 10px; padding: 9px 0; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.bk-slot:hover { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+.bk-slot.is-selected { background: var(--primary); color: #fff; }
+.bk-hint { padding: 12px 4px; margin: 0; }
+.bk-chosen { display: flex; flex-direction: column; gap: 2px; margin: 18px 0 12px; padding: 12px 16px; border-radius: 12px; background: var(--content-bg); border: 1px dashed var(--primary); text-align: center; }
+.bk-chosen span { font-size: 11.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.bk-chosen strong { font-size: 14px; }
+.bk-confirm { width: 100%; margin-top: 4px; }
+.bk-summary { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 14px; background: var(--content-bg); border: 1px solid var(--border); margin-bottom: 14px; }
+.bk-summary small { display: block; font-size: 11.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.bk-summary strong { display: block; font-size: 15px; }
+.bk-summary .bk-times-both { text-transform: none; color: var(--primary-deep); }
+.bk-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+
+/* ===== AGENDAMENTO ONLINE (configuração no CRM) ===== */
+.ag-card-web { font-size: 11px; font-weight: 700; color: var(--primary); }
+.ag-client-info { margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--primary) 10%, var(--surface)); font-size: 12.5px; font-weight: 600; color: var(--primary-deep); }
+.bka-modal { max-width: 720px; }
+.bka-body { padding: 4px 22px 22px; max-height: 76vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.bka-h { margin: 14px 0 0; font-size: 14px; font-weight: 800; padding-top: 12px; border-top: 1px solid var(--border); }
+.bka-link { background: var(--content-bg); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.bka-link-row { display: flex; gap: 8px; align-items: center; }
+.bka-link-row input { flex: 1; min-width: 0; }
+.bka-switch { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px; font-weight: 700; }
+.bka-switch input { width: auto !important; margin: 0; }
+.bka-week { display: flex; flex-direction: column; gap: 6px; }
+.bka-day-row { display: grid; grid-template-columns: 130px 1fr 1fr; gap: 10px; align-items: center; }
+.bka-day-row label.bka-switch { margin: 0; }
+.bka-day-row input[type="time"] { width: 100%; }
+.bka-day-row.is-off input[type="time"] { opacity: .4; }
+.bka-actions { display: flex; align-items: center; gap: 12px; }
+.bka-block { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; }
+.bka-block small { display: block; color: var(--text-muted); font-size: 11.5px; }
+.bka-block-form { display: flex; flex-direction: column; gap: 10px; border: 1px dashed var(--border); border-radius: 14px; padding: 14px; }
+.bka-presets { display: flex; gap: 8px; flex-wrap: wrap; }
+.bka-days-label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
+#bkb-weekdays { display: flex; gap: 6px; }
+.bka-dow { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; color: var(--text-muted); }
+.bka-dow.is-on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 640px) { .grid-3 { grid-template-columns: 1fr; } .bka-day-row { grid-template-columns: 1fr 1fr; } .bka-day-row label.bka-switch { grid-column: 1 / -1; } }
+/* a janela de agendamento online não é um <form>: replica o visual dos campos das demais janelas */
+.bka-body label { font-size: 12.5px; font-weight: 600; color: var(--text-muted); display: flex; flex-direction: column; gap: 5px; }
+.bka-body input, .bka-body select, .bka-body textarea { font-family: inherit; font-size: 14px; color: var(--text); background: var(--content-bg); border: 1px solid var(--border); border-radius: 7px; padding: 9px 10px; box-sizing: border-box; width: 100%; min-width: 0; }
+.bka-body .bka-switch input, .bka-body .bka-dow { width: auto; }
+.bka-body .bka-dow { width: 34px; padding: 0; }
+.bka-body .bka-day-row input[type="time"] { width: 100%; }
+.bka-body .grid-2, .bka-body .grid-3 { display: grid; gap: 12px; }
+.bka-body .grid-2 { grid-template-columns: repeat(2, 1fr); }
+.bka-body > p.muted-note, .bka-body .bka-link .muted-note { margin: 0; }
+.bka-body .bka-link-row input { width: auto; flex: 1; }
+.bka-body .bka-block-form { padding: 14px; }
