@@ -593,6 +593,13 @@ async function renamePipelineStageRemote(id, label) {
   const { error } = await supabase.from("pipeline_stages").update({ label }).eq("id", id);
   if (error) console.error("Erro ao renomear coluna do pipeline:", error);
 }
+/* grava a nova ordem das colunas (só as que mudaram de posição) */
+async function savePipelineStageOrderRemote(changed) {
+  const results = await Promise.all(changed.map(st => supabase.from("pipeline_stages").update({ position: st.position }).eq("id", st.id)));
+  const failed = results.find(r => r.error);
+  if (failed) { console.error("Erro ao reordenar colunas do pipeline:", failed.error); return false; }
+  return true;
+}
 async function deletePipelineStageRemote(id) {
   const { error } = await supabase.from("pipeline_stages").delete().eq("id", id);
   if (error) console.error("Erro ao excluir coluna do pipeline:", error);
@@ -1195,9 +1202,14 @@ function stageUsageCount(id) {
 }
 
 function renderStagesList() {
-  stagesListEl.innerHTML = STAGES.map(s => `
-    <div class="source-row">
+  stagesListEl.innerHTML = STAGES.map((s, i) => `
+    <div class="source-row stage-row" data-stage-row="${s.id}">
+      <span class="stage-handle" data-stage-handle title="${t("pipeline.dragColumn")}" aria-label="${t("pipeline.dragColumn")}">⠿</span>
       <input type="text" value="${escapeHtml(s.label)}" data-id="${s.id}">
+      <span class="stage-move">
+        <button type="button" class="btn btn-icon" data-act="up" data-id="${s.id}" title="${t("pipeline.moveLeft")}" ${i === 0 ? "disabled" : ""}>▲</button>
+        <button type="button" class="btn btn-icon" data-act="down" data-id="${s.id}" title="${t("pipeline.moveRight")}" ${i === STAGES.length - 1 ? "disabled" : ""}>▼</button>
+      </span>
       <span class="source-usage">${stageUsageCount(s.id)} ${t("pipeline.dealsCount")}</span>
       <button type="button" class="btn btn-icon" data-act="del" data-id="${s.id}" title="${t("pipeline.deleteColumn")}" ${(s.isWon || s.isLost) ? "disabled" : ""}>&times;</button>
     </div>`).join("");
@@ -1229,7 +1241,70 @@ stagesListEl.addEventListener("change", async e => {
   await renamePipelineStageRemote(stage.id, newLabel);
 });
 
+/* ---- reorganizar colunas: arrastar pela alça ⠿ ou usar ▲ ▼ ---- */
+async function moveStageTo(id, newIndex) {
+  const from = STAGES.findIndex(s => s.id === id);
+  if (from < 0) return;
+  const to = Math.max(0, Math.min(STAGES.length - 1, newIndex));
+  if (to === from) return;
+  const before = new Map(STAGES.map(s => [s.id, s.position]));
+  const [moved] = STAGES.splice(from, 1);
+  STAGES.splice(to, 0, moved);
+  STAGES.forEach((s, i) => { s.position = i + 1; });
+  renderStagesList();
+  renderStageOptions();
+  renderBoard();
+  const changed = STAGES.filter(s => before.get(s.id) !== s.position);
+  if (!(await savePipelineStageOrderRemote(changed))) {
+    alert(t("pipeline.reorderError"));
+    STAGES = await loadPipelineStages();
+    renderStagesList(); renderStageOptions(); renderBoard();
+  }
+}
+let stageDragId = null;
+stagesListEl.addEventListener("mousedown", e => {
+  const h = e.target.closest("[data-stage-handle]");
+  if (h) h.closest(".stage-row").draggable = true;
+});
+stagesListEl.addEventListener("dragstart", e => {
+  const row = e.target.closest(".stage-row");
+  if (!row || !row.draggable) return;
+  stageDragId = row.dataset.stageRow;
+  e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", stageDragId); } catch (err) { /* navegador sem suporte */ }
+  requestAnimationFrame(() => row.classList.add("is-dragging"));
+});
+stagesListEl.addEventListener("dragend", () => {
+  stageDragId = null;
+  stagesListEl.querySelectorAll(".stage-row").forEach(r => { r.draggable = false; r.classList.remove("is-dragging", "drop-before", "drop-after"); });
+});
+stagesListEl.addEventListener("dragover", e => {
+  const row = e.target.closest(".stage-row");
+  if (!row || !stageDragId || row.dataset.stageRow === stageDragId) return;
+  e.preventDefault();
+  const after = e.clientY > row.getBoundingClientRect().top + row.offsetHeight / 2;
+  stagesListEl.querySelectorAll(".stage-row").forEach(r => r.classList.remove("drop-before", "drop-after"));
+  row.classList.add(after ? "drop-after" : "drop-before");
+});
+stagesListEl.addEventListener("drop", e => {
+  const row = e.target.closest(".stage-row");
+  if (!row || !stageDragId) return;
+  e.preventDefault();
+  const after = e.clientY > row.getBoundingClientRect().top + row.offsetHeight / 2;
+  const dragged = stageDragId;
+  let target = STAGES.findIndex(s => s.id === row.dataset.stageRow) + (after ? 1 : 0);
+  if (STAGES.findIndex(s => s.id === dragged) < target) target -= 1;
+  stageDragId = null;
+  moveStageTo(dragged, target);
+});
+
 stagesListEl.addEventListener("click", async e => {
+  const mv = e.target.closest('button[data-act="up"], button[data-act="down"]');
+  if (mv && !mv.disabled) {
+    const i = STAGES.findIndex(s => s.id === mv.dataset.id);
+    await moveStageTo(mv.dataset.id, mv.dataset.act === "up" ? i - 1 : i + 1);
+    return;
+  }
   const btn = e.target.closest('button[data-act="del"]');
   if (!btn || btn.disabled) return;
   const stage = STAGES.find(s => s.id === btn.dataset.id);

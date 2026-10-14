@@ -2617,3 +2617,16 @@ body > .public-page { width: 100%; min-width: 0; }
 .ta-swatch.is-on { box-shadow: 0 0 0 2.5px var(--text); }
 .ta-colors input[type="color"] { width: 34px; height: 30px; padding: 0; border: none; background: none; }
 .ta-edit-top .ta-avatar { width: 84px; height: 84px; font-size: 28px; }
+
+/* reorganizar colunas do pipeline */
+.stage-row { position: relative; flex-wrap: nowrap; }
+.stage-row input[type="text"] { min-width: 0; }
+.stage-handle { cursor: grab; font-size: 18px; line-height: 1; color: var(--text-muted); padding: 4px 4px 4px 0; user-select: none; flex: 0 0 auto; }
+.stage-handle:active { cursor: grabbing; }
+.stage-move { display: inline-flex; flex-direction: column; gap: 1px; flex: 0 0 auto; }
+.stage-move .btn-icon { width: 24px; height: 17px; padding: 0; font-size: 9px; line-height: 1; border-radius: 4px; }
+.stage-move .btn-icon:disabled { opacity: .25; cursor: default; }
+.stage-row.is-dragging { opacity: .45; }
+.stage-row.drop-before::before, .stage-row.drop-after::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; border-radius: 3px; background: var(--primary); }
+.stage-row.drop-before::before { top: -2px; }
+.stage-row.drop-after::after { bottom: -2px; }
