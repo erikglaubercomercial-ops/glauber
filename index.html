@@ -1115,6 +1115,18 @@
 
       <!-- COLABORADORES VIEW -->
       <section class="view" id="view-colaboradores">
+        <div class="subtabs" id="time-subtabs">
+          <button type="button" class="subtab active" data-time-tab="arena">🏆 Times</button>
+          <button type="button" class="subtab" data-time-tab="cadastro" id="time-tab-cadastro">Colaboradores</button>
+        </div>
+
+        <!-- ARENA DOS TIMES (primeira tela) -->
+        <div class="subview active" id="subview-time-arena">
+          <div id="ta-root"></div>
+        </div>
+
+        <!-- CADASTRO DE COLABORADORES (tela que já existia) -->
+        <div class="subview" id="subview-time-cadastro">
         <div class="stat-row">
           <div class="stat-card">
             <span class="stat-label" data-i18n="team.statTotal">Total no time</span>
@@ -1157,6 +1169,7 @@
           </table>
           <div class="empty-hint" id="collaborators-empty" style="display:none;" data-i18n="team.emptyHint">Nenhum membro do time cadastrado ainda.</div>
         </div>
+      </div>
       </section>
 
       <!-- FORMULÁRIOS VIEW -->
@@ -1814,6 +1827,31 @@
           <button type="button" class="btn btn-ghost" id="form-btn-copy-link" style="display:none;" data-i18n="common.copyLink">Copiar link</button>
           <button type="button" class="btn btn-ghost" id="form-btn-cancel" data-i18n="common.cancel">Cancelar</button>
           <button type="submit" class="btn btn-primary" data-i18n="common.save">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDITAR TIME (nome de guerra, grito, cor e foto do gerente) -->
+  <div class="modal-backdrop" id="ta-modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Editar time · <span id="ta-edit-region"></span></h2>
+        <button class="btn-icon" id="ta-modal-close">&times;</button>
+      </div>
+      <form id="ta-edit-form">
+        <input type="hidden" id="ta-edit-id">
+        <div class="ta-edit-top"><div id="ta-edit-preview"></div>
+          <label><span>Foto do gerente do time</span><input type="file" id="ta-edit-photo" accept="image/*"></label></div>
+        <label><span>Nome de guerra</span><input type="text" id="ta-edit-war" maxlength="40" placeholder="Ex: Desbravadores"></label>
+        <div class="ta-chips" id="ta-edit-names"></div>
+        <label><span>Grito de guerra (frase curta)</span><input type="text" id="ta-edit-motto" maxlength="90" placeholder="Ex: Juntos até o embarque!"></label>
+        <div class="ta-chips" id="ta-edit-mottos"></div>
+        <div class="ta-colors"><span>Cor do time</span><div id="ta-edit-swatches"></div><input type="color" id="ta-edit-color" value="#3167a1"></div>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="ta-edit-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="ta-edit-save">Salvar time</button>
         </div>
       </form>
     </div>
@@ -2817,6 +2855,7 @@
   <script src="ficha-cliente.js?v=1791984555"></script>
   <script src="agenda-reunioes.js?v=1791984555"></script>
   <script src="agendamento-online.js?v=1791984555"></script>
+  <script src="times-arena.js?v=1791984555"></script>
   <script src="financeiro-dashboard.js?v=1791984555"></script>
   <script src="app-acompanhamento.js?v=1791984555"></script>
 </body>

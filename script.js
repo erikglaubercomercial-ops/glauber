@@ -13,6 +13,8 @@ function canAccessView(view) {
   if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
   if (view === "usuarios") return session.role === "ADM";
   if (view === "agenda") return session.role !== "Influencer";
+  /* Time: a Arena dos Times é para todo o time (competição); o cadastro de colaboradores segue a permissão do módulo */
+  if (view === "colaboradores") return session.role !== "Influencer";
   if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
   /* uso do App de Intercâmbio: ADM/Gerente veem tudo; Consultor só a aba
      Usuários (e o banco só devolve os leads dele). Quem restringe de
@@ -191,6 +193,11 @@ function switchView(view) {
   if (view === "appacomp") renderAppTracking();
   if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();
   if (view === "financeiro" && typeof showFinanceiroDashboard === "function") showFinanceiroDashboard();
+  if (view === "colaboradores" && typeof showTimeTab === "function") {
+    const doc = document.getElementById("time-tab-cadastro");
+    if (doc) doc.style.display = hasModuleAccess(session.role, "colaboradores") ? "" : "none";
+    showTimeTab("arena");
+  }
   if (view === "leadsparados") {
     document.getElementById("subview-stuck-detalhe").classList.remove("active");
     document.getElementById("subview-stuck-overview").classList.add("active");
