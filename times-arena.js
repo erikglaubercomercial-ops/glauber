@@ -254,6 +254,18 @@ function taOpenEdit(id) {
   const names = TA_NAME_SUGGESTIONS[spanish ? "es" : "pt"], mottos = TA_MOTTO_SUGGESTIONS[spanish ? "es" : "pt"];
   taEl("ta-edit-id").value = t.id;
   taEl("ta-edit-region").textContent = t.name;
+  /* só o ADM escolhe o gerente do time (o gerente atual edita o resto) */
+  const isAdm = session && session.role === "ADM";
+  taEl("ta-edit-manager-wrap").style.display = isAdm ? "" : "none";
+  if (isAdm) {
+    const people = (typeof users !== "undefined" ? users : []).filter(u => u.active !== false && ["ADM", "Gerente", "Consultor"].includes(u.role))
+      .slice().sort((a, b) => a.name.localeCompare(b.name));
+    taEl("ta-edit-manager").innerHTML = `<option value="">— sem gerente —</option>` + people.map(u => {
+      const tm = (typeof teams !== "undefined" ? teams : []).find(x => x.id === u.team_id);
+      return `<option value="${u.id}">${taEsc(u.name)} (${taEsc(u.role)}${tm && tm.id !== t.id ? " · hoje no " + taEsc(tm.name) : ""})</option>`;
+    }).join("");
+    taEl("ta-edit-manager").value = t.manager_id || "";
+  }
   taEl("ta-edit-war").value = t.war_name || "";
   taEl("ta-edit-motto").value = t.motto || "";
   taEl("ta-edit-color").value = t.color || "#3167a1";
@@ -272,6 +284,10 @@ async function taSaveEdit(e) {
   const btn = taEl("ta-edit-save");
   btn.disabled = true;
   const patch = { war_name: taEl("ta-edit-war").value.trim(), motto: taEl("ta-edit-motto").value.trim(), color: taEl("ta-edit-color").value };
+  const isAdm = session && session.role === "ADM";
+  const newManager = isAdm ? (taEl("ta-edit-manager").value || null) : (t.manager_id || null);
+  const managerChanged = isAdm && newManager !== (t.manager_id || null);
+  if (managerChanged) patch.manager_id = newManager;
   const file = taEl("ta-edit-photo").files[0];
   if (file) {
     if (!/^image\//.test(file.type) || file.size > 4 * 1024 * 1024) { alert("Escolha uma foto (imagem) de até 4 MB."); btn.disabled = false; return; }
@@ -287,6 +303,20 @@ async function taSaveEdit(e) {
   Object.assign(t, patch);
   const global = typeof teams !== "undefined" ? teams.find(x => x.id === id) : null;
   if (global) global.name = t.name;
+  if (managerChanged) {
+    const person = newManager ? users.find(u => u.id === newManager) : null;
+    t.manager_name = person ? person.name : null;
+    if (global) global.managerId = newManager;
+    /* o gerente também precisa estar no time para entrar no placar */
+    if (person && person.team_id !== id && confirm(`${person.name} ainda não está neste time. Colocar ${person.name} no time ${t.war_name || t.name}?`)) {
+      const up = await supabase.from("profiles").update({ team_id: id }).eq("id", person.id);
+      if (up.error) { console.error(up.error); alert("O gerente foi definido, mas não foi possível movê-lo para o time. Ajuste em Usuários."); }
+      else person.team_id = id;
+    }
+    await taLoad();
+    taEl("ta-modal-backdrop").classList.remove("open");
+    return;
+  }
   taEl("ta-modal-backdrop").classList.remove("open");
   taRender();
 }
