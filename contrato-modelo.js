@@ -7,13 +7,13 @@
    Sem dependências.
    ============================================================ */
 
-/* campos que o lead preenche na etapa 1 (todos obrigatórios) */
+/* campos que o lead preenche na etapa 1 (todos obrigatórios, menos os marcados com optional: passaporte) */
 const CONTRATO_CAMPOS = [
   { key: "nome", label: "Nome completo", autocomplete: "name", placeholder: "Como está no documento" },
   { key: "cpf", label: "CPF", autocomplete: "off", inputmode: "numeric", placeholder: "000.000.000-00" },
-  { key: "documento", label: "Passaporte / documento", autocomplete: "off", placeholder: "Número do passaporte" },
-  { key: "passaporte_expedicao", label: "Passaporte — data de expedição", type: "date", autocomplete: "off" },
-  { key: "passaporte_validade", label: "Passaporte — validade", type: "date", autocomplete: "off" },
+  { key: "documento", optional: true, label: "Passaporte / documento", autocomplete: "off", placeholder: "Número do passaporte" },
+  { key: "passaporte_expedicao", optional: true, label: "Passaporte — data de expedição", type: "date", autocomplete: "off" },
+  { key: "passaporte_validade", optional: true, label: "Passaporte — validade", type: "date", autocomplete: "off" },
   { key: "data_nascimento", label: "Data de nascimento", type: "date", autocomplete: "bday" },
   { key: "data_chegada", label: "Data de chegada na Irlanda", type: "date", autocomplete: "off" },
   { key: "nacionalidade", label: "Nacionalidade", autocomplete: "off", placeholder: "Ex.: Brasileira" },

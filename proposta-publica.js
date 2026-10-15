@@ -60,7 +60,7 @@ function ppGoto(step) {
 /* ---------------- etapa 1 ---------------- */
 function ppRenderFields() {
   $pp("pp-fields").innerHTML = CONTRATO_CAMPOS.map(c => `
-    <label class="pp-field${c.wide ? " wide" : ""}"><span>${contratoEsc(c.label)} *</span>
+    <label class="pp-field${c.wide ? " wide" : ""}"><span>${contratoEsc(c.label)}${c.optional ? " <small>(opcional)</small>" : " *"}</span>
       <input type="${c.type || "text"}" id="pp-f-${c.key}" name="${c.key}" value="${contratoEsc(ppDados[c.key] || "")}"
         autocomplete="${c.autocomplete || "off"}"${c.inputmode ? ` inputmode="${c.inputmode}"` : ""}${c.placeholder ? ` placeholder="${contratoEsc(c.placeholder)}"` : ""}>
     </label>`).join("");
@@ -101,8 +101,8 @@ $pp("pp-passport-file").addEventListener("change", async e => {
 $pp("pp-form").addEventListener("submit", async e => {
   e.preventDefault();
   const dados = ppReadFields();
-  const faltando = CONTRATO_CAMPOS.filter(c => !dados[c.key]);
-  CONTRATO_CAMPOS.forEach(c => $pp(`pp-f-${c.key}`).classList.toggle("err", !dados[c.key]));
+  const faltando = CONTRATO_CAMPOS.filter(c => !c.optional && !dados[c.key]);
+  CONTRATO_CAMPOS.forEach(c => $pp(`pp-f-${c.key}`).classList.toggle("err", !c.optional && !dados[c.key]));
   const err = $pp("pp-form-error");
   if (faltando.length) {
     err.textContent = `Preencha: ${faltando.map(c => c.label).join(", ")}.`;
