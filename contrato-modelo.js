@@ -133,6 +133,17 @@ const CONTRATO_DOC_CSS = `
   .ct-extra .proof { margin-top: 8mm; border: 1px solid #e4e9f0; border-left: 4px solid #fb9d2d; border-radius: 8px; background: #f7f9fc; padding: 4mm 5mm; font-size: 10pt; line-height: 1.6; }
   .ct-extra .proof b { color: #1f4670; }
   .ct-break { page-break-before: always; break-before: page; }
+  /* impressão / PDF: margens iguais nos quatro lados, nada escapa da folha, cores preservadas e numeração */
+  @page { size: A4; margin: 18mm 18mm 20mm 18mm; @bottom-center { content: "Página " counter(page) " de " counter(pages); font: 8pt "Helvetica Neue", Arial, sans-serif; color: #7a8796; } }
+  @media print {
+    html, body { width: auto !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: #fff !important; box-shadow: none !important; }
+    body, .header, .dados, .ct-extra th, .ct-extra tr.sub td, .ct-extra .proof, .ref-cotacao { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    img { max-width: 100%; }
+    p, li { orphans: 3; widows: 3; }
+    h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
+    .header, .dados, .proof, .ct-extra .total, .assinaturas, tr { break-inside: avoid; page-break-inside: avoid; }
+    .ct-extra thead { display: table-header-group; }
+  }
 `;
 
 /* cotação (itens, subitens, total) para o final do documento */
@@ -177,6 +188,20 @@ function contratoComprovanteHtml(snapshot) {
       Identidade confirmada por código enviado ao e-mail <b>${contratoEsc(c.email_confirmado)}</b>${c.ip ? ` · IP ${contratoEsc(c.ip)}` : ""}.<br>
       Assinatura eletrônica simples, com o aceite dos termos do contrato e confirmação por código (MP 2.200-2/2001 e Lei 14.063/2020).
     </div>`;
+}
+
+/* imprime / salva em PDF numa janela própria: assim o @page do contrato (margens, A4) vale de verdade;
+   impressão de dentro do iframe herdava a página do CRM (sem margem) e cortava o texto à direita */
+function contratoImprimir(html) {
+  const w = window.open("", "_blank");
+  if (!w) { alert("Permita pop-ups deste site para gerar o PDF."); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  let feito = false;
+  const imprimir = () => { if (feito) return; feito = true; w.focus(); w.print(); };
+  w.addEventListener("load", () => setTimeout(imprimir, 300));
+  setTimeout(imprimir, 2500);   /* reserva, caso o evento de carga não dispare */
 }
 
 /* documento completo para iframe/impressão: contrato preenchido + cotação (+ comprovante) */

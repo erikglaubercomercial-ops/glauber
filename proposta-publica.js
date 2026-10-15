@@ -280,10 +280,5 @@ $pp("pp-print").addEventListener("click", () => {
   if (!snap) { window.print(); return; }
   const ctx = contratoContexto({ dados: snap.cliente, numero: snap.contrato.numero, assinadoEm: snap.contrato.assinado_em, cotacao: snap.cotacao });
   const html = contratoMontarDocumento({ templateHtml: snap.template_html, ctx, cotacao: snap.cotacao, snapshot: snap });
-  const frame = document.createElement("iframe");
-  frame.setAttribute("sandbox", "allow-same-origin allow-modals");
-  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
-  frame.srcdoc = html;
-  frame.onload = () => { frame.contentWindow.focus(); frame.contentWindow.print(); setTimeout(() => frame.remove(), 60000); };
-  document.body.appendChild(frame);
+  contratoImprimir(html);
 });

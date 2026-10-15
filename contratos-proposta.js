@@ -222,8 +222,7 @@ document.getElementById("proposal-cancel-contract").addEventListener("click", as
 });
 
 document.getElementById("proposal-print").addEventListener("click", () => {
-  proposalFrame.contentWindow.focus();
-  proposalFrame.contentWindow.print();
+  if (proposalFrame.srcdoc) contratoImprimir(proposalFrame.srcdoc);
 });
 
 /* ---------------- lista de contratos do cliente (dentro da cotação) ---------------- */
