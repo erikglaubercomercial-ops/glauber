@@ -4588,6 +4588,8 @@ function renderCatalogList() {
   }
 
   catalogListEl.innerHTML = html;
+  /* modo pastas (selecionar, copiar/recortar/colar, arrastar): catalogo-explorer.js */
+  if (isAdmin && typeof cxDecorate === "function") cxDecorate();
 }
 
 catalogListEl.addEventListener("click", async e => {

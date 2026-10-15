@@ -2630,3 +2630,23 @@ body > .public-page { width: 100%; min-width: 0; }
 .stage-row.drop-before::before, .stage-row.drop-after::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; border-radius: 3px; background: var(--primary); }
 .stage-row.drop-before::before { top: -2px; }
 .stage-row.drop-after::after { bottom: -2px; }
+
+/* ===== CATÁLOGO EM PASTAS (selecionar, copiar/colar, arrastar) ===== */
+.cx-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; padding: 8px 10px; background: var(--content-bg); border: 1px solid var(--border); border-radius: 12px; }
+.cx-info { margin-left: auto; font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+.cat-box-wrap, .prod-card { position: relative; }
+.cx-check { position: absolute; top: 8px; left: 8px; z-index: 3; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1.5px solid var(--border); border-radius: 7px; cursor: pointer; opacity: 0; transition: opacity .12s; margin: 0; }
+.cx-check input { margin: 0; width: 14px; height: 14px; pointer-events: none; }
+.cat-box-wrap:hover > .cx-check, .prod-card:hover > .cx-check, .cx-selected > .cx-check { opacity: 1; }
+.cx-selected { outline: 2.5px solid var(--primary); outline-offset: 2px; border-radius: 16px; background: color-mix(in srgb, var(--primary) 7%, transparent); }
+.cx-cut { opacity: .45; }
+.cx-dragging { opacity: .4; }
+.cx-drop-into { outline: 3px dashed var(--primary); outline-offset: 3px; border-radius: 16px; background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.cx-drop-before::before, .cx-drop-after::after { content: ""; position: absolute; top: 0; bottom: 0; width: 5px; border-radius: 4px; background: var(--primary); z-index: 5; }
+.cx-drop-before::before { left: -9px; }
+.cx-drop-after::after { right: -9px; }
+.cat-crumb.cx-drop-into { outline-offset: 1px; border-radius: 8px; }
+.cx-menu { position: fixed; z-index: 80; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 34px rgba(10, 25, 50, .22); padding: 6px; display: flex; flex-direction: column; }
+.cx-menu-item { border: none; background: transparent; text-align: left; padding: 8px 12px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
+.cx-menu-item:hover:not(:disabled) { background: var(--content-bg); }
+.cx-menu-item:disabled { opacity: .4; cursor: default; }
