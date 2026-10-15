@@ -371,6 +371,9 @@ function cxDecorate() {
   list.querySelectorAll(".cat-crumb").forEach(c => { c.dataset.cxCrumb = c.dataset.idx; });
   /* barra de ferramentas */
   list.querySelector(".cx-bar")?.remove();
+  /* a barra só aparece quando há algo a fazer (seleção, área de transferência ou desfazer):
+     fora disso a tela fica exatamente como era */
+  if (!cx.sel.size && !cx.clip && !cx.undo.length) return;
   const total = cxVisibleKeys().length;
   const bar = document.createElement("div");
   bar.className = "cx-bar";
@@ -381,7 +384,7 @@ function cxDecorate() {
     <button type="button" class="btn btn-ghost btn-sm" data-cx="cut" ${selN ? "" : "disabled"}>✂ Recortar</button>
     <button type="button" class="btn btn-primary btn-sm" data-cx="paste" ${cx.clip ? "" : "disabled"}>📋 Colar aqui${cx.clip ? ` (${cx.clip.entries.length})` : ""}</button>
     <button type="button" class="btn btn-ghost btn-sm" data-cx="undo" ${cx.undo.length ? "" : "disabled"} title="${cx.undo.length ? "Desfazer: " + cxEsc(cx.undo[cx.undo.length - 1].label) : "Nada para desfazer"}">↶ Desfazer</button>
-    <span class="cx-info">${selN ? `${selN} selecionado(s)` : "Arraste pastas e produtos para mover ou reorganizar · Cmd/Ctrl+C, X, V, Z"}</span>`;
+    <span class="cx-info">${selN ? `${selN} selecionado(s)` : "Cmd/Ctrl+C, X, V, Z · arraste para mover ou reorganizar"}</span>`;
   list.querySelector(".cat-breadcrumb").after(bar);
 }
 function cxMark(el, key, cutKeys) {
@@ -555,10 +558,12 @@ function cxOpenMenu(x, y, target) {
   menu.className = "cx-menu";
   menu.innerHTML = [
     isFolder ? row("open", "📂 Abrir") : "",
+    row("all", "☑ Selecionar tudo", cxVisibleKeys().length > 0),
     row("copy", "⧉ Copiar", has), row("cut", "✂ Recortar", has),
     row("paste", `📋 Colar aqui${cx.clip ? ` (${cx.clip.entries.length})` : ""}`, !!cx.clip),
     isFolder ? row("rename", "✎ Renomear") : "",
     has ? row("delete", "🗑 Excluir", true) : "",
+    cx.undo.length ? row("undo", `↶ Desfazer: ${cxEsc(cx.undo[cx.undo.length - 1].label)}`) : "",
   ].join("");
   menu.style.left = `${Math.min(x, window.innerWidth - 190)}px`;
   menu.style.top = `${Math.min(y, window.innerHeight - 220)}px`;
@@ -568,7 +573,9 @@ function cxOpenMenu(x, y, target) {
     ev.stopPropagation();
     cxCloseMenu();
     const a = b.dataset.cxm;
-    if (a === "open") target.querySelector(".cat-box").click();
+    if (a === "all") { cxVisibleKeys().forEach(k => cx.sel.add(k)); cxDecorate(); }
+    else if (a === "undo") cxUndo();
+    else if (a === "open") target.querySelector(".cat-box").click();
     else if (a === "copy") cxSetClip("copy");
     else if (a === "cut") cxSetClip("cut");
     else if (a === "paste") cxPaste();
