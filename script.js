@@ -4567,8 +4567,13 @@ function quoteItemHtml(p) {
         ${p.detalhe ? `<span class="dt">${escapeHtml(p.detalhe)}</span>` : ""}
         ${p.qtdFixa ? "" : `<span class="q-qty"><label for="qq-${p.id}">Quantidade (${escapeHtml(p.unidade)}s):</label><input type="number" min="1" step="1" id="qq-${p.id}" data-role="qty" data-id="${p.id}" value="${qtd}"></span>`}
       </span>
-      <span class="pr">${currency(p.preco)}<em>por ${escapeHtml(p.unidade)}</em></span>
+      <span class="pr">${currency(p.preco)}<em>por ${escapeHtml(p.unidade)}</em>${on && !p.qtdFixa ? quoteSubtotalHtml(p, qtd) : ""}</span>
     </div>`;
+}
+/* total do item: quantidade × preço (aparece só nos itens marcados com quantidade livre) */
+function quoteSubtotalHtml(p, qtd) {
+  const q = Math.max(1, parseInt(qtd, 10) || 1);
+  return `<b class="q-sub" data-sub-for="${p.id}">${q} × ${currency(p.preco)} = ${currency(q * (Number(p.preco) || 0))}</b>`;
 }
 
 const quoteCatalogEl = document.getElementById("quote-catalog");
@@ -4663,6 +4668,20 @@ function quoteLinhas() {
 function quoteTotal() { return quoteLinhas().reduce((a, l) => a + l.total, 0); }
 function quoteAtualizaPrevia() { document.getElementById("quote-preview-total").textContent = currency(quoteTotal()); }
 
+/* digitando a quantidade o total já acompanha (sem esperar sair do campo) */
+quoteCatalogEl.addEventListener("input", e => {
+  const el = e.target;
+  if (el.getAttribute("data-role") !== "qty") return;
+  const id = el.getAttribute("data-id");
+  const p = quotePorId(id);
+  const v = parseInt(el.value, 10);
+  if (!p || !(v >= 1) || !Object.prototype.hasOwnProperty.call(quoteSelecionados, id)) return;
+  quoteSelecionados[id] = v;
+  const sub = quoteCatalogEl.querySelector(`[data-sub-for="${id}"]`);
+  if (sub) sub.outerHTML = quoteSubtotalHtml(p, v);
+  quoteAtualizaPrevia();
+});
+
 quoteCatalogEl.addEventListener("change", e => {
   const el = e.target, id = el.getAttribute("data-id");
   if (!id) return;
@@ -4677,6 +4696,8 @@ quoteCatalogEl.addEventListener("change", e => {
     const v = Math.max(1, parseInt(el.value, 10) || 1);
     el.value = v;
     if (Object.prototype.hasOwnProperty.call(quoteSelecionados, id)) quoteSelecionados[id] = v;
+    const p = quotePorId(id), sub = quoteCatalogEl.querySelector(`[data-sub-for="${id}"]`);
+    if (p && sub) sub.outerHTML = quoteSubtotalHtml(p, v);
   }
   quoteAtualizaPrevia();
 });
