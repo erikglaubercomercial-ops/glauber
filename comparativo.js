@@ -18,7 +18,7 @@ function cmpIsCash(p) {
 
 /* produto de renovação (Renewal / Renovação) x primeiro curso */
 function cmpIsRenewal(p) {
-  return /renewal|renova[cç]/i.test(`${p.nome || ""} ${p.detalhe || ""}`);
+  return /renewal|renova[cç]/i.test(`${p.nome || ""} ${p.detalhe || ""} ${p.turno || ""}`);
 }
 
 /* AM/manhã → "am", PM/tarde → "pm", sem turno definido → null */

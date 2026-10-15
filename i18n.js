@@ -121,7 +121,7 @@ const I18N = {
     "appt.metaLast": "Último acesso",
     "appt.metaPlan": "Plano",
     "appt.intentPending": "As escolhas do plano (destino, cidade, escola, turno, embarque, orçamento) ainda não chegaram do app.",
-    "products.heroSubtitle": "Tudo o que os consultores podem cotar, organizado por categoria, destino, escola e turno.",
+    "products.heroSubtitle": "Tudo o que os consultores podem cotar, organizado em pastas: país, cidade, cursos / faculdade / acomodação, escola, plano e turno.",
     "products.schoolLink": "Escola vinculada (comparativo de escolas)",
     "products.schoolLinkHint": "Ao escolher uma escola, o produto passa a ser ligado a ela por código: mudar o nome da escola depois não quebra os preços.",
     "products.schoolNone": "— Nenhuma (preencher à mão) —",

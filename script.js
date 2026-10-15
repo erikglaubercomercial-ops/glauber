@@ -3704,23 +3704,6 @@ function newSchoolCode(nome, destino) {
   return cand;
 }
 
-/* produtos que estavam ligados à escola (pela chave antiga) passam a
-   usar a chave nova */
-async function followSchoolChangeInCatalog(before, school) {
-  const linked = catalog.filter(p => p.escolaCodigo
-    ? p.escolaCodigo === school.codigo
-    : (p.categoria || "Outros") === before.categoria && (p.destino || "Todos") === before.destino && (p.subgrupo || "") === before.nome);
-  linked.forEach(p => {
-    p.escolaCodigo = school.codigo;
-    p.categoria = school.categoria; p.destino = school.destino; p.subgrupo = school.nome;
-  });
-  if (!linked.length) return;
-  await bulkSaveCatalogItemsRemote(linked);
-  renderCatalogList();
-  quoteMontaDestinos();
-  quoteMontaCatalogo();
-}
-
 function renderEscolas() {
   const isAdmin = !!(session && session.role === "ADM");
   document.getElementById("btn-new-school").style.display = isAdmin ? "" : "none";
@@ -3865,11 +3848,8 @@ schoolForm.addEventListener("submit", async e => {
   if (dup) { alert(t("schools.duplicateError")); return; }
 
   let school;
-  let moved = null;
   if (id) {
     school = schools.find(x => x.id === id);
-    const before = { nome: school.nome, categoria: school.categoria, destino: school.destino };
-    if (before.nome !== data.nome || before.categoria !== data.categoria || before.destino !== data.destino) moved = before;
     Object.assign(school, data);
   } else {
     school = { id: uid(), ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + 1, coverPath: null, codigo: newSchoolCode(data.nome, data.destino), ...data };
@@ -3886,14 +3866,13 @@ schoolForm.addEventListener("submit", async e => {
     school.coverPath = null;
   }
 
-  /* o vínculo escola ↔ produtos é por categoria + destino + nome: se a
-     escola mudou de nome/destino, os produtos dela acompanham, senão o
-     comparativo perde os preços */
-  if (moved) await followSchoolChangeInCatalog(moved, school);
-
   const ok = await saveSchoolRemote(school);
   if (!ok) alert(t("schools.saveError"));
-  else if (oldCover && oldCover !== school.coverPath) await removeSchoolCoverFileIfUnused(oldCover);
+  else {
+    if (oldCover && oldCover !== school.coverPath) await removeSchoolCoverFileIfUnused(oldCover);
+    /* a escola ganha (ou acompanha) a pasta dela em Produtos: País › Cidade › Cursos › Escola */
+    await cfEnsureSchoolFolder(school);
+  }
   closeSchoolModal();
   renderEscolas();
 });
@@ -3918,6 +3897,7 @@ async function duplicateSchool(id) {
   schools.push(copy);
   const ok = await saveSchoolRemote(copy);
   if (!ok) alert(t("schools.saveError"));
+  else await cfEnsureSchoolFolder(copy);
   renderEscolas();
   openSchoolModal(copy.id);
 }
@@ -4219,6 +4199,7 @@ function catalogFromDb(r) {
     preco: Number(r.preco) || 0, ordem: r.ordem, detalhe: r.detalhe || "",
     qtdFixa: !!r.qtd_fixa, qtdPadrao: r.qtd_padrao || 1, ativo: r.ativo,
     subs: Array.isArray(r.subs) ? r.subs : [], escolaCodigo: r.escola_codigo || "",
+    folderId: r.folder_id || null,
   };
 }
 function catalogToDb(p) {
@@ -4227,6 +4208,7 @@ function catalogToDb(p) {
     subgrupo: p.subgrupo, turno: p.turno, unidade: p.unidade, preco: p.preco,
     ordem: p.ordem, detalhe: p.detalhe, qtd_fixa: p.qtdFixa, qtd_padrao: p.qtdPadrao,
     ativo: p.ativo, subs: p.subs, escola_codigo: p.escolaCodigo || null,
+    folder_id: p.folderId || null,
   };
 }
 
@@ -4238,6 +4220,7 @@ async function loadCatalog() {
 async function saveCatalogItem(item) {
   const { error } = await supabase.from("catalog_items").upsert(catalogToDb(item));
   if (error) console.error("Erro ao salvar produto:", error);
+  return !error;
 }
 async function deleteCatalogItemRemote(id) {
   const { error } = await supabase.from("catalog_items").delete().eq("id", id);
@@ -4245,7 +4228,51 @@ async function deleteCatalogItemRemote(id) {
 }
 
 let catalog = [];
-let catalogNavPath = [];
+let catalogFolders = [];
+let catalogNavPath = [];   /* ids das pastas abertas, da raiz até a atual */
+
+/* ---- pastas reais do catálogo: País › Cidade › Cursos|Faculdade|Acomodação › Escola › Plano › Turno › produtos.
+   Tela, copiar/colar e arrastar: catalogo-pastas.js e catalogo-explorer.js. Os campos antigos dos produtos
+   (categoria, destino, subgrupo, turno, escola_codigo) são derivados da pasta — no banco por gatilho e aqui
+   por cfApplyLegacy — porque Cotação, Comparativo e páginas públicas ainda leem esses campos. ---- */
+function folderFromDb(r) {
+  return { id: r.id, parentId: r.parent_id || null, kind: r.kind, nome: r.nome, ordem: r.ordem || 0, escolaCodigo: r.escola_codigo || "" };
+}
+function folderToDb(f) {
+  return { id: f.id, parent_id: f.parentId || null, kind: f.kind, nome: f.nome, ordem: f.ordem, escola_codigo: f.escolaCodigo || null };
+}
+async function loadCatalogFolders() {
+  const { data, error } = await supabase.from("catalog_folders").select("*");
+  if (error) { console.error("Erro ao carregar pastas do catálogo:", error); return []; }
+  return data.map(folderFromDb);
+}
+const cfById = id => (id ? catalogFolders.find(f => f.id === id) || null : null);
+const cfSort = (a, b) => (a.ordem - b.ordem) || a.nome.localeCompare(b.nome);
+const cfKids = pid => catalogFolders.filter(f => (f.parentId || null) === (pid || null)).sort(cfSort);
+/* da raiz até a pasta (inclusive) */
+function cfChain(id) {
+  const out = [];
+  let f = cfById(id);
+  while (f && out.length < 20) { out.unshift(f); f = cfById(f.parentId); }
+  return out;
+}
+function cfApplyLegacy(p) {
+  const chain = p.folderId ? cfChain(p.folderId) : [];
+  if (!chain.length) return;
+  let cidade = "", escola = "", turno = "", cod = "", renov = false;
+  chain.forEach(f => {
+    if (f.kind === "cidade" && !cidade) cidade = f.nome;
+    if (f.kind === "escola") { escola = f.nome; cod = f.escolaCodigo || ""; }
+    if (f.kind === "plano" && /^renova/i.test(f.nome)) renov = true;
+    if (f.kind === "turno") turno = f.nome;
+  });
+  p.categoria = chain[0].nome || "Outros";
+  p.destino = cidade || (chain[1] && chain[1].nome) || "Todos";
+  p.subgrupo = escola;
+  p.turno = !turno ? "" : renov ? `${turno} · Renovação` : turno;
+  p.escolaCodigo = cod;
+}
+function cfRecomputeAll() { catalog.forEach(cfApplyLegacy); }
 
 const CATALOG_ICONS = {
   categoria: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
@@ -4318,324 +4345,22 @@ function adminItemCardHtml(p, isAdmin) {
     </div>`;
 }
 
-/* ---- navegação por caixas: resolve em qual nível da árvore estamos (compartilhado entre Produtos e Cotação) ---- */
-function catalogNodeAtPath(tree, path) {
-  if (path.length === 0) return { kind: "categoria", boxes: tree };
-
-  const cat = tree.find(c => c.nome === path[0]);
-  if (!cat) return { kind: "categoria", boxes: tree, invalid: true };
-  if (path.length === 1) return { kind: "destino", boxes: cat.destinos };
-
-  const dest = cat.destinos.find(d => d.nome === path[1]);
-  if (!dest) return { kind: "destino", boxes: cat.destinos, invalid: true };
-  if (path.length === 2) {
-    return {
-      kind: "escola",
-      boxes: dest.escolas.filter(e => e.nome),
-      looseItens: dest.escolas.filter(e => !e.nome).flatMap(e => e.turnos.flatMap(t => t.itens)),
-    };
-  }
-
-  const esc = dest.escolas.find(e => e.nome === path[2]);
-  if (!esc) return { kind: "escola", boxes: dest.escolas.filter(e => e.nome), invalid: true };
-  if (path.length === 3) {
-    return {
-      kind: "turno",
-      boxes: esc.turnos.filter(t => t.nome),
-      looseItens: esc.turnos.filter(t => !t.nome).flatMap(t => t.itens),
-    };
-  }
-
-  const turno = esc.turnos.find(t => t.nome === path[3]);
-  if (!turno) return { kind: "turno", boxes: esc.turnos.filter(t => t.nome), invalid: true };
-  return { kind: "itens", itens: turno.itens };
-}
-
-function catalogCountItems(node, kind) {
-  if (kind === "categoria") return node.destinos.flatMap(d => d.escolas.flatMap(e => e.turnos.flatMap(t => t.itens))).length;
-  if (kind === "destino") return node.escolas.flatMap(e => e.turnos.flatMap(t => t.itens)).length;
-  if (kind === "escola") return node.turnos.flatMap(t => t.itens).length;
-  return node.itens.length;
-}
-
-function renderCatalogBreadcrumb(navPath, rootLabel) {
-  const items = [{ label: rootLabel, idx: -1 }, ...navPath.map((name, i) => ({ label: name, idx: i }))];
-  return `<div class="cat-breadcrumb">${items.map((it, i) => {
-    const isLast = i === items.length - 1;
-    return `${i > 0 ? '<span class="cat-crumb-sep">›</span>' : ""}<button type="button" class="cat-crumb${isLast ? " active" : ""}" data-idx="${it.idx}">${escapeHtml(it.label)}</button>`;
-  }).join("")}</div>`;
-}
-
 const CATALOG_BOX_ICON_RENAME = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const CATALOG_BOX_ICON_DUPLICATE = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 const CATALOG_BOX_ICON_DELETE = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`;
 
-/* ---- grade de caixas clicáveis de um nível da árvore (compartilhado entre Produtos e Cotação) ---- */
-function catalogBoxGridHtml(boxes, kind, itemWord, levelIndex, isAdmin) {
-  const boxColor = CATALOG_KIND_COLORS[kind] || "#3167A1";
-  return `<div class="cat-box-grid">${boxes.map(node => {
-    const count = catalogCountItems(node, kind);
-    return `
-      <div class="cat-box-wrap">
-        <button type="button" class="cat-box" data-nav="${escapeHtml(node.nome)}" style="--box-color:${boxColor}">
-          <span class="cat-box-icon">${CATALOG_ICONS[kind]}</span>
-          <span class="cat-box-name">${escapeHtml(node.nome)}</span>
-          <span class="cat-box-count">${count} ${count === 1 ? itemWord : itemWord + "s"}</span>
-          <span class="cat-box-arrow" aria-hidden="true">›</span>
-        </button>
-        ${isAdmin ? `
-          <div class="cat-box-admin-acts">
-            <button type="button" class="btn-icon cat-box-rename" data-level="${levelIndex}" data-name="${escapeHtml(node.nome)}" title="${t("products.renameBox")}">${CATALOG_BOX_ICON_RENAME}</button>
-            <button type="button" class="btn-icon cat-box-duplicate" data-level="${levelIndex}" data-name="${escapeHtml(node.nome)}" title="${t("common.duplicate")}">${CATALOG_BOX_ICON_DUPLICATE}</button>
-            <button type="button" class="btn-icon cat-box-delete" data-level="${levelIndex}" data-name="${escapeHtml(node.nome)}" title="${t("products.deleteBox")}">${CATALOG_BOX_ICON_DELETE}</button>
-          </div>` : ""}
-      </div>`;
-  }).join("")}</div>`;
-}
-
-/* nível 0=categoria, 1=destino, 2=escola/subgrupo, 3=turno — mesma
-   lógica de fallback usada em buildCatalogTree, pra bater exatamente
-   com o agrupamento mostrado nas caixas */
-const CATALOG_LEVEL_FIELDS = ["categoria", "destino", "subgrupo", "turno"];
-function catalogLevelValue(p, levelIndex) {
-  if (levelIndex === 0) return p.categoria || "Outros";
-  if (levelIndex === 1) return p.destino || "Todos";
-  if (levelIndex === 2) return p.subgrupo || "";
-  return p.turno || "";
-}
-function catalogItemsInBox(navPath, levelIndex, boxName) {
-  return catalog.filter(p => {
-    for (let i = 0; i < levelIndex; i++) {
-      if (catalogLevelValue(p, i) !== navPath[i]) return false;
-    }
-    return catalogLevelValue(p, levelIndex) === boxName;
-  });
-}
 async function bulkSaveCatalogItemsRemote(items) {
   if (!items.length) return;
   const { error } = await supabase.from("catalog_items").upsert(items.map(catalogToDb));
   if (error) console.error("Erro ao salvar produtos em massa:", error);
+  return !error;
 }
 async function bulkDeleteCatalogItemsRemote(ids) {
   if (!ids.length) return;
   const { error } = await supabase.from("catalog_items").delete().in("id", ids);
   if (error) console.error("Erro ao excluir produtos em massa:", error);
+  return !error;
 }
-async function renameCatalogBox(navPath, levelIndex, oldName, newName) {
-  const field = CATALOG_LEVEL_FIELDS[levelIndex];
-  const affected = catalogItemsInBox(navPath, levelIndex, oldName);
-  if (!affected.length) return;
-  affected.forEach(p => { p[field] = newName; });
-  await bulkSaveCatalogItemsRemote(affected);
-  await followCatalogBoxRenameInSchools(navPath, levelIndex, oldName, newName);
-}
-/* renomear categoria/destino/escola em Produtos também renomeia a escola
-   ligada a ela (mesma chave categoria + destino + nome), pra não soltar o vínculo */
-async function followCatalogBoxRenameInSchools(navPath, levelIndex, oldName, newName) {
-  if (levelIndex > 2) return;
-  const touched = schools.filter(sc => {
-    if (levelIndex === 0) return sc.categoria === oldName;
-    if (levelIndex === 1) return sc.categoria === navPath[0] && sc.destino === oldName;
-    return sc.categoria === navPath[0] && sc.destino === navPath[1] && sc.nome === oldName;
-  });
-  for (const sc of touched) {
-    if (levelIndex === 0) sc.categoria = newName;
-    else if (levelIndex === 1) sc.destino = newName;
-    else sc.nome = newName;
-    await saveSchoolRemote(sc);
-  }
-}
-/* duplica uma caixa inteira (categoria, destino, escola ou turno) com todos os
-   produtos de dentro, mantendo a estrutura. Caixas que ligam produtos a escolas
-   (categoria/destino/escola) também ganham uma cópia da escola, ligada aos
-   produtos novos por um código próprio; no turno a cópia continua na mesma escola. */
-async function duplicateCatalogBox(navPath, levelIndex, oldName, newName) {
-  const originals = catalogItemsInBox(navPath, levelIndex, oldName);
-  if (!originals.length) return false;
-  const field = CATALOG_LEVEL_FIELDS[levelIndex];
-  const maxOrdem = catalog.reduce((m, x) => Math.max(m, x.ordem || 0), 0);
-  const minOrig = originals.reduce((m, x) => Math.min(m, x.ordem || 0), Infinity);
-
-  const schoolCopies = new Map();   /* código antigo -> escola nova */
-  const newSchools = [];
-  const schoolFor = oldCode => {
-    if (levelIndex > 2 || !oldCode) return null;
-    if (schoolCopies.has(oldCode)) return schoolCopies.get(oldCode);
-    const src = schools.find(sc => sc.codigo === oldCode);
-    if (!src) return null;
-    const copy = { ...src, id: uid(), inclusos: src.inclusos.slice(), ordem: schools.reduce((m, x) => Math.max(m, x.ordem), 0) + newSchools.length + 1 };
-    if (levelIndex === 0) copy.categoria = newName;
-    else if (levelIndex === 1) copy.destino = newName;
-    else copy.nome = newName;
-    copy.codigo = newSchoolCode(copy.nome, copy.destino);
-    /* o código novo precisa ser único também entre as cópias ainda não salvas */
-    while (newSchools.some(x => x.codigo === copy.codigo)) copy.codigo += "-2";
-    schoolCopies.set(oldCode, copy);
-    newSchools.push(copy);
-    return copy;
-  };
-
-  const copies = originals.map(p => {
-    const sc = schoolFor(p.escolaCodigo);
-    return {
-      ...p, id: uid(), [field]: newName,
-      ordem: maxOrdem + 1 + ((p.ordem || 0) - minOrig),
-      subs: JSON.parse(JSON.stringify(p.subs || [])),
-      escolaCodigo: levelIndex > 2 ? p.escolaCodigo : (sc ? sc.codigo : ""),
-      ...(sc ? { categoria: sc.categoria, destino: sc.destino, subgrupo: sc.nome } : {}),
-    };
-  });
-  /* produtos sem escola ligada: só a chave do nível muda */
-  copies.forEach(c => { if (!c.escolaCodigo || levelIndex > 2) c[field] = newName; });
-
-  schools.push(...newSchools);
-  catalog.push(...copies);
-  await bulkSaveCatalogItemsRemote(copies);
-  for (const sc of newSchools) await saveSchoolRemote(sc);
-  return true;
-}
-async function promptDuplicateCatalogBox(navPath, levelIndex, oldName) {
-  const newName = prompt(t("products.duplicateBoxPrompt"), `${oldName} (${t("common.copy")})`);
-  if (newName === null) return false;
-  const trimmed = newName.trim();
-  if (!trimmed || trimmed === oldName) return false;
-  if (catalogItemsInBox(navPath, levelIndex, trimmed).length > 0) {
-    alert(t("products.renameBoxDuplicate"));
-    return false;
-  }
-  return duplicateCatalogBox(navPath, levelIndex, oldName, trimmed);
-}
-async function deleteCatalogBoxCascade(navPath, levelIndex, boxName) {
-  const affected = catalogItemsInBox(navPath, levelIndex, boxName);
-  const ids = affected.map(p => p.id);
-  catalog = catalog.filter(p => !ids.includes(p.id));
-  await bulkDeleteCatalogItemsRemote(ids);
-}
-
-/* renomear/excluir uma caixa (categoria/destino/escola/turno) — ações
-   compartilhadas entre a grade de Produtos e a de Cotação, só ADM */
-async function promptRenameCatalogBox(navPath, levelIndex, oldName) {
-  const newName = prompt(t("products.renameBoxPrompt"), oldName);
-  if (newName === null) return false;
-  const trimmed = newName.trim();
-  if (!trimmed || trimmed === oldName) return false;
-  if (catalogItemsInBox(navPath, levelIndex, trimmed).length > 0) {
-    alert(t("products.renameBoxDuplicate"));
-    return false;
-  }
-  await renameCatalogBox(navPath, levelIndex, oldName, trimmed);
-  return true;
-}
-async function confirmDeleteCatalogBox(navPath, levelIndex, name) {
-  const count = catalogItemsInBox(navPath, levelIndex, name).length;
-  const msg = count > 0
-    ? `${t("products.confirmDeleteBox1")} "${name}"? ${count} ${t("products.confirmDeleteBox2")}`
-    : `${t("products.confirmDeleteBox1")} "${name}"?`;
-  if (!confirm(msg)) return false;
-  await deleteCatalogBoxCascade(navPath, levelIndex, name);
-  return true;
-}
-async function handleCatalogBoxAction(e, navPath) {
-  if (!(session && session.role === "ADM")) return false;
-  const renameBtn = e.target.closest(".cat-box-rename");
-  const dupBtn = e.target.closest(".cat-box-duplicate");
-  const delBtn = e.target.closest(".cat-box-delete");
-  if (!renameBtn && !dupBtn && !delBtn) return false;
-  const btn = renameBtn || dupBtn || delBtn;
-  const levelIndex = parseInt(btn.dataset.level, 10);
-  const name = btn.dataset.name;
-  const changed = renameBtn
-    ? await promptRenameCatalogBox(navPath, levelIndex, name)
-    : dupBtn
-      ? await promptDuplicateCatalogBox(navPath, levelIndex, name)
-      : await confirmDeleteCatalogBox(navPath, levelIndex, name);
-  if (changed) { quoteMontaDestinos(); quoteMontaCatalogo(); }
-  return true;
-}
-
-function renderCatalogList() {
-  const isAdmin = !!(session && session.role === "ADM");
-  document.getElementById("btn-new-catalog-item").style.display = isAdmin ? "" : "none";
-  renderProductsDashboard();
-
-  if (catalog.length === 0) {
-    catalogListEl.innerHTML = `<div class="prod-empty"><div class="prod-empty-icon">${CATALOG_ICONS.categoria}</div><p>${t("products.emptyCatalog1")} "${t("products.new")}" ${t("products.emptyCatalog2")}</p></div>`;
-    return;
-  }
-
-  const tree = buildCatalogTree(catalog.slice().sort((a, b) => a.ordem - b.ordem));
-  const view = catalogNodeAtPath(tree, catalogNavPath);
-  if (view.invalid) { catalogNavPath = []; renderCatalogList(); return; }
-
-  let html = renderCatalogBreadcrumb(catalogNavPath, t("common.catalogRoot"));
-
-  if (view.kind === "itens") {
-    const itens = view.itens.slice().sort((a, b) => a.ordem - b.ordem);
-    html += `<div class="cat-items-grid">${itens.map(p => adminItemCardHtml(p, isAdmin)).join("")}</div>`;
-  } else {
-    let looseHtml = "";
-    if (view.looseItens && view.looseItens.length) {
-      const itens = view.looseItens.slice().sort((a, b) => a.ordem - b.ordem);
-      looseHtml = `<div class="cat-items-grid">${itens.map(p => adminItemCardHtml(p, isAdmin)).join("")}</div>`;
-    }
-
-    if (!view.boxes.length && !looseHtml) {
-      html += `<div class="prod-empty"><div class="prod-empty-icon">${CATALOG_ICONS.escola}</div><p>${t("products.emptyItemsHere")}</p></div>`;
-    } else {
-      if (view.boxes.length) html += catalogBoxGridHtml(view.boxes, view.kind, t("products.itemWord"), catalogNavPath.length, isAdmin);
-      html += looseHtml;
-    }
-  }
-
-  catalogListEl.innerHTML = html;
-  /* modo pastas (selecionar, copiar/recortar/colar, arrastar): catalogo-explorer.js */
-  if (isAdmin && typeof cxDecorate === "function") cxDecorate();
-}
-
-catalogListEl.addEventListener("click", async e => {
-  const crumb = e.target.closest(".cat-crumb");
-  if (crumb) {
-    const idx = parseInt(crumb.dataset.idx, 10);
-    catalogNavPath = idx < 0 ? [] : catalogNavPath.slice(0, idx + 1);
-    renderCatalogList();
-    return;
-  }
-  if (await handleCatalogBoxAction(e, catalogNavPath)) { renderCatalogList(); return; }
-  const box = e.target.closest(".cat-box");
-  if (box) {
-    catalogNavPath = [...catalogNavPath, box.dataset.nav];
-    renderCatalogList();
-    return;
-  }
-  if (!(session && session.role === "ADM")) return;
-  const btn = e.target.closest("button[data-act]");
-  if (!btn) return;
-  const p = catalog.find(p => p.id === btn.dataset.id);
-  if (!p) return;
-  if (btn.dataset.act === "edit") openProductModal(p.id);
-  if (btn.dataset.act === "dup") {
-    const copy = {
-      ...p, id: uid(), nome: `${p.nome} (${t("common.copy")})`,
-      ordem: catalog.reduce((m, x) => Math.max(m, x.ordem || 0), 0) + 1,
-      subs: JSON.parse(JSON.stringify(p.subs || [])),
-    };
-    catalog.push(copy);
-    renderCatalogList();
-    quoteMontaDestinos();
-    quoteMontaCatalogo();
-    await saveCatalogItem(copy);
-    openProductModal(copy.id);
-  }
-  if (btn.dataset.act === "del") {
-    if (!confirm(`${t("products.confirmDelete1")} "${p.nome}" ${t("products.confirmDelete2")}`)) return;
-    catalog = catalog.filter(x => x.id !== p.id);
-    renderCatalogList();
-    quoteMontaDestinos();
-    quoteMontaCatalogo();
-    await deleteCatalogItemRemote(p.id);
-  }
-});
-
 /* ---- modal de produto (com subitens dinâmicos) ---- */
 const productModalBackdrop = document.getElementById("product-modal-backdrop");
 const productForm = document.getElementById("product-form");
@@ -4682,55 +4407,46 @@ productSubsList.addEventListener("click", e => {
   if (btn) btn.closest("[data-sub]").remove();
 });
 
-function populateCatalogDatalists() {
-  const uniques = field => {
-    const seen = [];
-    catalog.forEach(p => { const v = (p[field] || "").trim(); if (v && !seen.includes(v)) seen.push(v); });
-    return seen;
-  };
-  const fill = (id, field) => {
-    document.getElementById(id).innerHTML = uniques(field).map(v => `<option value="${escapeHtml(v)}">`).join("");
-  };
-  fill("list-categorias", "categoria");
-  fill("list-destinos", "destino");
-  fill("list-subgrupos", "subgrupo");
-  fill("list-turnos", "turno");
+/* "Pasta" do produto: lista só as pastas que podem guardar produtos (turnos, pastas livres,
+   fornecedores de acomodação e qualquer pasta que ainda não tenha subpastas) */
+function cfFolderLabel(f) { return cfChain(f.id).map(x => x.nome).join(" › "); }
+function cfCanHoldItems(f) {
+  if (f.kind === "turno" || f.kind === "grupo") return true;
+  if (catalog.some(p => p.folderId === f.id)) return true;
+  return cfKids(f.id).length === 0;
 }
-
-/* "Escola" no cadastro de produto: escolher uma escola liga o produto pelo
-   código dela e preenche (e trava) categoria, destino e nome da escola */
-function renderProductSchoolOptions(selectedCode) {
-  const sel = document.getElementById("product-field-escola");
-  sel.innerHTML = `<option value="">${escapeHtml(t("products.schoolNone"))}</option>` +
-    schools.slice().sort((a, b) => a.destino.localeCompare(b.destino) || a.nome.localeCompare(b.nome))
-      .map(sc => `<option value="${escapeHtml(sc.codigo)}">${escapeHtml(sc.nome)} — ${escapeHtml(sc.destino)}</option>`).join("");
-  sel.value = selectedCode || "";
-  applyProductSchoolLock();
+function renderProductFolderOptions(selectedId) {
+  const sel = document.getElementById("product-field-pasta");
+  const opts = catalogFolders.filter(f => cfCanHoldItems(f) || f.id === selectedId)
+    .map(f => ({ id: f.id, label: cfFolderLabel(f) }))
+    .sort((a, b) => a.label.localeCompare(b.label, "pt"));
+  sel.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
+  sel.value = selectedId && opts.some(o => o.id === selectedId) ? selectedId : (opts[0] ? opts[0].id : "");
+  updateProductSchoolLine();
 }
-function applyProductSchoolLock() {
-  const sc = schools.find(x => x.codigo === document.getElementById("product-field-escola").value);
-  const set = (id, v) => { const el = document.getElementById(id); if (sc) el.value = v; el.readOnly = !!sc; };
-  set("product-field-categoria", sc ? sc.categoria : "");
-  set("product-field-destino", sc ? sc.destino : "");
-  set("product-field-subgrupo", sc ? sc.nome : "");
+function updateProductSchoolLine() {
+  const f = cfById(document.getElementById("product-field-pasta").value);
+  const chain = f ? cfChain(f.id) : [];
+  const esc = chain.find(x => x.kind === "escola");
+  const sc = esc && esc.escolaCodigo ? schools.find(x => x.codigo === esc.escolaCodigo) : null;
+  document.getElementById("product-pasta-hint").textContent = sc
+    ? `Escola vinculada (comparativo): ${sc.nome} — ${sc.destino}`
+    : "Este produto não está ligado a uma escola cadastrada.";
 }
-document.getElementById("product-field-escola").addEventListener("change", () => {
-  applyProductSchoolLock();
-  if (document.getElementById("product-field-escola").value && readProductSubs().length === 0) addDefaultProductSubs();
+document.getElementById("product-field-pasta").addEventListener("change", () => {
+  updateProductSchoolLine();
+  const f = cfById(document.getElementById("product-field-pasta").value);
+  if (f && cfChain(f.id).some(x => x.kind === "escola" && x.escolaCodigo) && readProductSubs().length === 0) addDefaultProductSubs();
 });
 
-function openProductModal(id) {
+/* abre o cadastro; folderId = pasta onde o produto nasce (a pasta aberta na tela) */
+function openProductModal(id, folderId) {
   productForm.reset();
-  populateCatalogDatalists();
   if (id) {
     const p = catalog.find(p => p.id === id);
     document.getElementById("product-modal-title").textContent = t("products.editTitle");
     document.getElementById("product-id").value = p.id;
     document.getElementById("product-field-name").value = p.nome;
-    document.getElementById("product-field-categoria").value = p.categoria;
-    document.getElementById("product-field-destino").value = p.destino;
-    document.getElementById("product-field-subgrupo").value = p.subgrupo;
-    document.getElementById("product-field-turno").value = p.turno;
     document.getElementById("product-field-unidade").value = p.unidade;
     document.getElementById("product-field-preco").value = p.preco;
     document.getElementById("product-field-ordem").value = p.ordem;
@@ -4739,8 +4455,7 @@ function openProductModal(id) {
     document.getElementById("product-field-qtdfixa").checked = p.qtdFixa;
     document.getElementById("product-field-ativo").checked = p.ativo;
     renderProductSubs(p.subs);
-    const matched = p.escolaCodigo || (schools.find(sc => sc.categoria === (p.categoria || "Outros") && sc.destino === (p.destino || "Todos") && sc.nome === (p.subgrupo || "")) || {}).codigo;
-    renderProductSchoolOptions(matched);
+    renderProductFolderOptions(p.folderId);
     productBtnDelete.style.display = "inline-block";
   } else {
     document.getElementById("product-modal-title").textContent = t("products.newTitle");
@@ -4750,7 +4465,7 @@ function openProductModal(id) {
     document.getElementById("product-field-qtdfixa").checked = true;
     document.getElementById("product-field-ativo").checked = true;
     renderProductSubs([]);
-    renderProductSchoolOptions("");
+    renderProductFolderOptions(folderId || null);
     productBtnDelete.style.display = "none";
   }
   productModalBackdrop.classList.add("open");
@@ -4759,7 +4474,7 @@ function openProductModal(id) {
 
 function closeProductModal() { productModalBackdrop.classList.remove("open"); }
 
-document.getElementById("btn-new-catalog-item").addEventListener("click", () => openProductModal(null));
+document.getElementById("btn-new-catalog-item").addEventListener("click", () => openProductModal(null, catalogNavPath[catalogNavPath.length - 1] || null));
 document.getElementById("product-modal-close").addEventListener("click", closeProductModal);
 document.getElementById("product-btn-cancel").addEventListener("click", closeProductModal);
 productModalBackdrop.addEventListener("click", e => { if (e.target === productModalBackdrop) closeProductModal(); });
@@ -4777,12 +4492,10 @@ function readProductSubs() {
 productForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("product-id").value;
+  const folderId = document.getElementById("product-field-pasta").value;
+  if (!folderId) { alert("Escolha a pasta onde o produto vai ficar."); return; }
   const data = {
     nome: document.getElementById("product-field-name").value.trim(),
-    categoria: document.getElementById("product-field-categoria").value.trim() || "Outros",
-    destino: document.getElementById("product-field-destino").value.trim() || "Todos",
-    subgrupo: document.getElementById("product-field-subgrupo").value.trim(),
-    turno: document.getElementById("product-field-turno").value.trim(),
     unidade: document.getElementById("product-field-unidade").value.trim() || "unidade",
     preco: parseFloat(document.getElementById("product-field-preco").value) || 0,
     ordem: parseInt(document.getElementById("product-field-ordem").value, 10) || 100,
@@ -4791,16 +4504,17 @@ productForm.addEventListener("submit", async e => {
     qtdPadrao: Math.max(1, parseInt(document.getElementById("product-field-qtdpadrao").value, 10) || 1),
     ativo: document.getElementById("product-field-ativo").checked,
     subs: readProductSubs(),
-    escolaCodigo: document.getElementById("product-field-escola").value,
+    folderId,
   };
   let item;
   if (id) {
     item = catalog.find(p => p.id === id);
     Object.assign(item, data);
   } else {
-    item = { id: uid(), ...data };
+    item = { id: uid(), categoria: "", destino: "", subgrupo: "", turno: "", escolaCodigo: "", ...data };
     catalog.push(item);
   }
+  cfApplyLegacy(item);
   renderCatalogList();
   quoteMontaDestinos();
   quoteMontaCatalogo();
@@ -9374,7 +9088,7 @@ document.addEventListener("keydown", e => {
 
   await loadRolePermissions();
 
-  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits, schoolCommissions, teams, openFollowups, monthlyGoals] = await Promise.all([
+  [users, leads, deals, quotes, catalog, SOURCES, STAGES, EXPENSE_CATEGORIES, expenses, commissions, influencerCommissions, adSpend, receivables, commissionSettings, enrollments, collaborators, teamAnnouncement, forms, formSubmissions, agendaItems, contracts, menuConfig, rotationSettings, schools, schoolCities, schoolTransfers, saleSplits, schoolCommissions, teams, openFollowups, monthlyGoals, catalogFolders] = await Promise.all([
     loadUsers(),
     loadLeads(),
     loadDeals(),
@@ -9406,7 +9120,9 @@ document.addEventListener("keydown", e => {
     loadTeams(),
     loadOpenFollowups(),
     loadMonthlyGoals(),
+    loadCatalogFolders(),
   ]);
+  cfRecomputeAll();
 
   renderSessionChip();
   refreshEnrUnread();

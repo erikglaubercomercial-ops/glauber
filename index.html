@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1792061999">
+<link rel="stylesheet" href="style.css?v=1792068954">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -720,9 +720,12 @@
           <div class="prod-hero-top">
             <div class="prod-hero-text">
               <h2 data-i18n="products.catalogTitle">Catálogo de Produtos</h2>
-              <p data-i18n="products.heroSubtitle">Tudo o que os consultores podem cotar, organizado por categoria, destino, escola e turno.</p>
+              <p data-i18n="products.heroSubtitle">Tudo o que os consultores podem cotar, organizado em pastas: país, cidade, cursos / faculdade / acomodação, escola, plano e turno.</p>
             </div>
-            <button type="button" class="btn prod-hero-btn" id="btn-new-catalog-item" data-i18n="products.new">+ Novo produto</button>
+            <div class="prod-hero-actions">
+              <button type="button" class="btn prod-hero-btn prod-hero-btn-alt" id="btn-new-catalog-folder">+ Nova pasta</button>
+              <button type="button" class="btn prod-hero-btn" id="btn-new-catalog-item" data-i18n="products.new">+ Novo produto</button>
+            </div>
           </div>
           <div class="prod-kpis">
             <div class="prod-kpi">
@@ -2688,23 +2691,11 @@
         <label><span data-i18n="products.itemName">Nome do item *</span>
           <input type="text" id="product-field-name" required placeholder="Ex: International — Full Payment">
         </label>
-        <label><span data-i18n="products.schoolLink">Escola vinculada (comparativo de escolas)</span>
-          <select id="product-field-escola"></select>
-          <small class="muted-note" data-i18n="products.schoolLinkHint">Ao escolher uma escola, o produto passa a ser ligado a ela por código: mudar o nome da escola depois não quebra os preços.</small>
+        <label><span>Pasta do produto *</span>
+          <select id="product-field-pasta" required></select>
+          <small class="muted-note" id="product-pasta-hint"></small>
         </label>
         <div class="grid-2">
-          <label><span data-i18n="products.categoryLvl1">Categoria (nível 1)</span>
-            <input type="text" id="product-field-categoria" list="list-categorias" placeholder="Ex: Irlanda">
-          </label>
-          <label><span data-i18n="products.destinationLvl2">Destino / Cidade (nível 2)</span>
-            <input type="text" id="product-field-destino" list="list-destinos" placeholder="Ex: Dublin — ou Todos">
-          </label>
-          <label><span data-i18n="products.schoolLvl3">Escola / fornecedor (nível 3)</span>
-            <input type="text" id="product-field-subgrupo" list="list-subgrupos" placeholder="Ex: Academic Bridge (opcional)">
-          </label>
-          <label><span data-i18n="products.shiftLvl4">Turno (nível 4)</span>
-            <input type="text" id="product-field-turno" list="list-turnos" placeholder="Ex: AM · Segunda a Sexta (opcional)">
-          </label>
           <label><span data-i18n="products.unit">Unidade</span>
             <input type="text" id="product-field-unidade" placeholder="Ex: pacote, semana, mês">
           </label>
@@ -2718,10 +2709,6 @@
             <input type="number" id="product-field-qtdpadrao" min="1" step="1" value="1">
           </label>
         </div>
-        <datalist id="list-categorias"></datalist>
-        <datalist id="list-destinos"></datalist>
-        <datalist id="list-subgrupos"></datalist>
-        <datalist id="list-turnos"></datalist>
         <label><span data-i18n="products.shortDescription">Descrição curta</span>
           <textarea id="product-field-detalhe" rows="2" placeholder="Ex: Aulas de manhã, de segunda a sexta. Pagamento à vista."></textarea>
         </label>
@@ -2846,19 +2833,19 @@
     </div>
   </div>
 
-  <script src="config.js?v=1792061999"></script>
-  <script src="auth.js?v=1792061999"></script>
-  <script src="i18n.js?v=1792061999"></script>
-  <script src="comparativo.js?v=1792061999"></script>
-  <script src="contrato-modelo.js?v=1792061999"></script>
-  <script src="script.js?v=1792061999"></script>
-  <script src="contratos-proposta.js?v=1792061999"></script>
-  <script src="ficha-cliente.js?v=1792061999"></script>
-  <script src="agenda-reunioes.js?v=1792061999"></script>
-  <script src="agendamento-online.js?v=1792061999"></script>
-  <script src="times-arena.js?v=1792061999"></script>
-  <script src="catalogo-explorer.js?v=1792061999"></script>
-  <script src="financeiro-dashboard.js?v=1792061999"></script>
-  <script src="app-acompanhamento.js?v=1792061999"></script>
+  <script src="config.js?v=1792068954"></script>
+  <script src="auth.js?v=1792068954"></script>
+  <script src="i18n.js?v=1792068954"></script>
+  <script src="comparativo.js?v=1792068954"></script>
+  <script src="contrato-modelo.js?v=1792068954"></script>
+  <script src="script.js?v=1792068954"></script>
+  <script src="contratos-proposta.js?v=1792068954"></script>
+  <script src="ficha-cliente.js?v=1792068954"></script>
+  <script src="agenda-reunioes.js?v=1792068954"></script>
+  <script src="agendamento-online.js?v=1792068954"></script>
+  <script src="times-arena.js?v=1792068954"></script>
+  <script src="catalogo-explorer.js?v=1792068954"></script>
+  <script src="financeiro-dashboard.js?v=1792068954"></script>
+  <script src="app-acompanhamento.js?v=1792068954"></script>
 </body>
 </html>

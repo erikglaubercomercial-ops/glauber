@@ -2650,3 +2650,10 @@ body > .public-page { width: 100%; min-width: 0; }
 .cx-menu-item { border: none; background: transparent; text-align: left; padding: 8px 12px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
 .cx-menu-item:hover:not(:disabled) { background: var(--content-bg); }
 .cx-menu-item:disabled { opacity: .4; cursor: default; }
+
+/* ===== PRODUTOS EM PASTAS ===== */
+.prod-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.prod-hero-btn-alt { background: rgba(255, 255, 255, 0.16); color: #fff; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: none; }
+.prod-hero-btn-alt:hover { background: rgba(255, 255, 255, 0.26); box-shadow: none; }
+#view-produtos .cat-box-wrap.is-empty .cat-box { border-style: dashed; }
+#view-produtos .cat-box-wrap.is-empty .cat-box-count { opacity: 0.7; }
