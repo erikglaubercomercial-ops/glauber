@@ -28,16 +28,36 @@ function cxToast(msg) {
 /* ============================================================
    TIPOS DE PASTA
    ============================================================ */
-const cfSvg = body => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+/* ícones: mesmo traço fino e preenchimento suave em todos; cores na paleta da marca */
+const cfSvg = body => `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+const CF_ICON = {
+  pais: cfSvg('<circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity=".16"/><path d="M3 12h18"/><path d="M12 3c2.6 2.5 4 5.6 4 9s-1.4 6.5-4 9c-2.6-2.5-4-5.6-4-9s1.4-6.5 4-9Z"/>'),
+  cidade: cfSvg('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21Z" fill="currentColor" fill-opacity=".16"/><circle cx="12" cy="10" r="2.4"/>'),
+  tipo: cfSvg('<path d="M12 6.5C10.3 5.2 8 4.6 4.5 4.6v12.9c3.5 0 5.8.6 7.5 1.9 1.7-1.3 4-1.9 7.5-1.9V4.6C16 4.6 13.7 5.2 12 6.5Z" fill="currentColor" fill-opacity=".16"/><path d="M12 6.5v12.9"/>'),
+  faculdade: cfSvg('<path d="M3.5 9.5 12 4.5l8.5 5H3.5Z" fill="currentColor" fill-opacity=".16"/><path d="M6 12.5v5M10 12.5v5M14 12.5v5M18 12.5v5"/><path d="M4 19.5h16"/>'),
+  acomod: cfSvg('<path d="M4 11 12 4l8 7v8.5a.5.5 0 0 1-.5.5h-15a.5.5 0 0 1-.5-.5V11Z" fill="currentColor" fill-opacity=".16"/><path d="M10 20v-5.5h4V20"/>'),
+  escola: cfSvg('<path d="M2.5 9.5 12 4.5l9.5 5-9.5 5-9.5-5Z" fill="currentColor" fill-opacity=".16"/><path d="M6.5 12v4.3c0 1.3 2.5 2.7 5.5 2.7s5.5-1.4 5.5-2.7V12"/><path d="M21.5 9.5v5"/>'),
+  plano: cfSvg('<path d="M4 8.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v2.5a2.5 2.5 0 0 0 0 5V16a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16v-2.5a2.5 2.5 0 0 0 0-5Z" fill="currentColor" fill-opacity=".16"/><path d="M14 5v12" stroke-dasharray="1.6 2.2"/>'),
+  turno: cfSvg('<circle cx="12" cy="12" r="8.5" fill="currentColor" fill-opacity=".16"/><path d="M12 7.5V12l3 2"/>'),
+  sol: cfSvg('<circle cx="12" cy="12" r="4" fill="currentColor" fill-opacity=".2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>'),
+  lua: cfSvg('<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor" fill-opacity=".16"/>'),
+  grupo: cfSvg('<path d="M3.5 7a2 2 0 0 1 2-2h3.8l2 2.2h7.2a2 2 0 0 1 2 2v8.3a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7Z" fill="currentColor" fill-opacity=".16"/>'),
+};
+/* AM = sol, PM = lua, Faculdade = prédio com colunas; o resto segue o tipo da pasta */
+function cfKindIcon(f) {
+  if (f.kind === "turno") return /^am/i.test(f.nome) ? CF_ICON.sol : /^pm/i.test(f.nome) ? CF_ICON.lua : CF_ICON.turno;
+  if (f.kind === "tipo" && /facul|univers/i.test(f.nome)) return CF_ICON.faculdade;
+  return CF_ICON[f.kind] || CF_ICON.grupo;
+}
 const CF_KINDS = {
-  pais:   { label: "País",                color: "#3167A1", icon: () => CATALOG_ICONS.categoria },
-  cidade: { label: "Cidade",              color: "#0EA5E9", icon: () => CATALOG_ICONS.destino },
-  tipo:   { label: "Cursos / Faculdade",  color: "#10B981", icon: () => cfSvg('<path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/>') },
-  acomod: { label: "Acomodação",          color: "#F43F5E", icon: () => cfSvg('<path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>') },
-  escola: { label: "Escola",              color: "#8B5CF6", icon: () => CATALOG_ICONS.escola },
-  plano:  { label: "Plano",               color: "#6366F1", icon: () => cfSvg('<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.2"/>') },
-  turno:  { label: "Turno",               color: "#F59E0B", icon: () => CATALOG_ICONS.turno },
-  grupo:  { label: "Pasta",               color: "#64748B", icon: () => cfSvg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>') },
+  pais:   { label: "País",               color: "#3167A1" },
+  cidade: { label: "Cidade",             color: "#2B8FC4" },
+  tipo:   { label: "Cursos / Faculdade", color: "#2E9C8A" },
+  acomod: { label: "Acomodação",         color: "#E0784A" },
+  escola: { label: "Escola",             color: "#6B5BD2" },
+  plano:  { label: "Plano",              color: "#4F6EDB" },
+  turno:  { label: "Turno",              color: "#F2A33A" },
+  grupo:  { label: "Pasta",              color: "#7B8798" },
 };
 /* o que cabe dentro de cada tipo de pasta ("" = raiz) */
 const CF_ALLOWED = {
@@ -539,7 +559,7 @@ function cfBoxesHtml(kids, isAdmin) {
     return `
       <div class="cat-box-wrap${n ? "" : " is-empty"}" data-fid="${f.id}">
         <button type="button" class="cat-box" data-nav="${f.id}" style="--box-color:${k.color}" title="${cxEsc(k.label)}">
-          <span class="cat-box-icon">${k.icon()}</span>
+          <span class="cat-box-icon">${cfKindIcon(f)}</span>
           <span class="cat-box-name">${cxEsc(f.nome)}</span>
           <span class="cat-box-count">${n} ${n === 1 ? word : word + "s"}</span>
           <span class="cat-box-arrow" aria-hidden="true">›</span>

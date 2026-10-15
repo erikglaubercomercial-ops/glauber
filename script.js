@@ -4078,7 +4078,7 @@ function openQuoteBuilder(id) {
   document.getElementById("q-obs").value = "";
   document.getElementById("q-busca").value = "";
   quoteSelecionados = {};
-  quoteAbertos = {};
+  quoteNavPath = [];
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
 
   document.getElementById("q-btn-excluir").style.display = id ? "inline-block" : "none";
@@ -4103,9 +4103,9 @@ function openQuoteBuilder(id) {
     }
   }
 
-  quoteMontaDestinos();
-  quoteMontaCatalogo();
+  if (id) quoteAbreNoPrimeiroMarcado();
   if (!id) initQuoteBuilderDefaults();
+  quoteMontaCatalogo();
   renderQuoteContractsPanel(id ? quotes.find(x => x.id === id) : null);
   document.getElementById("q-nome").focus();
 }
@@ -4183,6 +4183,7 @@ function quotePullFromLead(lead) {
   const box = document.getElementById("q-lead-summary");
   box.innerHTML = `<strong>${escapeHtml(t("quotes.leadPulled"))}</strong> ${escapeHtml(lead.name)}${bits.length ? ` · ${escapeHtml(bits.join(" · "))}` : ""}${owner ? `<br>${escapeHtml(t("quotes.leadOwner"))}: ${escapeHtml(owner.name)}` : ""}`;
   box.hidden = false;
+  if (typeof quoteRenderSheet === "function") quoteRenderSheet();
 }
 
 /* ============================================================
@@ -4542,27 +4543,17 @@ function quoteAtivos() {
   return catalog.filter(p => p.ativo);
 }
 
-function quoteMontaDestinos() {
-  const sel = document.getElementById("q-destino");
-  const atual = sel.value;
-  const lista = ["Todos os destinos"];
-  quoteAtivos().forEach(p => { if (p.destino && p.destino !== "Todos" && !lista.includes(p.destino)) lista.push(p.destino); });
-  sel.innerHTML = lista.map(d => `<option>${escapeHtml(d)}</option>`).join("");
-  if (atual && lista.includes(atual)) sel.value = atual;
-}
+/* o filtro por destino saiu: a navegação por pastas faz esse papel */
+function quoteMontaDestinos() {}
 
-function quoteVisivel(p, filtro) {
-  if (!filtro || filtro === "Todos os destinos") return true;
-  return !p.destino || p.destino === "Todos" || p.destino === filtro;
-}
-
-function quoteItemHtml(p) {
+function quoteItemHtml(p, comCaminho) {
   const on = Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id);
   const qtd = on ? quoteSelecionados[p.id] : (p.qtdPadrao || 1);
   return `
     <div class="q-opt${on ? " on" : ""}" data-id="${p.id}">
       <input type="checkbox" data-role="pick" data-id="${p.id}"${on ? " checked" : ""} aria-label="${escapeHtml(p.nome)}">
       <span class="body">
+        ${comCaminho ? `<span class="cq-path">${escapeHtml(quotePathLabel(p))}</span>` : ""}
         <span class="nm">${escapeHtml(p.nome)}</span>
         ${p.detalhe ? `<span class="dt">${escapeHtml(p.detalhe)}</span>` : ""}
         ${p.qtdFixa ? "" : `<span class="q-qty"><label for="qq-${p.id}">Quantidade (${escapeHtml(p.unidade)}s):</label><input type="number" min="1" step="1" id="qq-${p.id}" data-role="qty" data-id="${p.id}" value="${qtd}"></span>`}
@@ -4577,66 +4568,76 @@ function quoteSubtotalHtml(p, qtd) {
 }
 
 const quoteCatalogEl = document.getElementById("quote-catalog");
+const quoteCrumbsEl = document.getElementById("quote-crumbs");
+const quoteSheetEl = document.getElementById("quote-sheet");
 
-/* catálogo em lista expansível, igual ao Cotações Peregrinos: categoria › destino
-   › escola (abre e fecha) › itens (agrupados por turno). Ao buscar, tudo abre. */
-let quoteAbertos = {};   /* "categoria|destino|escola" -> aberto */
+/* catálogo em tela dividida: à esquerda as MESMAS pastas de Produtos (País › Cidade › Cursos|Faculdade|
+   Acomodação › Escola › Plano › Turno) até as tabelas de preço; à direita a prévia da cotação */
+let quoteNavPath = [];      /* ids das pastas abertas */
+let quoteShowSubs = false;  /* mostrar os subitens na prévia */
+const quoteTem = id => Object.prototype.hasOwnProperty.call(quoteSelecionados, id);
 
-function quoteFaixa(itens) {
-  const precos = itens.map(p => Number(p.preco) || 0);
-  const min = Math.min(...precos), max = Math.max(...precos);
-  const n = `${itens.length} ${itens.length > 1 ? t("quotes.cmpOptions") : t("quotes.cmpOption")}`;
-  return `${n} · ${min === max ? currency(min) : `${currency(min)}–${currency(max)}`}`;
+function quoteSubtreeSet(fid) { return new Set(cfSubtreeIds(fid)); }
+function quoteFolderCount(fid) {
+  const ids = quoteSubtreeSet(fid);
+  const its = quoteAtivos().filter(p => ids.has(p.folderId));
+  return { total: its.length, marcados: its.filter(p => quoteTem(p.id)).length };
 }
-
-function quoteTurnosHtml(escola) {
-  return escola.turnos.map(tn => `
-    ${tn.nome ? `<div class="qc-turno-h">${escapeHtml(tn.nome)}</div>` : ""}
-    ${tn.itens.slice().sort((a, b) => a.ordem - b.ordem).map(quoteItemHtml).join("")}`).join("");
+function quotePathLabel(p) {
+  return p.folderId ? cfChain(p.folderId).map(f => f.nome).join(" › ") : [p.categoria, p.destino, p.subgrupo, p.turno].filter(Boolean).join(" › ");
+}
+/* abre a pasta do primeiro item marcado (ao editar uma cotação já salva) */
+function quoteAbreNoPrimeiroMarcado() {
+  const p = quoteAtivos().find(x => quoteTem(x.id) && x.folderId);
+  quoteNavPath = p ? cfChain(p.folderId).map(f => f.id) : [];
 }
 
 function quoteMontaCatalogo() {
-  const filtro = document.getElementById("q-destino").value;
   const termo = (document.getElementById("q-busca").value || "").trim().toLowerCase();
-  const lista = quoteAtivos().filter(p => {
-    if (!quoteVisivel(p, filtro)) return false;
-    if (!termo) return true;
-    const alvo = [p.nome, p.detalhe, p.subgrupo, p.turno, p.categoria, p.destino].join(" ").toLowerCase();
-    return alvo.includes(termo);
-  });
+  const ativos = quoteAtivos();
 
-  if (lista.length === 0) {
-    quoteCatalogEl.innerHTML = `<p class="muted-note">${termo ? `${t("quotes.noServiceFound1")} "${escapeHtml(termo)}".` : t("quotes.noServiceForDestination")}</p>`;
+  if (termo) {
+    quoteCrumbsEl.innerHTML = "";
+    const res = ativos.filter(p => [p.nome, p.detalhe, quotePathLabel(p)].join(" ").toLowerCase().includes(termo))
+      .sort((a, b) => a.ordem - b.ordem);
+    quoteCatalogEl.innerHTML = res.length
+      ? `<p class="cq-hint">${res.length} resultado(s), em todas as pastas</p><div class="cq-items">${res.map(p => quoteItemHtml(p, true)).join("")}</div>`
+      : `<p class="muted-note">${t("quotes.noServiceFound1")} "${escapeHtml(termo)}".</p>`;
     quoteAtualizaPrevia();
     return;
   }
 
-  let html = "";
-  buildCatalogTree(lista.slice().sort((a, b) => a.ordem - b.ordem)).forEach(c => {
-    html += `<div class="qc-cat"><h3 class="qc-cat-h">${escapeHtml(c.nome)}</h3>`;
-    c.destinos.forEach(d => {
-      html += `<div class="qc-grp"><h4 class="qc-grp-h">${escapeHtml(d.nome)}</h4>`;
-      d.escolas.forEach(e => {
-        const itens = e.turnos.flatMap(tn => tn.itens);
-        if (!e.nome) { html += `<div class="qc-sub-flat">${quoteTurnosHtml(e)}</div>`; return; }
-        const chave = [c.nome, d.nome, e.nome].join("|");
-        const marcados = itens.filter(p => Object.prototype.hasOwnProperty.call(quoteSelecionados, p.id)).length;
-        const aberto = !!termo || marcados > 0 || quoteAbertos[chave] === true;
-        html += `
-          <div class="qc-sub" data-chave="${escapeHtml(chave)}">
-            <button type="button" class="qc-sub-h" data-role="toggle" aria-expanded="${aberto}">
-              <span class="qc-arrow">▶</span>
-              <span>${escapeHtml(e.nome)}${marcados ? `<span class="qc-picked">${marcados} ${t("quotes.inQuote")}</span>` : ""}</span>
-              <span class="qc-count">${quoteFaixa(itens)}</span>
-            </button>
-            <div class="qc-sub-body"${aberto ? "" : " hidden"}>${quoteTurnosHtml(e)}</div>
-          </div>`;
-      });
-      html += `</div>`;
-    });
-    html += `</div>`;
-  });
+  /* o caminho aberto precisa continuar existindo */
+  let parent = null;
+  for (const id of quoteNavPath) {
+    const f = cfById(id);
+    if (!f || (f.parentId || null) !== parent) { quoteNavPath = []; break; }
+    parent = id;
+  }
+  const cur = quoteNavPath[quoteNavPath.length - 1] || null;
 
+  const crumbs = [{ l: t("common.catalogRoot"), i: -1 }, ...quoteNavPath.map((id, k) => ({ l: (cfById(id) || {}).nome || "?", i: k }))];
+  quoteCrumbsEl.innerHTML = `<div class="cat-breadcrumb">${crumbs.map((c, k) =>
+    `${k ? '<span class="cat-crumb-sep">›</span>' : ""}<button type="button" class="cat-crumb${k === crumbs.length - 1 ? " active" : ""}" data-qcrumb="${c.i}">${escapeHtml(c.l)}</button>`).join("")}</div>`;
+
+  const kids = cfKids(cur).map(f => ({ f, ...quoteFolderCount(f.id) })).filter(x => x.total > 0);
+  const its = (cur ? ativos.filter(p => p.folderId === cur) : ativos.filter(p => !p.folderId || !cfById(p.folderId)))
+    .sort((a, b) => a.ordem - b.ordem);
+  let html = "";
+  if (kids.length) {
+    html += `<div class="cat-box-grid">${kids.map(({ f, total, marcados }) => {
+      const k = CF_KINDS[f.kind] || CF_KINDS.grupo;
+      return `<div class="cat-box-wrap">${marcados ? `<span class="cq-pill">${marcados} ${t("quotes.inQuote")}</span>` : ""}
+        <button type="button" class="cat-box" data-qnav="${f.id}" style="--box-color:${k.color}" title="${escapeHtml(k.label)}">
+          <span class="cat-box-icon">${cfKindIcon(f)}</span>
+          <span class="cat-box-name">${escapeHtml(f.nome)}</span>
+          <span class="cat-box-count">${total} ${total === 1 ? "produto" : "produtos"}</span>
+        </button></div>`;
+    }).join("")}</div>`;
+  }
+  if (its.length) html += `<div class="cq-items">${its.map(p => quoteItemHtml(p, false)).join("")}</div>`;
+  if (!kids.length && !its.length) html = `<p class="muted-note">${t("quotes.noServiceForDestination")}</p>`;
+  if (!cur && kids.length) html += `<p class="cq-hint">Escolha o país, a cidade, o tipo (cursos, faculdade ou acomodação), a escola, o plano e o turno até chegar às tabelas de preço.</p>`;
   quoteCatalogEl.innerHTML = html;
   quoteAtualizaPrevia();
 }
@@ -4666,8 +4667,82 @@ function quoteLinhas() {
   return out.sort((a, b) => (quoteSchoolName(a.p) ? 0 : 1) - (quoteSchoolName(b.p) ? 0 : 1));
 }
 function quoteTotal() { return quoteLinhas().reduce((a, l) => a + l.total, 0); }
-function quoteAtualizaPrevia() { document.getElementById("quote-preview-total").textContent = currency(quoteTotal()); }
+function quoteAtualizaPrevia() {
+  document.getElementById("quote-preview-total").textContent = currency(quoteTotal());
+  quoteRenderSheet();
+}
 
+/* ---- prévia da cotação (lado direito) ---- */
+let quoteSheetUltimo = null;   /* item acabado de marcar: pisca na tabela */
+function quoteRenderSheet() {
+  if (!quoteSheetEl) return;
+  const val = id => (document.getElementById(id) || {}).value || "";
+  const linhas = quoteLinhas();
+  const total = linhas.reduce((a, l) => a + l.total, 0);
+  const emissao = val("q-emissao"), validade = val("q-validade"), obs = val("q-obs").trim();
+  let h = `
+    <div class="cq-doc-head">
+      <img src="assets/peregrinos-logo.png" alt="Peregrinos Intercâmbio">
+      <div class="t"><h3>COTAÇÃO</h3><div>${emissao ? `Emitida em ${escapeHtml(contratoDataBr(emissao))}` : ""}${validade ? ` · válida até ${escapeHtml(contratoDataBr(validade))}` : ""}</div></div>
+    </div>
+    <div class="cq-info">
+      <div><div class="l">Estudante</div><div class="v">${escapeHtml(val("q-nome").trim() || "—")}</div></div>
+      <div><div class="l">Consultor</div><div class="v">${escapeHtml(val("q-consultor").trim() || "—")}</div></div>
+    </div>`;
+  if (!linhas.length) {
+    h += `<div class="cq-blank">A cotação está vazia.<br>Marque os serviços na lista ao lado e eles aparecem aqui, com o total sendo calculado na hora.</div>`;
+  } else {
+    h += `<table class="cq-table"><thead><tr><th>Serviço</th><th class="c">Qtd</th><th class="r">Unit.</th><th class="r">Total</th><th></th></tr></thead><tbody>`;
+    linhas.forEach(({ p, qtd, total: tot }) => {
+      const meta = [quoteSchoolName(p), p.turno].filter(Boolean).join(" · ") || [p.categoria, p.destino].filter(Boolean).join(" · ");
+      h += `<tr class="${quoteSheetUltimo === p.id ? "new" : ""}">
+        <td class="it"><b>${escapeHtml(p.nome)}</b>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</td>
+        <td class="c">${p.qtdFixa ? 1 : `<span class="cq-qty"><button type="button" data-qs="dec" data-id="${p.id}" aria-label="Diminuir">−</button><input type="number" min="1" step="1" value="${qtd}" data-qs="qty" data-id="${p.id}" aria-label="Quantidade"><button type="button" data-qs="inc" data-id="${p.id}" aria-label="Aumentar">+</button></span>`}</td>
+        <td class="r">${currency(p.preco)}</td><td class="r"><b>${currency(tot)}</b></td>
+        <td><button type="button" class="cq-x" data-qs="rm" data-id="${p.id}" title="Remover da cotação">×</button></td></tr>`;
+      if (quoteShowSubs) (p.subs || []).forEach(sb => { h += `<tr class="sub"><td colspan="3">↳ ${escapeHtml(sb.nome)}</td><td class="r">${sb.valor ? currency(sb.valor) : ""}</td><td></td></tr>`; });
+    });
+    h += `</tbody></table>
+      <div class="cq-total"><span>Total</span><b id="quote-sheet-total">${currency(total)}</b></div>
+      <div class="cq-opts"><label><input type="checkbox" data-qs="subs" ${quoteShowSubs ? "checked" : ""}> mostrar subitens (o que está incluso)</label><button type="button" class="cq-clear" data-qs="clear">Limpar serviços</button></div>
+      <div class="cq-valid">Os subitens não somam no total: o total é preço × quantidade.</div>`;
+  }
+  if (obs) h += `<div class="cq-obs"><div class="l">Observações</div>${escapeHtml(obs)}</div>`;
+  quoteSheetEl.innerHTML = h;
+  quoteSheetUltimo = null;
+}
+function quoteBumpTotal() {
+  const t0 = document.getElementById("quote-sheet-total");
+  if (t0) { t0.classList.add("bump"); setTimeout(() => t0.classList.remove("bump"), 260); }
+}
+["q-nome", "q-consultor", "q-emissao", "q-validade", "q-obs"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener("input", quoteRenderSheet);
+});
+
+quoteSheetEl.addEventListener("click", e => {
+  const b = e.target.closest("[data-qs]");
+  if (!b) return;
+  const id = b.dataset.id, act = b.dataset.qs;
+  if (act === "rm") delete quoteSelecionados[id];
+  else if (act === "inc") quoteSelecionados[id] = (parseInt(quoteSelecionados[id], 10) || 1) + 1;
+  else if (act === "dec") quoteSelecionados[id] = Math.max(1, (parseInt(quoteSelecionados[id], 10) || 1) - 1);
+  else if (act === "clear") { if (!Object.keys(quoteSelecionados).length || !confirm("Tirar todos os serviços da cotação?")) return; quoteSelecionados = {}; }
+  else return;
+  quoteMontaCatalogo();
+  quoteBumpTotal();
+});
+quoteSheetEl.addEventListener("change", e => {
+  const el = e.target, act = el.dataset.qs;
+  if (act === "subs") { quoteShowSubs = el.checked; quoteRenderSheet(); return; }
+  if (act === "qty") {
+    quoteSelecionados[el.dataset.id] = Math.max(1, parseInt(el.value, 10) || 1);
+    quoteMontaCatalogo();
+    quoteBumpTotal();
+  }
+});
+
+/* ---- lista (lado esquerdo) ---- */
 /* digitando a quantidade o total já acompanha (sem esperar sair do campo) */
 quoteCatalogEl.addEventListener("input", e => {
   const el = e.target;
@@ -4675,11 +4750,12 @@ quoteCatalogEl.addEventListener("input", e => {
   const id = el.getAttribute("data-id");
   const p = quotePorId(id);
   const v = parseInt(el.value, 10);
-  if (!p || !(v >= 1) || !Object.prototype.hasOwnProperty.call(quoteSelecionados, id)) return;
+  if (!p || !(v >= 1) || !quoteTem(id)) return;
   quoteSelecionados[id] = v;
   const sub = quoteCatalogEl.querySelector(`[data-sub-for="${id}"]`);
   if (sub) sub.outerHTML = quoteSubtotalHtml(p, v);
   quoteAtualizaPrevia();
+  quoteBumpTotal();
 });
 
 quoteCatalogEl.addEventListener("change", e => {
@@ -4687,32 +4763,26 @@ quoteCatalogEl.addEventListener("change", e => {
   if (!id) return;
   if (el.getAttribute("data-role") === "pick") {
     const p = quotePorId(id);
-    if (el.checked) quoteSelecionados[id] = (p && p.qtdPadrao) || 1;
+    if (el.checked) { quoteSelecionados[id] = (p && p.qtdPadrao) || 1; quoteSheetUltimo = id; }
     else delete quoteSelecionados[id];
     quoteMontaCatalogo();
+    quoteBumpTotal();
     return;
   }
   if (el.getAttribute("data-role") === "qty") {
     const v = Math.max(1, parseInt(el.value, 10) || 1);
     el.value = v;
-    if (Object.prototype.hasOwnProperty.call(quoteSelecionados, id)) quoteSelecionados[id] = v;
+    if (quoteTem(id)) quoteSelecionados[id] = v;
     const p = quotePorId(id), sub = quoteCatalogEl.querySelector(`[data-sub-for="${id}"]`);
     if (p && sub) sub.outerHTML = quoteSubtotalHtml(p, v);
   }
   quoteAtualizaPrevia();
+  quoteBumpTotal();
 });
 
 quoteCatalogEl.addEventListener("click", e => {
-  const toggle = e.target.closest('button[data-role="toggle"]');
-  if (toggle) {
-    const caixa = toggle.closest(".qc-sub");
-    const corpo = caixa.querySelector(".qc-sub-body");
-    const abrir = corpo.hidden;
-    corpo.hidden = !abrir;
-    toggle.setAttribute("aria-expanded", String(abrir));
-    quoteAbertos[caixa.dataset.chave] = abrir;
-    return;
-  }
+  const nav = e.target.closest("[data-qnav]");
+  if (nav) { quoteNavPath = [...quoteNavPath, nav.dataset.qnav]; quoteMontaCatalogo(); return; }
   if (e.target.tagName === "INPUT" || e.target.tagName === "LABEL") return;
   const card = e.target.closest(".q-opt");
   if (!card) return;
@@ -4721,8 +4791,13 @@ quoteCatalogEl.addEventListener("click", e => {
   chk.checked = !chk.checked;
   chk.dispatchEvent(new Event("change", { bubbles: true }));
 });
-
-document.getElementById("q-destino").addEventListener("change", quoteMontaCatalogo);
+quoteCrumbsEl.addEventListener("click", e => {
+  const c = e.target.closest("[data-qcrumb]");
+  if (!c) return;
+  const k = parseInt(c.dataset.qcrumb, 10);
+  quoteNavPath = k < 0 ? [] : quoteNavPath.slice(0, k + 1);
+  quoteMontaCatalogo();
+});
 
 let quoteBuscaTimer = null;
 document.getElementById("q-busca").addEventListener("input", () => {
@@ -4738,7 +4813,7 @@ document.getElementById("q-btn-limpar").addEventListener("click", () => {
   document.getElementById("q-lead-summary").hidden = true;
   quoteLeadSearch.value = "";
   quoteSelecionados = {};
-  quoteAbertos = {};
+  quoteNavPath = [];
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
   quoteMontaCatalogo();
   document.getElementById("q-nome").focus();
