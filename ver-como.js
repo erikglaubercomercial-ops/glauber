@@ -29,7 +29,7 @@ async function viewAsPrepare(realSession) {
   if (!target || !realSession || realSession.role !== "ADM") { if (target) viewAsWrite(null); return realSession; }
   let person = null;
   if (target.userId) {
-    const { data } = await supabase.from("profiles").select("id, name, email, role, active").eq("id", target.userId).single();
+    const { data } = await supabase.from("profiles").select("id, name, email, role, active, also_influencer").eq("id", target.userId).single();
     person = data || null;
   }
   viewAs.active = true;
@@ -38,7 +38,7 @@ async function viewAsPrepare(realSession) {
   viewAs.userId = person ? person.id : null;
   viewAs.label = person ? person.name : target.role;
   viewAsInstallReadOnlyGuard();
-  return { ...realSession, role: target.role, id: person ? person.id : realSession.id, name: person ? person.name : `${realSession.name} (visão ${target.role})`, email: person ? person.email : realSession.email };
+  return { ...realSession, role: target.role, id: person ? person.id : realSession.id, name: person ? person.name : `${realSession.name} (visão ${target.role})`, email: person ? person.email : realSession.email, alsoInfluencer: person ? !!person.also_influencer : false };
 }
 
 const viewAsIsConsultor = () => viewAs.active && viewAs.role === "Consultor" && !!viewAs.userId;

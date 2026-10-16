@@ -27,7 +27,7 @@ async function getSession() {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, name, email, role, active")
+    .select("id, name, email, role, active, also_influencer")
     .eq("id", authSession.user.id)
     .single();
 
@@ -36,7 +36,7 @@ async function getSession() {
     await supabase.auth.signOut();
     return null;
   }
-  return profile;
+  return { ...profile, alsoInfluencer: !!profile.also_influencer };
 }
 
 async function signOut() {
@@ -71,21 +71,27 @@ async function setModuleAccess(role, moduleId, allowed) {
 
 function hasModuleAccess(role, moduleId) {
   if (role === "ADM") return true;
-  return !!(rolePermissions[role] && rolePermissions[role][moduleId]);
+  if (rolePermissions[role] && rolePermissions[role][moduleId]) return true;
+  /* dupla função (ex.: Consultor que também é Influencer): soma as permissões da segunda função */
+  if (typeof session !== "undefined" && session && session.role === role && session.alsoInfluencer) {
+    return !!(rolePermissions.Influencer && rolePermissions.Influencer[moduleId]);
+  }
+  return false;
 }
 
 /* ---- usuários (perfis) ---- */
 async function loadUsers() {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, email, role, active, created_at, team_id")
+    .select("id, name, email, role, active, created_at, team_id, also_influencer")
     .order("name");
   if (error) { console.error("Erro ao carregar usuários:", error); return []; }
   return (data || []).map(u => ({ ...u, createdAt: u.created_at ? new Date(u.created_at).getTime() : Date.now() }));
 }
 
-async function updateUserProfile(id, { name, role, active, teamId }) {
+async function updateUserProfile(id, { name, role, active, teamId, alsoInfluencer }) {
   const patch = { name, role, active };
+  if (alsoInfluencer !== undefined) patch.also_influencer = !!alsoInfluencer;
   if (teamId !== undefined) patch.team_id = teamId || null;
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   return !error;
