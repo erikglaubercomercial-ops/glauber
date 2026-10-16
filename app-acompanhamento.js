@@ -118,7 +118,7 @@ function renderAppTracking() {
    ============================================================ */
 const APPT_APP_URL = "https://peregrinos-app-intercambio.vercel.app";
 const apptLinkUrl = codigo => `${APPT_APP_URL}/i/${codigo}`;
-const apptMyLink = { data: null, team: null, error: null };
+const apptMyLink = { data: null, team: null, error: null, teamOpen: false };
 
 async function apptLoadMyLink() {
   const box = document.getElementById("appt-mylink");
@@ -143,21 +143,42 @@ function apptRenderMyLink() {
   const url = apptLinkUrl(d.codigo);
   const wa = `https://wa.me/?text=${encodeURIComponent(`Conheça o app de intercâmbio da Peregrinos: ${url}`)}`;
   let team = "";
-  if (Array.isArray(apptMyLink.team) && apptMyLink.team.length) {
+  if (Array.isArray(apptMyLink.team)) {
+    const cons = users.filter(u => isSellRole(u.role) && u.active !== false).sort((x, y) => x.name.localeCompare(y.name));
+    const infSources = Object.keys(sourceInfluencerConfig || {}).filter(k => sourceInfluencerConfig[k] && sourceInfluencerConfig[k].isInfluencer).sort();
     team = `
-      <details class="appt-team-links">
-        <summary>Links da equipe (${apptMyLink.team.length})</summary>
+      <details class="appt-team-links" ${apptMyLink.teamOpen ? "open" : ""}>
+        <summary>Links da equipe e dos influenciadores (${apptMyLink.team.length})</summary>
         <div class="table-scroll">
           <table class="data-table data-table-list">
-            <thead><tr><th>Divulgador</th><th>Função</th><th>Link</th><th class="num">Acessos</th><th class="num">Instalaram</th><th class="num">Cadastros</th></tr></thead>
-            <tbody>${apptMyLink.team.map(m => `
-              <tr class="appt-static-row">
-                <td><b>${escapeHtml(m.nome)}</b></td><td>${escapeHtml(m.role)}</td>
+            <thead><tr><th>Divulgador</th><th>Tipo</th><th>Link</th><th>Lead entra como</th><th class="num">Acessos</th><th class="num">Instalaram</th><th class="num">Cadastros</th><th></th></tr></thead>
+            <tbody>${apptMyLink.team.map(m => {
+              const ext = !m.user_id;
+              const entra = ext
+                ? `${escapeHtml(m.origem || "App " + m.nome)} · ${m.consultor_nome ? "dono: " + escapeHtml(m.consultor_nome) : "rodízio"}`
+                : `dono: ${escapeHtml(m.nome)}`;
+              return `
+              <tr class="appt-static-row${m.ativo ? "" : " off"}">
+                <td><b>${escapeHtml(m.nome)}</b>${m.ativo ? "" : ' <span class="prod-tag">desativado</span>'}</td><td>${escapeHtml(m.role)}</td>
                 <td><button type="button" class="btn btn-ghost btn-sm" data-appt-copy="${escapeHtml(apptLinkUrl(m.codigo))}">Copiar link</button> <small class="muted-note">/i/${escapeHtml(m.codigo)}</small></td>
+                <td><small>${entra}</small></td>
                 <td class="num">${apptNum(m.acessos)}</td><td class="num">${apptNum(m.instalaram)}</td><td class="num">${apptNum(m.cadastros)}</td>
-              </tr>`).join("")}</tbody>
+                <td>${ext ? `<button type="button" class="btn btn-ghost btn-sm" data-appt-inf="edit" data-code="${escapeHtml(m.codigo)}">Editar</button> <button type="button" class="btn btn-ghost btn-sm" data-appt-inf="toggle" data-code="${escapeHtml(m.codigo)}">${m.ativo ? "Desativar" : "Reativar"}</button>` : ""}</td>
+              </tr>`; }).join("")}</tbody>
           </table>
         </div>
+        <form class="appt-inf-form" id="appt-inf-form">
+          <b id="appt-inf-title">Novo link de influenciador (sem login no CRM)</b>
+          <input type="hidden" id="appt-inf-code">
+          <label>Nome<input type="text" id="appt-inf-nome" required placeholder="Ex.: Duda Viagens"></label>
+          <label>Lead entra com a origem
+            <select id="appt-inf-origem"><option value="">App + nome do influenciador (padrão)</option>${infSources.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)} (comissão de influencer)</option>`).join("")}</select>
+          </label>
+          <label>Consultor que recebe os leads
+            <select id="appt-inf-cons"><option value="">Rodízio (distribuição automática)</option>${cons.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}</select>
+          </label>
+          <div class="appt-inf-actions"><button type="submit" class="btn btn-primary btn-sm" id="appt-inf-save">Criar link</button> <button type="button" class="btn btn-ghost btn-sm" id="appt-inf-cancel" style="display:none;">Cancelar edição</button></div>
+        </form>
       </details>`;
   }
   box.innerHTML = `
@@ -847,3 +868,58 @@ async function apptLeadActivityToggled() {
 /* a ficha do lead existe desde o carregamento (não depende de abrir a
    tela do app antes), então o ouvinte é ligado já aqui */
 document.getElementById("lead-app-activity").addEventListener("toggle", apptLeadActivityToggled);
+
+/* ---- influenciadores sem login: criar, editar, desativar ---- */
+document.addEventListener("submit", async e => {
+  if (e.target.id !== "appt-inf-form") return;
+  e.preventDefault();
+  if (!apptIsManager()) return;
+  const code = document.getElementById("appt-inf-code").value;
+  const nome = document.getElementById("appt-inf-nome").value.trim();
+  const origem = document.getElementById("appt-inf-origem").value || null;
+  const cons = document.getElementById("appt-inf-cons").value || null;
+  if (!nome) return;
+  const btn = document.getElementById("appt-inf-save");
+  btn.disabled = true;
+  const res = code
+    ? await apptRpc("app_atualizar_parceiro", { p_codigo: code, p_ativo: true, p_origem: origem, p_consultor: cons })
+    : await apptRpc("app_criar_parceiro", { p_nome: nome, p_origem: origem, p_consultor: cons });
+  btn.disabled = false;
+  if (res.error) { alert("Não foi possível salvar o link do influenciador."); return; }
+  apptMyLink.teamOpen = true;
+  await apptLoadMyLink();
+});
+document.addEventListener("click", async e => {
+  const cancel = e.target.closest("#appt-inf-cancel");
+  if (cancel) { apptResetInfForm(); return; }
+  const b = e.target.closest("[data-appt-inf]");
+  if (!b || !apptIsManager()) return;
+  const m = (apptMyLink.team || []).find(x => x.codigo === b.dataset.code);
+  if (!m) return;
+  if (b.dataset.apptInf === "edit") {
+    document.getElementById("appt-inf-code").value = m.codigo;
+    document.getElementById("appt-inf-nome").value = m.nome;
+    document.getElementById("appt-inf-nome").disabled = true;
+    document.getElementById("appt-inf-origem").value = m.origem || "";
+    document.getElementById("appt-inf-cons").value = m.consultor_id || "";
+    document.getElementById("appt-inf-title").textContent = `Editar link de ${m.nome}`;
+    document.getElementById("appt-inf-save").textContent = "Salvar";
+    document.getElementById("appt-inf-cancel").style.display = "";
+    document.getElementById("appt-inf-form").scrollIntoView({ behavior: "smooth", block: "center" });
+  } else if (b.dataset.apptInf === "toggle") {
+    const res = await apptRpc("app_atualizar_parceiro", { p_codigo: m.codigo, p_ativo: !m.ativo, p_origem: m.origem || null, p_consultor: m.consultor_id || null });
+    if (res.error) { alert("Não foi possível alterar o link."); return; }
+    apptMyLink.teamOpen = true;
+    await apptLoadMyLink();
+  }
+});
+function apptResetInfForm() {
+  const f = document.getElementById("appt-inf-form");
+  if (!f) return;
+  f.reset();
+  document.getElementById("appt-inf-code").value = "";
+  document.getElementById("appt-inf-nome").disabled = false;
+  document.getElementById("appt-inf-title").textContent = "Novo link de influenciador (sem login no CRM)";
+  document.getElementById("appt-inf-save").textContent = "Criar link";
+  document.getElementById("appt-inf-cancel").style.display = "none";
+}

@@ -1620,7 +1620,7 @@ function getUnassignedLeads() {
   return leads.filter(l => !l.consultorId && l.active !== false && l.status !== "Descartado");
 }
 /* lead que se cadastrou pelo App de Intercâmbio (origem "App ...") */
-function leadIsFromApp(l) { return /^app\b/i.test(String(l.source || "")); }
+function leadIsFromApp(l) { return /^app\b/i.test(String(l.source || "")) || /^app\b/i.test(String(l.source2 || "")); }
 function getUnassignedAppLeads() { return getUnassignedLeads().filter(leadIsFromApp); }
 /* "?" vermelho que marca visualmente o lead sem consultor */
 function noConsultorMark() {
