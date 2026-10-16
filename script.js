@@ -937,7 +937,7 @@ function renderCard(deal) {
     ${emailText ? `<div class="card-email">${escapeHtml(emailText)}</div>` : ""}
     ${lead && (lead.source || lead.temperature) ? `
       <div class="card-tags">
-        ${lead.source ? originBadge(lead.source) : ""}
+        ${lead.source ? originBadges(lead) : ""}
         ${lead.temperature ? `<span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(statusLabel(lead.temperature))}</span>` : ""}
       </div>` : ""}
     ${consultant ? `<div class="card-consultor">${escapeHtml(consultant.name)}</div>` : `<div class="card-consultor card-consultor-none">${noConsultorMark()} ${escapeHtml(t("appt.noConsultor"))}</div>`}
@@ -1101,7 +1101,7 @@ function openDealModal(id) {
     document.getElementById("modal-title").textContent = t("deal.editTitle");
     document.getElementById("deal-id").value = deal.id;
     document.getElementById("field-name").value = deal.name;
-    document.getElementById("field-source").value = (lead && lead.source) || "—";
+    document.getElementById("field-source").value = originText(lead) || "—";
     document.getElementById("field-consultor-display").value = (consultant && consultant.name) || "—";
     document.getElementById("field-contact").value = deal.contact || "";
     document.getElementById("field-info").value = deal.info || "";
@@ -1459,6 +1459,12 @@ function originStyle(source) {
   return { color: DASH_PALETTE[hash % DASH_PALETTE.length], icon: ORIGIN_ICON_FALLBACK };
 }
 
+/* origem principal + segunda origem (quando houver) */
+function originBadges(lead) {
+  if (!lead || !lead.source) return "—";
+  return originBadge(lead.source) + (lead.source2 ? " " + originBadge(lead.source2) : "");
+}
+const originText = lead => (lead && lead.source ? [lead.source, lead.source2].filter(Boolean).join(" + ") : "");
 function originBadge(source) {
   if (!source) return "—";
   const style = originStyle(source);
@@ -1528,7 +1534,7 @@ function leadFromDb(r) {
   return {
     id: r.id, name: r.name, company: r.company || "", phone: r.phone || "", email: r.email || "",
     countryCode: r.country_code || "BR", phoneDdd: r.phone_ddd || "", phoneNumber: r.phone_number || "",
-    source: r.source, category: r.category, status: r.status, temperature: r.temperature || "",
+    source: r.source, source2: r.source2 || "", category: r.category, status: r.status, temperature: r.temperature || "",
     consultorId: r.consultor_id, active: r.active, notes: r.notes || "", pretendeVir: r.pretende_vir || "",
     bookingToken: r.booking_token || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
@@ -1543,7 +1549,7 @@ function leadToDb(l) {
   return {
     id: l.id, name: l.name, company: l.company, phone: l.phone, email: l.email,
     country_code: l.countryCode || "BR", phone_ddd: l.phoneDdd || "", phone_number: l.phoneNumber || "",
-    source: l.source, category: l.category, status: l.status, temperature: l.temperature || null,
+    source: l.source, source2: l.source2 || null, category: l.category, status: l.status, temperature: l.temperature || null,
     consultor_id: l.consultorId || null, active: l.active, notes: l.notes || "", pretende_vir: l.pretendeVir || "",
     created_at: new Date(l.createdAt).toISOString(),
     rotation_active: !!l.rotationActive,
@@ -1684,11 +1690,14 @@ function buildWhatsAppLink(digits) {
   return `https://wa.me/${digits}`;
 }
 
-function renderLeadFormOptions(currentSource) {
+function renderLeadFormOptions(currentSource, currentSource2) {
   document.getElementById("lead-field-category").innerHTML = CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join("");
   const sourceOptions = SOURCES.slice();
   if (currentSource && !sourceOptions.includes(currentSource)) sourceOptions.push(currentSource);
   document.getElementById("lead-field-source").innerHTML = sourceOptions.map(s => `<option value="${s}">${s}</option>`).join("");
+  const source2Options = SOURCES.slice();
+  if (currentSource2 && !source2Options.includes(currentSource2)) source2Options.push(currentSource2);
+  document.getElementById("lead-field-source2").innerHTML = `<option value="">— nenhuma —</option>` + source2Options.map(s => `<option value="${s}">${s}</option>`).join("");
   document.getElementById("lead-field-temperature").innerHTML = `<option value="">${t("common.select")}</option>` +
     TEMPERATURES.map(temp => `<option value="${temp}">${escapeHtml(statusLabel(temp))}</option>`).join("");
 }
@@ -1868,7 +1877,7 @@ function getFilteredLeads() {
 
   return base.filter(l => {
     if (status && (l.status || "Novo") !== status) return false;
-    if (source && l.source !== source) return false;
+    if (source && l.source !== source && l.source2 !== source) return false;
     if (consultorId && l.consultorId !== consultorId) return false;
     if (dateFrom && l.createdAt < new Date(`${dateFrom}T00:00:00`).getTime()) return false;
     if (dateTo && l.createdAt > new Date(`${dateTo}T23:59:59`).getTime()) return false;
@@ -1920,7 +1929,7 @@ function renderLeads() {
             <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.email)}" title="${t("lead.copyEmail")}">${CELL_COPY_ICON_SVG}</button>
           </div>` : "—"}
       </td>
-      <td class="cell-muted">${originBadge(lead.source)}</td>
+      <td class="cell-muted">${originBadges(lead)}</td>
       <td class="cell-muted">${lead.pretendeVir ? escapeHtml(lead.pretendeVir) : "—"}</td>
       <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : (lead.active === false ? "—" : noConsultorMark())}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
@@ -2390,7 +2399,7 @@ function renderStuckDetailTable() {
         <td class="cell-check"><input type="checkbox" class="stuck-row-checkbox" data-id="${l.id}" ${selectedStuckLeadIds.has(l.id) ? "checked" : ""}></td>
         <td class="cell-primary">${leadLink(l.id, l.name)}</td>
         <td class="cell-muted">${escapeHtml(l.email || l.phone || "—")}</td>
-        <td class="cell-muted">${escapeHtml(l.source || "—")}</td>
+        <td class="cell-muted">${escapeHtml(originText(l) || "—")}</td>
         <td><span class="badge ${TEMPERATURE_BADGE[l.temperature] || "badge-neutral"}">${escapeHtml(statusLabel(l.temperature) || "—")}</span></td>
         <td><span class="badge ${stuckDaysBadgeClass(days)}">${days} dia(s)</span></td>
       </tr>`;
@@ -2458,7 +2467,7 @@ function refreshStuckLeadsAfterReassign(reassignedIds) {
 function openLeadModal(id) {
   leadForm.reset();
   const existingLead = id ? leads.find(l => l.id === id) : null;
-  renderLeadFormOptions(existingLead ? existingLead.source : null);
+  renderLeadFormOptions(existingLead ? existingLead.source : null, existingLead ? existingLead.source2 : null);
   renderLeadCountryOptions(document.getElementById("lead-field-country"));
   if (id) {
     const lead = existingLead;
@@ -2470,6 +2479,7 @@ function openLeadModal(id) {
     document.getElementById("lead-field-email").value = lead.email || "";
     document.getElementById("lead-field-category").value = lead.category || "Outro";
     document.getElementById("lead-field-source").value = lead.source || "Indicação";
+    document.getElementById("lead-field-source2").value = lead.source2 || "";
     document.getElementById("lead-field-temperature").value = lead.temperature || "";
     document.getElementById("lead-field-status").value = lead.status || "Novo";
     document.getElementById("lead-field-notes").value = lead.notes || "";
@@ -2485,6 +2495,7 @@ function openLeadModal(id) {
     document.getElementById("lead-field-country").value = "BR";
     document.getElementById("lead-field-category").value = "Outro";
     document.getElementById("lead-field-source").value = "Indicação";
+    document.getElementById("lead-field-source2").value = "";
     document.getElementById("lead-field-temperature").value = "";
     document.getElementById("lead-field-active").checked = true;
     document.getElementById("lead-field-referred-by").value = "";
@@ -2506,6 +2517,9 @@ function openLeadModal(id) {
   const sourceLocked = !!id && !canEditLeadSource();
   sourceField.disabled = sourceLocked;
   sourceField.title = sourceLocked ? t("lead.sourceLockedHint") : "";
+  const source2Field = document.getElementById("lead-field-source2");
+  source2Field.disabled = sourceLocked;
+  source2Field.title = sourceLocked ? t("lead.sourceLockedHint") : "";
 
   apptSetupLeadActivity(id || null);
   leadModalBackdrop.classList.add("open");
@@ -2586,6 +2600,7 @@ leadForm.addEventListener("submit", async e => {
     email: document.getElementById("lead-field-email").value.trim(),
     category: document.getElementById("lead-field-category").value,
     source: document.getElementById("lead-field-source").value,
+    source2: (document.getElementById("lead-field-source2").value === document.getElementById("lead-field-source").value) ? "" : document.getElementById("lead-field-source2").value,
     temperature: document.getElementById("lead-field-temperature").value,
     status: document.getElementById("lead-field-status").value,
     notes: document.getElementById("lead-field-notes").value.trim(),
@@ -2923,7 +2938,7 @@ const sourcesListEl = document.getElementById("sources-list");
 const sourcesNewInput = document.getElementById("sources-new-input");
 
 function sourceUsageCount(name) {
-  return leads.filter(l => l.source === name).length;
+  return leads.filter(l => l.source === name || l.source2 === name).length;
 }
 
 function renderSourcesList() {
@@ -2984,7 +2999,7 @@ sourcesListEl.addEventListener("change", async e => {
   if (newName === oldName) return;
 
   SOURCES[index] = newName;
-  leads.forEach(l => { if (l.source === oldName) l.source = newName; });
+  leads.forEach(l => { if (l.source === oldName) l.source = newName; if (l.source2 === oldName) l.source2 = newName; });
   if (sourceInfluencerConfig[oldName]) {
     sourceInfluencerConfig[newName] = sourceInfluencerConfig[oldName];
     delete sourceInfluencerConfig[oldName];
@@ -5460,7 +5475,7 @@ function renderFinanceiroOverview() {
     tr.innerHTML = `
       <td class="cell-check"><input type="checkbox" class="fin-overview-checkbox" data-id="${d.id}" ${finOverviewSelectedIds.has(d.id) ? "checked" : ""}></td>
       <td class="cell-primary">${leadLink(d.leadId, d.name)}</td>
-      <td class="cell-muted">${lead ? escapeHtml(lead.source || "—") : "—"}</td>
+      <td class="cell-muted">${lead ? escapeHtml(originText(lead) || "—") : "—"}</td>
       <td class="cell-muted">${lead ? escapeHtml(lead.email || "—") : "—"}</td>
       <td><span class="badge ${badgeClass}">${escapeHtml(dealStatusLabel(d))}</span></td>
       <td>${currency(d.value)}</td>
@@ -7982,8 +7997,8 @@ function renderDashboardOrigemChart() {
 
   const counts = {};
   leads.filter(l => l.active !== false).forEach(l => {
-    const k = l.source || "Outro";
-    counts[k] = (counts[k] || 0) + 1;
+    /* lead com duas origens conta nas duas */
+    [l.source || "Outro", l.source2].filter(Boolean).forEach(k => { counts[k] = (counts[k] || 0) + 1; });
   });
   const labels = Object.keys(counts);
 

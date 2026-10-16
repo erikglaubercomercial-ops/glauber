@@ -213,7 +213,7 @@ function fxRenderHero(d) {
       <div class="fx-avatar">${fxEsc(fxInitials(lead.name))}</div>
       <div>
         <h2>${fxEsc(lead.name)}</h2>
-        <p>${[lead.email, lead.phone, lead.source ? "origem: " + lead.source : "", d.consultor ? "consultor: " + d.consultor.name : "", fxTeamName(d)].filter(Boolean).map(fxEsc).join(" · ")}</p>
+        <p>${[lead.email, lead.phone, lead.source ? "origem: " + [lead.source, lead.source2].filter(Boolean).join(" + ") : "", d.consultor ? "consultor: " + d.consultor.name : "", fxTeamName(d)].filter(Boolean).map(fxEsc).join(" · ")}</p>
       </div>
     </div>
     <div class="fx-badges">${badges.join("")}</div>
@@ -350,7 +350,7 @@ function fxRenderCards(d) {
     cards.push(h);
   } else {
     cards.push(`<div class="fx-card"><h3><span class="ic">👤</span>Dados do lead</h3>
-      ${fxRow("Telefone", fxEsc(lead.phone || "—"))}${fxRow("E-mail", fxEsc(lead.email || "—"))}${fxRow("Origem", fxEsc(lead.source || "—"))}
+      ${fxRow("Telefone", fxEsc(lead.phone || "—"))}${fxRow("E-mail", fxEsc(lead.email || "—"))}${fxRow("Origem", fxEsc([lead.source, lead.source2].filter(Boolean).join(" + ") || "—"))}
       ${fxRow("Pretende vir", fxEsc(lead.pretende_vir || "—"))}${fxRow("Status", fxEsc(lead.status || "—"))}</div>`);
   }
 
