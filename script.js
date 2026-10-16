@@ -16,9 +16,8 @@ function canAccessView(view) {
   /* Time: a Arena dos Times é para todo o time (competição); o cadastro de colaboradores segue a permissão do módulo */
   if (view === "colaboradores") return session.role !== "Influencer";
   if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
-  /* uso do App de Intercâmbio: ADM/Gerente veem tudo; Consultor só a aba
-     Usuários (e o banco só devolve os leads dele). Quem restringe de
-     verdade são as funções app_* do Supabase, que conferem o papel. */
+  /* uso do App de Intercâmbio: ADM/Gerente veem tudo; o Consultor vê só o dashboard de números
+     (sem leads/usuários do app). Quem restringe de verdade são as funções app_* do Supabase. */
   if (view === "appacomp") return session.role === "ADM" || session.role === "Gerente" || session.role === "Consultor";
   if (view === "meusleads") return hasModuleAccess(session.role, "leads");
   if (view === "escolas") return hasModuleAccess(session.role, "produtos") || hasModuleAccess(session.role, "cotacao");

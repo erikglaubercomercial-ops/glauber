@@ -1,7 +1,7 @@
 /* ============================================================
    APP · ACOMPANHAMENTO — uso do App de Intercâmbio (visitantes
    anônimos e suas ações, ligados ao lead quando preenchem o
-   formulário). Só leitura: chama as funções app_metricas,
+   formulário). Gestores (ADM/Gerente) veem tudo; o Consultor vê só o dashboard de números. Só leitura: chama as funções app_metricas,
    app_usuarios e app_linha_do_tempo do Supabase com a sessão do
    usuário logado; as permissões são conferidas dentro delas.
    Depende de script.js (session, t, escapeHtml, currency, leads,
@@ -101,13 +101,15 @@ function apptErrorMessage(kind) {
 function renderAppTracking() {
   if (!session) return;
   apptInit();
+  /* Consultor: só o dashboard com os números (sem usuários/leads do app e sem valores em €) */
   const manager = apptIsManager();
   document.getElementById("appt-subtabs").style.display = manager ? "" : "none";
-  if (!manager) apptState.tab = "users";
+  if (!manager) apptState.tab = "overview";
   apptSetTab(apptState.tab);
 }
 
 function apptSetTab(tab) {
+  if (!apptIsManager()) tab = "overview";
   apptState.tab = tab;
   document.querySelectorAll("#appt-subtabs .subtab").forEach(b => b.classList.toggle("active", b.dataset.apptTab === tab));
   document.getElementById("subview-appt-overview").classList.toggle("active", tab === "overview");
@@ -303,7 +305,7 @@ function apptRenderOverview() {
       <div class="stat-card"><span class="stat-label">${escapeHtml(t("appt.statInstalled"))}</span><span class="stat-value">${apptNum(resumo.instalaram)}</span></div>
       <div class="stat-card"><span class="stat-label">${escapeHtml(t("appt.statLeads"))}</span><span class="stat-value">${apptNum(resumo.leads)}</span></div>
       <div class="stat-card"><span class="stat-label">${escapeHtml(t("appt.statSales"))}</span><span class="stat-value">${apptNum(resumo.vendas)}</span></div>
-      <div class="stat-card"><span class="stat-label">${escapeHtml(t("appt.statValue"))}</span><span class="stat-value">${escapeHtml(currency(resumo.valor_vendas))}</span></div>
+      ${apptIsManager() ? `<div class="stat-card"><span class="stat-label">${escapeHtml(t("appt.statValue"))}</span><span class="stat-value">${escapeHtml(currency(resumo.valor_vendas))}</span></div>` : ""}
     </div>
 
     <div class="dash-grid-2 appt-grid">
@@ -415,14 +417,14 @@ function apptOriginsHtml(origens) {
       <table class="data-table data-table-list appt-origins-table">
         <thead><tr>
           ${th("origem", t("appt.colOrigin"))}${th("visitantes", t("appt.colVisitors"), "num")}${th("leads", t("appt.colLeads"), "num")}
-          ${th("vendas", t("appt.colSales"), "num")}${th("valor", t("appt.colValue"), "num")}
+          ${th("vendas", t("appt.colSales"), "num")}${apptIsManager() ? th("valor", t("appt.colValue"), "num") : ""}
           ${th("v2l", t("appt.colVisitorToLead"), "num")}${th("l2s", t("appt.colLeadToSale"), "num")}
         </tr></thead>
         <tbody>${rows.map(o => `
           <tr class="appt-static-row">
             <td><b>${escapeHtml(o.origem)}</b></td>
             <td class="num">${apptNum(o.visitantes)}</td><td class="num">${apptNum(o.leads)}</td>
-            <td class="num">${apptNum(o.vendas)}</td><td class="num">${escapeHtml(currency(o.valor))}</td>
+            <td class="num">${apptNum(o.vendas)}</td>${apptIsManager() ? `<td class="num">${escapeHtml(currency(o.valor))}</td>` : ""}
             <td class="num">${apptPct(o.v2l)}</td><td class="num">${apptPct(o.l2s)}</td>
           </tr>`).join("")}</tbody>
       </table>
