@@ -3482,7 +3482,7 @@ function quoteRowToDb(q) {
 async function loadQuotes() {
   const { data, error } = await supabase.from("quotes").select("*").order("created_at", { ascending: false });
   if (error) { console.error("Erro ao carregar cotações:", error); return []; }
-  return data.map(quoteRowFromDb);
+  return (await viewAsScopeRows("quotes", data)).map(quoteRowFromDb);
 }
 async function saveQuoteRow(q) {
   const { error } = await supabase.from("quotes").upsert(quoteRowToDb(q));

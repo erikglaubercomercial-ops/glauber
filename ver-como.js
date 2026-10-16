@@ -54,6 +54,7 @@ async function viewAsScopeRows(kind, rows) {
   const uid = viewAs.userId;
   if (kind === "leads" || kind === "enrollments" || kind === "commissions") return rows.filter(r => r.consultor_id === uid);
   const own = await viewAsOwnLeadIds();
+  if (kind === "quotes") return rows.filter(r => r.consultor_id === uid || own.has(r.lead_id));
   if (kind === "deals") return rows.filter(r => r.consultor_id === uid || own.has(r.lead_id));
   if (kind === "contracts" || kind === "followups") return rows.filter(r => own.has(r.lead_id));
   return rows;
