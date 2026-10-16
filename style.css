@@ -2737,3 +2737,14 @@ body > .public-page { width: 100%; min-width: 0; }
 .va-bar button { border: none; background: var(--warn); color: #231403; font-weight: 800; border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 12.5px; white-space: nowrap; }
 .va-bar button:hover { filter: brightness(1.06); }
 @media (max-width: 700px) { .va-bar { top: 6px; font-size: 11.5px; padding-left: 12px; } .va-bar > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+
+/* ===== App · link de divulgação ===== */
+.appt-mylink-panel { margin-bottom: 16px; }
+.appt-mylink-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 4px 20px 6px; }
+.appt-mylink-row input { flex: 1 1 280px; min-width: 0; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--content-bg); font: inherit; font-size: 13.5px; }
+.appt-mylink-stats { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 20px 16px; }
+.appt-mylink-stats span { display: flex; flex-direction: column; min-width: 130px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--content-bg); }
+.appt-mylink-stats b { font-size: 22px; color: var(--primary-deep); }
+.appt-mylink-stats small { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+.appt-team-links { margin: 0 20px 16px; border-top: 1px solid var(--border); padding-top: 10px; }
+.appt-team-links summary { cursor: pointer; font-weight: 800; color: var(--primary-deep); font-size: 13.5px; padding: 4px 0; }

@@ -101,12 +101,91 @@ function apptErrorMessage(kind) {
 function renderAppTracking() {
   if (!session) return;
   apptInit();
-  /* Consultor: só o dashboard com os números (sem usuários/leads do app e sem valores em €) */
+  apptLoadMyLink();
+  /* Consultor: dashboard de números (sem usuários/leads do app e sem valores em €); Influencer: só o link */
   const manager = apptIsManager();
+  const onlyLink = apptRole() === "Influencer";
   document.getElementById("appt-subtabs").style.display = manager ? "" : "none";
+  document.getElementById("subview-appt-overview").style.display = onlyLink ? "none" : "";
+  document.getElementById("subview-appt-users").style.display = onlyLink ? "none" : "";
   if (!manager) apptState.tab = "overview";
+  if (onlyLink) return;
   apptSetTab(apptState.tab);
 }
+
+/* ============================================================
+   LINK DE DIVULGAÇÃO: cada pessoa vê só o seu; quem se cadastra pelo link vira lead dela
+   ============================================================ */
+const APPT_APP_URL = "https://peregrinos-app-intercambio.vercel.app";
+const apptLinkUrl = codigo => `${APPT_APP_URL}/i/${codigo}`;
+const apptMyLink = { data: null, team: null, error: null };
+
+async function apptLoadMyLink() {
+  const box = document.getElementById("appt-mylink");
+  if (!box) return;
+  const emVisao = typeof viewAs !== "undefined" && viewAs.active;
+  const args = emVisao && viewAs.userId ? { p_user: viewAs.userId } : {};
+  const { data, error } = await apptRpc("app_meu_link", args);
+  apptMyLink.data = data; apptMyLink.error = error;
+  if (apptIsManager() && !emVisao) {
+    const t2 = await apptRpc("app_links_equipe", {});
+    apptMyLink.team = t2.data;
+    apptLoadOriginOptions();
+  } else apptMyLink.team = null;
+  apptRenderMyLink();
+}
+
+function apptRenderMyLink() {
+  const box = document.getElementById("appt-mylink");
+  const d = apptMyLink.data;
+  if (!box) return;
+  if (!d || !d.codigo) { box.innerHTML = ""; return; }
+  const url = apptLinkUrl(d.codigo);
+  const wa = `https://wa.me/?text=${encodeURIComponent(`Conheça o app de intercâmbio da Peregrinos: ${url}`)}`;
+  let team = "";
+  if (Array.isArray(apptMyLink.team) && apptMyLink.team.length) {
+    team = `
+      <details class="appt-team-links">
+        <summary>Links da equipe (${apptMyLink.team.length})</summary>
+        <div class="table-scroll">
+          <table class="data-table data-table-list">
+            <thead><tr><th>Divulgador</th><th>Função</th><th>Link</th><th class="num">Acessos</th><th class="num">Instalaram</th><th class="num">Cadastros</th></tr></thead>
+            <tbody>${apptMyLink.team.map(m => `
+              <tr class="appt-static-row">
+                <td><b>${escapeHtml(m.nome)}</b></td><td>${escapeHtml(m.role)}</td>
+                <td><button type="button" class="btn btn-ghost btn-sm" data-appt-copy="${escapeHtml(apptLinkUrl(m.codigo))}">Copiar link</button> <small class="muted-note">/i/${escapeHtml(m.codigo)}</small></td>
+                <td class="num">${apptNum(m.acessos)}</td><td class="num">${apptNum(m.instalaram)}</td><td class="num">${apptNum(m.cadastros)}</td>
+              </tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </details>`;
+  }
+  box.innerHTML = `
+    <div class="panel appt-mylink-panel">
+      <div class="panel-header"><h2>Seu link de divulgação</h2></div>
+      <p class="q-card-sub">Quem se cadastrar no app por este link vira lead seu e aparece na sua lista de leads. Só você vê este link.</p>
+      <div class="appt-mylink-row">
+        <input type="text" id="appt-mylink-url" readonly value="${escapeHtml(url)}">
+        <button type="button" class="btn btn-primary btn-sm" data-appt-copy="${escapeHtml(url)}">Copiar link</button>
+        <a class="btn btn-ghost btn-sm" href="${escapeHtml(wa)}" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+      </div>
+      <div class="appt-mylink-stats">
+        <span><b>${apptNum(d.acessos)}</b><small>acessos pelo seu link</small></span>
+        <span><b>${apptNum(d.instalaram)}</b><small>instalaram o app</small></span>
+        <span><b>${apptNum(d.cadastros)}</b><small>se cadastraram (viraram seus leads)</small></span>
+      </div>
+      ${team}
+    </div>`;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-appt-copy]");
+  if (!b) return;
+  const url = b.dataset.apptCopy;
+  try { await navigator.clipboard.writeText(url); }
+  catch (err) { const i = document.getElementById("appt-mylink-url"); if (i) { i.value = url; i.select(); document.execCommand("copy"); } }
+  const old = b.textContent; b.textContent = "Copiado ✓";
+  setTimeout(() => { b.textContent = old; }, 1500);
+});
 
 function apptSetTab(tab) {
   if (!apptIsManager()) tab = "overview";

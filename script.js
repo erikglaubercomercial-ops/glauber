@@ -18,7 +18,7 @@ function canAccessView(view) {
   if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
   /* uso do App de Intercâmbio: ADM/Gerente veem tudo; o Consultor vê só o dashboard de números
      (sem leads/usuários do app). Quem restringe de verdade são as funções app_* do Supabase. */
-  if (view === "appacomp") return session.role === "ADM" || session.role === "Gerente" || session.role === "Consultor";
+  if (view === "appacomp") return session.role === "ADM" || session.role === "Gerente" || session.role === "Consultor" || session.role === "Influencer";
   if (view === "meusleads") return hasModuleAccess(session.role, "leads");
   if (view === "escolas") return hasModuleAccess(session.role, "produtos") || hasModuleAccess(session.role, "cotacao");
   return hasModuleAccess(session.role, view);
