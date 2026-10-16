@@ -691,7 +691,7 @@ function advanceLeadPipelineStage(leadId) {
 async function loadDeals() {
   const { data, error } = await supabase.from("deals").select("*").order("created_at", { ascending: false });
   if (error) { console.error("Erro ao carregar pipeline:", error); return []; }
-  return data.map(dealFromDb);
+  return (await viewAsScopeRows("deals", data)).map(dealFromDb);
 }
 async function saveDeals(list) {
   const target = list || deals;
@@ -754,7 +754,7 @@ let openFollowups = [];
 async function loadOpenFollowups() {
   const { data, error } = await supabase.from("lead_followups").select("lead_id, due_at").eq("done", false);
   if (error) { console.error("Erro ao carregar follow-ups em aberto:", error); return []; }
-  return data;
+  return viewAsScopeRows("followups", data);
 }
 async function refreshOpenFollowups() {
   openFollowups = await loadOpenFollowups();
@@ -1557,7 +1557,7 @@ function leadToDb(l) {
 async function loadLeads() {
   const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
   if (error) { console.error("Erro ao carregar leads:", error); return []; }
-  return data.map(leadFromDb);
+  return (await viewAsScopeRows("leads", data)).map(leadFromDb);
 }
 async function saveLeads() {
   const { error } = await supabase.from("leads").upsert(leads.map(leadToDb));
@@ -3150,7 +3150,7 @@ function contractToDb(c) {
 async function loadContracts() {
   const { data, error } = await supabase.from("contracts").select("*").order("created_at", { ascending: false });
   if (error) { console.error("Erro ao carregar contratos:", error); return []; }
-  return data.map(contractFromDb);
+  return (await viewAsScopeRows("contracts", data)).map(contractFromDb);
 }
 async function saveContractRemote(c) {
   const { data, error } = await supabase.from("contracts").upsert(contractToDb(c)).select().single();
@@ -5130,7 +5130,7 @@ function commissionToDb(c) {
 async function loadCommissions() {
   const { data, error } = await supabase.from("commissions").select("*").order("created_at", { ascending: false });
   if (error) { console.error("Erro ao carregar comissões:", error); return []; }
-  return data.map(commissionFromDb);
+  return (await viewAsScopeRows("commissions", data)).map(commissionFromDb);
 }
 async function saveCommission(c) {
   const { error } = await supabase.from("commissions").upsert(commissionToDb(c));
@@ -6353,7 +6353,7 @@ document.getElementById("student-access-btn-copy").addEventListener("click", asy
 async function loadEnrollments() {
   const { data, error } = await supabase.from("enrollments").select("*").order("created_at", { ascending: false });
   if (error) { console.error("Erro ao carregar matrículas:", error); return []; }
-  return data.map(enrollmentFromDb);
+  return (await viewAsScopeRows("enrollments", data)).map(enrollmentFromDb);
 }
 async function saveEnrollmentRemote(e) {
   const { data, error } = await supabase.from("enrollments").upsert(enrollmentToDb(e)).select().single();
@@ -6977,7 +6977,7 @@ async function updateTeamAnnouncementRemote(message, recipients) {
 /* popup de aviso: aparece na primeira entrada depois de cada envio */
 function showTeamAnnouncementPopup() {
   const a = teamAnnouncement;
-  if (!session || session.role === "ADM" || !a.message || !announcementTargetsMe(a)) return;
+  if (!session || viewAs.active || session.role === "ADM" || !a.message || !announcementTargetsMe(a)) return;
   if (a.readAt && a.updatedAt && a.readAt >= a.updatedAt) return;
   const box = document.createElement("div");
   box.className = "modal-backdrop open tm-popup-backdrop";
@@ -9181,6 +9181,7 @@ document.addEventListener("keydown", e => {
     window.location.href = "login.html";
     return;
   }
+  session = await viewAsPrepare(session);   /* ADM vendo como outra função (ver-como.js) */
 
   await loadRolePermissions();
 
@@ -9258,6 +9259,7 @@ document.addEventListener("keydown", e => {
     renderPermissionsTable();
   }
 
+  viewAsInitUi();
   document.body.style.visibility = "visible";
   showTeamAnnouncementPopup();
 })();

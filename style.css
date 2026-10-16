@@ -2719,3 +2719,21 @@ body > .public-page { width: 100%; min-width: 0; }
 .cq-valid { margin-top: 10px; font-size: 11.5px; color: var(--text-muted); }
 .cq-obs { margin-top: 12px; background: var(--content-bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 12.5px; white-space: pre-wrap; }
 .cq-blank { padding: 34px 10px 30px; text-align: center; color: var(--text-muted); font-size: 13.5px; line-height: 1.55; }
+
+/* ===== VER COMO… (ADM olhando como consultor/outra função) ===== */
+.va-btn.on { background: rgba(251, 157, 45, 0.18); color: #ffd9a3; }
+.va-menu { position: fixed; z-index: 130; width: 280px; max-height: min(70vh, 520px); overflow: auto; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 18px 44px rgba(10, 25, 50, 0.3); padding: 8px; }
+.va-title { font-size: 13px; font-weight: 800; color: var(--primary-deep); padding: 8px 10px 6px; }
+.va-sep { font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); padding: 10px 10px 4px; }
+.va-item { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; border: none; background: transparent; padding: 8px 10px; border-radius: 10px; cursor: pointer; font: inherit; color: var(--text); }
+.va-item b { font-size: 13.5px; }
+.va-item small { font-size: 11.5px; color: var(--text-muted); }
+.va-item:hover { background: var(--content-bg); }
+.va-item.on { background: color-mix(in srgb, var(--warn) 16%, #fff); box-shadow: inset 0 0 0 1.5px var(--warn); }
+.va-empty { font-size: 12.5px; color: var(--text-muted); padding: 6px 10px; }
+.va-note { font-size: 11.5px; color: var(--text-muted); padding: 10px 10px 4px; border-top: 1px solid var(--border); margin-top: 8px; line-height: 1.4; }
+.va-bar { position: fixed; top: 10px; left: calc(50% - 90px); transform: translateX(-50%); z-index: 125; display: flex; align-items: center; gap: 10px; background: #231403; color: #ffe9c7; border: 1.5px solid var(--warn); border-radius: 999px; padding: 7px 8px 7px 16px; font-size: 13px; box-shadow: 0 10px 28px rgba(10, 25, 50, 0.3); max-width: calc(100vw - 24px); }
+.va-bar b { color: #fff; }
+.va-bar button { border: none; background: var(--warn); color: #231403; font-weight: 800; border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 12.5px; white-space: nowrap; }
+.va-bar button:hover { filter: brightness(1.06); }
+@media (max-width: 700px) { .va-bar { top: 6px; font-size: 11.5px; padding-left: 12px; } .va-bar > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
