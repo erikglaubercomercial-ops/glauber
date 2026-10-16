@@ -2041,7 +2041,7 @@ function toggleBulkMenu(triggerEl) {
   menu.style.top = `${rect.bottom + 4}px`;
   menu.style.left = `${Math.max(8, rect.right - 190)}px`;
   menu.innerHTML = `
-    <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
+    ${canDirectLeads() ? '<button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>' : ""}
     <button type="button" class="row-menu-item" data-action="status">Mudar status</button>
     <button type="button" class="row-menu-item" data-action="temperature">Mudar temperatura</button>
     <button type="button" class="row-menu-item" data-action="category">Mudar categoria</button>
@@ -2053,7 +2053,7 @@ function toggleBulkMenu(triggerEl) {
   document.body.appendChild(menu);
   openBulkMenuEl = menu;
 
-  menu.querySelector('[data-action="assign"]').addEventListener("click", () => {
+  menu.querySelector('[data-action="assign"]')?.addEventListener("click", () => {
     closeBulkMenu();
     openAssignModal(ids);
   });
@@ -2186,7 +2186,7 @@ function toggleRowMenu(lead, triggerEl) {
   const isInactive = lead.active === false;
   menu.innerHTML = `
     <button type="button" class="row-menu-item" data-action="edit">Editar lead</button>
-    <button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>
+    ${canDirectLeads() ? '<button type="button" class="row-menu-item" data-action="assign">Atribuir consultor</button>' : ""}
     <button type="button" class="row-menu-item" data-action="status">Mudar status</button>
     <button type="button" class="row-menu-item" data-action="temperature">Mudar temperatura</button>
     <button type="button" class="row-menu-item" data-action="category">Mudar categoria</button>
@@ -2204,7 +2204,7 @@ function toggleRowMenu(lead, triggerEl) {
     closeRowMenu();
     openLeadModal(lead.id);
   });
-  menu.querySelector('[data-action="assign"]').addEventListener("click", () => {
+  menu.querySelector('[data-action="assign"]')?.addEventListener("click", () => {
     closeRowMenu();
     openAssignModal([lead.id]);
   });
@@ -2272,6 +2272,7 @@ const assignFieldConsultor = document.getElementById("assign-field-consultor");
 let assigningLeadIds = [];
 
 function openAssignModal(leadIds) {
+  if (!canDirectLeads()) return;   /* só ADM e Gerente atribuem consultor */
   assigningLeadIds = leadIds;
   const consultants = users.filter(u => isSellRole(u.role));
   assignFieldConsultor.innerHTML = `<option value="">Sem consultor</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
@@ -7577,7 +7578,8 @@ function renderFormResponses() {
   const tbody = document.getElementById("fr-tbody");
   if (!form) { thead.innerHTML = ""; tbody.innerHTML = ""; return; }
 
-  const canConvert = hasModuleAccess(session.role, "leads");
+  /* transformar em lead e escolher/atribuir consultor: só ADM e Gerente (consultor não distribui lead) */
+  const canConvert = hasModuleAccess(session.role, "leads") && canDirectLeads();
   const consultants = users.filter(u => isSellRole(u.role));
 
   thead.innerHTML = `<tr>
@@ -7672,6 +7674,8 @@ function renderFormResponses() {
   });
 
   const bulkConsultorSel = document.getElementById("fr-bulk-consultor");
+  bulkConsultorSel.style.display = canDirectLeads() ? "" : "none";
+  document.getElementById("fr-bulk-assign").style.display = canDirectLeads() ? "" : "none";
   bulkConsultorSel.innerHTML = `<option value="">${t("forms.noConsultant")}</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
 
   updateFrSelectAllState(rows);
@@ -7716,6 +7720,7 @@ document.getElementById("fr-bulk-delete").addEventListener("click", async () => 
   await deleteFormSubmissionsRemote(ids);
 });
 document.getElementById("fr-bulk-assign").addEventListener("click", async () => {
+  if (!canDirectLeads()) return;
   const ids = Array.from(frSelectedIds);
   if (!ids.length) return;
   const consultorId = document.getElementById("fr-bulk-consultor").value || null;
@@ -7773,6 +7778,7 @@ function buildLeadFromSubmission(form, submission) {
 }
 
 async function convertSubmissionToLead(submissionId, consultorId) {
+  if (!canDirectLeads()) return;
   const submission = formSubmissions.find(s => s.id === submissionId);
   const form = forms.find(f => f.id === formResponsesFormId);
   if (!submission || !form) return;
