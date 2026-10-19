@@ -190,6 +190,7 @@ function switchView(view) {
   }
   if (view === "escolas") renderEscolas();
   if (view === "appacomp") renderAppTracking();
+  if (view === "templates" && typeof renderEmailTemplates === "function") renderEmailTemplates();
   if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();
   if (view === "financeiro" && typeof showFinanceiroDashboard === "function") showFinanceiroDashboard();
   if (view === "colaboradores" && typeof showTimeTab === "function") {

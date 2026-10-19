@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1792444461">
+<link rel="stylesheet" href="style.css?v=1792446211">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1227,11 +1227,54 @@
 
       <!-- TEMPLATES VIEW (em construção) -->
       <section class="view" id="view-templates">
-        <div class="panel">
-          <div class="panel-header"><h2 data-i18n="nav.templates">Templates</h2></div>
-          <div class="empty-hint" data-i18n="templates.comingSoon">Em construção — em breve você vai poder criar e gerenciar templates por aqui.</div>
+        <div class="panel et-panel">
+          <div class="panel-header">
+            <h2>Templates de e-mail</h2>
+            <button type="button" class="btn btn-primary btn-sm" id="et-new" style="display:none;">+ Novo template</button>
+          </div>
+          <p class="q-card-sub">Modelos padrão da equipe: escolha, copie e cole no seu e-mail. Escolha um lead para o nome do cliente já vir preenchido; seu nome e e-mail entram sozinhos.</p>
+          <div class="et-toolbar">
+            <input type="text" id="et-search" placeholder="Buscar template" autocomplete="off">
+            <div class="et-lead-wrap enr-lead-search-wrap">
+              <input type="text" id="et-lead-input" placeholder="Preencher para o lead (opcional): buscar por nome ou e-mail" autocomplete="off">
+              <button type="button" class="btn-icon" id="et-lead-clear" style="display:none;" title="Limpar lead">&times;</button>
+              <div class="enr-lead-results" id="et-lead-results"></div>
+            </div>
+          </div>
+          <div class="et-cats" id="et-cats"></div>
+          <div class="et-grid" id="et-list"></div>
         </div>
       </section>
+
+      <!-- MODAL: TEMPLATE DE E-MAIL (ADM) -->
+      <div class="modal-backdrop" id="et-modal-backdrop">
+        <div class="modal modal-lg">
+          <div class="modal-header">
+            <h2 id="et-modal-title">Novo template</h2>
+            <button class="btn-icon" id="et-modal-close" type="button">&times;</button>
+          </div>
+          <form id="et-form">
+            <input type="hidden" id="et-id">
+            <div class="grid-2">
+              <label><span>Título *</span><input type="text" id="et-f-titulo" required placeholder="Ex.: Boas-vindas ao lead"></label>
+              <label><span>Categoria</span><input type="text" id="et-f-categoria" list="et-cat-list" placeholder="Ex.: Cotação"><datalist id="et-cat-list"></datalist></label>
+            </div>
+            <label><span>Assunto</span><input type="text" id="et-f-assunto" placeholder="Ex.: {{primeiro_nome}}, sua cotação da Peregrinos"></label>
+            <label><span>Texto do e-mail</span><textarea id="et-f-corpo" rows="12"></textarea></label>
+            <div class="et-vars-row"><small class="muted-note">Clique para inserir uma variável onde o cursor estiver:</small><div id="et-vars"></div></div>
+            <div class="grid-2">
+              <label><span>Ordem na lista</span><input type="number" id="et-f-ordem" step="1" value="100"></label>
+              <label class="checkbox-label"><input type="checkbox" id="et-f-ativo" checked><span>Visível para os consultores</span></label>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-danger" id="et-f-delete" style="display:none;">Excluir</button>
+              <div class="spacer"></div>
+              <button type="button" class="btn btn-ghost" id="et-f-cancel">Cancelar</button>
+              <button type="submit" class="btn btn-primary">Salvar template</button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <!-- ÁREA DO ALUNO VIEW (em construção) -->
       <section class="view" id="view-areaaluno">
@@ -2849,20 +2892,21 @@
     </div>
   </div>
 
-  <script src="config.js?v=1792444461"></script>
-  <script src="ver-como.js?v=1792444461"></script>
-  <script src="auth.js?v=1792444461"></script>
-  <script src="i18n.js?v=1792444461"></script>
-  <script src="comparativo.js?v=1792444461"></script>
-  <script src="contrato-modelo.js?v=1792444461"></script>
-  <script src="script.js?v=1792444461"></script>
-  <script src="contratos-proposta.js?v=1792444461"></script>
-  <script src="ficha-cliente.js?v=1792444461"></script>
-  <script src="agenda-reunioes.js?v=1792444461"></script>
-  <script src="agendamento-online.js?v=1792444461"></script>
-  <script src="times-arena.js?v=1792444461"></script>
-  <script src="catalogo-explorer.js?v=1792444461"></script>
-  <script src="financeiro-dashboard.js?v=1792444461"></script>
-  <script src="app-acompanhamento.js?v=1792444461"></script>
+  <script src="config.js?v=1792446211"></script>
+  <script src="ver-como.js?v=1792446211"></script>
+  <script src="auth.js?v=1792446211"></script>
+  <script src="i18n.js?v=1792446211"></script>
+  <script src="comparativo.js?v=1792446211"></script>
+  <script src="contrato-modelo.js?v=1792446211"></script>
+  <script src="script.js?v=1792446211"></script>
+  <script src="contratos-proposta.js?v=1792446211"></script>
+  <script src="ficha-cliente.js?v=1792446211"></script>
+  <script src="agenda-reunioes.js?v=1792446211"></script>
+  <script src="agendamento-online.js?v=1792446211"></script>
+  <script src="times-arena.js?v=1792446211"></script>
+  <script src="templates-email.js?v=1792446211"></script>
+  <script src="catalogo-explorer.js?v=1792446211"></script>
+  <script src="financeiro-dashboard.js?v=1792446211"></script>
+  <script src="app-acompanhamento.js?v=1792446211"></script>
 </body>
 </html>
