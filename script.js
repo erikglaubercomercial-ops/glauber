@@ -4703,12 +4703,12 @@ function quoteLinhas() {
      dentro de cada grupo é a do catálogo */
   return out.sort((a, b) => (quoteSchoolName(a.p) ? 0 : 1) - (quoteSchoolName(b.p) ? 0 : 1));
 }
-/* desconto: limite por função (Consultor € 200, Gerente € 300, ADM sem limite). O banco confere o mesmo limite. */
+/* desconto: limite por função (Consultor € 100, Gerente € 200, ADM sem limite). O banco confere o mesmo limite. */
 let quoteDesconto = 0;            /* desconto digitado */
 let quoteDescontoOriginal = 0;    /* desconto que a cotação já tinha ao abrir (dado por alguém com limite maior) */
 function quoteDescontoLimite() {
   const r = session && session.role;
-  return r === "ADM" ? Infinity : r === "Gerente" ? 300 : r === "Consultor" ? 200 : 0;
+  return r === "ADM" ? Infinity : r === "Gerente" ? 200 : r === "Consultor" ? 100 : 0;
 }
 const quoteDescontoMax = () => Math.max(quoteDescontoLimite(), quoteDescontoOriginal);
 function quoteSubtotal() { return quoteLinhas().reduce((a, l) => a + l.total, 0); }
