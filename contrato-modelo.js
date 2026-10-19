@@ -150,7 +150,9 @@ const CONTRATO_DOC_CSS = `
 function contratoCotacaoHtml(cotacao) {
   if (!cotacao) return "";
   /* escola primeiro, depois os serviços extras (cotações salvas em qualquer ordem) */
-  const itens = (Array.isArray(cotacao.items_detail) ? cotacao.items_detail : []).slice().sort((a, b) => (a.escola ? 0 : 1) - (b.escola ? 0 : 1));
+  const todos = Array.isArray(cotacao.items_detail) ? cotacao.items_detail : [];
+  const desconto = todos.reduce((a, it) => a + (Number(it.total) < 0 ? -Number(it.total) : 0), 0);   /* desconto = linha(s) negativa(s) */
+  const itens = todos.filter(it => !(Number(it.total) < 0)).slice().sort((a, b) => (a.escola ? 0 : 1) - (b.escola ? 0 : 1));
   const linhas = itens.map(it => {
     const meta = [it.escola, it.turno].filter(Boolean).join(" · ");
     const subs = (it.subs || []).map(s => `<tr class="sub"><td colspan="3">↳ ${contratoEsc(s.nome)}</td><td class="r">${s.valor ? contratoMoney(s.valor) : ""}</td></tr>`).join("");
@@ -163,6 +165,7 @@ function contratoCotacaoHtml(cotacao) {
       <thead><tr><th>Produto / serviço</th><th class="c">Qtd</th><th class="r">Preço unit.</th><th class="r">Total</th></tr></thead>
       <tbody>${linhas}</tbody>
     </table>
+    ${desconto > 0 ? `<div class="sub" style="text-align:right;margin-top:3mm">Subtotal ${contratoMoney(Number(cotacao.value) + desconto)} · <b>Desconto − ${contratoMoney(desconto)}</b></div>` : ""}
     <div class="total">Total ${contratoMoney(cotacao.value)}</div>
     ${cotacao.observacoes ? `<div class="sub" style="margin-top:4mm"><b>Observações:</b> ${contratoEsc(cotacao.observacoes)}</div>` : ""}`;
 }

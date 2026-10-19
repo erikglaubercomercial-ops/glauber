@@ -4111,6 +4111,7 @@ function openQuoteBuilder(id) {
   document.getElementById("q-obs").value = "";
   document.getElementById("q-busca").value = "";
   quoteSelecionados = {};
+  quoteDesconto = 0; quoteDescontoOriginal = 0;
   quoteNavPath = [];
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
 
@@ -4133,6 +4134,9 @@ function openQuoteBuilder(id) {
       document.getElementById("q-validade").value = q.validade || "";
       document.getElementById("q-obs").value = q.observacoes || "";
       (q.itemsDetail || []).forEach(l => { if (l.id) quoteSelecionados[l.id] = l.qtd || 1; });
+      /* desconto = linha(s) de total negativo guardadas junto dos itens */
+      quoteDescontoOriginal = Math.round((q.itemsDetail || []).reduce((a, l) => a + (Number(l.total) < 0 ? -Number(l.total) : 0), 0) * 100) / 100;
+      quoteDesconto = quoteDescontoOriginal;
     }
   }
 
@@ -4699,7 +4703,21 @@ function quoteLinhas() {
      dentro de cada grupo é a do catálogo */
   return out.sort((a, b) => (quoteSchoolName(a.p) ? 0 : 1) - (quoteSchoolName(b.p) ? 0 : 1));
 }
-function quoteTotal() { return quoteLinhas().reduce((a, l) => a + l.total, 0); }
+/* desconto: limite por função (Consultor € 200, Gerente € 300, ADM sem limite). O banco confere o mesmo limite. */
+let quoteDesconto = 0;            /* desconto digitado */
+let quoteDescontoOriginal = 0;    /* desconto que a cotação já tinha ao abrir (dado por alguém com limite maior) */
+function quoteDescontoLimite() {
+  const r = session && session.role;
+  return r === "ADM" ? Infinity : r === "Gerente" ? 300 : r === "Consultor" ? 200 : 0;
+}
+const quoteDescontoMax = () => Math.max(quoteDescontoLimite(), quoteDescontoOriginal);
+function quoteSubtotal() { return quoteLinhas().reduce((a, l) => a + l.total, 0); }
+/* desconto que vale: nunca passa do limite do perfil nem do subtotal */
+function quoteDescontoAplicado() {
+  const d = Math.round((Number(quoteDesconto) || 0) * 100) / 100;
+  return Math.max(0, Math.min(d, quoteSubtotal(), quoteDescontoMax()));
+}
+function quoteTotal() { return Math.round((quoteSubtotal() - quoteDescontoAplicado()) * 100) / 100; }
 function quoteAtualizaPrevia() {
   document.getElementById("quote-preview-total").textContent = currency(quoteTotal());
   quoteRenderSheet();
@@ -4711,7 +4729,7 @@ function quoteRenderSheet() {
   if (!quoteSheetEl) return;
   const val = id => (document.getElementById(id) || {}).value || "";
   const linhas = quoteLinhas();
-  const total = linhas.reduce((a, l) => a + l.total, 0);
+  const total = quoteTotal();
   const emissao = val("q-emissao"), validade = val("q-validade"), obs = val("q-obs").trim();
   let h = `
     <div class="cq-doc-head">
@@ -4735,7 +4753,17 @@ function quoteRenderSheet() {
         <td><button type="button" class="cq-x" data-qs="rm" data-id="${p.id}" title="Remover da cotação">×</button></td></tr>`;
       if (quoteShowSubs) (p.subs || []).forEach(sb => { h += `<tr class="sub"><td colspan="3">↳ ${escapeHtml(sb.nome)}</td><td class="r">${sb.valor ? currency(sb.valor) : ""}</td><td></td></tr>`; });
     });
+    const sub = quoteSubtotal(), desc = quoteDescontoAplicado();
+    const lim = quoteDescontoMax();
     h += `</tbody></table>
+      <div class="cq-desc">
+        <div class="cq-desc-row"><span>Subtotal</span><b id="quote-sheet-subtotal">${currency(sub)}</b></div>
+        <label class="cq-desc-row"><span>Desconto (€)</span>
+          <input type="number" min="0" step="0.01" id="quote-desconto" value="${desc ? desc : ""}" placeholder="0,00" ${lim === 0 ? "disabled" : ""}>
+        </label>
+        <small class="cq-desc-hint" id="quote-desconto-hint">${lim === 0 ? "Seu perfil não pode dar desconto." : lim === Infinity ? "Sem limite de desconto." : `Limite do seu perfil: até ${currency(lim)}.`}</small>
+        <div class="cq-desc-row cq-desc-line" id="quote-sheet-desc-line" ${desc ? "" : "hidden"}><span>Desconto aplicado</span><b id="quote-sheet-desc">− ${currency(desc)}</b></div>
+      </div>
       <div class="cq-total"><span>Total</span><b id="quote-sheet-total">${currency(total)}</b></div>
       <div class="cq-opts"><label><input type="checkbox" data-qs="subs" ${quoteShowSubs ? "checked" : ""}> mostrar subitens (o que está incluso)</label><button type="button" class="cq-clear" data-qs="clear">Limpar serviços</button></div>
       <div class="cq-valid">Os subitens não somam no total: o total é preço × quantidade.</div>`;
@@ -4753,6 +4781,37 @@ function quoteBumpTotal() {
   if (el) el.addEventListener("input", quoteRenderSheet);
 });
 
+/* desconto: ao digitar só os totais mudam (o campo mantém o foco); ao sair do campo a prévia é redesenhada */
+function quoteAtualizaTotaisSemRedesenhar() {
+  const sub = quoteSubtotal(), desc = quoteDescontoAplicado(), total = quoteTotal();
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  set("quote-sheet-subtotal", currency(sub));
+  set("quote-sheet-desc", `− ${currency(desc)}`);
+  const line = document.getElementById("quote-sheet-desc-line");
+  if (line) line.hidden = !desc;
+  set("quote-sheet-total", currency(total));
+  document.getElementById("quote-preview-total").textContent = currency(total);
+}
+quoteSheetEl.addEventListener("input", e => {
+  if (e.target.id !== "quote-desconto") return;
+  const max = quoteDescontoMax();
+  let v = parseFloat(String(e.target.value).replace(",", ".")) || 0;
+  const hint = document.getElementById("quote-desconto-hint");
+  if (v < 0) v = 0;
+  if (v > max) {
+    v = max; e.target.value = max;
+    if (hint) { hint.textContent = `Limite do seu perfil: até ${currency(max)}.`; hint.style.color = "var(--danger)"; }
+  } else if (v > quoteSubtotal()) {
+    v = quoteSubtotal(); e.target.value = v;
+    if (hint) { hint.textContent = "O desconto não pode passar do subtotal."; hint.style.color = "var(--danger)"; }
+  } else if (hint) hint.style.color = "";
+  quoteDesconto = v;
+  quoteAtualizaTotaisSemRedesenhar();
+});
+quoteSheetEl.addEventListener("change", e => {
+  if (e.target.id === "quote-desconto") quoteRenderSheet();
+});
+
 quoteSheetEl.addEventListener("click", e => {
   const b = e.target.closest("[data-qs]");
   if (!b) return;
@@ -4760,7 +4819,7 @@ quoteSheetEl.addEventListener("click", e => {
   if (act === "rm") delete quoteSelecionados[id];
   else if (act === "inc") quoteSelecionados[id] = (parseInt(quoteSelecionados[id], 10) || 1) + 1;
   else if (act === "dec") quoteSelecionados[id] = Math.max(1, (parseInt(quoteSelecionados[id], 10) || 1) - 1);
-  else if (act === "clear") { if (!Object.keys(quoteSelecionados).length || !confirm("Tirar todos os serviços da cotação?")) return; quoteSelecionados = {}; }
+  else if (act === "clear") { if (!Object.keys(quoteSelecionados).length || !confirm("Tirar todos os serviços da cotação?")) return; quoteSelecionados = {}; quoteDesconto = 0; }
   else return;
   quoteMontaCatalogo();
   quoteBumpTotal();
@@ -4846,6 +4905,7 @@ document.getElementById("q-btn-limpar").addEventListener("click", () => {
   document.getElementById("q-lead-summary").hidden = true;
   quoteLeadSearch.value = "";
   quoteSelecionados = {};
+  quoteDesconto = 0; quoteDescontoOriginal = 0;
   quoteNavPath = [];
   document.querySelectorAll(".quote-form-body .err").forEach(el => el.classList.remove("err"));
   quoteMontaCatalogo();
@@ -4905,6 +4965,7 @@ async function buildAndSaveQuoteRecord() {
   const leadId = document.getElementById("q-lead-id").value || null;
   const linhas = quoteLinhas();
   const total = quoteTotal();
+  const desconto = quoteDescontoAplicado();
   const itemsSummary = linhas.map(l => l.p.nome).slice(0, 3).join(", ") + (linhas.length > 3 ? ` +${linhas.length - 3}` : "");
 
   const id = document.getElementById("q-id").value || uid();
@@ -4924,7 +4985,10 @@ async function buildAndSaveQuoteRecord() {
       /* guardados junto pra cotação anexada ao contrato sair completa mesmo se o catálogo mudar */
       escola: quoteSchoolName(l.p), turno: l.p.turno || "", unidade: l.p.unidade || "",
       subs: (l.p.subs || []).map(sb => ({ nome: sb.nome, valor: Number(sb.valor) || 0 })),
-    })),
+    })).concat(desconto > 0 ? [{
+      /* o desconto fica nos itens como uma linha negativa: aparece igual no PDF, no contrato e na aprovação do cliente */
+      id: null, nome: "Desconto", qtd: 1, preco: -desconto, total: -desconto, desconto: true, escola: "", turno: "", unidade: "", subs: [],
+    }] : []),
     createdAt: existing ? existing.createdAt : Date.now(),
   };
   if (existing) Object.assign(existing, record);
@@ -5012,7 +5076,10 @@ async function quoteGerar() {
   });
   document.getElementById("d-itens").innerHTML = html;
 
-  document.getElementById("d-subtotal").textContent = currency(total);
+  const descDoc = quoteDescontoAplicado();
+  document.getElementById("d-subtotal").textContent = currency(quoteSubtotal());
+  document.getElementById("d-desconto-line").hidden = !descDoc;
+  document.getElementById("d-desconto").textContent = `− ${currency(descDoc)}`;
   document.getElementById("d-total").textContent = currency(total);
 
   document.getElementById("d-obs").hidden = !obs;

@@ -14,7 +14,9 @@ const QA_V = (document.querySelector('link[rel="stylesheet"]').getAttribute("hre
 function qaSheetDocument(q) {
   const esc = contratoEsc, money = contratoMoney;
   /* escola primeiro, depois os serviços extras */
-  const itens = (Array.isArray(q.items_detail) ? q.items_detail : []).slice().sort((a, b) => (a.escola ? 0 : 1) - (b.escola ? 0 : 1));
+  const todos = Array.isArray(q.items_detail) ? q.items_detail : [];
+  const desconto = todos.reduce((a, it) => a + (Number(it.total) < 0 ? -Number(it.total) : 0), 0);   /* desconto = linha(s) negativa(s) */
+  const itens = todos.filter(it => !(Number(it.total) < 0)).sort((a, b) => (a.escola ? 0 : 1) - (b.escola ? 0 : 1));
   const rows = itens.map(it => {
     const subs = (it.subs || []).map(sb => `<tr class="subrow-doc"><td class="name">${esc(sb.nome)}</td><td class="c"></td><td class="r"></td><td class="tot">${money(sb.valor)}</td></tr>`).join("");
     const meta = [it.escola, it.turno].filter(Boolean);
@@ -49,7 +51,7 @@ function qaSheetDocument(q) {
     </div>
   </div>
   <table><thead><tr><th>Serviço</th><th class="c">Qtd.</th><th class="r">Unitário</th><th class="t">Total</th></tr></thead><tbody>${rows}</tbody></table>
-  <div class="totals"><div class="line"><span>Subtotal</span><span>${money(q.value)}</span></div><div class="line grand"><span>Total</span><span>${money(q.value)}</span></div></div>
+  <div class="totals"><div class="line"><span>Subtotal</span><span>${money(desconto > 0 ? Number(q.value) + desconto : q.value)}</span></div>${desconto > 0 ? `<div class="line"><span>Desconto</span><span>− ${money(desconto)}</span></div>` : ""}<div class="line grand"><span>Total</span><span>${money(q.value)}</span></div></div>
   ${q.observacoes ? `<div class="obs"><div class="lbl">Observações</div><span>${esc(q.observacoes)}</span></div>` : ""}
   <div class="doc-foot"><div class="slogan">O caminho transforma.</div><div class="rule"></div></div>
 </div></div></body></html>`;
