@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1792450100">
+<link rel="stylesheet" href="style.css?v=1792451817">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1322,22 +1322,71 @@
                 <button type="button" class="btn btn-danger btn-sm" id="mm-del">Excluir mapa</button>
               </div>
               <div class="mm-toolbar">
-                <button type="button" class="btn btn-ghost btn-sm" id="mm-undo" title="Desfazer (Cmd/Ctrl+Z)">↶ Desfazer</button>
-                <button type="button" class="btn btn-ghost btn-sm" id="mm-redo" title="Refazer (Shift+Cmd/Ctrl+Z)">↷ Refazer</button>
+                <button type="button" class="mm-tb" id="mm-add-sib" title="Tópico abaixo (Enter)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="12" width="12" height="7" rx="2"/><circle cx="5" cy="6" r="1.8" fill="currentColor"/><path d="M5 8v8a2 2 0 0 0 2 2h2"/></svg><span>Tópico</span></button>
+                <button type="button" class="mm-tb" id="mm-add-child" title="Subtópico ao lado (Tab)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="12" r="1.8" fill="currentColor"/><path d="M6 12h4"/><rect x="10" y="8.5" width="11" height="7" rx="2"/></svg><span>Subtópico</span></button>
                 <span class="mm-sep"></span>
-                <button type="button" class="btn btn-ghost btn-sm" id="mm-add-child" title="Tab">+ Tópico ao lado <kbd>Tab</kbd></button>
-                <button type="button" class="btn btn-ghost btn-sm" id="mm-add-sib" title="Enter">+ Tópico abaixo <kbd>Enter</kbd></button>
-                <button type="button" class="btn btn-ghost btn-sm" id="mm-del-node" title="Delete">Excluir tópico <kbd>Del</kbd></button>
+                <button type="button" class="mm-tb" id="mm-rel" title="Relação: ligue dois tópicos com uma seta curva"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="15" r="1.6" fill="currentColor"/><path d="M5 15c0-7 10-10 14-3"/><path d="M16 9l3.2 3.4L22 9.5"/></svg><span>Relação</span></button>
+                <button type="button" class="mm-tb" id="mm-sum" title="Resumo: chave que resume os tópicos selecionados"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4c-3 0-3 1.5-3 4v1c0 1.2-.6 2-2 3 1.4 1 2 1.8 2 3v1c0 2.5 0 4 3 4"/><rect x="14" y="9" width="7" height="6" rx="1.5"/></svg><span>Resumo</span></button>
+                <button type="button" class="mm-tb" id="mm-bd" title="Limite: moldura tracejada em volta do tópico selecionado"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="3" stroke-dasharray="3.2 2.6"/></svg><span>Limite</span></button>
+                <span class="mm-sep"></span>
+                <span class="mm-insert-wrap" id="mm-insert-wrap">
+                  <button type="button" class="mm-tb" id="mm-insert" title="Inserir"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span>Inserir</span></button>
+                  <div class="mm-insert-menu" id="mm-insert-menu" hidden>
+                    <button type="button" data-ins="zone"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg><span>Zona</span></button>
+                    <button type="button" data-ins="float"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="10" height="7" rx="2" stroke-dasharray="3 2.5"/><circle cx="5" cy="5" r="1.5" fill="currentColor"/></svg><span>Tópico flutuante</span></button>
+                    <button type="button" data-ins="parent"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="8" height="5" rx="1.5"/><rect x="14" y="4" width="7" height="5" rx="1.5"/><rect x="14" y="16" width="7" height="5" rx="1.5"/><path d="M11 12.5h1.5V6.5H14M12.5 12.5V18.5H14"/></svg><span>Tópico pai</span></button>
+                    <hr>
+                    <button type="button" data-ins="note"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10l4 4v12H5z"/><path d="M8 12h8M8 16h5"/></svg><span>Nota</span></button>
+                    <button type="button" data-ins="label"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l9 9-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg><span>Rótulo</span></button>
+                    <button type="button" data-ins="callout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H11l-4 4v-4H4z"/></svg><span>Chamada</span></button>
+                    <button type="button" data-ins="comment"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v13H9l-5 4z"/><path d="M12 8v5M9.5 10.5h5"/></svg><span>Comentário</span></button>
+                    <button type="button" data-ins="todo"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg><span>Para fazer</span></button>
+                    <button type="button" data-ins="task"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/><path d="M8 15l2.5 2L15 13"/></svg><span>Tarefa</span></button>
+                    <div class="mm-sub">
+                      <button type="button" class="mm-sub-h"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Link</span><i>›</i></button>
+                      <div class="mm-sub-menu">
+                        <button type="button" data-ins="link"><span>Link da internet</span></button>
+                        <button type="button" data-ins="linktopic"><span>Outro tópico deste mapa</span></button>
+                        <button type="button" data-ins="linkmap"><span>Outro mapa</span></button>
+                      </div>
+                    </div>
+                    <hr>
+                    <button type="button" data-ins="attachment"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11l-8 8a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 5 5l-9 9a1.7 1.7 0 0 1-2.5-2.5l8-8"/></svg><span>Anexo</span></button>
+                    <hr>
+                    <button type="button" data-ins="sticker"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-8-8v5a3 3 0 0 0 3 3z"/></svg><span>Adesivo</span></button>
+                    <button type="button" data-ins="illustration"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c2-9 6-12 14-14-1 8-4 12-14 14z"/><path d="M5 19l7-7"/></svg><span>Ilustração</span></button>
+                    <button type="button" data-ins="image"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M4 18l5-5 4 4 3-3 4 4"/></svg><span>Imagem local</span></button>
+                    <button type="button" data-ins="equation"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M7 12h10M5 18h14"/></svg><span>Equação</span></button>
+                  </div>
+                </span>
+                <span class="mm-sep"></span>
+                <button type="button" class="mm-tb" id="mm-del-node" title="Excluir seleção (Delete)"><span>Excluir</span></button>
+                <button type="button" class="mm-tb" id="mm-undo" title="Desfazer (Cmd/Ctrl+Z)"><span>↶</span></button>
+                <button type="button" class="mm-tb" id="mm-redo" title="Refazer (Shift+Cmd/Ctrl+Z)"><span>↷</span></button>
                 <span class="mm-sep"></span>
                 <span class="mm-colors" id="mm-colors"></span>
                 <span class="mm-sep"></span>
-                <button type="button" class="btn btn-ghost btn-sm" id="mm-zoom-out" title="Menos zoom">−</button>
+                <button type="button" class="mm-tb" id="mm-zoom-out" title="Menos zoom"><span>−</span></button>
                 <span id="mm-zoom-label" class="mm-zoom">100%</span>
-                <button type="button" class="btn btn-ghost btn-sm" id="mm-zoom-in" title="Mais zoom">+</button>
-                <button type="button" class="btn btn-ghost btn-sm" id="mm-fit" title="Enquadrar o mapa na tela">Enquadrar</button>
+                <button type="button" class="mm-tb" id="mm-zoom-in" title="Mais zoom"><span>+</span></button>
+                <button type="button" class="mm-tb" id="mm-fit" title="Enquadrar o mapa na tela"><span>Enquadrar</span></button>
+                <button type="button" class="mm-tb mm-tb-right" id="mm-panel-toggle" title="Mostrar/ocultar o painel"><span>Painel</span></button>
               </div>
-              <div id="mm-canvas" class="mm-canvas" tabindex="0"><div id="mm-stage" class="mm-stage"></div></div>
-              <p class="mm-hint"><b>Tab</b> tópico ao lado · <b>Enter</b> tópico abaixo · <b>F2</b> ou duplo clique edita · <b>Delete</b> exclui · <b>Espaço</b> recolhe · setas navegam · arraste um tópico sobre outro para movê-lo · <b>Cmd/Ctrl + roda</b> dá zoom</p>
+              <div class="mm-body" id="mm-body">
+                <div id="mm-canvas" class="mm-canvas" tabindex="0">
+                  <div id="mm-stage" class="mm-stage"></div>
+                  <div class="mm-pitchbar" id="mm-pitchbar" hidden>
+                    <button type="button" id="mm-pitch-prev">←</button><span id="mm-pitch-count">1 / 1</span><button type="button" id="mm-pitch-next">→</button><button type="button" id="mm-pitch-stop">Sair</button>
+                  </div>
+                </div>
+                <aside class="mm-panel" id="mm-panel">
+                  <div class="mm-tabs"><button type="button" class="mm-tab" data-tab="style">Estilo</button><button type="button" class="mm-tab" data-tab="pitch">Apresentação</button><button type="button" class="mm-tab on" data-tab="map">Mapa</button></div>
+                  <div class="mm-panel-body" id="mm-panel-body"></div>
+                </aside>
+              </div>
+              <input type="file" id="mm-file" hidden>
+              <div class="mm-pop" id="mm-pop" hidden></div>
+              <p class="mm-hint"><b>Tab</b> subtópico · <b>Enter</b> tópico abaixo · <b>F2</b> ou duplo clique edita · duplo clique no fundo cria tópico flutuante · <b>Delete</b> exclui · <b>Espaço</b> recolhe · arraste um tópico sobre outro para movê-lo · <b>Shift/Cmd + clique</b> seleciona vários · <b>Cmd/Ctrl + roda</b> dá zoom</p>
             </div>
           </div>
         </div>
@@ -2960,22 +3009,24 @@
     </div>
   </div>
 
-  <script src="config.js?v=1792450100"></script>
-  <script src="ver-como.js?v=1792450100"></script>
-  <script src="auth.js?v=1792450100"></script>
-  <script src="i18n.js?v=1792450100"></script>
-  <script src="comparativo.js?v=1792450100"></script>
-  <script src="contrato-modelo.js?v=1792450100"></script>
-  <script src="script.js?v=1792450100"></script>
-  <script src="contratos-proposta.js?v=1792450100"></script>
-  <script src="ficha-cliente.js?v=1792450100"></script>
-  <script src="agenda-reunioes.js?v=1792450100"></script>
-  <script src="agendamento-online.js?v=1792450100"></script>
-  <script src="times-arena.js?v=1792450100"></script>
-  <script src="mapa-mental.js?v=1792450100"></script>
-  <script src="templates-email.js?v=1792450100"></script>
-  <script src="catalogo-explorer.js?v=1792450100"></script>
-  <script src="financeiro-dashboard.js?v=1792450100"></script>
-  <script src="app-acompanhamento.js?v=1792450100"></script>
+  <script src="config.js?v=1792451817"></script>
+  <script src="ver-como.js?v=1792451817"></script>
+  <script src="auth.js?v=1792451817"></script>
+  <script src="i18n.js?v=1792451817"></script>
+  <script src="comparativo.js?v=1792451817"></script>
+  <script src="contrato-modelo.js?v=1792451817"></script>
+  <script src="script.js?v=1792451817"></script>
+  <script src="contratos-proposta.js?v=1792451817"></script>
+  <script src="ficha-cliente.js?v=1792451817"></script>
+  <script src="agenda-reunioes.js?v=1792451817"></script>
+  <script src="agendamento-online.js?v=1792451817"></script>
+  <script src="times-arena.js?v=1792451817"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <script id="katex-js" defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="mapa-mental.js?v=1792451817"></script>
+  <script src="templates-email.js?v=1792451817"></script>
+  <script src="catalogo-explorer.js?v=1792451817"></script>
+  <script src="financeiro-dashboard.js?v=1792451817"></script>
+  <script src="app-acompanhamento.js?v=1792451817"></script>
 </body>
 </html>
