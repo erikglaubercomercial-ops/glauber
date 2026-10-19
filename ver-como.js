@@ -79,7 +79,7 @@ function viewAsBlockedBuilder() {
   });
   return proxy;
 }
-const VIEW_AS_RPC_READ = /^(lead_ficha|lead_ficha_dados|team_scores|team_scores_monthly|booking_slots|booking_get|booking_public_info|get_|app_)/;
+const VIEW_AS_RPC_READ = /^(lead_ficha|lead_ficha_dados|team_scores|team_scores_monthly|booking_slots|booking_get|booking_public_info|get_|app_metricas|app_usuarios|app_linha_do_tempo|app_meu_link|app_links_equipe)/;
 function viewAsInstallReadOnlyGuard() {
   const origFrom = supabase.from.bind(supabase);
   supabase.from = table => {

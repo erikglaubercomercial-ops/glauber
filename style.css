@@ -2754,3 +2754,7 @@ body > .public-page { width: 100%; min-width: 0; }
 .appt-inf-form input[type="text"], .appt-inf-form select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font: inherit; font-size: 13.5px; font-weight: 400; color: var(--text); }
 .appt-inf-actions { display: flex; gap: 8px; align-items: center; }
 .appt-team-links tr.off { opacity: 0.55; }
+.appt-rename-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 20px 12px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 12px; background: var(--content-bg); }
+.appt-rename-prefix { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+.appt-rename-form input[type="text"] { flex: 1 1 160px; min-width: 120px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; font-size: 13.5px; background: #fff; }
+.appt-rename-form .muted-note { flex-basis: 100%; }

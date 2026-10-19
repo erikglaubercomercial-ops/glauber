@@ -163,7 +163,7 @@ function apptRenderMyLink() {
                 <td><button type="button" class="btn btn-ghost btn-sm" data-appt-copy="${escapeHtml(apptLinkUrl(m.codigo))}">Copiar link</button> <small class="muted-note">/i/${escapeHtml(m.codigo)}</small></td>
                 <td><small>${entra}</small></td>
                 <td class="num">${apptNum(m.acessos)}</td><td class="num">${apptNum(m.instalaram)}</td><td class="num">${apptNum(m.cadastros)}</td>
-                <td>${ext ? `<button type="button" class="btn btn-ghost btn-sm" data-appt-inf="edit" data-code="${escapeHtml(m.codigo)}">Editar</button> <button type="button" class="btn btn-ghost btn-sm" data-appt-inf="toggle" data-code="${escapeHtml(m.codigo)}">${m.ativo ? "Desativar" : "Reativar"}</button>` : ""}</td>
+                <td><button type="button" class="btn btn-ghost btn-sm" data-appt-rename="${escapeHtml(m.codigo)}">Personalizar link</button>${ext ? ` <button type="button" class="btn btn-ghost btn-sm" data-appt-inf="edit" data-code="${escapeHtml(m.codigo)}">Editar</button> <button type="button" class="btn btn-ghost btn-sm" data-appt-inf="toggle" data-code="${escapeHtml(m.codigo)}">${m.ativo ? "Desativar" : "Reativar"}</button>` : ""}</td>
               </tr>`; }).join("")}</tbody>
           </table>
         </div>
@@ -189,7 +189,16 @@ function apptRenderMyLink() {
         <input type="text" id="appt-mylink-url" readonly value="${escapeHtml(url)}">
         <button type="button" class="btn btn-primary btn-sm" data-appt-copy="${escapeHtml(url)}">Copiar link</button>
         <a class="btn btn-ghost btn-sm" href="${escapeHtml(wa)}" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+        ${(typeof viewAs !== "undefined" && viewAs.active) ? "" : `<button type="button" class="btn btn-ghost btn-sm" data-appt-rename="${escapeHtml(d.codigo)}">Personalizar</button>`}
       </div>
+      <form class="appt-rename-form" id="appt-rename-form" style="display:none;">
+        <span class="appt-rename-prefix">${escapeHtml(APPT_APP_URL.replace(/^https?:\/\//, ""))}/i/</span>
+        <input type="text" id="appt-rename-input" maxlength="40" autocomplete="off" spellcheck="false" placeholder="seu-nome">
+        <input type="hidden" id="appt-rename-code">
+        <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="appt-rename-cancel">Cancelar</button>
+        <small class="muted-note" id="appt-rename-msg">Só letras minúsculas sem acento, números e hífen (2 a 40). Os links que você já enviou continuam funcionando.</small>
+      </form>
       <div class="appt-mylink-stats">
         <span><b>${apptNum(d.acessos)}</b><small>acessos pelo seu link</small></span>
         <span><b>${apptNum(d.instalaram)}</b><small>instalaram o app</small></span>
@@ -923,3 +932,39 @@ function apptResetInfForm() {
   document.getElementById("appt-inf-save").textContent = "Criar link";
   document.getElementById("appt-inf-cancel").style.display = "none";
 }
+
+/* ---- personalizar o código do link (a parte depois de /i/) ---- */
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-appt-rename]");
+  if (b) {
+    const form = document.getElementById("appt-rename-form");
+    if (!form) return;
+    document.getElementById("appt-rename-code").value = b.dataset.apptRename;
+    document.getElementById("appt-rename-input").value = b.dataset.apptRename;
+    document.getElementById("appt-rename-msg").textContent = "Só letras minúsculas sem acento, números e hífen (2 a 40). Os links que você já enviou continuam funcionando.";
+    form.style.display = "flex";
+    form.scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById("appt-rename-input").focus();
+    return;
+  }
+  if (e.target.closest("#appt-rename-cancel")) document.getElementById("appt-rename-form").style.display = "none";
+});
+document.addEventListener("input", e => {
+  if (e.target.id !== "appt-rename-input") return;
+  /* já limpa enquanto digita: minúsculas, sem acento, espaço vira hífen */
+  e.target.value = e.target.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s_]+/g, "-").replace(/[^a-z0-9-]/g, "");
+});
+document.addEventListener("submit", async e => {
+  if (e.target.id !== "appt-rename-form") return;
+  e.preventDefault();
+  const atual = document.getElementById("appt-rename-code").value;
+  const novo = document.getElementById("appt-rename-input").value.replace(/^-+|-+$/g, "");
+  const msg = document.getElementById("appt-rename-msg");
+  if (novo === atual) { e.target.style.display = "none"; return; }
+  const { error } = await supabase.rpc("app_renomear_link", { p_codigo: atual, p_novo: novo });
+  if (error) { msg.textContent = error.message || "Não foi possível salvar."; msg.style.color = "var(--danger)"; return; }
+  msg.style.color = "";
+  e.target.style.display = "none";
+  apptMyLink.teamOpen = !!document.querySelector(".appt-team-links[open]");
+  await apptLoadMyLink();
+});
