@@ -47,7 +47,7 @@ revoke all on function public.app_renomear_link(text, text) from public, anon;
 grant execute on function public.app_renomear_link(text, text) to authenticated;
 
 do $mig$
-declare v_def text; v_new text;
+declare v_def text; v_new text; v_n integer;
 begin
   -- visita: traduz o apelido logo depois de validar o formato
   v_def := pg_get_functiondef('public.app_registrar_visita(jsonb)'::regprocedure);
@@ -57,9 +57,10 @@ begin
   execute v_new;
   -- lead: idem, antes de gravar o visitante
   v_def := pg_get_functiondef('public.app_registrar_lead(jsonb)'::regprocedure);
-  if position('insert into app_visitantes (visitor_id, utm, ref) values' in v_def) = 0 then raise exception 'lead: trecho nao encontrado'; end if;
-  v_new := replace(v_def, 'insert into app_visitantes (visitor_id, utm, ref) values',
-    'v_ref := coalesce((select a.codigo from app_parceiros_alias a where a.antigo = v_ref), v_ref); insert into app_visitantes (visitor_id, utm, ref) values');
+  select count(*) into v_n from regexp_matches(v_def, 'insert\s+into\s+app_visitantes\s*\(visitor_id,\s*utm,\s*ref\)\s*values', 'g');
+  if v_n <> 1 then raise exception 'lead: esperado 1 trecho, achei %', v_n; end if;
+  v_new := regexp_replace(v_def, '(insert\s+into\s+app_visitantes\s*\(visitor_id,\s*utm,\s*ref\)\s*values)',
+    'v_ref := coalesce((select a.codigo from app_parceiros_alias a where a.antigo = v_ref), v_ref); \1');
   execute v_new;
 end
 $mig$;
