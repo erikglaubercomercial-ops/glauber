@@ -13,6 +13,8 @@ function canAccessView(view) {
   if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
   if (view === "usuarios") return session.role === "ADM";
   if (view === "agenda") return session.role !== "Influencer";
+  /* MKT e Mapa Mental: ADM, Gerente e MKT */
+  if (view === "mkt" || view === "mapamental") return ["ADM", "Gerente", "MKT"].includes(session.role);
   /* Time: a Arena dos Times é para todo o time (competição); o cadastro de colaboradores segue a permissão do módulo */
   if (view === "colaboradores") return session.role !== "Influencer";
   if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
@@ -190,6 +192,7 @@ function switchView(view) {
   }
   if (view === "escolas") renderEscolas();
   if (view === "appacomp") renderAppTracking();
+  if (view === "mapamental" && typeof renderMindMapView === "function") renderMindMapView();
   if (view === "templates" && typeof renderEmailTemplates === "function") renderEmailTemplates();
   if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();
   if (view === "financeiro" && typeof showFinanceiroDashboard === "function") showFinanceiroDashboard();
@@ -234,6 +237,7 @@ const DEFAULT_MENU_STRUCTURE = {
       { id: "appacomp" },
       { id: "formularios" },
       { id: "templates" },
+      { id: "mkt", children: ["mapamental"] },
       { id: "areaaluno", children: ["areaaluno-preview-link"] },
     ] },
     { id: "administracao", items: [
@@ -271,6 +275,13 @@ function applyMenuStructure(structure) {
   const escolasEl = navElementFor("escolas");
   const produtosEl = navElementFor("produtos");
   if (escolasEl && produtosEl && !inStructure("escolas")) nav.insertBefore(escolasEl, produtosEl.nextSibling);
+  /* MKT + Mapa Mental: itens novos entram logo depois de Templates */
+  const mktEl = navElementFor("mkt"), mapaEl = navElementFor("mapamental"), templatesEl = navElementFor("templates");
+  if (mktEl && mapaEl && templatesEl && !inStructure("mkt")) {
+    nav.insertBefore(mktEl, templatesEl.nextSibling);
+    mapaEl.classList.add("nav-item-sub"); mapaEl.dataset.parent = "mkt";
+    nav.insertBefore(mapaEl, mktEl.nextSibling);
+  }
   const agendaEl = navElementFor("agenda");
   const pipelineEl = navElementFor("pipeline");
   if (agendaEl && pipelineEl && !inStructure("agenda")) nav.insertBefore(agendaEl, pipelineEl.nextSibling);

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1792447896">
+<link rel="stylesheet" href="style.css?v=1792450100">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -102,6 +102,16 @@
         <button class="nav-item" data-view="formularios">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="8" y1="19" x2="12" y2="19"/></svg>
           <span data-i18n="nav.formularios">Formulários</span>
+        </button>
+
+        <button class="nav-item" data-view="mkt">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg>
+          <span data-i18n="nav.mkt">MKT</span>
+        </button>
+
+        <button class="nav-item nav-item-sub" data-view="mapamental" data-parent="mkt" id="nav-mapamental">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M7.3 11 16.7 6.2M7.3 13l9.4 4.8"/></svg>
+          <span data-i18n="nav.mapamental">Mapa Mental</span>
         </button>
 
         <button class="nav-item" data-view="templates">
@@ -1275,6 +1285,63 @@
           </form>
         </div>
       </div>
+
+      <!-- MKT VIEW -->
+      <section class="view" id="view-mkt">
+        <div class="panel">
+          <div class="panel-header"><h2>MKT</h2></div>
+          <p class="q-card-sub">Ferramentas do marketing.</p>
+          <div class="mkt-cards">
+            <button type="button" class="mkt-card" data-go="mapamental">
+              <span class="mkt-card-icon"><svg class="nav-icon" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M7.3 11 16.7 6.2M7.3 13l9.4 4.8"/></svg></span>
+              <b>Mapa Mental</b>
+              <small>Monte mapas mentais de criação livre: Tab cria um tópico ao lado, Enter cria um abaixo.</small>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAPA MENTAL VIEW (MKT) -->
+      <section class="view" id="view-mapamental">
+        <div class="mm-layout">
+          <aside class="mm-side">
+            <div class="mm-side-head"><b>Meus mapas</b><button type="button" class="btn btn-primary btn-sm" id="mm-new">+ Novo</button></div>
+            <div id="mm-list" class="mm-list"></div>
+          </aside>
+          <div class="mm-main">
+            <div id="mm-empty" class="mm-empty" hidden>
+              <p>Você ainda não tem nenhum mapa mental.</p>
+              <button type="button" class="btn btn-primary" id="mm-new-empty">Criar o primeiro mapa</button>
+            </div>
+            <div id="mm-workspace" hidden>
+              <div class="mm-top">
+                <input type="text" id="mm-title" class="mm-title" placeholder="Título do mapa" maxlength="120">
+                <span id="mm-status" class="mm-status"></span>
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-png">Exportar imagem</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-dup">Duplicar mapa</button>
+                <button type="button" class="btn btn-danger btn-sm" id="mm-del">Excluir mapa</button>
+              </div>
+              <div class="mm-toolbar">
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-undo" title="Desfazer (Cmd/Ctrl+Z)">↶ Desfazer</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-redo" title="Refazer (Shift+Cmd/Ctrl+Z)">↷ Refazer</button>
+                <span class="mm-sep"></span>
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-add-child" title="Tab">+ Tópico ao lado <kbd>Tab</kbd></button>
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-add-sib" title="Enter">+ Tópico abaixo <kbd>Enter</kbd></button>
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-del-node" title="Delete">Excluir tópico <kbd>Del</kbd></button>
+                <span class="mm-sep"></span>
+                <span class="mm-colors" id="mm-colors"></span>
+                <span class="mm-sep"></span>
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-zoom-out" title="Menos zoom">−</button>
+                <span id="mm-zoom-label" class="mm-zoom">100%</span>
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-zoom-in" title="Mais zoom">+</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="mm-fit" title="Enquadrar o mapa na tela">Enquadrar</button>
+              </div>
+              <div id="mm-canvas" class="mm-canvas" tabindex="0"><div id="mm-stage" class="mm-stage"></div></div>
+              <p class="mm-hint"><b>Tab</b> tópico ao lado · <b>Enter</b> tópico abaixo · <b>F2</b> ou duplo clique edita · <b>Delete</b> exclui · <b>Espaço</b> recolhe · setas navegam · arraste um tópico sobre outro para movê-lo · <b>Cmd/Ctrl + roda</b> dá zoom</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- ÁREA DO ALUNO VIEW (em construção) -->
       <section class="view" id="view-areaaluno">
@@ -2893,21 +2960,22 @@
     </div>
   </div>
 
-  <script src="config.js?v=1792447896"></script>
-  <script src="ver-como.js?v=1792447896"></script>
-  <script src="auth.js?v=1792447896"></script>
-  <script src="i18n.js?v=1792447896"></script>
-  <script src="comparativo.js?v=1792447896"></script>
-  <script src="contrato-modelo.js?v=1792447896"></script>
-  <script src="script.js?v=1792447896"></script>
-  <script src="contratos-proposta.js?v=1792447896"></script>
-  <script src="ficha-cliente.js?v=1792447896"></script>
-  <script src="agenda-reunioes.js?v=1792447896"></script>
-  <script src="agendamento-online.js?v=1792447896"></script>
-  <script src="times-arena.js?v=1792447896"></script>
-  <script src="templates-email.js?v=1792447896"></script>
-  <script src="catalogo-explorer.js?v=1792447896"></script>
-  <script src="financeiro-dashboard.js?v=1792447896"></script>
-  <script src="app-acompanhamento.js?v=1792447896"></script>
+  <script src="config.js?v=1792450100"></script>
+  <script src="ver-como.js?v=1792450100"></script>
+  <script src="auth.js?v=1792450100"></script>
+  <script src="i18n.js?v=1792450100"></script>
+  <script src="comparativo.js?v=1792450100"></script>
+  <script src="contrato-modelo.js?v=1792450100"></script>
+  <script src="script.js?v=1792450100"></script>
+  <script src="contratos-proposta.js?v=1792450100"></script>
+  <script src="ficha-cliente.js?v=1792450100"></script>
+  <script src="agenda-reunioes.js?v=1792450100"></script>
+  <script src="agendamento-online.js?v=1792450100"></script>
+  <script src="times-arena.js?v=1792450100"></script>
+  <script src="mapa-mental.js?v=1792450100"></script>
+  <script src="templates-email.js?v=1792450100"></script>
+  <script src="catalogo-explorer.js?v=1792450100"></script>
+  <script src="financeiro-dashboard.js?v=1792450100"></script>
+  <script src="app-acompanhamento.js?v=1792450100"></script>
 </body>
 </html>
