@@ -9,6 +9,9 @@
 const epParams = new URLSearchParams(window.location.search);
 const epShift = (epParams.get("turno") || "").toLowerCase() === "pm" ? "pm" : "am";
 const epKind = (epParams.get("tipo") || "").toLowerCase() === "renovacao" ? "renewal" : "first";
+/* ?cidade=Dublin → mostra só as escolas dessa cidade */
+const epCidade = (epParams.get("cidade") || "").trim().slice(0, 60);
+const epNorm = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
 function epEscape(str) {
   return String(str ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -23,9 +26,10 @@ function epCoverUrl(path) {
 (async function init() {
   const shiftLabel = epShift === "am" ? "Manhã (AM)" : "Tarde (PM)";
   const kindLabel = epKind === "renewal" ? " · Renovação" : "";
-  document.getElementById("ep-title").textContent = `Opções de escola — ${shiftLabel}${kindLabel}`;
+  const cityLabel = epCidade ? ` · ${epCidade}` : "";
+  document.getElementById("ep-title").textContent = `Opções de escola — ${shiftLabel}${kindLabel}${cityLabel}`;
   document.getElementById("ep-subtitle").textContent = "Valores parcelados por escola. Qualquer dúvida, fale com o seu consultor.";
-  document.title = `Opções de escola ${shiftLabel}${kindLabel} — Peregrinos Intercâmbio`;
+  document.title = `Opções de escola ${shiftLabel}${kindLabel}${cityLabel} — Peregrinos Intercâmbio`;
 
   const [{ data, error }, citiesRes] = await Promise.all([
     supabase.rpc("get_public_school_comparison"),
@@ -46,10 +50,12 @@ function epCoverUrl(path) {
   }));
 
   /* pro cliente, só entram escolas que têm valor no turno do link */
-  const visible = schools.filter(s => cmpItemsForShift(s.items, epShift, cmpClassifyTurno, epKind).length > 0);
+  const visible = schools.filter(s => cmpItemsForShift(s.items, epShift, cmpClassifyTurno, epKind).length > 0
+    && (!epCidade || epNorm(s.destino) === epNorm(epCidade)));
 
   document.getElementById("ep-container").innerHTML = renderSchoolComparison(visible, s => s.items, epShift, {
-    escape: epEscape, money: epMoney, classify: cmpClassifyTurno, kind: epKind, coverUrl: epCoverUrl, cities,
+    escape: epEscape, money: epMoney, classify: cmpClassifyTurno, kind: epKind, coverUrl: epCoverUrl,
+    cities: epCidade ? cities.filter(c => epNorm(c) === epNorm(epCidade)) : cities,
     labels: {
       empty: "Nenhuma escola disponível no momento.", from: "A partir de", values: "Valores",
       includes: "O que a escola oferece", overview: "Visão Geral", option: "opção", options: "opções",

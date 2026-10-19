@@ -2758,3 +2758,8 @@ body > .public-page { width: 100%; min-width: 0; }
 .appt-rename-prefix { font-size: 13px; color: var(--text-muted); font-weight: 600; }
 .appt-rename-form input[type="text"] { flex: 1 1 160px; min-width: 120px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; font-size: 13.5px; background: #fff; }
 .appt-rename-form .muted-note { flex-basis: 100%; }
+
+/* página pública das escolas: o body é flex e centralizava o conteúdo; com muitas escolas a fila passava da tela
+   e as primeiras (à esquerda) ficavam cortadas e inalcançáveis. Agora a coluna ocupa a largura da tela e a fila rola. */
+body > .cmp-public-wrap { width: 100%; min-width: 0; }
+.cmp-public-wrap .cmp-grid { min-width: 0; }

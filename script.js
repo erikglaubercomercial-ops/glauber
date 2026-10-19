@@ -3755,7 +3755,7 @@ function renderSchoolComparisonView() {
   document.querySelectorAll("#cmp-kind-toggle .cmp-shift-btn").forEach(b => b.classList.toggle("active", b.dataset.kind === cmpKind));
   ["am", "pm"].forEach(sh => {
     document.getElementById(`cmp-copy-${sh}`).textContent =
-      t(sh === "am" ? "schools.copyLinkAm" : "schools.copyLinkPm") + (cmpKind === "renewal" ? ` ${t("schools.renewalSuffix")}` : "");
+      t(sh === "am" ? "schools.copyLinkAm" : "schools.copyLinkPm") + (cmpKind === "renewal" ? ` ${t("schools.renewalSuffix")}` : "") + (destinoSel.value ? ` · ${destinoSel.value}` : "");
   });
   document.getElementById("cmp-container").innerHTML = renderSchoolComparison(list, schoolProducts, cmpShift, {
     escape: escapeHtml, money: currency, classify: classifyTurnoShift, kind: cmpKind, coverUrl: schoolCoverUrl, cities: schoolCityNames(),
@@ -4058,8 +4058,10 @@ document.getElementById("cities-list").addEventListener("click", async e => {
   await Promise.all([saveSchoolCityRemote(a), saveSchoolCityRemote(b)]);
 });
 
+/* link para o cliente: turno, tipo e, se uma cidade estiver escolhida no filtro, só essa cidade */
 function buildSchoolsPublicUrl(shift) {
-  return `${window.location.origin}/escolas-publico.html?turno=${shift}${cmpKind === "renewal" ? "&tipo=renovacao" : ""}`;
+  const cidade = document.getElementById("cmp-filter-destino").value;
+  return `${window.location.origin}/escolas-publico.html?turno=${shift}${cmpKind === "renewal" ? "&tipo=renovacao" : ""}${cidade ? `&cidade=${encodeURIComponent(cidade)}` : ""}`;
 }
 ["am", "pm"].forEach(shift => {
   const btn = document.getElementById(`cmp-copy-${shift}`);
