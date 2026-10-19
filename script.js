@@ -2192,6 +2192,7 @@ function toggleRowMenu(lead, triggerEl) {
     <button type="button" class="row-menu-item" data-action="category">Mudar categoria</button>
     ${canEditLeadSource() ? '<button type="button" class="row-menu-item" data-action="source">Mudar origem</button>' : ""}
     <button type="button" class="row-menu-item" data-action="email" ${lead.email ? "" : "disabled"}>Enviar e-mail</button>
+    ${canAccessView("cotacao") ? '<button type="button" class="row-menu-item" data-action="new-quote">Criar cotação</button>' : ""}
     <button type="button" class="row-menu-item" data-action="quote">${t("lead.viewQuote")}</button>
     <div class="row-menu-divider"></div>
     <button type="button" class="row-menu-item" data-action="toggle-active">${isInactive ? "Reativar lead" : "Desativar lead"}</button>
@@ -2237,6 +2238,10 @@ function toggleRowMenu(lead, triggerEl) {
     closeRowMenu();
     removeLead(lead.id);
   });
+  menu.querySelector('[data-action="new-quote"]')?.addEventListener("click", () => {
+    closeRowMenu();
+    createQuoteForLead(lead);
+  });
   menu.querySelector('[data-action="quote"]').addEventListener("click", () => {
     closeRowMenu();
     viewLeadQuotes(lead);
@@ -2255,6 +2260,16 @@ function sendLeadEmail(lead) {
     return;
   }
   window.location.href = `mailto:${lead.email}`;
+}
+
+/* abre a tela de nova cotação já com este lead escolhido (dados do estudante e consultor preenchidos) */
+function createQuoteForLead(lead) {
+  if (!canAccessView("cotacao")) return;
+  switchView("cotacao");
+  openQuoteBuilder(null);
+  document.getElementById("q-lead-id").value = lead.id;
+  quoteLeadSearch.value = lead.name;
+  quotePullFromLead(lead);
 }
 
 function viewLeadQuotes(lead) {
