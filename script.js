@@ -5515,13 +5515,14 @@ function initFinanceiroSubtabs() {
       const target = btn.dataset.finSubtab;
       document.getElementById("subview-fin-dashboard").classList.toggle("active", target === "dashboard");
       /* os 4 cartões antigos continuam nas demais abas; no Dashboard seus números já estão nos KPIs */
-      document.getElementById("fin-stat-row").style.display = target === "dashboard" ? "none" : "";
+      document.getElementById("fin-stat-row").style.display = target === "dashboard" || target === "acomodacao" ? "none" : "";
       document.getElementById("subview-fin-overview").classList.toggle("active", target === "overview");
       document.getElementById("subview-fin-receivables").classList.toggle("active", target === "receivables");
       document.getElementById("subview-fin-expenses").classList.toggle("active", target === "expenses");
       document.getElementById("subview-fin-commissions").classList.toggle("active", target === "commissions");
       document.getElementById("subview-fin-schoolcommissions").classList.toggle("active", target === "schoolcommissions");
       document.getElementById("subview-fin-schooltransfers").classList.toggle("active", target === "schooltransfers");
+      document.getElementById("subview-fin-acomodacao").classList.toggle("active", target === "acomodacao");
       document.getElementById("subview-fin-adspend").classList.toggle("active", target === "adspend");
       document.getElementById("subview-fin-metrics").classList.toggle("active", target === "metrics");
       if (target === "metrics") renderMetrics();
