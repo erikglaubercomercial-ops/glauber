@@ -2968,3 +2968,4 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .mm-s-plain { background: transparent; border: none; border-radius: 0; padding: 3px 8px; color: var(--mm-text, #1a2233); }
 
 .mm-canvas:not(.mm-dots) { background-image: none; }
+.filter-toggle.on { background: var(--primary-deep); border-color: var(--primary-deep); color: #fff; }

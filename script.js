@@ -1780,6 +1780,18 @@ function renderLeadFilterOptions() {
 
 /* "Novos (7 dias)": filtro rápido pelo card do topo (mesma contagem do número exibido) */
 let leadsRecentOnly = false;
+/* "Cadastrados hoje": só os leads criados hoje (desde 00:00 no horário do computador) */
+let leadsTodayOnly = false;
+const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
+function updateTodayButton() {
+  const btn = document.getElementById("filter-today"); if (!btn) return;
+  const since = startOfToday();
+  const n = visibleLeadsBase().filter(l => l.createdAt >= since).length;
+  btn.textContent = `Cadastrados hoje (${n})`;
+  btn.classList.toggle("on", leadsTodayOnly);
+  btn.setAttribute("aria-pressed", String(leadsTodayOnly));
+}
+document.getElementById("filter-today").addEventListener("click", () => { leadsTodayOnly = !leadsTodayOnly; renderLeads(); });
 
 function resetLeadFilters() {
   document.getElementById("filter-status").value = "";
@@ -1789,6 +1801,7 @@ function resetLeadFilters() {
   document.getElementById("filter-date-to").value = "";
   document.getElementById("filter-show-inactive").checked = false;
   leadsRecentOnly = false;
+  leadsTodayOnly = false;
   clearLeadsSearch();
 }
 document.getElementById("filter-clear").addEventListener("click", () => {
@@ -1879,6 +1892,7 @@ function getFilteredLeads() {
   const base = visibleLeadsBase();
   if (leadsSearchSelectedId) return base.filter(l => l.id === leadsSearchSelectedId);
   const recentLimit = leadsRecentOnly ? Date.now() - 7 * 86400000 : null;
+  const todayLimit = leadsTodayOnly ? startOfToday() : null;
 
   const status = document.getElementById("filter-status").value;
   const source = document.getElementById("filter-source").value;
@@ -1893,12 +1907,14 @@ function getFilteredLeads() {
     if (dateFrom && l.createdAt < new Date(`${dateFrom}T00:00:00`).getTime()) return false;
     if (dateTo && l.createdAt > new Date(`${dateTo}T23:59:59`).getTime()) return false;
     if (recentLimit && l.createdAt < recentLimit) return false;
+    if (leadsTodayOnly && l.createdAt < todayLimit) return false;
     return true;
   });
 }
 
 function renderLeads() {
   const filtered = getFilteredLeads();
+  updateTodayButton();
   leadsTbody.innerHTML = "";
   leadsEmpty.style.display = filtered.length === 0 ? "block" : "none";
 
