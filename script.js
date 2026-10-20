@@ -5917,7 +5917,7 @@ function renderCommissions() {
       <td class="cell-muted">${currency(c.dealValue)}</td>
       <td class="cell-muted">${c.percentage}%</td>
       <td class="cell-primary">${currency(c.amount)}</td>
-      <td class="cell-muted">${c.status === "Pago" ? "—" : (rel.released ? `<span class="badge badge-good">${escapeHtml(t("fin.releasedYes"))}</span>` : `<span class="badge badge-warn" title="${escapeHtml(t("fin.releasedWait").replace("{min}", currency(rel.min)).replace("{paid}", currency(rel.paid)))}">${escapeHtml(t("fin.releasedWaitShort"))}</span>`)}</td>
+      <td class="cell-muted">${c.status === "Pago" ? "—" : (rel.released ? `<span class="badge badge-good">${escapeHtml(t("fin.releasedYes"))}</span>` : `<span class="badge badge-warn" title="${escapeHtml(t("fin.releasedWait"))}">${escapeHtml(t("fin.releasedWaitShort"))}</span>`)}</td>
       <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${escapeHtml(statusLabel(c.status))}</span></td>
       <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? t("fin.markPending") : t("fin.markPaid")}</button></td>
     `;
@@ -5930,15 +5930,15 @@ function renderCommissions() {
   document.getElementById("fin-rule-platform-pct").value = commissionSettings.platformPct;
   document.getElementById("fin-rule-manager").value = commissionSettings.managerFixed;
   document.getElementById("fin-rule-cac").value = commissionSettings.cacFixed;
-  document.getElementById("fin-rule-release").value = commissionSettings.releaseMinPaid;
   renderSaleSplits();
 }
 
-/* o cliente já pagou o mínimo de matrícula? (libera a comissão do consultor) */
+/* matrícula realizada? = já há valor enviado à escola (Financeiro › Envios para escolas) para a matrícula do lead; libera a comissão do consultor */
 function commissionRelease(dealId) {
-  const paid = receivables.filter(r => r.dealId === dealId && r.paid).reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const min = commissionSettings.releaseMinPaid;
-  return { released: paid >= min, paid, min };
+  const leadId = leadIdOfDeal(dealId);
+  const ids = new Set(enrollments.filter(e => leadId && e.leadId === leadId).map(e => e.id));
+  const sent = schoolTransfers.filter(st => ids.has(st.enrollmentId)).reduce((s, st) => s + (Number(st.amount) || 0), 0);
+  return { released: sent > 0, sent };
 }
 
 /* partilha por venda: tudo sai do ganho da Peregrinos (só ADM, Gerente e Financeiro enxergam) */
@@ -5970,7 +5970,7 @@ document.getElementById("fin-commissions-tbody").addEventListener("click", async
   if (!c) return;
   if (c.status !== "Pago") {
     const rel = commissionRelease(c.dealId);
-    if (!rel.released) { alert(t("fin.commissionNotReleased").replace("{min}", currency(rel.min))); return; }
+    if (!rel.released) { alert(t("fin.commissionNotReleased")); return; }
   }
   c.status = c.status === "Pago" ? "Pendente" : "Pago";
   c.paidAt = c.status === "Pago" ? Date.now() : null;
@@ -5986,7 +5986,7 @@ document.getElementById("fin-commission-pct-save").addEventListener("click", asy
     platformPct: Math.min(100, num("fin-rule-platform-pct", commissionSettings.platformPct)),
     managerFixed: num("fin-rule-manager", commissionSettings.managerFixed),
     cacFixed: num("fin-rule-cac", commissionSettings.cacFixed),
-    releaseMinPaid: num("fin-rule-release", commissionSettings.releaseMinPaid),
+    releaseMinPaid: commissionSettings.releaseMinPaid,
   };
   const ok = await updateCommissionSettingsRemote(cfg);
   if (!ok) { alert(t("fin.commissionSaveError")); return; }
@@ -6211,6 +6211,7 @@ transferForm.addEventListener("submit", async e => {
   if (!ok) { alert(t("fin.transferError")); return; }
   if (id) Object.assign(schoolTransfers.find(v => v.id === id), data); else schoolTransfers.push(data);
   renderSchoolTransfers();
+  renderCommissions();
   closeTransferModal();
 });
 transferBtnDelete.addEventListener("click", async () => {
@@ -6218,6 +6219,7 @@ transferBtnDelete.addEventListener("click", async () => {
   if (!id || !confirm(t("fin.confirmDeleteTransfer"))) return;
   schoolTransfers = schoolTransfers.filter(v => v.id !== id);
   renderSchoolTransfers();
+  renderCommissions();
   closeTransferModal();
   await deleteSchoolTransferRemote(id);
 });

@@ -297,7 +297,7 @@ function fxRenderCards(d) {
     if (cm) {
       const own = v.role === "Consultor";
       const state = cm.status === "Pago" ? '<span class="fx-ok">paga</span>'
-        : (cm.released ? '<span class="fx-ok">liberada</span>' : `<span class="fx-wr">pendente · aguardando ${currency(cm.min)} do cliente (pagou ${currency(cm.paid_by_client)})</span>`);
+        : (cm.released ? '<span class="fx-ok">liberada · matrícula realizada</span>' : '<span class="fx-wr">pendente · aguardando o primeiro envio à escola</span>');
       h += fxRow(own ? "Sua comissão" : "Comissão do consultor", `${currency(cm.amount)} · ${state}`);
     }
     if (v.financeiro) {
