@@ -1568,6 +1568,8 @@ body > .lang-switcher { position: fixed; top: 18px; right: 18px; z-index: 40; }
 .cmp-nav { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .cmp-nav-link { font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--primary); text-decoration: none; }
 .cmp-nav-link:hover { text-decoration: underline; }
+.cmp-nav-link.active { background: var(--primary); color: #fff; border-radius: 6px; padding: 3px 9px; margin: -3px -9px; text-decoration: none; }
+.cmp-card[hidden] { display: none; }
 .cmp-nav-link.disabled { color: var(--text-muted); opacity: 0.55; cursor: default; }
 .cmp-nav-link.disabled:hover { text-decoration: none; }
 .cities-list { display: flex; flex-direction: column; gap: 8px; }

@@ -59,7 +59,7 @@ function epCoverUrl(path) {
     labels: {
       empty: "Nenhuma escola disponível no momento.", from: "A partir de", values: "Valores",
       includes: "O que a escola oferece", overview: "Visão Geral", option: "opção", options: "opções",
-      noValues: "Sem valores cadastrados para este turno.", cityNoSchools: "Em breve", more: "Ver mais", less: "Ver menos",
+      noValues: "Sem valores cadastrados para este turno.", cityNoSchools: "Em breve", more: "Ver mais", less: "Ver menos", all: "Todas",
     },
   });
   cmpFitCards(document.getElementById("ep-container"));

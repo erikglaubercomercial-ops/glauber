@@ -60,6 +60,7 @@ function cmpGroupByDestino(schools, cities) {
   return order.flatMap(c => schools.filter(s => s.destino === c));
 }
 
+let cmpActiveCity = "";
 function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
   const esc = opts.escape, money = opts.money, L = opts.labels;
   if (!rawSchools.length) return `<p class="muted-note">${esc(L.empty)}</p>`;
@@ -68,10 +69,13 @@ function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
   /* menu do topo: uma entrada por cidade do menu; leva ao primeiro cartão
      dela, e fica apagada se ainda não há escola nessa cidade */
   const menuCities = opts.cities && opts.cities.length ? opts.cities : [...new Set(schools.map(s => s.destino))];
-  const nav = menuCities.map(city => {
+  /* clicar numa cidade mostra só as escolas dela; clicar de novo (ou em "Todas") volta a mostrar todas */
+  if (cmpActiveCity && !schools.some(s => s.destino === cmpActiveCity)) cmpActiveCity = "";
+  const navAll = menuCities.length > 1 ? `<a class="cmp-nav-link${cmpActiveCity ? "" : " active"}" href="#" data-cmp-city="">${esc(L.all || "Todas")}</a>` : "";
+  const nav = navAll + menuCities.map(city => {
     const idx = schools.findIndex(s => s.destino === city);
     if (idx === -1) return `<span class="cmp-nav-link disabled" title="${esc(L.cityNoSchools || "")}">${esc(city)}</span>`;
-    return `<a class="cmp-nav-link" href="#${cmpCardId(idx)}" data-cmp-target="${cmpCardId(idx)}">${esc(city)}</a>`;
+    return `<a class="cmp-nav-link${cmpActiveCity === city ? " active" : ""}" href="#" data-cmp-city="${esc(city)}">${esc(city)}</a>`;
   }).join("");
 
   const cards = schools.map((s, i) => {
@@ -92,7 +96,7 @@ function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
       : `<p class="cmp-empty">${esc(L.noValues)}</p>`;
     const inclusos = (s.inclusos || []).filter(Boolean);
     return `
-      <article class="cmp-card" id="${cmpCardId(i)}" style="--cmp-color:${color}">
+      <article class="cmp-card" id="${cmpCardId(i)}" data-city="${esc(s.destino)}"${cmpActiveCity && cmpActiveCity !== s.destino ? " hidden" : ""} style="--cmp-color:${color}">
         <div class="cmp-card-banner${s.coverPath && opts.coverUrl ? " has-photo" : ""}"${s.coverPath && opts.coverUrl ? ` style="background-image:linear-gradient(rgba(0,0,0,0.04), rgba(0,0,0,0.38)), url('${esc(opts.coverUrl(s.coverPath))}')"` : ""}>
           <span class="cmp-card-logo">${esc(cmpInitials(s.nome))}</span>
           ${prices.length ? `<span class="cmp-card-tag">${esc(L.from)} ${money(Math.min(...prices))}</span>` : ""}
@@ -142,6 +146,17 @@ function cmpFitCards(root) {
 if (!window.__cmpMoreInit) {
   window.__cmpMoreInit = true;
   document.addEventListener("click", e => {
+    const cityLink = e.target.closest("[data-cmp-city]");
+    if (cityLink) {
+      e.preventDefault();
+      const city = cityLink.dataset.cmpCity;
+      cmpActiveCity = city && cmpActiveCity === city ? "" : city;
+      const wrap = cityLink.closest(".cmp-topbar").parentElement;
+      wrap.querySelectorAll("[data-cmp-city]").forEach(l => l.classList.toggle("active", l.dataset.cmpCity === cmpActiveCity));
+      wrap.querySelectorAll(".cmp-card").forEach(c => { c.hidden = !!cmpActiveCity && c.dataset.city !== cmpActiveCity; });
+      cmpFitCards(wrap);
+      return;
+    }
     const btn = e.target.closest(".cmp-more-btn");
     if (!btn) return;
     const card = btn.closest(".cmp-card");
