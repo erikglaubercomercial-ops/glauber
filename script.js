@@ -3805,8 +3805,10 @@ function renderSchoolComparisonView() {
     labels: {
       empty: t("schools.empty"), from: t("quotes.cmpFrom"), values: t("quotes.cmpValues"), includes: t("schools.includesTitle"),
       overview: t("quotes.cmpOverview"), option: t("quotes.cmpOption"), options: t("quotes.cmpOptions"), noValues: t("schools.noValues"), cityNoSchools: t("schools.cityNoSchools"),
+      more: t("schools.viewMore"), less: t("schools.viewLess"),
     },
   });
+  cmpFitCards(document.getElementById("cmp-container"));
 }
 
 function renderSchoolsList() {

@@ -1600,7 +1600,18 @@ body > .lang-switcher { position: fixed; top: 18px; right: 18px; z-index: 40; }
   position: absolute; left: 84px; bottom: 8px; background: rgba(255,255,255,0.92); color: #1a1f2e;
   font-size: 11.5px; font-weight: 700; border-radius: 6px; padding: 2px 8px;
 }
-.cmp-card-body { padding: 36px 20px 20px; }
+.cmp-card-body { padding: 36px 20px 16px; }
+/* todos os cartões com a mesma altura; o excedente fica escondido atrás do "Ver mais" */
+.cmp-card-clip { height: 440px; overflow: hidden; position: relative; }
+.cmp-card:not(.expanded) .cmp-card-clip { -webkit-mask-image: linear-gradient(#000 calc(100% - 46px), transparent); mask-image: linear-gradient(#000 calc(100% - 46px), transparent); }
+.cmp-card:not(.cmp-overflow):not(.expanded) .cmp-card-clip { -webkit-mask-image: none; mask-image: none; }
+.cmp-card.expanded .cmp-card-clip { height: auto; overflow: visible; }
+.cmp-more-btn {
+  display: block; width: 100%; margin-top: 10px; padding: 9px 12px; font-family: inherit; font-size: 13.5px; font-weight: 700;
+  color: var(--cmp-color); background: transparent; border: 1px solid var(--cmp-color); border-radius: 9px; cursor: pointer;
+}
+.cmp-more-btn:hover { background: color-mix(in srgb, var(--cmp-color) 10%, transparent); }
+.cmp-card:not(.cmp-overflow) .cmp-more-btn { visibility: hidden; }
 .cmp-card-title { margin: 0 0 4px; font-size: 21px; font-weight: 600; line-height: 1.25; color: var(--text); }
 .cmp-card-loc { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
 .cmp-card-section { font-size: 17px; font-weight: 600; color: var(--text); padding-top: 14px; border-top: 1px solid var(--border); margin-bottom: 6px; }

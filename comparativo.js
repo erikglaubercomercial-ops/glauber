@@ -98,6 +98,7 @@ function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
           ${prices.length ? `<span class="cmp-card-tag">${esc(L.from)} ${money(Math.min(...prices))}</span>` : ""}
         </div>
         <div class="cmp-card-body">
+         <div class="cmp-card-clip">
           <h3 class="cmp-card-title">${esc(s.nome)}</h3>
           <div class="cmp-card-loc">${esc(s.destino)}${s.categoria ? `, ${esc(s.categoria)}` : ""}</div>
           ${s.descricao ? `<p class="cmp-card-desc">${esc(s.descricao)}</p>` : ""}
@@ -106,6 +107,8 @@ function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
           ${inclusos.length ? `
             <div class="cmp-card-section">${esc(L.includes)}</div>
             <ul class="cmp-includes">${inclusos.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+         </div>
+         <button type="button" class="cmp-more-btn" data-more="${esc(L.more || "Ver mais")}" data-less="${esc(L.less || "Ver menos")}">${esc(L.more || "Ver mais")}</button>
         </div>
       </article>`;
   }).join("");
@@ -116,4 +119,37 @@ function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
       <nav class="cmp-nav">${nav}</nav>
     </div>
     <div class="cmp-grid">${cards}</div>`;
+}
+
+
+/* todos os cartões com o mesmo tamanho: o que passa da altura padrão ganha o botão "Ver mais"
+   (só aparece quando há o que mostrar). Chamar depois de inserir o HTML dos cartões. */
+function cmpFitCard(card) {
+  const clip = card.querySelector(".cmp-card-clip");
+  if (!clip) return;
+  const open = card.classList.contains("expanded");
+  card.classList.toggle("cmp-overflow", open || clip.scrollHeight > clip.clientHeight + 2);
+}
+/* o observador reavalia quando o cartão aparece/muda de tamanho (ex.: aba que estava escondida) */
+const cmpRO = typeof ResizeObserver === "function" ? new ResizeObserver(entries => entries.forEach(en => { const c = en.target.closest(".cmp-card"); if (c) cmpFitCard(c); })) : null;
+function cmpFitCards(root) {
+  (root || document).querySelectorAll(".cmp-card").forEach(card => {
+    cmpFitCard(card);
+    const clip = card.querySelector(".cmp-card-clip");
+    if (cmpRO && clip) cmpRO.observe(clip);
+  });
+}
+if (!window.__cmpMoreInit) {
+  window.__cmpMoreInit = true;
+  document.addEventListener("click", e => {
+    const btn = e.target.closest(".cmp-more-btn");
+    if (!btn) return;
+    const card = btn.closest(".cmp-card");
+    const open = card.classList.toggle("expanded");
+    cmpFitCard(card);
+    btn.textContent = open ? btn.dataset.less : btn.dataset.more;
+  });
+  let cmpFitTimer = null;
+  window.addEventListener("resize", () => { clearTimeout(cmpFitTimer); cmpFitTimer = setTimeout(() => cmpFitCards(document), 150); });
+  window.addEventListener("load", () => cmpFitCards(document));
 }
