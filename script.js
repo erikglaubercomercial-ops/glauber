@@ -7859,15 +7859,30 @@ document.getElementById("fr-bulk-assign").addEventListener("click", async () => 
   if (duplicates) alert(`${duplicates} ${t("forms.bulkAssignPhoneDuplicates")}`);
 });
 
+/* campos criados como "texto" mas que na verdade pedem nome, e-mail ou WhatsApp (ex.: "Nome completo", "E-mail",
+   "Número watsapp com DDD") também preenchem o lead — o primeiro de cada tipo vale */
+function formFieldKind(f, taken) {
+  if (f.type !== "text") return f.type;
+  const l = normalizeImportStr(f.label);
+  let kind = f.type;
+  if (/e-?mail/.test(l)) kind = "email";
+  else if (/(wh?a?t?s+a?pp?|watsap|telefone|celular|\bfone\b|numero com ddd|\bddd\b)/.test(l)) kind = "phone_br";
+  else if (/\b(nome|name)\b/.test(l) && !/(pai|mae|filho|escola|empresa|indic|conjuge|esposa|marido|contato de emergencia)/.test(l)) kind = "name";
+  return kind !== "text" && taken.has(kind) ? "text" : kind;
+}
+
 function buildLeadFromSubmission(form, submission) {
   const answers = submission.answers || {};
   let name = "", email = "", ddd = "", number = "", source = "Outro", notes = "", countryCode = "BR";
+  const taken = new Set(form.fields.filter(f => ["name", "email", "phone_br"].includes(f.type)).map(f => f.type));
 
   form.fields.forEach(f => {
     const val = (answers[f.id] || "").toString().trim();
-    if (f.type === "name") name = val;
-    else if (f.type === "email") email = val;
-    else if (f.type === "phone_br") {
+    const kind = formFieldKind(f, taken);
+    if (kind !== f.type) taken.add(kind);
+    if (kind === "name") name = val;
+    else if (kind === "email") email = val;
+    else if (kind === "phone_br") {
       /* o formulário público guarda o país escolhido em "<campo>__pais" (DDI); sem ele, Brasil */
       const chosen = String(answers[`${f.id}__pais`] || "BR");
       countryCode = COUNTRIES.some(c => c.code === chosen) ? chosen : "BR";
