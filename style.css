@@ -2388,6 +2388,9 @@ tr.appt-row-unassigned { background: var(--danger-bg); }
 @media (max-width: 760px) { .ag-week { grid-template-columns: 1fr; } .ag-mcell { min-height: 74px; } }
 /* modal da agenda: busca de lead e convidados */
 .ag-lead-picker { position: relative; }
+.ag-lead-row { display: flex; align-items: center; gap: 8px; }
+.ag-lead-row input[type="text"] { flex: 1 1 auto; min-width: 0; }
+.ag-lead-row .wpp-btn { width: 38px; height: 38px; }
 .ag-lead-results { position: absolute; left: 0; right: 0; top: 100%; z-index: 5; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 24px rgba(10, 25, 50, .18); overflow: hidden; }
 .ag-lead-opt { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 8px 12px; border: none; background: transparent; cursor: pointer; font: inherit; text-align: left; }
 .ag-lead-opt:hover { background: var(--content-bg); }

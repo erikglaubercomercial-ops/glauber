@@ -8691,15 +8691,35 @@ function renderAgendaGuests(selectedIds) {
   document.getElementById("agenda-guests").innerHTML = agendaTeamUsers().map(u => `
     <label class="ag-guest"><input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id) ? "checked" : ""}><span>${escapeHtml(u.name)}</span></label>`).join("");
 }
+/* botão do WhatsApp do lead escolhido no compromisso */
+function agendaUpdateLeadWpp() {
+  const a = document.getElementById("agenda-lead-wpp");
+  const lead = leads.find(l => l.id === document.getElementById("agenda-field-lead").value);
+  /* leads de outros países podem não ter DDD separado: monta o número com o código do país mesmo assim */
+  let digits = lead ? leadWhatsAppDigits(lead) : null;
+  if (lead && !digits) {
+    const ddi = countryByCode(lead.countryCode || "BR").ddi;
+    const num = (lead.phoneNumber || "").replace(/\D/g, "");
+    const raw = String(lead.phone || "");
+    if (num) digits = `${ddi}${(lead.phoneDdd || "").replace(/\D/g, "")}${num}`;
+    else if (raw.replace(/\D/g, "").length >= 8) digits = raw.trim().startsWith("+") ? raw.replace(/\D/g, "") : `${ddi}${raw.replace(/\D/g, "")}`;
+  }
+  a.innerHTML = WPP_ICON_SVG;
+  a.classList.toggle("disabled", !digits);
+  if (digits) { a.href = buildWhatsAppLink(digits); a.title = t("common.openWhatsapp"); }
+  else { a.removeAttribute("href"); a.title = lead ? t("lead.noWhatsappConfigured") : "Escolha um lead com telefone para abrir o WhatsApp"; }
+}
 function agendaSetLead(leadId) {
   const lead = leadId ? leads.find(l => l.id === leadId) : null;
   document.getElementById("agenda-field-lead").value = lead ? lead.id : "";
   document.getElementById("agenda-lead-search").value = lead ? lead.name : "";
   document.getElementById("agenda-lead-results").style.display = "none";
+  agendaUpdateLeadWpp();
 }
 document.getElementById("agenda-lead-search").addEventListener("input", e => {
   const box = document.getElementById("agenda-lead-results");
   document.getElementById("agenda-field-lead").value = "";
+  agendaUpdateLeadWpp();
   const q = normalizeImportStr(e.target.value);
   const qDigits = e.target.value.replace(/\D/g, "");
   if (q.length < 2) { box.style.display = "none"; return; }
