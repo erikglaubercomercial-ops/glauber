@@ -94,7 +94,11 @@ function bkaRenderBlocks() {
   box.innerHTML = bka.blocks.length ? bka.blocks.map(b => {
     const x = bkaBlockText(b);
     return `<div class="bka-block"><div><strong>🔒 ${escapeHtml(x.title)}</strong><small>${escapeHtml(x.sub)}</small></div>
-      <button type="button" class="btn btn-ghost btn-sm" data-bka-del="${b.id}">Remover</button></div>`;
+      <div class="bka-block-acts">
+        <button type="button" class="btn btn-ghost btn-sm" data-bka-edit="${b.id}">Editar</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-bka-dup="${b.id}">Duplicar</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-bka-del="${b.id}">Remover</button>
+      </div></div>`;
   }).join("") : `<p class="muted-note">Nenhum horário travado.</p>`;
 }
 
@@ -112,6 +116,7 @@ async function bkaOpen() {
   const id = manager ? who.value : session.id;
   if (!(await bkaLoad(id))) return;
   bkaRenderForm();
+  bkaResetBlockForm();
   /* data inicial padrão do formulário de trava: hoje */
   if (!bkaEl("bkb-from").value) bkaEl("bkb-from").value = new Date().toISOString().slice(0, 10);
   backdrop.classList.add("open");
@@ -159,6 +164,37 @@ function bkaPreset(kind) {
   bkaToggleAllDay();
 }
 
+/* edição de uma trava já salva: o formulário de baixo é preenchido e o botão vira "Salvar alterações" */
+function bkaFillBlockForm(b) {
+  bkaEl("bkb-from").value = b.date_from;
+  bkaEl("bkb-to").value = b.date_to || "";
+  bkaEl("bkb-allday").checked = !!b.all_day;
+  bkaEl("bkb-tfrom").value = b.time_from ? String(b.time_from).slice(0, 5) : "";
+  bkaEl("bkb-tto").value = b.time_to ? String(b.time_to).slice(0, 5) : "";
+  bkaWeekdaysRender((b.weekdays || []).map(String));
+  bkaEl("bkb-tz").value = b.tz;
+  bkaEl("bkb-note").value = b.note || "";
+  bkaToggleAllDay();
+}
+function bkaSetEditing(id, label) {
+  bka.editId = id || null;
+  bkaEl("bkb-submit").textContent = id ? "💾 Salvar alterações" : "🔒 Travar horário";
+  bkaEl("bkb-cancel").style.display = id ? "" : "none";
+  const note = bkaEl("bkb-editing");
+  note.style.display = label ? "" : "none";
+  note.textContent = label || "";
+  bkaEl("booking-block-form").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+function bkaResetBlockForm() {
+  bkaEl("booking-block-form").reset();
+  bkaEl("bkb-from").value = new Date().toISOString().slice(0, 10);
+  bkaWeekdaysRender([]); bkaToggleAllDay();
+  bka.editId = null;
+  bkaEl("bkb-submit").textContent = "🔒 Travar horário";
+  bkaEl("bkb-cancel").style.display = "none";
+  bkaEl("bkb-editing").style.display = "none";
+}
+
 async function bkaAddBlock(e) {
   e.preventDefault();
   const allDay = bkaEl("bkb-allday").checked;
@@ -171,14 +207,19 @@ async function bkaAddBlock(e) {
     consultor_id: bka.consultorId, tz: bkaEl("bkb-tz").value, date_from: from, date_to: to, all_day: allDay,
     time_from: allDay ? null : tf, time_to: allDay ? null : tt, weekdays: weekdays.length ? weekdays : null, note: bkaEl("bkb-note").value.trim(),
   };
-  const { data, error } = await supabase.from("booking_blocks").insert(row).select().single();
-  if (error) { console.error(error); alert("Não foi possível travar o horário."); return; }
-  bka.blocks.push(data);
+  if (bka.editId) {
+    const { consultor_id, ...patch } = row;
+    const up = await supabase.from("booking_blocks").update(patch).eq("id", bka.editId).select().single();
+    if (up.error) { console.error(up.error); alert("Não foi possível salvar as alterações."); return; }
+    bka.blocks = bka.blocks.map(b => (b.id === bka.editId ? (up.data || { ...b, ...patch }) : b));
+  } else {
+    const { data, error } = await supabase.from("booking_blocks").insert(row).select().single();
+    if (error) { console.error(error); alert("Não foi possível travar o horário."); return; }
+    bka.blocks.push(data);
+  }
   bka.blocks.sort((a, b) => a.date_from.localeCompare(b.date_from));
   bkaRenderBlocks();
-  bkaEl("booking-block-form").reset();
-  bkaEl("bkb-from").value = new Date().toISOString().slice(0, 10);
-  bkaWeekdaysRender([]); bkaToggleAllDay();
+  bkaResetBlockForm();
 }
 
 /* ---- ficha do lead: copia o link personalizado ---- */
@@ -197,7 +238,7 @@ async function copyBookingLinkForLead(leadId, consultorId) {
 bkaEl("ag-booking").addEventListener("click", bkaOpen);
 bkaEl("booking-modal-close").addEventListener("click", bkaClose);
 bkaEl("booking-modal-backdrop").addEventListener("click", e => { if (e.target === bkaEl("booking-modal-backdrop")) bkaClose(); });
-bkaEl("booking-who").addEventListener("change", async e => { if (await bkaLoad(e.target.value)) bkaRenderForm(); });
+bkaEl("booking-who").addEventListener("change", async e => { if (await bkaLoad(e.target.value)) { bkaRenderForm(); bkaResetBlockForm(); } });
 bkaEl("booking-copy").addEventListener("click", async () => { bkaToast((await bkaCopy(bkaEl("booking-link").value)) ? "Link copiado!" : "Selecione e copie o link manualmente."); });
 bkaEl("booking-save").addEventListener("click", bkaSave);
 bkaEl("booking-block-form").addEventListener("submit", bkaAddBlock);
@@ -208,12 +249,23 @@ bkaEl("booking-block-form").addEventListener("click", e => {
   const preset = e.target.closest("[data-bka-preset]");
   if (preset) bkaPreset(preset.dataset.bkaPreset);
 });
+bkaEl("bkb-cancel").addEventListener("click", bkaResetBlockForm);
 bkaEl("booking-blocks").addEventListener("click", async e => {
+  const ed = e.target.closest("[data-bka-edit]");
+  const dup = e.target.closest("[data-bka-dup]");
+  if (ed || dup) {
+    const b = bka.blocks.find(x => x.id === (ed || dup).dataset[ed ? "bkaEdit" : "bkaDup"]);
+    if (!b) return;
+    bkaFillBlockForm(b);
+    bkaSetEditing(ed ? b.id : null, ed ? "Editando a trava selecionada — altere e clique em Salvar alterações." : "Cópia da trava: ajuste o que quiser e clique em Travar horário para criar uma nova.");
+    return;
+  }
   const del = e.target.closest("[data-bka-del]");
   if (!del || !confirm("Remover esta trava? O horário volta a ficar disponível para o cliente.")) return;
   const { error } = await supabase.from("booking_blocks").delete().eq("id", del.dataset.bkaDel);
   if (error) { alert("Não foi possível remover."); return; }
   bka.blocks = bka.blocks.filter(b => b.id !== del.dataset.bkaDel);
+  if (bka.editId === del.dataset.bkaDel) bkaResetBlockForm();
   bkaRenderBlocks();
 });
 bkaWeekdaysRender([]);
