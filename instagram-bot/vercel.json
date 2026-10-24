@@ -1,0 +1,5 @@
+{
+  "functions": {
+    "api/instagram.js": { "maxDuration": 60 }
+  }
+}

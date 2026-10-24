@@ -1,0 +1,17 @@
+{
+  "name": "peregrinos-instagram-bot",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Bot de Direct do Instagram (com IA) que qualifica o lead e registra no CRM pela função instagram_registrar_lead (migração 081).",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.135.0",
+    "@vercel/functions": "3.10.1"
+  }
+}

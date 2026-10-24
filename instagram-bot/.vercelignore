@@ -1,0 +1,4 @@
+# Deploy do bot: este arquivo tem precedência sobre o .vercelignore da raiz do repositório
+test/
+.env*
+!.env.example
