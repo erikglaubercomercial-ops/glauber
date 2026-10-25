@@ -2864,6 +2864,20 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .mm-editing { cursor: text; user-select: text; -webkit-user-select: text; background-color: #fff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.75); }
 .mm-d1.mm-editing { color: #1a2233; }
 .mm-node[data-collapsed]::after { content: "+" attr(data-collapsed); margin-left: 8px; font-size: 10.5px; font-weight: 800; background: rgba(0, 0, 0, 0.14); border-radius: 999px; padding: 1px 7px; }
+/* botão de abrir/fechar ramificações, no ponto de conexão de cada tópico */
+.mm-fold {
+  position: absolute; z-index: 3; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; line-height: 1; letter-spacing: 0;
+  background: #fff; color: var(--mm-c, #3B82F6); border: 1.8px solid var(--mm-c, #3B82F6); cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); white-space: nowrap; user-select: none; -webkit-user-select: none;
+}
+.mm-fold:hover { background: var(--mm-c, #3B82F6); color: #fff; }
+.mm-fold.is-closed { font-size: 10.5px; }
+.mm-node[data-side="r"] > .mm-fold { right: -26px; }
+.mm-node[data-side="l"] > .mm-fold { left: -26px; }
+.mm-d0 > .mm-fold, .mm-d1 > .mm-fold { top: 50%; transform: translateY(-50%); }
+.mm-d2 > .mm-fold, .mm-sum > .mm-fold { bottom: -10px; }
+.mm-d0 > .mm-fold { border-color: var(--mm-c, #3B82F6); }
 .mm-dragging { opacity: 0.35; }
 .mm-drop { box-shadow: 0 0 0 3px #16a34a; }
 .mm-ghost { position: fixed; z-index: 200; pointer-events: none; opacity: 0.85; transform: none; }

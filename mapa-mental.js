@@ -393,7 +393,13 @@ function mmRender() {
     const el = mkEl(n.id, depth, n, cls);
     const ks = mmKids(n);
     ks.forEach(ch => build(ch, depth + 1));
-    if (n.x && !mm.pitch && (n.c || []).length) { const b = document.createElement("span"); b.className = "mm-coll"; b.textContent = `+${mmDescendants(n)}`; el.appendChild(b); }
+    /* botão no ponto de conexão: − recolhe as ramificações, +N abre (também vale Espaço) */
+    if (!mm.pitch && (n.c || []).length) {
+      const b = document.createElement("span"); b.className = "mm-fold" + (n.x ? " is-closed" : "");
+      b.textContent = n.x ? `+${mmDescendants(n)}` : "−";
+      b.title = n.x ? "Abrir ramificações" : "Fechar ramificações"; b.dataset.fold = "1";
+      el.appendChild(b);
+    }
     (n.sm || []).forEach(s => { if (!mm.pitch || (mm.pitch.shown.has(s.from) && mm.pitch.shown.has(s.to))) mkEl("sm:" + s.id, depth + 1, s, "mm-sum"); });
   };
   (root.zn || []).forEach(z => {
@@ -485,13 +491,13 @@ function mmRelayout() {
   let minX = Infinity, minY = Infinity;
   /* aplica */
   let maxX = -Infinity, maxY = -Infinity;
-  mm.pos.forEach((p, id) => { const el = mm.els.get(id); if (!el) return; el.style.left = `${p.x}px`; el.style.top = `${p.y}px`; minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x + p.w); maxY = Math.max(maxY, p.y + p.h); });
+  mm.pos.forEach((p, id) => { const el = mm.els.get(id); if (!el) return; el.dataset.side = p.side === "l" ? "l" : "r"; el.style.left = `${p.x}px`; el.style.top = `${p.y}px`; minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x + p.w); maxY = Math.max(maxY, p.y + p.h); });
   if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
   mm.geo = { minX, minY, maxX, maxY };
   svg.setAttribute("width", Math.max(1, maxX + 40)); svg.setAttribute("height", Math.max(1, maxY + 40));
   svg.innerHTML = mmDrawSvg(cfg);
   /* recolhido: dica */
-  mm.els.forEach(el => { const c = el.querySelector(".mm-coll"); el.title = c ? "Recolhido — Espaço para abrir" : ""; });
+  mm.els.forEach(el => { const c = el.querySelector(".mm-fold.is-closed"); el.title = c ? "Recolhido — clique no + (ou Espaço) para abrir" : ""; });
   mmApplyTransform();
   mmUpdateSelection();
 }
@@ -1046,6 +1052,8 @@ function mmExportPng() {
       if (z && e.button === 0) mm.zdrag = { id: zid, resize: !!e.target.closest(".mm-zone-r"), x: e.clientX, y: e.clientY, ox: z.x, oy: z.y, ow: z.w, oh: z.h, moved: false };
       return;
     }
+    const fold = e.target.closest(".mm-fold");
+    if (fold) { const host = fold.closest(".mm-node"); if (mm.editing) mmCommitEdit(); mmSelect(host.dataset.id); mmToggle(host.dataset.id); mmFocusCanvas(); e.preventDefault(); e.stopPropagation(); return; }
     const todo = e.target.closest(".mm-todo");
     if (todo) { const host = todo.closest(".mm-node"), n0 = mmObj(host.dataset.id); if (n0) { mmSelect(host.dataset.id); mmMutate(() => { n0.td = n0.td ? 0 : 1; }); } e.preventDefault(); return; }
     const lt = e.target.closest(".mm-lt"); if (lt) { mmSelect(lt.dataset.lt, true); e.preventDefault(); return; }
@@ -1107,6 +1115,7 @@ function mmExportPng() {
   });
   canvas.addEventListener("dblclick", e => {
     if (mm.pitch) return;
+    if (e.target.closest(".mm-fold")) return;
     const nodeEl = e.target.closest(".mm-node");
     if (nodeEl) { if (nodeEl.dataset.id.startsWith("zn:") && !e.target.closest(".mm-zone-h")) return; mmSelect(nodeEl.dataset.id); mmStartEdit(nodeEl.dataset.id); return; }
     const obj = e.target.closest("[data-obj]");
