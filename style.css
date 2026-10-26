@@ -3000,3 +3000,8 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 
 .mm-canvas:not(.mm-dots) { background-image: none; }
 .filter-toggle.on { background: var(--primary-deep); border-color: var(--primary-deep); color: #fff; }
+
+/* olhinho de mostrar/ocultar item do catálogo */
+.prod-eye { padding-left: 9px; padding-right: 9px; display: inline-flex; align-items: center; justify-content: center; }
+.prod-eye.is-off { color: var(--danger, #d64545); border-color: color-mix(in srgb, var(--danger, #d64545) 45%, var(--border)); background: color-mix(in srgb, var(--danger, #d64545) 8%, transparent); }
+.prod-card.off { opacity: 0.6; }

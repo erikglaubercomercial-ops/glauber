@@ -767,6 +767,17 @@ function cxMark(el, key, cutKeys) {
     const p = catalog.find(x => x.id === btn.dataset.id);
     if (!p) return;
     if (btn.dataset.act === "edit") openProductModal(p.id);
+    /* olhinho: oculta/mostra o item para consultores e clientes (cotação, comparativo e páginas públicas só leem itens ativos) */
+    if (btn.dataset.act === "vis") {
+      p.ativo = !p.ativo;
+      renderCatalogList();
+      quoteMontaDestinos();
+      quoteMontaCatalogo();
+      cxToast(p.ativo ? t("products.shownToast") : t("products.hiddenToast"));
+      const ok = await saveCatalogItem(p);
+      if (ok === false) { p.ativo = !p.ativo; renderCatalogList(); quoteMontaDestinos(); quoteMontaCatalogo(); }
+      return;
+    }
     if (btn.dataset.act === "dup") {
       const copy = {
         ...p, id: uid(), nome: `${p.nome} (${t("common.copy")})`,
