@@ -2501,6 +2501,35 @@ document.getElementById("stuck-btn-reassign").addEventListener("click", () => {
   openAssignModal(Array.from(selectedStuckLeadIds));
 });
 
+/* excluir vários leads parados de uma vez (só ADM/Gerente). Leads que já têm matrícula, contrato, cotação ou venda
+   fechada NÃO são excluídos aqui — ficam de fora e o aviso diz quantos. Os cards deles no Pipeline saem junto. */
+document.getElementById("stuck-btn-delete").addEventListener("click", async () => {
+  if (!canDirectLeads() || !selectedStuckLeadIds.size) return;
+  const ids = Array.from(selectedStuckLeadIds);
+  const protectedIds = new Set(ids.filter(id =>
+    enrollments.some(e => e.leadId === id) || contracts.some(c => c.leadId === id) || quotes.some(q => q.leadId === id) ||
+    deals.some(d => d.leadId === id && isWonStage(d.stage))));
+  const toDelete = ids.filter(id => !protectedIds.has(id));
+  if (!toDelete.length) { alert(t("stuck.deleteAllProtected")); return; }
+  let msg = `${t("stuck.confirmDelete1")} ${toDelete.length} ${t("stuck.confirmDelete2")}`;
+  if (protectedIds.size) msg += `\n\n${protectedIds.size} ${t("stuck.deleteProtectedNote")}`;
+  if (!confirm(msg)) return;
+  const btn = document.getElementById("stuck-btn-delete");
+  btn.disabled = true;
+  /* primeiro os negócios (cards do Pipeline), depois os leads; só mexe na tela se o banco confirmar */
+  const d1 = await supabase.from("deals").delete().in("lead_id", toDelete);
+  const d2 = d1.error ? d1 : await supabase.from("leads").delete().in("id", toDelete);
+  btn.disabled = false;
+  if (d2.error) { console.error("Erro ao excluir leads parados:", d2.error); if (d2.error.code !== "VIEW_AS") alert(t("stuck.deleteError")); return; }
+  const gone = new Set(toDelete);
+  leads = leads.filter(l => !gone.has(l.id));
+  deals = deals.filter(d => !gone.has(d.leadId));
+  toDelete.forEach(id => selectedStuckLeadIds.delete(id));
+  renderLeads(); renderBoard();
+  if (document.getElementById("subview-stuck-detalhe").classList.contains("active")) renderStuckDetailTable(); else renderStuckOverview();
+  if (typeof agendaToast === "function") agendaToast(`${toDelete.length} ${t("stuck.deletedToast")}`);
+});
+
 /* depois de reatribuir (pelo modal padrão de "Atribuir consultor"),
    atualiza a tela de Leads Parados se ela estiver aberta na hora */
 function refreshStuckLeadsAfterReassign(reassignedIds) {
