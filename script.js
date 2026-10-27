@@ -1576,14 +1576,21 @@ async function loadLeads() {
   if (error) { console.error("Erro ao carregar leads:", error); return []; }
   return (await viewAsScopeRows("leads", data)).map(leadFromDb);
 }
-async function saveLeads() {
-  const { error } = await supabase.from("leads").upsert(leads.map(leadToDb));
+/* `only`: salva só esses leads (o lead que acabou de ser criado/editado), assim um lead antigo com problema
+   não derruba a gravação do novo. Sem argumento, grava a lista toda como antes. Devolve true se gravou. */
+async function saveLeads(only) {
+  const { error } = await supabase.from("leads").upsert((only || leads).map(leadToDb));
   if (error) {
     console.error("Erro ao salvar leads:", error);
+    if (error.code === "VIEW_AS") return false;   /* "Ver como": o próprio aviso já foi mostrado */
     if (error.code === "23505") {
       alert((error.message || "").includes("telefone_duplicado") ? t("lead.duplicatePhoneSaveError") : t("lead.duplicateEmailSaveError"));
+    } else {
+      alert(`${t("lead.saveError")}\n\n${error.message || ""}`);
     }
+    return false;
   }
+  return true;
 }
 /* ---- rodízio automático de leads (fila de consultores + prazo pro
    primeiro contato) — a atribuição/reatribuição em si acontece no banco
@@ -2681,7 +2688,12 @@ leadForm.addEventListener("submit", async e => {
   }
   renderLeads();
   closeLeadModal();
-  await saveLeads();
+  const saved = await saveLeads(newLead ? [newLead] : [leads.find(l => l.id === id)]);
+  if (!saved) {
+    /* não gravou: o lead novo não pode ficar na lista como se tivesse sido salvo */
+    if (newLead) { leads = leads.filter(l => l.id !== newLead.id); renderLeads(); }
+    return;
+  }
 
   if (newLead) {
     const newDeal = createDealForLead(newLead);
