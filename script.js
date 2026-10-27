@@ -5418,6 +5418,7 @@ async function loadReceivables() {
 async function saveReceivables(list) {
   const { error } = await supabase.from("receivables").upsert(list.map(receivableToDb));
   if (error) console.error("Erro ao salvar contas a receber:", error);
+  return !error;
 }
 async function updateReceivableRemote(r) {
   const { error } = await supabase.from("receivables").update(receivableToDb(r)).eq("id", r.id);
@@ -5726,13 +5727,172 @@ function renderReceivables() {
       <td>${currency(r.amount)}</td>
       <td class="cell-muted">${formatDate(r.dueDate)}</td>
       <td><span class="badge ${r.paid ? "badge-good" : "badge-warn"}">${r.paid ? t("status.pago") : t("status.pendente")}</span></td>
-      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${r.paid ? t("fin.markPending") : t("fin.markPaid")}</button></td>
+      <td class="cell-actions">${r.paid
+        ? `<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>`
+        : `<button type="button" class="btn btn-primary btn-sm" data-act="receive" data-id="${r.id}">Registrar recebimento</button> <button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Dividir em parcelas</button>`}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
+/* ---- registrar recebimento e dividir em parcelas (valores e datas livres) ---- */
+function recRenumber(dealId) {
+  const list = receivables.filter(r => r.dealId === dealId).sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)) || a.createdAt - b.createdAt);
+  const changed = [];
+  list.forEach((r, i) => {
+    if (r.installmentNumber !== i + 1 || r.installmentsTotal !== list.length) { r.installmentNumber = i + 1; r.installmentsTotal = list.length; changed.push(r); }
+  });
+  return changed;
+}
+function recRefresh() { renderReceivables(); renderFinanceiroOverview(); }
+
+function recEnsureModals() {
+  if (document.getElementById("rec-recv-backdrop")) return;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+  <div class="modal-backdrop" id="rec-recv-backdrop"><div class="modal">
+    <div class="modal-header"><h2>Registrar recebimento</h2><button class="btn-icon" id="rec-recv-close" type="button">&times;</button></div>
+    <form id="rec-recv-form">
+      <p class="muted-note" id="rec-recv-info"></p>
+      <label><span>Valor recebido (€)</span><input type="number" id="rec-recv-amount" min="0.01" step="0.01" required></label>
+      <label><span>Data do recebimento</span><input type="date" id="rec-recv-date" required></label>
+      <p class="muted-note">Se for menos que o valor da parcela, o que faltar continua como pendente, com o mesmo vencimento.</p>
+      <div class="modal-actions"><div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" id="rec-recv-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar recebimento</button></div>
+    </form></div></div>
+  <div class="modal-backdrop" id="rec-split-backdrop"><div class="modal">
+    <div class="modal-header"><h2>Dividir em parcelas</h2><button class="btn-icon" id="rec-split-close" type="button">&times;</button></div>
+    <form id="rec-split-form">
+      <p class="muted-note" id="rec-split-info"></p>
+      <div class="rec-split-gen">
+        <label><span>Parcelas iguais</span><input type="number" id="rec-split-n" min="2" max="60" value="2"></label>
+        <label><span>1ª em</span><input type="date" id="rec-split-first"></label>
+        <button type="button" class="btn btn-ghost btn-sm" id="rec-split-gen">Gerar</button>
+      </div>
+      <div id="rec-split-rows"></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="rec-split-add">+ Adicionar parcela</button>
+      <p class="rec-split-sum" id="rec-split-sum"></p>
+      <div class="modal-actions"><div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" id="rec-split-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="rec-split-save">Salvar parcelas</button></div>
+    </form></div></div>`;
+  while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+  const $ = id => document.getElementById(id);
+  const closeRecv = () => $("rec-recv-backdrop").classList.remove("open");
+  const closeSplit = () => $("rec-split-backdrop").classList.remove("open");
+  ["rec-recv-close", "rec-recv-cancel"].forEach(i => $(i).addEventListener("click", closeRecv));
+  ["rec-split-close", "rec-split-cancel"].forEach(i => $(i).addEventListener("click", closeSplit));
+  $("rec-recv-backdrop").addEventListener("click", e => { if (e.target.id === "rec-recv-backdrop") closeRecv(); });
+  $("rec-split-backdrop").addEventListener("click", e => { if (e.target.id === "rec-split-backdrop") closeSplit(); });
+
+  /* recebimento */
+  $("rec-recv-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const r = receivables.find(x => x.id === recRecvId);
+    if (!r) return;
+    const amt = round2(parseFloat($("rec-recv-amount").value));
+    const when = $("rec-recv-date").value || new Date().toISOString().slice(0, 10);
+    if (!(amt > 0)) return;
+    const paidAt = new Date(`${when}T12:00:00`).getTime();
+    const toSave = [r];
+    if (amt < r.amount - 0.005) {
+      /* recebimento parcial: esta parcela vira o que foi recebido (paga) e o resto fica pendente */
+      const rest = { id: uid(), dealId: r.dealId, clientName: r.clientName, installmentNumber: r.installmentNumber, installmentsTotal: r.installmentsTotal,
+        amount: round2(r.amount - amt), dueDate: r.dueDate, paid: false, paidAt: null, createdAt: Date.now() };
+      receivables.push(rest); toSave.push(rest);
+      r.amount = amt;
+    } else if (amt > r.amount + 0.005) {
+      r.amount = amt;   /* recebeu mais do que o previsto: a parcela passa a refletir o valor recebido */
+    }
+    r.paid = true; r.paidAt = paidAt;
+    toSave.push(...recRenumber(r.dealId));
+    closeRecv();
+    recRefresh();
+    const ok = await saveReceivables([...new Set(toSave)]);
+    if (!ok) alert("Não foi possível salvar o recebimento. Recarregue a página e confira antes de tentar de novo.");
+  });
+
+  /* divisão */
+  const rowsEl = $("rec-split-rows");
+  const rowHtml = (amount, due) => `<div class="rec-split-row"><input type="number" class="rs-amt" min="0.01" step="0.01" placeholder="Valor (€)" value="${amount == null ? "" : amount}"><input type="date" class="rs-due" value="${due || ""}"><button type="button" class="btn-icon rs-del" title="Remover parcela">&times;</button></div>`;
+  const sumUpdate = () => {
+    const r = receivables.find(x => x.id === recSplitId); if (!r) return;
+    const total = round2([...rowsEl.querySelectorAll(".rs-amt")].reduce((a, i) => a + (parseFloat(i.value) || 0), 0));
+    const diff = round2(r.amount - total);
+    const sumEl = $("rec-split-sum");
+    sumEl.textContent = Math.abs(diff) < 0.005 ? `Total das parcelas: ${currency(total)} ✓` : (diff > 0 ? `Falta distribuir ${currency(diff)} (total das parcelas ${currency(total)})` : `Passou ${currency(-diff)} do valor da parcela (total ${currency(total)})`);
+    sumEl.classList.toggle("ok", Math.abs(diff) < 0.005);
+    $("rec-split-save").disabled = !(Math.abs(diff) < 0.005 && rowsEl.querySelectorAll(".rs-amt").length >= 1);
+  };
+  rowsEl.addEventListener("input", sumUpdate);
+  rowsEl.addEventListener("click", e => { if (e.target.closest(".rs-del")) { e.target.closest(".rec-split-row").remove(); sumUpdate(); } });
+  $("rec-split-add").addEventListener("click", () => {
+    const r = receivables.find(x => x.id === recSplitId); if (!r) return;
+    const cur = round2([...rowsEl.querySelectorAll(".rs-amt")].reduce((a, i) => a + (parseFloat(i.value) || 0), 0));
+    const last = [...rowsEl.querySelectorAll(".rs-due")].pop();
+    let next = r.dueDate;
+    if (last && last.value) { const d = new Date(`${last.value}T00:00:00`); d.setMonth(d.getMonth() + 1); next = d.toISOString().slice(0, 10); }
+    rowsEl.insertAdjacentHTML("beforeend", rowHtml(Math.max(0, round2(r.amount - cur)) || "", next));
+    sumUpdate();
+  });
+  $("rec-split-gen").addEventListener("click", () => {
+    const r = receivables.find(x => x.id === recSplitId); if (!r) return;
+    const n = Math.max(2, Math.min(60, parseInt($("rec-split-n").value, 10) || 2));
+    const first = $("rec-split-first").value || r.dueDate;
+    const each = round2(r.amount / n);
+    rowsEl.innerHTML = "";
+    for (let i = 0; i < n; i++) {
+      const d = new Date(`${first}T00:00:00`); d.setMonth(d.getMonth() + i);
+      rowsEl.insertAdjacentHTML("beforeend", rowHtml(i === n - 1 ? round2(r.amount - each * (n - 1)) : each, d.toISOString().slice(0, 10)));
+    }
+    sumUpdate();
+  });
+  $("rec-split-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const r = receivables.find(x => x.id === recSplitId); if (!r) return;
+    const rows = [...rowsEl.querySelectorAll(".rec-split-row")].map(el => ({ amount: round2(parseFloat(el.querySelector(".rs-amt").value)), due: el.querySelector(".rs-due").value }));
+    if (!rows.length || rows.some(x => !(x.amount > 0) || !x.due)) { alert("Preencha o valor e a data de todas as parcelas."); return; }
+    if (Math.abs(round2(rows.reduce((a, x) => a + x.amount, 0)) - r.amount) >= 0.005) { alert("A soma das parcelas precisa ser igual ao valor da conta a receber."); return; }
+    const toSave = [r];
+    r.amount = rows[0].amount; r.dueDate = rows[0].due;
+    rows.slice(1).forEach(x => {
+      const n = { id: uid(), dealId: r.dealId, clientName: r.clientName, installmentNumber: 1, installmentsTotal: 1, amount: x.amount, dueDate: x.due, paid: false, paidAt: null, createdAt: Date.now() };
+      receivables.push(n); toSave.push(n);
+    });
+    toSave.push(...recRenumber(r.dealId));
+    closeSplit();
+    recRefresh();
+    const ok = await saveReceivables([...new Set(toSave)]);
+    if (!ok) alert("Não foi possível salvar as parcelas. Recarregue a página e confira antes de tentar de novo.");
+  });
+  window.recOpenSplit = id => {
+    const r = receivables.find(x => x.id === id); if (!r) return;
+    recSplitId = id;
+    $("rec-split-info").textContent = `${r.clientName} — valor a dividir: ${currency(r.amount)}. Defina o valor e o vencimento de cada parcela como o cliente combinou.`;
+    $("rec-split-first").value = r.dueDate;
+    rowsEl.innerHTML = rowHtml(r.amount, r.dueDate);
+    sumUpdate();
+    $("rec-split-backdrop").classList.add("open");
+  };
+  window.recOpenRecv = id => {
+    const r = receivables.find(x => x.id === id); if (!r) return;
+    recRecvId = id;
+    $("rec-recv-info").textContent = `${r.clientName} — parcela ${r.installmentNumber}/${r.installmentsTotal}: ${currency(r.amount)}, vencimento ${formatDate(r.dueDate)}.`;
+    $("rec-recv-amount").value = r.amount;
+    $("rec-recv-date").value = new Date().toISOString().slice(0, 10);
+    $("rec-recv-backdrop").classList.add("open");
+  };
+}
+let recRecvId = null, recSplitId = null;
+
 document.getElementById("fin-receivables-tbody").addEventListener("click", async e => {
+  const act = e.target.closest('button[data-act="receive"], button[data-act="split"]');
+  if (act) {
+    recEnsureModals();
+    if (act.dataset.act === "receive") window.recOpenRecv(act.dataset.id); else window.recOpenSplit(act.dataset.id);
+    return;
+  }
   const btn = e.target.closest('button[data-act="toggle-paid"]');
   if (!btn) return;
   const r = receivables.find(x => x.id === btn.dataset.id);

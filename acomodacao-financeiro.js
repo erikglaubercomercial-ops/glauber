@@ -68,12 +68,15 @@ function accRender() {
   const rows = sales.map(s => {
     const c = calcs.get(s.id), e = accEnr(s.enrollmentId);
     const cons = users.find(u => u.id === e.consultorId);
+    /* venda criada sozinha pelo contrato assinado: o custo ainda não foi informado, então a comissão não pode ser paga */
+    const needCost = s.status !== "Pago" && s.cost === 0 && s.sold > 0;
     const state = s.status === "Pago" ? '<span class="badge badge-good">Paga</span>'
-      : (c.released ? '<span class="badge badge-good">Liberada</span>'
-        : `<span class="badge badge-warn" title="Libera quando o total enviado à acomodação cobrir o custo">Falta enviar ${currency(c.toSend)}</span>`);
+      : (needCost ? '<span class="badge badge-warn" title="Abra a venda e informe o custo da acomodação para calcular o lucro e a comissão">Informe o custo</span>'
+        : (c.released ? '<span class="badge badge-good">Liberada</span>'
+          : `<span class="badge badge-warn" title="Libera quando o total enviado à acomodação cobrir o custo">Falta enviar ${currency(c.toSend)}</span>`));
     const payBtn = s.status === "Pago"
       ? `<button type="button" class="btn btn-ghost btn-sm" data-acc-act="unpay" data-id="${s.id}">Desfazer</button>`
-      : (c.released ? `<button type="button" class="btn btn-primary btn-sm" data-acc-act="pay" data-id="${s.id}">Marcar paga</button>` : "");
+      : (c.released && !needCost ? `<button type="button" class="btn btn-primary btn-sm" data-acc-act="pay" data-id="${s.id}">Marcar paga</button>` : "");
     return `<tr data-id="${s.id}">
       <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}</td>
       <td class="cell-muted">${escapeHtml(cons ? cons.name : "—")}</td>

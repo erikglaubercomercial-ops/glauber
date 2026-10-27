@@ -3005,3 +3005,13 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .prod-eye { padding-left: 9px; padding-right: 9px; display: inline-flex; align-items: center; justify-content: center; }
 .prod-eye.is-off { color: var(--danger, #d64545); border-color: color-mix(in srgb, var(--danger, #d64545) 45%, var(--border)); background: color-mix(in srgb, var(--danger, #d64545) 8%, transparent); }
 .prod-card.off { opacity: 0.6; }
+
+/* contas a receber: dividir em parcelas */
+.rec-split-gen { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+.rec-split-gen label { margin: 0; }
+.rec-split-gen input[type="number"] { width: 90px; }
+.rec-split-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.rec-split-row input[type="number"] { flex: 1 1 120px; min-width: 0; }
+.rec-split-row input[type="date"] { flex: 1 1 150px; min-width: 0; }
+.rec-split-sum { margin: 10px 0 2px; font-size: 13px; font-weight: 700; color: var(--danger, #c0392b); }
+.rec-split-sum.ok { color: var(--success, #1f9d55); }
