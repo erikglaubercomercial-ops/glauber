@@ -3016,3 +3016,5 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .rec-split-sum { margin: 10px 0 2px; font-size: 13px; font-weight: 700; color: var(--danger, #c0392b); }
 .rec-split-sum.ok { color: var(--success, #1f9d55); }
 .rec-split-row .rs-tag { flex: 0 0 68px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.inf-amount { width: 110px; font: inherit; font-weight: 700; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--content-bg); color: var(--text); }
+.inf-amount:focus { outline: 2px solid color-mix(in srgb, var(--primary) 45%, transparent); background: #fff; }

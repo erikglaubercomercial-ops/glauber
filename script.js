@@ -5338,6 +5338,7 @@ async function loadInfluencerCommissions() {
 async function saveInfluencerCommission(c) {
   const { error } = await supabase.from("influencer_commissions").upsert(influencerCommissionToDb(c));
   if (error) console.error("Erro ao salvar comissão de influencer:", error);
+  return !error;
 }
 
 /* ---- tráfego pago ---- */
@@ -5435,14 +5436,25 @@ function classifyTurnoShift(turno) {
   return null;
 }
 
+/* origem do lead que é canal de influencer: vale a 1ª origem; se não for, a 2ª */
+function leadInfluencerSource(lead) {
+  if (!lead) return null;
+  for (const name of [lead.source, lead.source2]) {
+    const cfg = name && sourceInfluencerConfig[name];
+    if (cfg && cfg.isInfluencer) return name;
+  }
+  return null;
+}
+
 /* ---- ao salvar uma matrícula: gera comissão fixa de influencer por
    turno, se a origem do lead usar esse modo — não mexe se já existe
    comissão paga pra essa matrícula ---- */
 async function handleEnrollmentInfluencerCommission(enr) {
   if (!enr.leadId) return;
   const lead = leads.find(l => l.id === enr.leadId);
-  if (!lead || !lead.source) return;
-  const cfg = sourceInfluencerConfig[lead.source];
+  const infSource = leadInfluencerSource(lead);
+  if (!infSource) return;
+  const cfg = sourceInfluencerConfig[infSource];
   if (!cfg || !cfg.isInfluencer || cfg.mode !== "fixed_turno") return;
 
   const shift = classifyTurnoShift(enr.turno);
@@ -5463,7 +5475,7 @@ async function handleEnrollmentInfluencerCommission(enr) {
 
   const deal = deals.find(d => d.leadId === enr.leadId);
   const commission = {
-    id: uid(), dealId: deal ? deal.id : null, enrollmentId: enr.id, source: lead.source,
+    id: uid(), dealId: deal ? deal.id : null, enrollmentId: enr.id, source: infSource,
     dealName: enr.name, dealValue: enr.courseValue,
     percentage: 0, amount,
     status: "Pendente", paidAt: null, createdAt: Date.now(),
@@ -5485,11 +5497,12 @@ async function handleDealWon(deal, saving) {
   [commissions, saleSplits] = await Promise.all([loadCommissions(), loadSaleSplits()]);
   renderCommissions();
 
-  if (lead && lead.source && !influencerCommissions.some(c => c.dealId === deal.id && !c.enrollmentId)) {
-    const cfg = sourceInfluencerConfig[lead.source];
+  const infSourceWon = leadInfluencerSource(lead);
+  if (lead && infSourceWon && !influencerCommissions.some(c => c.dealId === deal.id)) {
+    const cfg = sourceInfluencerConfig[infSourceWon];
     if (cfg && cfg.isInfluencer && cfg.mode !== "fixed_turno" && cfg.commissionPct > 0) {
       const influencerCommission = {
-        id: uid(), dealId: deal.id, source: lead.source,
+        id: uid(), dealId: deal.id, source: infSourceWon,
         dealName: deal.name, dealValue: deal.value,
         percentage: cfg.commissionPct, amount: round2(deal.value * cfg.commissionPct / 100),
         status: "Pendente", paidAt: null, createdAt: Date.now(),
@@ -6234,13 +6247,30 @@ function renderInfluencerCommissions() {
       <td class="cell-muted">${leadLink(leadIdOfDeal(c.dealId), c.dealName)}</td>
       <td class="cell-muted">${currency(c.dealValue)}</td>
       <td class="cell-muted">${c.percentage}%</td>
-      <td class="cell-primary">${currency(c.amount)}</td>
+      <td class="cell-primary">${c.status === "Pago"
+        ? currency(c.amount)
+        : `<input type="number" class="inf-amount" data-id="${c.id}" min="0" step="0.01" value="${c.amount}" title="Valor da comissão a ser pago — edite se for diferente" aria-label="Valor a pagar">`}</td>
       <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${escapeHtml(statusLabel(c.status))}</span></td>
       <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? t("fin.markPending") : t("fin.markPaid")}</button></td>
     `;
     tbody.appendChild(tr);
   });
 }
+
+/* valor a pagar editável (o financeiro ajusta quanto vai pagar de comissão ao influencer) */
+document.getElementById("fin-influencer-commissions-tbody").addEventListener("change", async e => {
+  const inp = e.target.closest("input.inf-amount");
+  if (!inp) return;
+  const c = influencerCommissions.find(x => x.id === inp.dataset.id);
+  if (!c || c.status === "Pago") return;
+  const v = round2(parseFloat(inp.value));
+  if (!(v >= 0)) { inp.value = c.amount; return; }
+  const before = c.amount;
+  c.amount = v;
+  const ok = await saveInfluencerCommission(c);
+  if (ok === false) { c.amount = before; inp.value = before; alert("Não foi possível salvar o valor. Tente de novo."); return; }
+  if (typeof agendaToast === "function") agendaToast("Valor da comissão salvo");
+});
 
 document.getElementById("fin-influencer-commissions-tbody").addEventListener("click", async e => {
   const btn = e.target.closest('button[data-act="toggle-status"]');
