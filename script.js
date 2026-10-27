@@ -5601,13 +5601,20 @@ function getFilteredOverviewDeals() {
   return list.slice().sort((a, b) => (b.closedAt || b.createdAt || 0) - (a.closedAt || a.createdAt || 0));
 }
 
+/* soma do que foi recebido (contas a receber pagas) entre dois instantes (ms) */
+function receivedInRange(startMs, endMs) {
+  return receivables.filter(r => r.paid && r.paidAt && r.paidAt >= startMs && r.paidAt < endMs).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+}
+
 function renderFinanceiroOverview() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
 
+  /* VENDAS do mês = soma dos negócios ganhos; FATURAMENTO do mês = só o que foi efetivamente recebido (parcelas pagas no mês) */
   const wonThisMonth = deals.filter(d => isWonStage(d.stage) && d.closedAt >= monthStart && d.closedAt < monthEnd);
-  const revenue = wonThisMonth.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+  const salesMonth = wonThisMonth.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+  const revenue = receivedInRange(monthStart, monthEnd);
 
   const expensesThisMonth = expenses.filter(e => {
     const t = new Date(`${e.dueDate}T00:00:00`).getTime();
@@ -5616,6 +5623,7 @@ function renderFinanceiroOverview() {
   const expensesTotal = expensesThisMonth.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const pendingReceivable = receivables.filter(r => !r.paid).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
+  document.getElementById("fin-stat-sales").textContent = currency(salesMonth);
   document.getElementById("fin-stat-revenue").textContent = currency(revenue);
   document.getElementById("fin-stat-expenses").textContent = currency(expensesTotal);
   document.getElementById("fin-stat-profit").textContent = currency(revenue - expensesTotal);
@@ -8205,10 +8213,12 @@ function renderDashboardStatCards() {
     const now2 = new Date();
     const monthStart = new Date(now2.getFullYear(), now2.getMonth(), 1).getTime();
     const monthEnd = new Date(now2.getFullYear(), now2.getMonth() + 1, 1).getTime();
-    const revenue = deals
+    const sales = deals
       .filter(d => isWonStage(d.stage) && d.closedAt >= monthStart && d.closedAt < monthEnd)
       .reduce((s, d) => s + (Number(d.value) || 0), 0);
+    const revenue = receivedInRange(monthStart, monthEnd);   /* faturamento = só o que foi recebido */
     const pendingReceivable = receivables.filter(r => !r.paid).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    cards.push({ label: t("dash.statSales"), value: currency(sales) });
     cards.push({ label: t("dash.statRevenue"), value: currency(revenue), good: true });
     cards.push({ label: t("dash.statReceivable"), value: currency(pendingReceivable) });
   }

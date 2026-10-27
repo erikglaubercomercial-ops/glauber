@@ -3,10 +3,11 @@
    Só LÊ os dados que o sistema já tem (negócios ganhos, despesas, contas a
    receber, comissões, envios às escolas, tráfego pago, partilha das vendas);
    nenhuma fórmula existente foi alterada:
-     • Receita total   = soma dos negócios Ganhos fechados no período
-                         (a mesma do antigo "Faturamento (mês)")
+     • Vendas          = soma dos negócios Ganhos fechados no período (valor vendido)
+     • Faturamento     = só o que foi RECEBIDO no período (contas a receber pagas);
+                         vendas parceladas só entram no faturamento conforme cada parcela é recebida
      • Despesas totais = despesas cadastradas com vencimento no período
-     • Resultado       = Receita − Despesas (o antigo "Lucro líquido")
+     • Resultado       = Faturamento (recebido) − Despesas
      • A receber       = contas a receber pendentes (como antes)
    Métricas novas: fluxo de caixa, contas em atraso, comissões a pagar,
    ganho da Peregrinos na venda (bruto/líquido), ticket médio e variação
@@ -60,6 +61,8 @@ const fdIn = (ts, a, b) => ts != null && ts >= a.getTime() && ts < b.getTime();
 const fdSum = (list, pick) => list.reduce((s, x) => s + (Number(pick(x)) || 0), 0);
 
 function fdWonDeals(a, b) { return deals.filter(d => isWonStage(d.stage) && d.closedAt && fdIn(d.closedAt, a, b)); }
+/* faturamento: o que foi efetivamente recebido dos clientes (contas a receber pagas no período) */
+function fdReceived(a, b) { return fdSum(receivables.filter(r => r.paid && fdIn(r.paidAt, a, b)), r => r.amount); }
 function fdExpenses(a, b) { return expenses.filter(e => fdIn(fdDay(e.dueDate), a, b)); }
 
 /* entradas e saídas de caixa (o que efetivamente entrou/saiu no período) */
@@ -111,7 +114,9 @@ function renderFinDashboard() {
 
   const r = fdRange(fdState.period);
   const wonNow = fdWonDeals(r.start, r.end), wonPrev = fdWonDeals(r.pStart, r.pEnd);
-  const revenue = fdSum(wonNow, d => d.value), revenuePrev = fdSum(wonPrev, d => d.value);
+  /* VENDAS = negócios ganhos no período; FATURAMENTO = só o que foi recebido (parcelas pagas) no período */
+  const sales = fdSum(wonNow, d => d.value), salesPrev = fdSum(wonPrev, d => d.value);
+  const revenue = fdReceived(r.start, r.end), revenuePrev = fdReceived(r.pStart, r.pEnd);
   const expNow = fdExpenses(r.start, r.end), expPrev = fdExpenses(r.pStart, r.pEnd);
   const expTotal = fdSum(expNow, e => e.amount), expPrevTotal = fdSum(expPrev, e => e.amount);
   const result = revenue - expTotal, resultPrev = revenuePrev - expPrevTotal;
@@ -129,7 +134,8 @@ function renderFinDashboard() {
   const spNow = fdSplits(r.start, r.end), spPrev = fdSplits(r.pStart, r.pEnd);
   const gain = fdSum(spNow, s => s.peregrinosNet), gainPrev = fdSum(spPrev, s => s.peregrinosNet);
   const gross = fdSum(spNow, s => s.peregrinosGross);
-  const ticket = wonNow.length ? revenue / wonNow.length : 0;
+  const ticket = wonNow.length ? sales / wonNow.length : 0;
+  const receivedCount = receivables.filter(x => x.paid && fdIn(x.paidAt, r.start, r.end)).length;
 
   /* categorias de despesa (período e período anterior) */
   const catNow = {}, catPrev = {};
@@ -153,9 +159,10 @@ function renderFinDashboard() {
     </div>
 
     <div class="stat-row fd-row">
-      ${fdKpi("Receita total", currency(revenue), `${fdVar(revenue, revenuePrev, true)}<br>${wonNow.length} venda(s) · ticket médio ${currency(ticket)}`, "Soma dos negócios Ganhos fechados no período (mesma fórmula do antigo Faturamento).", "blue")}
+      ${fdKpi("Vendas do período", currency(sales), `${fdVar(sales, salesPrev, true)}<br>${wonNow.length} venda(s) · ticket médio ${currency(ticket)}`, "Soma dos negócios Ganhos fechados no período — é o valor vendido, mesmo que ainda esteja parcelado ou a receber.", "deep")}
+      ${fdKpi("Faturamento (recebido)", currency(revenue), `${fdVar(revenue, revenuePrev, true)}<br>${receivedCount} recebimento(s) no período`, "Só o que foi efetivamente recebido dos clientes no período (contas a receber pagas). Não inclui o que ainda está parcelado ou pendente.", "blue")}
       ${fdKpi("Despesas totais", currency(expTotal), fdVar(expTotal, expPrevTotal, false), "Despesas cadastradas com vencimento no período.", "orange")}
-      ${fdKpi("Resultado líquido", currency(result), fdVar(result, resultPrev, true), "Receita total − Despesas totais (mesma fórmula do antigo Lucro líquido).", "deep")}
+      ${fdKpi("Resultado líquido", currency(result), fdVar(result, resultPrev, true), "Faturamento (recebido) − Despesas totais.", "deep")}
       ${fdKpi("Fluxo de caixa", currency(cash), `${fdVar(cash, cashPrev, true)}<br>entrou ${currency(cashIn)} · saiu ${currency(cashOut)}`, "O que entrou (parcelas recebidas + comissões de escolas recebidas) menos o que saiu (despesas pagas, comissões pagas, envios às escolas e tráfego pago) no período.", "blue")}
     </div>
     <div class="stat-row fd-row">
@@ -167,7 +174,7 @@ function renderFinDashboard() {
 
     <div class="fd-grid-2">
       <div class="panel fd-panel">
-        <div class="panel-header"><h2>Receitas × Despesas</h2><span class="fd-note">${r.months === "year" ? `Ano ${r.year}` : "Últimos 12 meses"}</span></div>
+        <div class="panel-header"><h2>Vendas, faturamento e despesas</h2><span class="fd-note">${r.months === "year" ? `Ano ${r.year}` : "Últimos 12 meses"}</span></div>
         <div class="fd-chart"><canvas id="fd-chart-revexp"></canvas></div>
       </div>
       <div class="panel fd-panel">
@@ -215,7 +222,8 @@ function renderFinDashboard() {
   /* gráficos */
   const months = fdMonthsOf(r);
   const monthRange = d => [d, new Date(d.getFullYear(), d.getMonth() + 1, 1)];
-  const revM = months.map(d => fdSum(fdWonDeals(...monthRange(d)), x => x.value));
+  const revM = months.map(d => fdReceived(...monthRange(d)));
+  const salesM = months.map(d => fdSum(fdWonDeals(...monthRange(d)), x => x.value));
   const expM = months.map(d => fdSum(fdExpenses(...monthRange(d)), x => x.amount));
   const netM = months.map(d => fdCashIn(...monthRange(d)) - fdCashOut(...monthRange(d)));
   let acc = 0;
@@ -228,7 +236,8 @@ function renderFinDashboard() {
   fdCharts.revexp = new Chart(document.getElementById("fd-chart-revexp"), {
     type: "bar",
     data: { labels, datasets: [
-      { label: "Receitas", data: revM, backgroundColor: FD_BLUE, borderRadius: 5, maxBarThickness: 18 },
+      { label: "Vendas", data: salesM, backgroundColor: FD_LIGHT, borderRadius: 5, maxBarThickness: 18 },
+      { label: "Faturamento (recebido)", data: revM, backgroundColor: FD_BLUE, borderRadius: 5, maxBarThickness: 18 },
       { label: "Despesas", data: expM, backgroundColor: FD_ORANGE, borderRadius: 5, maxBarThickness: 18 },
     ] },
     options: { responsive: true, maintainAspectRatio: false,
