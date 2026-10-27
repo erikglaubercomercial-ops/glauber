@@ -3018,3 +3018,11 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .rec-split-row .rs-tag { flex: 0 0 68px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
 .inf-amount { width: 110px; font: inherit; font-weight: 700; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--content-bg); color: var(--text); }
 .inf-amount:focus { outline: 2px solid color-mix(in srgb, var(--primary) 45%, transparent); background: #fff; }
+
+/* contas a receber: lista por cliente + detalhes */
+.rec-client-row { cursor: pointer; }
+.rec-client-row:hover { background: var(--content-bg); }
+.rec-client-name { background: none; border: none; padding: 0; font: inherit; font-weight: 700; color: var(--primary); cursor: pointer; text-align: left; }
+.rec-client-name:hover { text-decoration: underline; }
+#fin-rec-search { flex: 1 1 200px; min-width: 160px; }
+.rec-detail-stats { padding: 4px 20px 14px; }

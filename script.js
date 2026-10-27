@@ -5724,36 +5724,110 @@ document.getElementById("fin-overview-bulk-delete").addEventListener("click", as
 });
 
 /* ---- Contas a Receber ---- */
-function getFilteredReceivables() {
-  const status = document.getElementById("fin-rec-filter-status").value;
-  return receivables.filter(r => {
-    if (status === "pendente" && r.paid) return false;
-    if (status === "pago" && !r.paid) return false;
-    return true;
+/* ---- Contas a Receber: um cliente por linha; clicar no nome abre os detalhes (parcelas e valores pagos) ---- */
+let recDetailKey = null;
+
+function recGroups() {
+  const map = new Map();
+  receivables.forEach(r => {
+    const key = r.dealId || `n:${r.clientName}`;
+    let g = map.get(key);
+    if (!g) { g = { key, dealId: r.dealId, name: r.clientName || "—", rows: [] }; map.set(key, g); }
+    g.rows.push(r);
+  });
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return [...map.values()].map(g => {
+    g.rows.sort((a, b) => (a.installmentNumber - b.installmentNumber) || String(a.dueDate).localeCompare(String(b.dueDate)));
+    g.total = round2(g.rows.reduce((x, r) => x + (Number(r.amount) || 0), 0));
+    g.received = round2(g.rows.filter(r => r.paid).reduce((x, r) => x + (Number(r.amount) || 0), 0));
+    g.pending = round2(g.total - g.received);
+    g.paidCount = g.rows.filter(r => r.paid).length;
+    const open = g.rows.filter(r => !r.paid);
+    g.nextDue = open.length ? open.map(r => r.dueDate).sort()[0] : null;
+    g.overdueRows = open.filter(r => new Date(`${r.dueDate}T00:00:00`).getTime() < today.getTime());
+    g.overdueDays = g.overdueRows.length ? Math.round((today.getTime() - new Date(`${g.overdueRows.map(r => r.dueDate).sort()[0]}T00:00:00`).getTime()) / 86400000) : 0;
+    g.first = Math.min(...g.rows.map(r => r.createdAt || 0));   /* ordem de entrada na planilha de pagamentos */
+    return g;
   });
 }
 
+function recSituacao(g) {
+  if (g.pending <= 0.004) return `<span class="badge badge-good">Quitado</span>`;
+  if (g.overdueRows.length) return `<span class="badge badge-danger">${g.overdueDays} dia(s) em atraso</span>`;
+  return `<span class="badge badge-warn">A receber</span>`;
+}
+
 function renderReceivables() {
-  const filtered = getFilteredReceivables().slice().sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-  const tbody = document.getElementById("fin-receivables-tbody");
-  tbody.innerHTML = "";
-  document.getElementById("fin-receivables-empty").style.display = filtered.length === 0 ? "block" : "none";
-  filtered.forEach(r => {
-    const deal = deals.find(d => d.id === r.dealId);
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="cell-primary">${leadLink(leadIdOfDeal(r.dealId), r.clientName)}</td>
-      <td class="cell-muted">${escapeHtml(deal ? deal.name : "—")}</td>
-      <td class="cell-muted">${r.installmentNumber}/${r.installmentsTotal}</td>
-      <td>${currency(r.amount)}</td>
-      <td class="cell-muted">${formatDate(r.dueDate)}</td>
-      <td><span class="badge ${r.paid ? "badge-good" : "badge-warn"}">${r.paid ? t("status.pago") : t("status.pendente")}</span></td>
-      <td class="cell-actions">${r.paid
-        ? `<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>`
-        : `<button type="button" class="btn btn-primary btn-sm" data-act="receive" data-id="${r.id}">Registrar recebimento</button> <button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Entrada e parcelas</button>`}</td>
-    `;
-    tbody.appendChild(tr);
+  const groups = recGroups();
+  const listPanel = document.getElementById("fin-rec-list-panel");
+  const detailPanel = document.getElementById("fin-rec-detail-panel");
+  const open = recDetailKey ? groups.find(g => g.key === recDetailKey) : null;
+  if (recDetailKey && !open) recDetailKey = null;
+  listPanel.style.display = open ? "none" : "";
+  detailPanel.style.display = open ? "" : "none";
+  if (open) { recRenderDetail(open); return; }
+
+  const status = document.getElementById("fin-rec-filter-status").value;
+  const q = normalizeImportStr(document.getElementById("fin-rec-search").value || "");
+  const sort = document.getElementById("fin-rec-sort").value || "entrada-desc";
+  let list = groups.filter(g => {
+    if (status === "pendente" && g.pending <= 0.004) return false;
+    if (status === "pago" && g.pending > 0.004) return false;
+    if (status === "atrasado" && !g.overdueRows.length) return false;
+    if (q && !normalizeImportStr(g.name).includes(q)) return false;
+    return true;
   });
+  list.sort((a, b) => sort === "az" ? a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })
+    : sort === "entrada-asc" ? a.first - b.first : b.first - a.first);
+
+  document.getElementById("fin-receivables-empty").style.display = list.length === 0 ? "block" : "none";
+  document.getElementById("fin-rec-clients-tbody").innerHTML = list.map(g => `
+    <tr class="rec-client-row" data-rec-open="${escapeHtml(g.key)}">
+      <td class="cell-primary"><button type="button" class="rec-client-name" data-rec-open="${escapeHtml(g.key)}">${escapeHtml(g.name)}</button></td>
+      <td>${currency(g.total)}</td>
+      <td class="cell-muted">${currency(g.received)}</td>
+      <td class="cell-primary">${currency(g.pending)}</td>
+      <td class="cell-muted">${g.paidCount}/${g.rows.length} pagas</td>
+      <td class="cell-muted">${g.nextDue ? formatDate(g.nextDue) : "—"}</td>
+      <td>${recSituacao(g)}</td>
+      <td class="cell-actions">›</td>
+    </tr>`).join("");
+}
+
+function recRenderDetail(g) {
+  const leadId = leadIdOfDeal(g.dealId);
+  const box = document.getElementById("fin-rec-detail-panel");
+  box.innerHTML = `
+    <div class="panel-header">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost btn-sm" data-rec-back="1">← Voltar</button>
+        <h2 style="margin:0;">${escapeHtml(g.name)}</h2>
+        ${leadId ? `<span class="muted-note">${leadLink(leadId, "Abrir ficha do cliente")}</span>` : ""}
+      </div>
+      <div>${recSituacao(g)}</div>
+    </div>
+    <div class="stat-row rec-detail-stats">
+      <div class="stat-card"><span class="stat-label">Valor total</span><span class="stat-value">${currency(g.total)}</span></div>
+      <div class="stat-card"><span class="stat-label">Já recebido</span><span class="stat-value stat-good">${currency(g.received)}</span></div>
+      <div class="stat-card"><span class="stat-label">A receber</span><span class="stat-value">${currency(g.pending)}</span></div>
+      <div class="stat-card"><span class="stat-label">Parcelas</span><span class="stat-value">${g.paidCount}/${g.rows.length} pagas</span></div>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th><th>Situação</th><th>Recebido em</th><th></th></tr></thead>
+      <tbody>${g.rows.map(r => {
+        const late = !r.paid && new Date(`${r.dueDate}T00:00:00`).getTime() < new Date().setHours(0, 0, 0, 0);
+        return `<tr>
+          <td class="cell-muted">${r.installmentNumber}/${r.installmentsTotal}</td>
+          <td class="cell-muted">${formatDate(r.dueDate)}</td>
+          <td class="cell-primary">${currency(r.amount)}</td>
+          <td><span class="badge ${r.paid ? "badge-good" : (late ? "badge-danger" : "badge-warn")}">${r.paid ? t("status.pago") : (late ? "Em atraso" : t("status.pendente"))}</span></td>
+          <td class="cell-muted">${r.paid && r.paidAt ? new Date(r.paidAt).toLocaleDateString("pt-BR") : "—"}</td>
+          <td class="cell-actions">${r.paid
+            ? `<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>`
+            : `<button type="button" class="btn btn-primary btn-sm" data-act="receive" data-id="${r.id}">Registrar recebimento</button> <button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Entrada e parcelas</button>`}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>`;
 }
 
 /* ---- registrar recebimento e dividir em parcelas (valores e datas livres) ---- */
@@ -5919,7 +5993,10 @@ function recEnsureModals() {
 }
 let recRecvId = null, recSplitId = null;
 
-document.getElementById("fin-receivables-tbody").addEventListener("click", async e => {
+document.getElementById("subview-fin-receivables").addEventListener("click", async e => {
+  const openBtn = e.target.closest("[data-rec-open]");
+  if (openBtn) { recDetailKey = openBtn.dataset.recOpen; renderReceivables(); window.scrollTo({ top: 0 }); return; }
+  if (e.target.closest("[data-rec-back]")) { recDetailKey = null; renderReceivables(); return; }
   const act = e.target.closest('button[data-act="receive"], button[data-act="split"]');
   if (act) {
     recEnsureModals();
@@ -5937,8 +6014,12 @@ document.getElementById("fin-receivables-tbody").addEventListener("click", async
   await updateReceivableRemote(r);
 });
 document.getElementById("fin-rec-filter-status").addEventListener("change", renderReceivables);
+document.getElementById("fin-rec-sort").addEventListener("change", renderReceivables);
+document.getElementById("fin-rec-search").addEventListener("input", renderReceivables);
 document.getElementById("fin-rec-filter-clear").addEventListener("click", () => {
   document.getElementById("fin-rec-filter-status").value = "";
+  document.getElementById("fin-rec-sort").value = "entrada-desc";
+  document.getElementById("fin-rec-search").value = "";
   renderReceivables();
 });
 

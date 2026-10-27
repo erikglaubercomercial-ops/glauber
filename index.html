@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1793116158">
+<link rel="stylesheet" href="style.css?v=1793118424">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -891,26 +891,33 @@
 
         <!-- CONTAS A RECEBER -->
         <div class="subview" id="subview-fin-receivables">
-          <div class="panel">
+          <div class="panel" id="fin-rec-list-panel">
             <div class="panel-header">
               <h2 data-i18n="fin.tabReceivables">Contas a Receber</h2>
             </div>
             <div class="filter-bar">
+              <input type="text" id="fin-rec-search" placeholder="Buscar cliente" autocomplete="off">
               <select id="fin-rec-filter-status">
-                <option value="" data-i18n="common.statusAll">Status (todos)</option>
-                <option value="pendente" data-i18n="status.pendente">Pendente</option>
-                <option value="pago" data-i18n="status.pago">Pago</option>
+                <option value="">Situação (todas)</option>
+                <option value="pendente">Com valor a receber</option>
+                <option value="atrasado">Em atraso</option>
+                <option value="pago">Quitados</option>
+              </select>
+              <select id="fin-rec-sort">
+                <option value="entrada-desc">Ordem de entrada — mais recentes primeiro</option>
+                <option value="entrada-asc">Ordem de entrada — mais antigos primeiro</option>
+                <option value="az">Ordem alfabética (A–Z)</option>
               </select>
               <button type="button" class="btn btn-ghost btn-sm" id="fin-rec-filter-clear" data-i18n="common.clearFilters">Limpar filtros</button>
             </div>
             <table class="data-table">
-              <thead><tr><th data-i18n="common.client">Cliente</th><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.installment">Parcela</th><th data-i18n="common.value">Valor</th><th data-i18n="fin.dueDate">Vencimento</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
-              <tbody id="fin-receivables-tbody"></tbody>
+              <thead><tr><th data-i18n="common.client">Cliente</th><th>Valor total</th><th>Recebido</th><th>A receber</th><th data-i18n="fin.installment">Parcela</th><th>Próx. vencimento</th><th>Situação</th><th></th></tr></thead>
+              <tbody id="fin-rec-clients-tbody"></tbody>
             </table>
             <div class="empty-hint" id="fin-receivables-empty" style="display:none;" data-i18n="fin.noReceivables">Nenhuma conta a receber cadastrada ainda.</div>
           </div>
+          <div class="panel" id="fin-rec-detail-panel" style="display:none;"></div>
         </div>
-
         <!-- DESPESAS -->
         <div class="subview" id="subview-fin-expenses">
           <div class="panel">
@@ -3023,25 +3030,25 @@
     </div>
   </div>
 
-  <script src="config.js?v=1793116158"></script>
-  <script src="ver-como.js?v=1793116158"></script>
-  <script src="auth.js?v=1793116158"></script>
-  <script src="i18n.js?v=1793116158"></script>
-  <script src="comparativo.js?v=1793116158"></script>
-  <script src="contrato-modelo.js?v=1793116158"></script>
-  <script src="script.js?v=1793116158"></script>
-  <script src="contratos-proposta.js?v=1793116158"></script>
-  <script src="ficha-cliente.js?v=1793116158"></script>
-  <script src="agenda-reunioes.js?v=1793116158"></script>
-  <script src="agendamento-online.js?v=1793116158"></script>
-  <script src="times-arena.js?v=1793116158"></script>
+  <script src="config.js?v=1793118424"></script>
+  <script src="ver-como.js?v=1793118424"></script>
+  <script src="auth.js?v=1793118424"></script>
+  <script src="i18n.js?v=1793118424"></script>
+  <script src="comparativo.js?v=1793118424"></script>
+  <script src="contrato-modelo.js?v=1793118424"></script>
+  <script src="script.js?v=1793118424"></script>
+  <script src="contratos-proposta.js?v=1793118424"></script>
+  <script src="ficha-cliente.js?v=1793118424"></script>
+  <script src="agenda-reunioes.js?v=1793118424"></script>
+  <script src="agendamento-online.js?v=1793118424"></script>
+  <script src="times-arena.js?v=1793118424"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
   <script id="katex-js" defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-  <script src="mapa-mental.js?v=1793116158"></script>
-  <script src="templates-email.js?v=1793116158"></script>
-  <script src="catalogo-explorer.js?v=1793116158"></script>
-  <script src="financeiro-dashboard.js?v=1793116158"></script>
-  <script src="acomodacao-financeiro.js?v=1793116158"></script>
-  <script src="app-acompanhamento.js?v=1793116158"></script>
+  <script src="mapa-mental.js?v=1793118424"></script>
+  <script src="templates-email.js?v=1793118424"></script>
+  <script src="catalogo-explorer.js?v=1793118424"></script>
+  <script src="financeiro-dashboard.js?v=1793118424"></script>
+  <script src="acomodacao-financeiro.js?v=1793118424"></script>
+  <script src="app-acompanhamento.js?v=1793118424"></script>
 </body>
 </html>
