@@ -3015,3 +3015,4 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .rec-split-row input[type="date"] { flex: 1 1 150px; min-width: 0; }
 .rec-split-sum { margin: 10px 0 2px; font-size: 13px; font-weight: 700; color: var(--danger, #c0392b); }
 .rec-split-sum.ok { color: var(--success, #1f9d55); }
+.rec-split-row .rs-tag { flex: 0 0 68px; font-size: 12px; font-weight: 700; color: var(--text-muted); }

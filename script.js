@@ -5729,7 +5729,7 @@ function renderReceivables() {
       <td><span class="badge ${r.paid ? "badge-good" : "badge-warn"}">${r.paid ? t("status.pago") : t("status.pendente")}</span></td>
       <td class="cell-actions">${r.paid
         ? `<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>`
-        : `<button type="button" class="btn btn-primary btn-sm" data-act="receive" data-id="${r.id}">Registrar recebimento</button> <button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Dividir em parcelas</button>`}</td>
+        : `<button type="button" class="btn btn-primary btn-sm" data-act="receive" data-id="${r.id}">Registrar recebimento</button> <button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Entrada e parcelas</button>`}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -5762,11 +5762,11 @@ function recEnsureModals() {
         <button type="submit" class="btn btn-primary">Salvar recebimento</button></div>
     </form></div></div>
   <div class="modal-backdrop" id="rec-split-backdrop"><div class="modal">
-    <div class="modal-header"><h2>Dividir em parcelas</h2><button class="btn-icon" id="rec-split-close" type="button">&times;</button></div>
+    <div class="modal-header"><h2>Entrada e parcelas</h2><button class="btn-icon" id="rec-split-close" type="button">&times;</button></div>
     <form id="rec-split-form">
       <p class="muted-note" id="rec-split-info"></p>
       <div class="rec-split-gen">
-        <label><span>Parcelas iguais</span><input type="number" id="rec-split-n" min="2" max="60" value="2"></label>
+        <label><span>Ou gerar parcelas iguais</span><input type="number" id="rec-split-n" min="2" max="60" value="2"></label>
         <label><span>1ª em</span><input type="date" id="rec-split-first"></label>
         <button type="button" class="btn btn-ghost btn-sm" id="rec-split-gen">Gerar</button>
       </div>
@@ -5775,7 +5775,7 @@ function recEnsureModals() {
       <p class="rec-split-sum" id="rec-split-sum"></p>
       <div class="modal-actions"><div class="spacer"></div>
         <button type="button" class="btn btn-ghost" id="rec-split-cancel">Cancelar</button>
-        <button type="submit" class="btn btn-primary" id="rec-split-save">Salvar parcelas</button></div>
+        <button type="submit" class="btn btn-primary" id="rec-split-save">Salvar entrada e parcelas</button></div>
     </form></div></div>`;
   while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
   const $ = id => document.getElementById(id);
@@ -5815,26 +5815,30 @@ function recEnsureModals() {
 
   /* divisão */
   const rowsEl = $("rec-split-rows");
-  const rowHtml = (amount, due) => `<div class="rec-split-row"><input type="number" class="rs-amt" min="0.01" step="0.01" placeholder="Valor (€)" value="${amount == null ? "" : amount}"><input type="date" class="rs-due" value="${due || ""}"><button type="button" class="btn-icon rs-del" title="Remover parcela">&times;</button></div>`;
+  const rowHtml = (amount, due) => `<div class="rec-split-row"><span class="rs-tag"></span><input type="number" class="rs-amt" min="0.01" step="0.01" placeholder="Valor (€)" value="${amount == null ? "" : amount}"><input type="date" class="rs-due" value="${due || ""}"><button type="button" class="btn-icon rs-del" title="Remover">&times;</button></div>`;
+  /* a 1ª linha é a ENTRADA; as demais são parcelas avulsas, com o valor que o cliente decidir */
+  const tagRows = () => rowsEl.querySelectorAll(".rec-split-row").forEach((el, i) => { el.querySelector(".rs-tag").textContent = i === 0 ? "Entrada" : `Parcela ${i}`; });
   const sumUpdate = () => {
     const r = receivables.find(x => x.id === recSplitId); if (!r) return;
+    tagRows();
     const total = round2([...rowsEl.querySelectorAll(".rs-amt")].reduce((a, i) => a + (parseFloat(i.value) || 0), 0));
     const diff = round2(r.amount - total);
     const sumEl = $("rec-split-sum");
-    sumEl.textContent = Math.abs(diff) < 0.005 ? `Total das parcelas: ${currency(total)} ✓` : (diff > 0 ? `Falta distribuir ${currency(diff)} (total das parcelas ${currency(total)})` : `Passou ${currency(-diff)} do valor da parcela (total ${currency(total)})`);
-    sumEl.classList.toggle("ok", Math.abs(diff) < 0.005);
-    $("rec-split-save").disabled = !(Math.abs(diff) < 0.005 && rowsEl.querySelectorAll(".rs-amt").length >= 1);
+    if (diff < -0.005) { sumEl.textContent = `Passou ${currency(-diff)} do valor da conta (total informado ${currency(total)})`; sumEl.classList.remove("ok"); }
+    else if (diff < 0.005) { sumEl.textContent = `Total informado: ${currency(total)} ✓ — nada sobra`; sumEl.classList.add("ok"); }
+    else { sumEl.textContent = total > 0 ? `Informado ${currency(total)} · saldo de ${currency(diff)} fica pendente (você divide depois, quando o cliente combinar)` : `Informe a entrada e as parcelas; o que sobrar fica como saldo pendente`; sumEl.classList.toggle("ok", total > 0); }
+    $("rec-split-save").disabled = !(total > 0.004 && diff > -0.005);
   };
   rowsEl.addEventListener("input", sumUpdate);
   rowsEl.addEventListener("click", e => { if (e.target.closest(".rs-del")) { e.target.closest(".rec-split-row").remove(); sumUpdate(); } });
   $("rec-split-add").addEventListener("click", () => {
     const r = receivables.find(x => x.id === recSplitId); if (!r) return;
-    const cur = round2([...rowsEl.querySelectorAll(".rs-amt")].reduce((a, i) => a + (parseFloat(i.value) || 0), 0));
     const last = [...rowsEl.querySelectorAll(".rs-due")].pop();
     let next = r.dueDate;
     if (last && last.value) { const d = new Date(`${last.value}T00:00:00`); d.setMonth(d.getMonth() + 1); next = d.toISOString().slice(0, 10); }
-    rowsEl.insertAdjacentHTML("beforeend", rowHtml(Math.max(0, round2(r.amount - cur)) || "", next));
+    rowsEl.insertAdjacentHTML("beforeend", rowHtml("", next));
     sumUpdate();
+    const inputs = rowsEl.querySelectorAll(".rs-amt"); inputs[inputs.length - 1].focus();
   });
   $("rec-split-gen").addEventListener("click", () => {
     const r = receivables.find(x => x.id === recSplitId); if (!r) return;
@@ -5852,14 +5856,21 @@ function recEnsureModals() {
     e.preventDefault();
     const r = receivables.find(x => x.id === recSplitId); if (!r) return;
     const rows = [...rowsEl.querySelectorAll(".rec-split-row")].map(el => ({ amount: round2(parseFloat(el.querySelector(".rs-amt").value)), due: el.querySelector(".rs-due").value }));
-    if (!rows.length || rows.some(x => !(x.amount > 0) || !x.due)) { alert("Preencha o valor e a data de todas as parcelas."); return; }
-    if (Math.abs(round2(rows.reduce((a, x) => a + x.amount, 0)) - r.amount) >= 0.005) { alert("A soma das parcelas precisa ser igual ao valor da conta a receber."); return; }
+    if (!rows.length || rows.some(x => !(x.amount > 0) || !x.due)) { alert("Preencha o valor e a data de todas as linhas."); return; }
+    const informed = round2(rows.reduce((a, x) => a + x.amount, 0));
+    if (informed > r.amount + 0.005) { alert("A soma passou do valor da conta a receber."); return; }
     const toSave = [r];
+    const original = r.amount;
     r.amount = rows[0].amount; r.dueDate = rows[0].due;
-    rows.slice(1).forEach(x => {
-      const n = { id: uid(), dealId: r.dealId, clientName: r.clientName, installmentNumber: 1, installmentsTotal: 1, amount: x.amount, dueDate: x.due, paid: false, paidAt: null, createdAt: Date.now() };
-      receivables.push(n); toSave.push(n);
-    });
+    const mk = (amount, due) => ({ id: uid(), dealId: r.dealId, clientName: r.clientName, installmentNumber: 1, installmentsTotal: 1, amount, dueDate: due, paid: false, paidAt: null, createdAt: Date.now() });
+    rows.slice(1).forEach(x => { const n = mk(x.amount, x.due); receivables.push(n); toSave.push(n); });
+    /* o que não foi distribuído continua pendente, num saldo que pode ser dividido de novo depois */
+    const saldo = round2(original - informed);
+    if (saldo > 0.005) {
+      const lastDue = rows.map(x => x.due).sort().pop();
+      const d = new Date(`${lastDue}T00:00:00`); d.setMonth(d.getMonth() + 1);
+      const n = mk(saldo, d.toISOString().slice(0, 10)); receivables.push(n); toSave.push(n);
+    }
     toSave.push(...recRenumber(r.dealId));
     closeSplit();
     recRefresh();
@@ -5869,11 +5880,12 @@ function recEnsureModals() {
   window.recOpenSplit = id => {
     const r = receivables.find(x => x.id === id); if (!r) return;
     recSplitId = id;
-    $("rec-split-info").textContent = `${r.clientName} — valor a dividir: ${currency(r.amount)}. Defina o valor e o vencimento de cada parcela como o cliente combinou.`;
+    $("rec-split-info").textContent = `${r.clientName} — valor da conta: ${currency(r.amount)}. Informe a entrada e as parcelas avulsas do jeito que o cliente combinou (valores livres). O que não for distribuído fica como saldo pendente.`;
     $("rec-split-first").value = r.dueDate;
-    rowsEl.innerHTML = rowHtml(r.amount, r.dueDate);
+    rowsEl.innerHTML = rowHtml("", r.dueDate);   /* 1ª linha = entrada, sem valor sugerido */
     sumUpdate();
     $("rec-split-backdrop").classList.add("open");
+    rowsEl.querySelector(".rs-amt").focus();
   };
   window.recOpenRecv = id => {
     const r = receivables.find(x => x.id === id); if (!r) return;
