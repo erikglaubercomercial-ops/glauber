@@ -41,9 +41,15 @@ function cmpItemsForShift(items, shift, classify, kind) {
   });
 }
 
+/* o produto mais comum é o de 25 semanas (Work & Study): aparece primeiro em cada turno e no destaque do cartão */
+function cmpIs25Weeks(p) {
+  const n = String((p && p.nome) || "");
+  return /(^|\D)25(\s*(a|-|–|to)\s*\d+)?\s*(semanas?|weeks?)/i.test(n) || /work\s*(&|and|e)\s*study/i.test(n);
+}
+
 function cmpGroupByTurno(items) {
   const turnos = [];
-  items.slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0)).forEach(p => {
+  items.slice().sort((a, b) => (cmpIs25Weeks(b) - cmpIs25Weeks(a)) || ((a.ordem || 0) - (b.ordem || 0))).forEach(p => {
     const nome = p.turno || "";
     let t = turnos.find(x => x.nome === nome);
     if (!t) { t = { nome, itens: [] }; turnos.push(t); }
@@ -99,7 +105,11 @@ function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
       <article class="cmp-card" id="${cmpCardId(i)}" data-city="${esc(s.destino)}"${cmpActiveCity && cmpActiveCity !== s.destino ? " hidden" : ""} style="--cmp-color:${color}">
         <div class="cmp-card-banner${s.coverPath && opts.coverUrl ? " has-photo" : ""}"${s.coverPath && opts.coverUrl ? ` style="background-image:linear-gradient(rgba(0,0,0,0.04), rgba(0,0,0,0.38)), url('${esc(opts.coverUrl(s.coverPath))}')"` : ""}>
           <span class="cmp-card-logo">${esc(cmpInitials(s.nome))}</span>
-          ${prices.length ? `<span class="cmp-card-tag">${esc(L.from)} ${money(Math.min(...prices))}</span>` : ""}
+          ${(() => {
+            const p25 = items.filter(cmpIs25Weeks).map(p => Number(p.preco) || 0);
+            if (p25.length) return `<span class="cmp-card-tag">${esc(L.weeks25 || "25 semanas")} · ${money(Math.min(...p25))}</span>`;
+            return prices.length ? `<span class="cmp-card-tag">${esc(L.from)} ${money(Math.min(...prices))}</span>` : "";
+          })()}
         </div>
         <div class="cmp-card-body">
          <div class="cmp-card-clip">
