@@ -1452,6 +1452,7 @@ body > .lang-switcher { position: fixed; top: 18px; right: 18px; z-index: 40; }
 .sheet td.tot { font-weight: 700; }
 .totals { margin-top: 4mm; border-top: 3px solid #FB9D2D; padding-top: 3mm; }
 .totals .line { display: flex; justify-content: space-between; align-items: center; padding: 1.8mm 1mm; font-size: 10.5pt; font-variant-numeric: tabular-nums; }
+.totals .line[hidden] { display: none; }   /* sem desconto: a linha "Desconto" some (o display:flex acima ignorava o atributo hidden) */
 .totals .line.grand { margin-top: 1mm; border-top: 1px solid #E4E9F0; padding-top: 3mm; font-size: 13.5pt; font-weight: 800; color: #1F4670; }
 .obs { margin-top: 4mm; background: #F7F9FC; border: 1px solid #E4E9F0; border-radius: 10px; padding: 3.5mm 5mm; font-size: 9.5pt; color: #43556B; line-height: 1.55; white-space: pre-wrap; }
 .obs .lbl { font-size: 7.5pt; letter-spacing: 1.4px; text-transform: uppercase; color: #7C8BA0; font-weight: 700; margin-bottom: 1.5mm; }
