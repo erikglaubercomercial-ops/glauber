@@ -47,6 +47,11 @@ function cmpIs25Weeks(p) {
   return /(^|\D)25(\s*(a|-|–|to)\s*\d+)?\s*(semanas?|weeks?)/i.test(n) || /work\s*(&|and|e)\s*study/i.test(n);
 }
 
+/* valor mostrado no cartão: o produto de 25 semanas cobrado por semana aparece SOMADO (preço × 25 semanas) */
+const CMP_WEEKS_TOTAL = 25;
+const cmpIs25PerWeek = p => cmpIs25Weeks(p) && p.unidade === "semana";
+const cmpShownPrice = p => (cmpIs25PerWeek(p) ? (Number(p.preco) || 0) * CMP_WEEKS_TOTAL : Number(p.preco) || 0);
+
 function cmpGroupByTurno(items) {
   const turnos = [];
   items.slice().sort((a, b) => (cmpIs25Weeks(b) - cmpIs25Weeks(a)) || ((a.ordem || 0) - (b.ordem || 0))).forEach(p => {
@@ -94,8 +99,8 @@ function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
           ${t.nome ? `<div class="cmp-turno-name">${esc(t.nome)}</div>` : ""}
           ${t.itens.map(p => `
             <div class="cmp-row">
-              <span class="cmp-row-name">${esc(p.nome)}${p.unidade && p.unidade !== "pacote" ? ` <small>/ ${esc(p.unidade)}</small>` : ""}</span>
-              <span class="cmp-row-price">${money(p.preco)}</span>
+              <span class="cmp-row-name">${esc(p.nome)}${cmpIs25PerWeek(p) ? ` <small>/ ${CMP_WEEKS_TOTAL} semanas · ${esc(money(p.preco))} por semana</small>` : (p.unidade && p.unidade !== "pacote" ? ` <small>/ ${esc(p.unidade)}</small>` : "")}</span>
+              <span class="cmp-row-price">${money(cmpShownPrice(p))}</span>
             </div>
             ${p.detalhe ? `<div class="cmp-row-detail">${esc(p.detalhe)}</div>` : ""}`).join("")}
         </div>`).join("")
@@ -106,7 +111,7 @@ function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
         <div class="cmp-card-banner${s.coverPath && opts.coverUrl ? " has-photo" : ""}"${s.coverPath && opts.coverUrl ? ` style="background-image:linear-gradient(rgba(0,0,0,0.04), rgba(0,0,0,0.38)), url('${esc(opts.coverUrl(s.coverPath))}')"` : ""}>
           <span class="cmp-card-logo">${esc(cmpInitials(s.nome))}</span>
           ${(() => {
-            const p25 = items.filter(cmpIs25Weeks).map(p => Number(p.preco) || 0);
+            const p25 = items.filter(cmpIs25Weeks).map(cmpShownPrice);
             if (p25.length) return `<span class="cmp-card-tag">${esc(L.weeks25 || "25 semanas")} · ${money(Math.min(...p25))}</span>`;
             return prices.length ? `<span class="cmp-card-tag">${esc(L.from)} ${money(Math.min(...prices))}</span>` : "";
           })()}
