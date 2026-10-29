@@ -3837,10 +3837,8 @@ function renderSchoolComparisonView() {
 
   document.querySelectorAll("#cmp-shift-toggle .cmp-shift-btn").forEach(b => b.classList.toggle("active", b.dataset.shift === cmpShift));
   document.querySelectorAll("#cmp-kind-toggle .cmp-shift-btn").forEach(b => b.classList.toggle("active", b.dataset.kind === cmpKind));
-  ["am", "pm"].forEach(sh => {
-    document.getElementById(`cmp-copy-${sh}`).textContent =
-      t(sh === "am" ? "schools.copyLinkAm" : "schools.copyLinkPm") + (cmpKind === "renewal" ? ` ${t("schools.renewalSuffix")}` : "") + (destinoSel.value ? ` · ${destinoSel.value}` : "");
-  });
+  document.getElementById("cmp-copy-link").textContent =
+    t("schools.copyLinkPrices") + (cmpKind === "renewal" ? ` ${t("schools.renewalSuffix")}` : "") + (destinoSel.value ? ` · ${destinoSel.value}` : "");
   document.getElementById("cmp-container").innerHTML = renderSchoolComparison(list, schoolProducts, cmpShift, {
     escape: escapeHtml, money: currency, classify: classifyTurnoShift, kind: cmpKind, coverUrl: schoolCoverUrl, cities: schoolCityNames(),
     labels: {
@@ -4144,19 +4142,23 @@ document.getElementById("cities-list").addEventListener("click", async e => {
   await Promise.all([saveSchoolCityRemote(a), saveSchoolCityRemote(b)]);
 });
 
-/* link para o cliente: turno, tipo e, se uma cidade estiver escolhida no filtro, só essa cidade */
+/* link para o cliente: UM só link — o próprio cliente troca entre manhã (AM) e tarde (PM) na página.
+   Leva o tipo (primeiro curso/renovação) e, se uma cidade estiver escolhida no filtro, só essa cidade.
+   `shift` só é usado para abrir a prévia já no turno que você está vendo. */
 function buildSchoolsPublicUrl(shift) {
   const cidade = document.getElementById("cmp-filter-destino").value;
-  return `${window.location.origin}/escolas-publico.html?turno=${shift}${cmpKind === "renewal" ? "&tipo=renovacao" : ""}${cidade ? `&cidade=${encodeURIComponent(cidade)}` : ""}`;
+  const q = [];
+  if (shift) q.push(`turno=${shift}`);
+  if (cmpKind === "renewal") q.push("tipo=renovacao");
+  if (cidade) q.push(`cidade=${encodeURIComponent(cidade)}`);
+  return `${window.location.origin}/escolas-publico.html${q.length ? `?${q.join("&")}` : ""}`;
 }
-["am", "pm"].forEach(shift => {
-  const btn = document.getElementById(`cmp-copy-${shift}`);
-  btn.addEventListener("click", () => {
-    navigator.clipboard.writeText(buildSchoolsPublicUrl(shift)).catch(() => {});
-    const original = btn.textContent;
-    btn.textContent = t("common.copied");
-    setTimeout(() => { btn.textContent = original; }, 1500);
-  });
+document.getElementById("cmp-copy-link").addEventListener("click", e => {
+  const btn = e.currentTarget;
+  navigator.clipboard.writeText(buildSchoolsPublicUrl(null)).catch(() => {});
+  const original = btn.textContent;
+  btn.textContent = t("common.copied");
+  setTimeout(() => { btn.textContent = original; }, 1500);
 });
 document.getElementById("cmp-open-client").addEventListener("click", () => {
   window.open(buildSchoolsPublicUrl(cmpShift), "_blank", "noopener");

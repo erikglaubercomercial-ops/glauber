@@ -1,13 +1,14 @@
 /* ============================================================
    PÁGINA PÚBLICA DO COMPARATIVO DE ESCOLAS — sem login. Um link
-   para manhã (?turno=am) e outro para tarde (?turno=pm), pra
-   enviar ao cliente. Os dados vêm da função get_public_school_
+   só, para enviar ao cliente; ele mesmo troca entre manhã (AM) e
+   tarde (PM) no botão do topo. Os dados vêm da função get_public_school_
    comparison (só escolas ativas, sem preços à vista).
    Depende de config.js (variável global `supabase`) e comparativo.js.
    ============================================================ */
 
 const epParams = new URLSearchParams(window.location.search);
-const epShift = (epParams.get("turno") || "").toLowerCase() === "pm" ? "pm" : "am";
+/* o link é um só; ?turno=pm (links antigos) só define em qual turno a página abre. O cliente troca no botão. */
+let epShift = (epParams.get("turno") || "").toLowerCase() === "pm" ? "pm" : "am";
 const epKind = (epParams.get("tipo") || "").toLowerCase() === "renovacao" ? "renewal" : "first";
 /* ?cidade=Dublin → mostra só as escolas dessa cidade */
 const epCidade = (epParams.get("cidade") || "").trim().slice(0, 60);
@@ -23,39 +24,23 @@ function epCoverUrl(path) {
   return supabase.storage.from("school-covers").getPublicUrl(path).data.publicUrl;
 }
 
-(async function init() {
-  const shiftLabel = epShift === "am" ? "Manhã (AM)" : "Tarde (PM)";
+const epShiftName = sh => (sh === "am" ? "Manhã (AM)" : "Tarde (PM)");
+let epData = null, epCities = [];
+
+function epRender() {
   const kindLabel = epKind === "renewal" ? " · Renovação" : "";
   const cityLabel = epCidade ? ` · ${epCidade}` : "";
-  document.getElementById("ep-title").textContent = `Opções de escola — ${shiftLabel}${kindLabel}${cityLabel}`;
-  document.getElementById("ep-subtitle").textContent = "Valores parcelados por escola. Qualquer dúvida, fale com o seu consultor.";
-  document.title = `Opções de escola ${shiftLabel}${kindLabel}${cityLabel} — Peregrinos Intercâmbio`;
+  document.getElementById("ep-title").textContent = `Opções de escola — ${epShiftName(epShift)}${kindLabel}${cityLabel}`;
+  document.title = `Opções de escola ${epShiftName(epShift)}${kindLabel}${cityLabel} — Peregrinos Intercâmbio`;
+  document.querySelectorAll("#ep-shift-toggle .cmp-shift-btn").forEach(b => b.classList.toggle("active", b.dataset.shift === epShift));
 
-  const [{ data, error }, citiesRes] = await Promise.all([
-    supabase.rpc("get_public_school_comparison"),
-    supabase.rpc("get_public_school_cities"),
-  ]);
-  const cities = Array.isArray(citiesRes.data) ? citiesRes.data : [];
-  document.getElementById("ep-loading").style.display = "none";
-  if (error || !Array.isArray(data)) {
-    console.error("Erro ao carregar escolas:", error);
-    document.getElementById("ep-error").style.display = "block";
-    return;
-  }
-
-  const schools = data.map(s => ({
-    nome: s.nome, categoria: s.categoria, destino: s.destino, descricao: s.descricao || "",
-    inclusos: Array.isArray(s.inclusos) ? s.inclusos : [], coverPath: s.cover_path || null,
-    items: Array.isArray(s.items) ? s.items : [],
-  }));
-
-  /* pro cliente, só entram escolas que têm valor no turno do link */
-  const visible = schools.filter(s => cmpItemsForShift(s.items, epShift, cmpClassifyTurno, epKind).length > 0
+  /* pro cliente, só entram escolas que têm valor no turno escolhido */
+  const visible = epData.filter(s => cmpItemsForShift(s.items, epShift, cmpClassifyTurno, epKind).length > 0
     && (!epCidade || epNorm(s.destino) === epNorm(epCidade)));
 
   document.getElementById("ep-container").innerHTML = renderSchoolComparison(visible, s => s.items, epShift, {
     escape: epEscape, money: epMoney, classify: cmpClassifyTurno, kind: epKind, coverUrl: epCoverUrl,
-    cities: epCidade ? cities.filter(c => epNorm(c) === epNorm(epCidade)) : cities,
+    cities: epCidade ? epCities.filter(c => epNorm(c) === epNorm(epCidade)) : epCities,
     labels: {
       empty: "Nenhuma escola disponível no momento.", from: "A partir de", values: "Valores",
       includes: "O que a escola oferece", overview: "Visão Geral", option: "opção", options: "opções",
@@ -63,6 +48,45 @@ function epCoverUrl(path) {
     },
   });
   cmpFitCards(document.getElementById("ep-container"));
+}
+
+(async function init() {
+  document.getElementById("ep-subtitle").textContent = "Valores parcelados por escola. Qualquer dúvida, fale com o seu consultor.";
+
+  /* botão para o cliente alternar entre manhã e tarde */
+  const toggle = document.createElement("div");
+  toggle.className = "cmp-shift-toggle ep-shift-toggle";
+  toggle.id = "ep-shift-toggle";
+  toggle.innerHTML = `<button type="button" class="cmp-shift-btn" data-shift="am">Manhã (AM)</button><button type="button" class="cmp-shift-btn" data-shift="pm">Tarde (PM)</button>`;
+  document.getElementById("ep-subtitle").insertAdjacentElement("afterend", toggle);
+  toggle.addEventListener("click", e => {
+    const b = e.target.closest(".cmp-shift-btn");
+    if (!b || !epData || b.dataset.shift === epShift) return;
+    epShift = b.dataset.shift;
+    epRender();
+  });
+  document.getElementById("ep-title").textContent = `Opções de escola — ${epShiftName(epShift)}`;
+  toggle.querySelectorAll(".cmp-shift-btn").forEach(b => b.classList.toggle("active", b.dataset.shift === epShift));
+
+  const [{ data, error }, citiesRes] = await Promise.all([
+    supabase.rpc("get_public_school_comparison"),
+    supabase.rpc("get_public_school_cities"),
+  ]);
+  epCities = Array.isArray(citiesRes.data) ? citiesRes.data : [];
+  document.getElementById("ep-loading").style.display = "none";
+  if (error || !Array.isArray(data)) {
+    console.error("Erro ao carregar escolas:", error);
+    document.getElementById("ep-error").style.display = "block";
+    toggle.style.display = "none";
+    return;
+  }
+
+  epData = data.map(s => ({
+    nome: s.nome, categoria: s.categoria, destino: s.destino, descricao: s.descricao || "",
+    inclusos: Array.isArray(s.inclusos) ? s.inclusos : [], coverPath: s.cover_path || null,
+    items: Array.isArray(s.items) ? s.items : [],
+  }));
+  epRender();
 
   document.getElementById("ep-container").addEventListener("click", e => {
     const link = e.target.closest("[data-cmp-target]");

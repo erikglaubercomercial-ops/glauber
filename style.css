@@ -3027,3 +3027,6 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .rec-client-name:hover { text-decoration: underline; }
 #fin-rec-search { flex: 1 1 200px; min-width: 160px; }
 .rec-detail-stats { padding: 4px 20px 14px; }
+
+/* página pública das escolas: botão manhã/tarde logo abaixo do título */
+.ep-shift-toggle { display: flex; width: fit-content; margin: 14px auto 4px; }
