@@ -3030,3 +3030,15 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 
 /* página pública das escolas: botão manhã/tarde logo abaixo do título */
 .ep-shift-toggle { display: flex; width: fit-content; margin: 14px auto 4px; }
+
+/* agendamento online: Google Agenda */
+.bka-google { display: flex; flex-direction: column; gap: 8px; }
+.bka-g-status { margin: 0; font-size: 13px; font-weight: 600; }
+.bka-g-status.ok { color: var(--success, #1f9d55); }
+.bka-g-status.bad { color: var(--danger, #c0392b); }
+.bka-g-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.bka-g-row input { flex: 1 1 260px; min-width: 0; }
+.bka-google-how { font-size: 13px; }
+.bka-google-how summary { cursor: pointer; font-weight: 700; color: var(--primary); }
+.bka-google-how ol { margin: 8px 0 6px 18px; padding: 0; line-height: 1.6; }
+.bka-google-how code { background: var(--content-bg); border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; font-size: 12px; }

@@ -9022,9 +9022,24 @@ const agendaForm = document.getElementById("agenda-form");
 const agendaBtnDelete = document.getElementById("agenda-btn-delete");
 const agendaFieldType = document.getElementById("agenda-field-type");
 
+/* "Meu link de reunião" (Agendamento online): preenche o "Link ou local" de uma reunião NOVA, sem sobrescrever o que já foi digitado */
+let agendaMyMeetingLink;   // undefined = ainda não buscou; "" = não tem
+async function agendaPrefillMeetingLink() {
+  if (!session || document.getElementById("agenda-id").value) return;
+  const loc = document.getElementById("agenda-field-location");
+  if (!loc || loc.value.trim()) return;
+  if (agendaMyMeetingLink === undefined) {
+    try {
+      const { data } = await supabase.from("booking_settings").select("meeting_link").eq("consultor_id", session.id).maybeSingle();
+      agendaMyMeetingLink = (data && data.meeting_link) || "";
+    } catch (e) { agendaMyMeetingLink = ""; }
+  }
+  if (agendaMyMeetingLink && !loc.value.trim() && agendaFieldType.value === "reuniao" && !document.getElementById("agenda-id").value) loc.value = agendaMyMeetingLink;
+}
 function setAgendaType(type) {
   agendaFieldType.value = type;
   document.querySelectorAll(".agenda-type-btn").forEach(b => b.classList.toggle("active", b.dataset.type === type));
+  if (type === "reuniao") agendaPrefillMeetingLink();
 }
 document.querySelectorAll(".agenda-type-btn").forEach(btn => {
   btn.addEventListener("click", () => setAgendaType(btn.dataset.type));

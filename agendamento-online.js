@@ -66,6 +66,7 @@ function bkaRenderForm() {
   bkaEl("booking-window").value = s.window_days;
   bkaEl("booking-display").value = s.display_name || "";
   bkaEl("booking-intro").value = s.intro || "";
+  bkaEl("booking-meeting-link").value = s.meeting_link || "";
   bkaEl("booking-saved").textContent = "";
   bkaEl("booking-week").innerHTML = BKA_DAYS.map(d => {
     const iv = (s.weekly && s.weekly[String(d.dow)] && s.weekly[String(d.dow)][0]) || null;
@@ -81,6 +82,67 @@ function bkaRenderForm() {
     row.querySelectorAll("input[type=time]").forEach(i => { i.disabled = !cb.checked; });
   }));
   bkaRenderBlocks();
+  bkaRenderGoogle();
+}
+
+/* ---- Google Agenda: horários ocupados bloqueiam o link de agendamento ---- */
+const BKA_GOOGLE_HOW = `<details class="bka-google-how"><summary>Como pegar o endereço secreto no Google Agenda</summary><ol>
+  <li>No computador, abra o <b>Google Agenda</b> › ⚙️ <b>Configurações</b>.</li>
+  <li>Na lista à esquerda, em <b>Configurações de minhas agendas</b>, clique na sua agenda principal.</li>
+  <li>Role até <b>Integrar agenda</b> e copie o <b>Endereço secreto no formato iCal</b> (começa com <code>https://calendar.google.com/</code>).</li>
+  <li>Cole aqui embaixo e clique em <b>Conectar</b>.</li></ol>
+  <p class="muted-note">O CRM lê só <b>quando você está ocupado</b> (sem título, descrição ou convidados) e a cada 10 minutos. Eventos marcados como "livre" não bloqueiam. Quem tem esse endereço consegue ler sua agenda: se precisar, gere outro no próprio Google e o antigo deixa de funcionar.</p></details>`;
+const bkaAgo = iso => {
+  if (!iso) return "ainda não sincronizou";
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  return m < 1 ? "agora há pouco" : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} dia(s)`;
+};
+async function bkaRenderGoogle() {
+  const box = bkaEl("booking-google-box");
+  if (!box) return;
+  const own = !!session && bka.consultorId === session.id;
+  let st = null;
+  try {
+    if (own) { const r = await supabase.from("booking_google_links").select("enabled, last_sync_at, busy_count, last_error").eq("consultor_id", bka.consultorId).maybeSingle(); st = r.data || null; }
+    else { const r = await supabase.rpc("booking_google_status", { p_consultor: bka.consultorId }); st = (r.data && r.data[0]) || null; }
+  } catch (e) { st = null; }
+  const status = st
+    ? (st.last_error ? `<p class="bka-g-status bad">⚠️ ${escapeHtml(st.last_error)}</p>`
+      : `<p class="bka-g-status ok">✅ Conectado · última sincronização ${bkaAgo(st.last_sync_at)} · ${st.busy_count} horário(s) ocupado(s) nos próximos dias</p>`)
+    : `<p class="bka-g-status">Não conectado. Os horários que você tem ocupados no Google ainda aparecem livres para o cliente.</p>`;
+  if (!own) {
+    box.innerHTML = `${status}<p class="muted-note">Cada consultor conecta o próprio Google Agenda na sua tela de Agendamento online.</p>`;
+    return;
+  }
+  box.innerHTML = `
+    <p class="muted-note">Conecte o seu Google Agenda para o cliente <b>não conseguir marcar</b> nos horários em que você está ocupado no Google.</p>
+    ${status}
+    <div class="bka-g-row">
+      <input type="password" id="booking-google-url" autocomplete="off" placeholder="${st ? "Endereço já salvo — cole um novo para trocar" : "https://calendar.google.com/calendar/ical/…/basic.ics"}">
+      <button type="button" class="btn btn-primary btn-sm" id="booking-google-save">${st ? "Trocar endereço" : "Conectar"}</button>
+      ${st ? `<button type="button" class="btn btn-ghost btn-sm" id="booking-google-sync">Sincronizar agora</button><button type="button" class="btn btn-ghost btn-sm" id="booking-google-del">Desconectar</button>` : ""}
+    </div>
+    ${BKA_GOOGLE_HOW}`;
+  const syncNow = async () => {
+    try { await supabase.functions.invoke("google-busy-sync", { body: {} }); } catch (e) { /* o status mostra o erro */ }
+    await bkaRenderGoogle();
+  };
+  bkaEl("booking-google-save").addEventListener("click", async () => {
+    const url = bkaEl("booking-google-url").value.trim();
+    if (!/^https:\/\/calendar\.google\.com\//i.test(url)) { alert("Cole o \"Endereço secreto no formato iCal\" do Google Agenda (começa com https://calendar.google.com/)."); return; }
+    const btn = bkaEl("booking-google-save"); btn.disabled = true; btn.textContent = "Conectando…";
+    const { error } = await supabase.from("booking_google_links").upsert({ consultor_id: bka.consultorId, ics_url: url, enabled: true, last_error: null, last_sync_at: null });
+    if (error) { btn.disabled = false; btn.textContent = "Conectar"; alert("Não foi possível salvar o endereço."); return; }
+    await syncNow();
+  });
+  const syncBtn = bkaEl("booking-google-sync"); if (syncBtn) syncBtn.addEventListener("click", async () => { syncBtn.disabled = true; syncBtn.textContent = "Sincronizando…"; await syncNow(); });
+  const delBtn = bkaEl("booking-google-del");
+  if (delBtn) delBtn.addEventListener("click", async () => {
+    if (!confirm("Desconectar o Google Agenda? Os horários ocupados no Google voltam a aparecer livres para o cliente.")) return;
+    const { error } = await supabase.from("booking_google_links").delete().eq("consultor_id", bka.consultorId);
+    if (error) { alert("Não foi possível desconectar."); return; }
+    await bkaRenderGoogle();
+  });
 }
 
 function bkaBlockText(b) {
@@ -138,7 +200,9 @@ async function bkaSave() {
     min_notice_hours: Math.max(0, Number(bkaEl("booking-notice").value) || 0),
     window_days: Math.min(180, Math.max(1, Number(bkaEl("booking-window").value) || 30)),
     display_name: bkaEl("booking-display").value.trim(), intro: bkaEl("booking-intro").value.trim(),
+    meeting_link: bkaEl("booking-meeting-link").value.trim(),
   };
+  if (patch.meeting_link && !/^https?:\/\//i.test(patch.meeting_link)) { alert("O link de reunião precisa começar com https:// (ex.: https://meet.google.com/abc-defg-hij)."); return; }
   const btn = bkaEl("booking-save");
   btn.disabled = true;
   const { data, error } = await supabase.from("booking_settings").update(patch).eq("consultor_id", bka.consultorId).select().single();
