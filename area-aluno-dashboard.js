@@ -67,7 +67,19 @@ async function loadAlunoVideos() {
   [$al("aluno-nav-soon-badge"), $al("aluno-teaser-badge")].forEach(el => { if (el) el.hidden = has; });
   $al("aluno-teaser-cta").hidden = !has;
   $al("aluno-ingles-empty").hidden = has;
+  /* vitrine na tela inicial: até 3 aulas em miniatura; o cartão azul "Em breve" só aparece enquanto não houver aula */
+  const showcase = $al("aluno-showcase");
+  showcase.hidden = !has;
+  $al("aluno-english-teaser").style.display = has ? "none" : "";
   if (!has) { grid.innerHTML = ""; return; }
+  $al("aluno-showcase-count").textContent = alunoFill(t(data.length === 1 ? "aluno.lessonCountOne" : "aluno.lessonCount"), { n: data.length });
+  $al("aluno-showcase-grid").innerHTML = data.slice(0, 3).map(v => `
+    <button type="button" class="aluno-show-card" data-go-lessons>
+      <span class="aluno-show-thumb"><img src="https://i.ytimg.com/vi/${alunoEsc(v.youtube_id)}/hqdefault.jpg" alt="" loading="lazy"><span class="aluno-video-play">&#9654;</span></span>
+      <span class="aluno-show-title">${alunoEsc(v.title)}</span>
+      ${v.material_path ? `<span class="aluno-show-tag">&#128206; <span data-i18n="aluno.withMaterial">Com material de apoio</span></span>` : ""}
+    </button>`).join("");
+  if (typeof applyTranslations === "function") applyTranslations($al("aluno-showcase"));
   grid.innerHTML = data.map(v => `
     <div class="aluno-video-card" data-yt="${alunoEsc(v.youtube_id)}">
       <button type="button" class="aluno-video-thumb" aria-label="${alunoEsc(v.title)}">
@@ -293,6 +305,7 @@ document.querySelectorAll(".sidebar-nav [data-nav]").forEach(btn => {
 $al("aluno-docs-back").addEventListener("click", () => showAlunoView("dashboard"));
 $al("aluno-go-docs").addEventListener("click", () => showAlunoView("docs"));
 $al("aluno-ingles-back").addEventListener("click", () => showAlunoView("dashboard"));
+$al("aluno-showcase").addEventListener("click", e => { if (e.target.closest("#aluno-showcase-all, [data-go-lessons]")) showAlunoView("ingles"); });
 $al("aluno-english-teaser").addEventListener("click", () => showAlunoView("ingles"));
 $al("aluno-english-teaser").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showAlunoView("ingles"); } });
 
