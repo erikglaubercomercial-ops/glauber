@@ -13,6 +13,8 @@ function canAccessView(view) {
   if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
   /* Meus links: cada usuário tem a própria página de links da bio */
   if (view === "linkbio") return true;
+  /* WhatsApp: caixa de entrada do número da empresa — ADM e Gerente veem tudo, Consultor só as conversas dos próprios leads */
+  if (view === "whatsapp") return ["ADM", "Gerente", "Consultor"].includes(session.role);
   if (view === "usuarios") return session.role === "ADM";
   if (view === "agenda") return session.role !== "Influencer";
   /* MKT e Mapa Mental: ADM, Gerente e MKT */
@@ -196,6 +198,7 @@ function switchView(view) {
   if (view === "appacomp") renderAppTracking();
   if (view === "mapamental" && typeof renderMindMapView === "function") renderMindMapView();
   if (view === "linkbio" && typeof renderLinkBio === "function") renderLinkBio();
+  if (view === "whatsapp" && typeof renderWhatsApp === "function") renderWhatsApp();
   if (view === "usuarios" && typeof renderApiKeys === "function") renderApiKeys();
   if (view === "areaaluno" && typeof renderAreaAlunoAdmin === "function") renderAreaAlunoAdmin();
   if (view === "templates" && typeof renderEmailTemplates === "function") renderEmailTemplates();

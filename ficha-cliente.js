@@ -50,6 +50,7 @@ async function openFicha(leadId) {
     try { leads = await loadLeads(); renderLeads(); } catch (e) { console.error("Erro ao atualizar leads:", e); }
   }
   fichaLeadId = leadId;
+  fxWaJson = "";
   fichaData = null; fichaJson = ""; fichaShowAll = false; fichaPersonal = null; fichaForm = []; fichaFormFor = null;
   $fx("ficha-loading").style.display = "";
   $fx("ficha-body").style.display = "none";
@@ -84,6 +85,7 @@ async function fichaLoad() {
     $fx("ficha-loading").style.display = "";
     return;
   }
+  fxWaRefresh(id);
   const json = JSON.stringify(data);
   if (json === fichaJson) return;
   fichaJson = json;
@@ -192,6 +194,26 @@ function fxNextStep(d) {
   const missing = fxDocState(d).filter(x => !x.received).length;
   if (missing) return `Próximo passo: reunir os documentos de embarque (${missing} pendente${missing > 1 ? "s" : ""}).`;
   return "Tudo em dia. Acompanhe até o embarque.";
+}
+
+/* ---- conversa no WhatsApp (só aparece se existir e se a pessoa puder ver; a regra está no banco) ---- */
+let fxWaJson = "";
+async function fxWaRefresh(leadId) {
+  const box = $fx("ficha-wa");
+  if (!box || typeof waBubbles !== "function") return;
+  const { data: convs, error } = await supabase.from("wa_conversations").select("id, phone").eq("lead_id", leadId).order("last_message_at", { ascending: false }).limit(1);
+  if (leadId !== fichaLeadId) return;
+  if (error || !convs || !convs.length) { box.hidden = true; fxWaJson = ""; return; }
+  const { data: msgs } = await supabase.from("wa_messages").select("*").eq("conversation_id", convs[0].id).order("created_at", { ascending: false }).limit(30);
+  if (leadId !== fichaLeadId) return;
+  const list = (msgs || []).slice().reverse();
+  const json = convs[0].id + JSON.stringify(list.map(m => m.id));
+  if (json === fxWaJson && !box.hidden) return;
+  fxWaJson = json;
+  box.hidden = false;
+  box.innerHTML = `<h3><span class="ic">💬</span>Conversa no WhatsApp <button type="button" class="btn btn-ghost btn-sm" id="ficha-wa-open" style="margin-left:auto;">Abrir na caixa de entrada</button></h3><div class="wa-thread wa-thread-ficha" id="ficha-wa-thread">${waBubbles(list)}</div>`;
+  const th = $fx("ficha-wa-thread"); th.scrollTop = th.scrollHeight;
+  $fx("ficha-wa-open").addEventListener("click", () => { closeFicha(); waOpenConversation(convs[0].id); });
 }
 
 /* ---------------- render ---------------- */

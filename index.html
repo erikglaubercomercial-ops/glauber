@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1793291715">
-<link rel="stylesheet" href="bio.css?v=1793291715">
+<link rel="stylesheet" href="style.css?v=1793317961">
+<link rel="stylesheet" href="bio.css?v=1793317961">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -58,6 +58,11 @@
         <button class="nav-item" data-view="agenda" id="nav-agenda">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           <span data-i18n="nav.agenda">Agenda</span>
+        </button>
+
+        <button class="nav-item" data-view="whatsapp">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></svg>
+          <span data-i18n="nav.whatsapp">WhatsApp</span>
         </button>
 
         <button class="nav-item" data-view="cotacao">
@@ -1320,6 +1325,15 @@
         </div>
       </section>
 
+      <!-- WHATSAPP (caixa de entrada compartilhada) -->
+      <section class="view" id="view-whatsapp">
+        <div class="panel">
+          <div class="panel-header"><h2>WhatsApp</h2></div>
+          <p class="q-card-sub">Conversas do número da empresa. Cliente novo cai na fila para o Gerente distribuir; cliente que já é lead vai para o consultor dele.</p>
+          <div id="wa-root" style="padding:0 20px 20px;"></div>
+        </div>
+      </section>
+
       <!-- MEUS LINKS (página de links da bio) -->
       <section class="view" id="view-linkbio">
         <div class="panel">
@@ -2452,6 +2466,7 @@
             <div id="ficha-notes" style="margin-top:8px;"></div>
           </div>
         </div>
+        <div class="prod-surface fx-sec fx-pad" id="ficha-wa" hidden></div>
         <div class="prod-surface fx-sec fx-pad" id="ficha-timeline"></div>
         <div class="fx-foot" id="ficha-foot"></div>
       </div>
@@ -3096,29 +3111,30 @@
     </div>
   </div>
 
-  <script src="config.js?v=1793291715"></script>
-  <script src="ver-como.js?v=1793291715"></script>
-  <script src="auth.js?v=1793291715"></script>
-  <script src="i18n.js?v=1793291715"></script>
-  <script src="comparativo.js?v=1793291715"></script>
-  <script src="contrato-modelo.js?v=1793291715"></script>
-  <script src="script.js?v=1793291715"></script>
-  <script src="contratos-proposta.js?v=1793291715"></script>
-  <script src="ficha-cliente.js?v=1793291715"></script>
-  <script src="agenda-reunioes.js?v=1793291715"></script>
-  <script src="agendamento-online.js?v=1793291715"></script>
-  <script src="videos-area-aluno.js?v=1793291715"></script>
-  <script src="times-arena.js?v=1793291715"></script>
+  <script src="config.js?v=1793317961"></script>
+  <script src="ver-como.js?v=1793317961"></script>
+  <script src="auth.js?v=1793317961"></script>
+  <script src="i18n.js?v=1793317961"></script>
+  <script src="comparativo.js?v=1793317961"></script>
+  <script src="contrato-modelo.js?v=1793317961"></script>
+  <script src="script.js?v=1793317961"></script>
+  <script src="contratos-proposta.js?v=1793317961"></script>
+  <script src="ficha-cliente.js?v=1793317961"></script>
+  <script src="agenda-reunioes.js?v=1793317961"></script>
+  <script src="agendamento-online.js?v=1793317961"></script>
+  <script src="videos-area-aluno.js?v=1793317961"></script>
+  <script src="times-arena.js?v=1793317961"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
   <script id="katex-js" defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-  <script src="mapa-mental.js?v=1793291715"></script>
-  <script src="bio-shared.js?v=1793291715"></script>
+  <script src="mapa-mental.js?v=1793317961"></script>
+  <script src="bio-shared.js?v=1793317961"></script>
   <script src="api-keys.js?v=1793283902"></script>
-  <script src="links-bio.js?v=1793291715"></script>
-  <script src="templates-email.js?v=1793291715"></script>
-  <script src="catalogo-explorer.js?v=1793291715"></script>
-  <script src="financeiro-dashboard.js?v=1793291715"></script>
-  <script src="acomodacao-financeiro.js?v=1793291715"></script>
-  <script src="app-acompanhamento.js?v=1793291715"></script>
+  <script src="whatsapp.js?v=1793317961"></script>
+  <script src="links-bio.js?v=1793317961"></script>
+  <script src="templates-email.js?v=1793317961"></script>
+  <script src="catalogo-explorer.js?v=1793317961"></script>
+  <script src="financeiro-dashboard.js?v=1793317961"></script>
+  <script src="acomodacao-financeiro.js?v=1793317961"></script>
+  <script src="app-acompanhamento.js?v=1793317961"></script>
 </body>
 </html>
