@@ -56,6 +56,28 @@ document.getElementById("aluno-btn-signout").addEventListener("click", async () 
   window.location.href = "area-aluno-login.html";
 });
 
+/* vitrine: quantas aulas couberem na largura da tela, numa linha só (miniaturas grandes) */
+let alunoShowcaseVideos = [];
+const ALUNO_SHOW_MIN = 255, ALUNO_SHOW_GAP = 16;
+function renderAlunoShowcase() {
+  const grid = $al("aluno-showcase-grid");
+  if (!grid || !alunoShowcaseVideos.length) return;
+  const width = grid.clientWidth;
+  if (!width) return; /* vitrine ainda escondida: o observador chama de novo quando aparecer */
+  const fit = Math.max(1, Math.floor((width + ALUNO_SHOW_GAP) / (ALUNO_SHOW_MIN + ALUNO_SHOW_GAP)));
+  if (grid.dataset.fit === String(fit) && grid.dataset.n === String(alunoShowcaseVideos.length)) return;
+  grid.dataset.fit = String(fit); grid.dataset.n = String(alunoShowcaseVideos.length);
+  grid.style.gridTemplateColumns = `repeat(${fit}, minmax(0, 1fr))`;
+  grid.innerHTML = alunoShowcaseVideos.slice(0, fit).map(v => `
+    <button type="button" class="aluno-show-card" data-go-lessons>
+      <span class="aluno-show-thumb"><img src="https://i.ytimg.com/vi/${alunoEsc(v.youtube_id)}/hqdefault.jpg" alt="" loading="lazy"><span class="aluno-video-play">&#9654;</span></span>
+      <span class="aluno-show-title">${alunoEsc(v.title)}</span>
+      ${v.material_path ? `<span class="aluno-show-tag">&#128206; <span data-i18n="aluno.withMaterial">Com material de apoio</span></span>` : ""}
+    </button>`).join("");
+  if (typeof applyTranslations === "function") applyTranslations(grid);
+}
+if (typeof ResizeObserver === "function") new ResizeObserver(() => renderAlunoShowcase()).observe(document.getElementById("aluno-showcase-grid"));
+
 /* ---- vídeos do YouTube (os mesmos para todos; só aluno matriculado lê — a regra está no banco) ---- */
 async function loadAlunoVideos() {
   const grid = $al("aluno-video-grid");
@@ -73,13 +95,8 @@ async function loadAlunoVideos() {
   $al("aluno-english-teaser").style.display = has ? "none" : "";
   if (!has) { grid.innerHTML = ""; return; }
   $al("aluno-showcase-count").textContent = alunoFill(t(data.length === 1 ? "aluno.lessonCountOne" : "aluno.lessonCount"), { n: data.length });
-  $al("aluno-showcase-grid").innerHTML = data.slice(0, 3).map(v => `
-    <button type="button" class="aluno-show-card" data-go-lessons>
-      <span class="aluno-show-thumb"><img src="https://i.ytimg.com/vi/${alunoEsc(v.youtube_id)}/hqdefault.jpg" alt="" loading="lazy"><span class="aluno-video-play">&#9654;</span></span>
-      <span class="aluno-show-title">${alunoEsc(v.title)}</span>
-      ${v.material_path ? `<span class="aluno-show-tag">&#128206; <span data-i18n="aluno.withMaterial">Com material de apoio</span></span>` : ""}
-    </button>`).join("");
-  if (typeof applyTranslations === "function") applyTranslations($al("aluno-showcase"));
+  alunoShowcaseVideos = data;
+  renderAlunoShowcase();
   grid.innerHTML = data.map(v => `
     <div class="aluno-video-card" data-yt="${alunoEsc(v.youtube_id)}">
       <button type="button" class="aluno-video-thumb" aria-label="${alunoEsc(v.title)}">
