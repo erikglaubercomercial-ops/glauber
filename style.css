@@ -3062,3 +3062,8 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .av-preview .bad { color: var(--danger, #c0392b); }
 .av-check { display: flex; align-items: center; gap: 8px; align-self: end; margin: 0 0 10px; }
 .av-check input { width: auto; margin: 0; }
+.aluno-video-dl { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; text-align: left; margin-top: 2px; }
+.aluno-video-dl small { flex-basis: 100%; color: var(--text-muted); font-weight: 400; font-size: 11px; }
+.av-material { border: 1px dashed var(--border); border-radius: 12px; padding: 10px 12px; margin: 6px 0 10px; }
+.av-file-current { font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 6px; }
+.av-clip { font-size: 13px; }

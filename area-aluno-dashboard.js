@@ -60,7 +60,7 @@ document.getElementById("aluno-btn-signout").addEventListener("click", async () 
 async function loadAlunoVideos() {
   const panel = $al("aluno-videos-panel"), grid = $al("aluno-video-grid");
   if (!panel || !grid) return;
-  const { data, error } = await supabase.from("aluno_videos").select("id, title, description, youtube_id")
+  const { data, error } = await supabase.from("aluno_videos").select("id, title, description, youtube_id, material_path, material_name, material_size")
     .eq("ativo", true).order("ordem", { ascending: true }).order("created_at", { ascending: true });
   if (error || !data || !data.length) { panel.hidden = true; return; }
   panel.hidden = false;
@@ -72,8 +72,24 @@ async function loadAlunoVideos() {
       </button>
       <div class="aluno-video-title">${alunoEsc(v.title)}</div>
       ${v.description ? `<div class="aluno-video-desc">${alunoEsc(v.description)}</div>` : ""}
+      ${v.material_path ? `<button type="button" class="btn btn-ghost btn-sm aluno-video-dl" data-path="${alunoEsc(v.material_path)}" data-name="${alunoEsc(v.material_name || "material")}">
+        <span aria-hidden="true">&#11015;</span> <span data-i18n="aluno.downloadMaterial">Baixar material de apoio</span>
+        <small>${alunoEsc(v.material_name || "")}${v.material_size ? ` · ${v.material_size >= 1048576 ? (v.material_size / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(v.material_size / 1024)) + " KB"}` : ""}</small></button>` : ""}
     </div>`).join("");
+  if (typeof applyTranslations === "function") applyTranslations(grid);
 }
+/* baixar o material de apoio: link temporário (2 min) gerado só para quem é aluno matriculado */
+document.addEventListener("click", async e => {
+  const btn = e.target.closest(".aluno-video-dl");
+  if (!btn) return;
+  btn.disabled = true;
+  const { data, error } = await supabase.storage.from("aluno-materiais").createSignedUrl(btn.dataset.path, 120, { download: btn.dataset.name });
+  btn.disabled = false;
+  if (error || !data || !data.signedUrl) { console.error("Erro ao gerar o link do material:", error); alert(t("aluno.downloadError")); return; }
+  const a = document.createElement("a");
+  a.href = data.signedUrl; a.download = btn.dataset.name; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+});
 /* o player do YouTube só é carregado quando o aluno clica */
 document.addEventListener("click", e => {
   const btn = e.target.closest(".aluno-video-thumb");
