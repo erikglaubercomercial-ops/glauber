@@ -368,7 +368,7 @@ const I18N = {
     "aluno.sendFile": "Enviar arquivo", "aluno.talkToTeam": "Fale com nosso time",
     "aluno.yourMessage": "Sua mensagem", "aluno.messagePlaceholder": "Escreva sua mensagem para a equipe Peregrinos...",
     "aluno.sendMessage": "Enviar mensagem", "aluno.legendTask": "Tarefa", "aluno.legendMeeting": "Reunião",
-    "aluno.legendNotice": "Aviso", "aluno.upcoming": "Próximos compromissos", "aluno.englishTeaser": "Aulas básicas para quem ainda está no Brasil se preparando para embarcar.",
+    "aluno.legendNotice": "Aviso", "aluno.watchLessons": "Assistir às aulas →", "aluno.englishEmpty": "As aulas estão sendo preparadas e vão aparecer aqui em breve.", "aluno.upcoming": "Próximos compromissos", "aluno.englishTeaser": "Aulas básicas para quem ainda está no Brasil se preparando para embarcar.",
 
     "common.loading": "Carregando...", "common.sendMyData": "Enviar meus dados", "common.select": "Selecione", "common.other": "Outro",
     "addr.section": "Endereço", "addr.street": "Rua", "addr.number": "Número", "addr.complement": "Complemento",
@@ -1300,7 +1300,7 @@ const I18N = {
     "aluno.sendFile": "Send file", "aluno.talkToTeam": "Talk to our team",
     "aluno.yourMessage": "Your message", "aluno.messagePlaceholder": "Write your message to the Peregrinos team...",
     "aluno.sendMessage": "Send message", "aluno.legendTask": "Task", "aluno.legendMeeting": "Meeting",
-    "aluno.legendNotice": "Notice", "aluno.upcoming": "Upcoming events", "aluno.englishTeaser": "Basic classes for those still in Brazil getting ready to travel.",
+    "aluno.legendNotice": "Notice", "aluno.watchLessons": "Watch the lessons →", "aluno.englishEmpty": "The lessons are being prepared and will appear here soon.", "aluno.upcoming": "Upcoming events", "aluno.englishTeaser": "Basic classes for those still in Brazil getting ready to travel.",
 
     "common.loading": "Loading...", "common.sendMyData": "Submit my info", "common.select": "Select", "common.other": "Other",
     "addr.section": "Address", "addr.street": "Street", "addr.number": "Number", "addr.complement": "Complement",
@@ -2232,7 +2232,7 @@ const I18N = {
     "aluno.sendFile": "Enviar archivo", "aluno.talkToTeam": "Habla con nuestro equipo",
     "aluno.yourMessage": "Tu mensaje", "aluno.messagePlaceholder": "Escribe tu mensaje para el equipo de Peregrinos...",
     "aluno.sendMessage": "Enviar mensaje", "aluno.legendTask": "Tarea", "aluno.legendMeeting": "Reunión",
-    "aluno.legendNotice": "Aviso", "aluno.upcoming": "Próximas citas", "aluno.englishTeaser": "Clases básicas para quienes aún están en Brasil preparándose para viajar.",
+    "aluno.legendNotice": "Aviso", "aluno.watchLessons": "Ver las clases →", "aluno.englishEmpty": "Las clases se están preparando y aparecerán aquí pronto.", "aluno.upcoming": "Próximas citas", "aluno.englishTeaser": "Clases básicas para quienes aún están en Brasil preparándose para viajar.",
 
     "common.loading": "Cargando...", "common.sendMyData": "Enviar mis datos", "common.select": "Selecciona", "common.other": "Otro",
     "addr.section": "Dirección", "addr.street": "Calle", "addr.number": "Número", "addr.complement": "Complemento",

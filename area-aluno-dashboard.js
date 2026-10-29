@@ -58,12 +58,16 @@ document.getElementById("aluno-btn-signout").addEventListener("click", async () 
 
 /* ---- vídeos do YouTube (os mesmos para todos; só aluno matriculado lê — a regra está no banco) ---- */
 async function loadAlunoVideos() {
-  const panel = $al("aluno-videos-panel"), grid = $al("aluno-video-grid");
-  if (!panel || !grid) return;
+  const grid = $al("aluno-video-grid");
+  if (!grid) return;
   const { data, error } = await supabase.from("aluno_videos").select("id, title, description, youtube_id, material_path, material_name, material_size")
     .eq("ativo", true).order("ordem", { ascending: true }).order("created_at", { ascending: true });
-  if (error || !data || !data.length) { panel.hidden = true; return; }
-  panel.hidden = false;
+  const has = !error && !!data && data.length > 0;
+  /* "Em breve" some quando já existe aula; o cartão azul do dashboard vira atalho para a tela */
+  [$al("aluno-nav-soon-badge"), $al("aluno-teaser-badge")].forEach(el => { if (el) el.hidden = has; });
+  $al("aluno-teaser-cta").hidden = !has;
+  $al("aluno-ingles-empty").hidden = has;
+  if (!has) { grid.innerHTML = ""; return; }
   grid.innerHTML = data.map(v => `
     <div class="aluno-video-card" data-yt="${alunoEsc(v.youtube_id)}">
       <button type="button" class="aluno-video-thumb" aria-label="${alunoEsc(v.title)}">
@@ -272,6 +276,7 @@ function alunoToast(msg) {
 function showAlunoView(view) {
   $al("aluno-view-dashboard").classList.toggle("active", view === "dashboard");
   $al("aluno-view-docs").classList.toggle("active", view === "docs");
+  $al("aluno-view-ingles").classList.toggle("active", view === "ingles");
   document.querySelectorAll(".sidebar-nav [data-nav]").forEach(b => b.classList.toggle("active", (b.dataset.nav === "documentos" ? "docs" : b.dataset.nav) === view));
   window.scrollTo({ top: 0 });
   if (view === "docs") loadAlunoDocs();
@@ -281,11 +286,15 @@ document.querySelectorAll(".sidebar-nav [data-nav]").forEach(btn => {
     const nav = btn.dataset.nav;
     if (nav === "dashboard") showAlunoView("dashboard");
     else if (nav === "documentos") showAlunoView("docs");
+    else if (nav === "ingles") showAlunoView("ingles");
     else alunoToast(t("aluno.soonToast"));
   });
 });
 $al("aluno-docs-back").addEventListener("click", () => showAlunoView("dashboard"));
 $al("aluno-go-docs").addEventListener("click", () => showAlunoView("docs"));
+$al("aluno-ingles-back").addEventListener("click", () => showAlunoView("dashboard"));
+$al("aluno-english-teaser").addEventListener("click", () => showAlunoView("ingles"));
+$al("aluno-english-teaser").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showAlunoView("ingles"); } });
 
 /* ---- calendário e próximos compromissos: chegada, início das aulas e vencimento das parcelas ---- */
 function alunoEvents() {

@@ -1,5 +1,5 @@
 /* ============================================================
-   ÁREA DO ALUNO › VÍDEOS (CRM, só ADM). Cadastro dos vídeos do YouTube que aparecem no painel dos
+   ÁREA DO ALUNO › VÍDEOS (CRM, só ADM). Cadastro dos vídeos do YouTube que aparecem na tela Aulas de Inglês do painel dos
    alunos matriculados — os mesmos para todos. Guarda só o código do vídeo; o link é reconhecido aqui.
    Dica: o vídeo deve estar como "Não listado" no YouTube ("Privado" não toca fora do YouTube).
    Depende de script.js: session, supabase, escapeHtml, agendaToast.
