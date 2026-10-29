@@ -1,0 +1,75 @@
+/* Página de links da bio — visual compartilhado entre links.html e a prévia do editor (Meus links). Tudo sob .bio-* */
+.bio-stage { position: relative; min-height: 100vh; display: flex; justify-content: center; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
+.bio-inner { position: relative; z-index: 1; width: 100%; max-width: 480px; padding: 30px 18px 22px; box-sizing: border-box; }
+.bio-head { text-align: center; }
+.bio-logo { height: 52px; width: auto; max-width: 80%; }
+.bio-title { margin: 10px 0 2px; font-size: 20px; font-weight: 600; line-height: 1.25; }
+.bio-subtitle { margin: 0; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 6px; opacity: .92; }
+.bio-subtitle img { height: 15px; width: auto; }
+.bio-social { display: flex; justify-content: center; gap: 14px; margin: 14px 0 4px; }
+.bio-social-btn { width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, .93); color: #1f4670; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+
+.bio-hero { display: block; margin-top: 14px; background: rgba(255, 255, 255, .96); border-radius: 18px; padding: 10px; text-decoration: none; color: #14304d; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
+.bio-hero-img { width: 100%; border-radius: 12px; display: block; aspect-ratio: 1.91 / 1; object-fit: cover; background: #e9eef4; }
+.bio-hero-title { display: block; text-align: center; font-size: 15px; margin: 9px 0 2px; font-weight: 600; }
+.bio-hero-sub { display: block; text-align: center; font-size: 12.5px; color: #4d5f74; margin-bottom: 4px; }
+
+.bio-links { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.bio-link { display: flex; align-items: center; background: rgba(255, 255, 255, .96); color: #14304d; border-radius: 15px; padding: 13px 14px; text-decoration: none; box-shadow: 0 4px 14px rgba(0, 0, 0, .14); transition: transform .12s; }
+a.bio-link:hover { transform: translateY(-2px); }
+.bio-ico { width: 30px; display: flex; align-items: center; color: #14304d; }
+.bio-lbl { flex: 1; text-align: center; font-size: 14.5px; font-weight: 500; padding: 0 6px; }
+.bio-plane { height: 17px; width: auto; }
+.bio-ph { opacity: .55; border: 1.5px dashed #9fb3c8; background: transparent; box-shadow: none; color: inherit; }
+.bio-ph .bio-ico { color: inherit; }
+.bio-foot { text-align: center; font-size: 11.5px; opacity: .8; margin-top: 22px; }
+
+/* fundos */
+.bio-theme-falesia { background: #243447 url(/assets/bio-fundo-falesia.jpg) center / cover no-repeat; }
+.bio-theme-falesia::before { content: ""; position: absolute; inset: 0; background: rgba(15, 32, 51, .55); }
+.bio-theme-azul { background: linear-gradient(170deg, #14304d, #1f4670 70%, #2a5a8c); }
+/* papel timbrado: branco, marca d'água do logo bem clara e filetes laranja e azul no topo e no rodapé */
+.bio-theme-papel { background: #fff; color: #14304d; }
+.bio-theme-papel::before { content: ""; position: absolute; inset: 0; background: url(/assets/peregrinos-logo-stacked.png) center 58% / 72% auto no-repeat; opacity: .06; }
+.bio-theme-papel::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 8px; background: linear-gradient(#f28c28 0 5px, transparent 5px 6px, #1f4670 6px 8px); z-index: 2; }
+.bio-theme-papel .bio-link, .bio-theme-papel .bio-hero { background: #fff; border: 1px solid #dde4ec; box-shadow: 0 3px 10px rgba(20, 48, 77, .08); }
+.bio-theme-papel .bio-logo { height: 84px; }
+.bio-theme-papel .bio-social-btn { background: #14304d; color: #fff; }
+.bio-theme-papel .bio-foot { border-top: 3px solid #f28c28; padding-top: 12px; opacity: .75; }
+
+/* editor (Meus links) */
+.bio-admin { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; padding: 0 20px 24px; align-items: start; }
+@media (max-width: 1000px) { .bio-admin { grid-template-columns: 1fr; } }
+.bio-admin h3 { margin: 18px 0 8px; font-size: 14px; color: var(--primary-deep); }
+.bio-admin h3:first-child { margin-top: 4px; }
+.bio-admin label { display: block; margin-bottom: 10px; }
+.bio-admin label > span { display: block; font-size: 12.5px; color: var(--text-muted); margin-bottom: 4px; }
+.bio-admin input[type="text"], .bio-admin input[type="url"], .bio-admin select { width: 100%; box-sizing: border-box; }
+.bio-addr { display: flex; align-items: center; gap: 0; }
+.bio-addr > span { padding: 9px 8px 9px 12px; background: var(--surface-2, #f1f4f8); border: 1px solid var(--border); border-right: 0; border-radius: 10px 0 0 10px; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.bio-addr input { border-radius: 0 10px 10px 0 !important; }
+.bio-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 4px; }
+.bio-saved { font-size: 12.5px; color: var(--text-muted); }
+.bio-themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.bio-theme-opt { border: 2px solid var(--border); border-radius: 12px; padding: 6px; background: var(--surface); cursor: pointer; font: inherit; font-size: 12px; text-align: center; color: var(--text); }
+.bio-theme-opt.active { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+.bio-theme-sw { height: 46px; border-radius: 8px; margin-bottom: 5px; border: 1px solid rgba(0, 0, 0, .08); }
+.bio-sw-falesia { background: #243447 url(/assets/bio-fundo-falesia.jpg) center / cover; }
+.bio-sw-azul { background: linear-gradient(170deg, #14304d, #2a5a8c); }
+.bio-sw-papel { background: #fff linear-gradient(#f28c28 0 4px, transparent 4px 5px, #1f4670 5px 7px) top / 100% 7px no-repeat; }
+.bio-hero-edit { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+.bio-hero-edit img { width: 120px; aspect-ratio: 1.91 / 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: #e9eef4; }
+.bio-link-row { border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin-bottom: 8px; background: var(--surface); }
+.bio-link-row.off { opacity: .6; }
+.bio-link-grid { display: grid; grid-template-columns: 56px 1fr 1.4fr; gap: 8px; }
+.bio-link-grid .bio-icon-pick { width: 100%; padding: 4px; }
+.bio-link-tools { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.bio-link-tools .spacer { flex: 1; }
+.bio-clicks { font-size: 12px; color: var(--text-muted); }
+.bio-phone-wrap { position: sticky; top: 12px; }
+.bio-phone { width: 340px; max-width: 100%; margin: 0 auto; border: 6px solid #14304d; border-radius: 28px; overflow: hidden; max-height: 640px; overflow-y: auto; background: #243447; }
+.bio-phone .bio-stage { min-height: 560px; }
+.bio-icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-top: 6px; box-shadow: var(--shadow); }
+.bio-icon-grid button { border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 6px; cursor: pointer; color: var(--primary-deep); display: flex; justify-content: center; }
+.bio-icon-grid button:hover, .bio-icon-grid button.active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, #fff); }
+.bio-stats { font-size: 12.5px; color: var(--text-muted); }

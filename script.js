@@ -11,6 +11,8 @@ function canAccessView(view) {
      funcionalidade de verdade, passam a exigir permissão por função
      como os demais módulos */
   if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
+  /* Meus links: cada usuário tem a própria página de links da bio */
+  if (view === "linkbio") return true;
   if (view === "usuarios") return session.role === "ADM";
   if (view === "agenda") return session.role !== "Influencer";
   /* MKT e Mapa Mental: ADM, Gerente e MKT */
@@ -193,6 +195,7 @@ function switchView(view) {
   if (view === "escolas") renderEscolas();
   if (view === "appacomp") renderAppTracking();
   if (view === "mapamental" && typeof renderMindMapView === "function") renderMindMapView();
+  if (view === "linkbio" && typeof renderLinkBio === "function") renderLinkBio();
   if (view === "areaaluno" && typeof renderAreaAlunoAdmin === "function") renderAreaAlunoAdmin();
   if (view === "templates" && typeof renderEmailTemplates === "function") renderEmailTemplates();
   if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();

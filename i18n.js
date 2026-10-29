@@ -304,7 +304,7 @@ const I18N = {
     "nav.dashboard": "Dashboard", "nav.leads": "Leads", "nav.meusleads": "Meus leads", "nav.pipeline": "Pipeline", "permTable.leads": "Leads",
     "nav.leadsparados": "Leads Parados", "nav.cotacao": "Cotação", "nav.contratos": "Contratos",
     "nav.produtos": "Produtos", "nav.financeiro": "Financeiro", "nav.matriculas": "Matrículas",
-    "nav.colaboradores": "Time", "nav.formularios": "Formulários", "nav.templates": "Templates", "nav.mkt": "MKT", "nav.mapamental": "Mapa Mental",
+    "nav.colaboradores": "Time", "nav.formularios": "Formulários", "nav.templates": "Templates", "nav.mkt": "MKT", "nav.linkbio": "Meus links", "nav.mapamental": "Mapa Mental",
     "nav.areaaluno": "Área do Aluno", "nav.usuarios": "Usuários", "nav.sair": "Sair",
     "nav.alunoLoginLink": "Tela de login do aluno",
 
@@ -1236,7 +1236,7 @@ const I18N = {
     "nav.dashboard": "Dashboard", "nav.leads": "Leads", "nav.meusleads": "My Leads", "nav.pipeline": "Pipeline", "permTable.leads": "Leads",
     "nav.leadsparados": "Stalled Leads", "nav.cotacao": "Quotes", "nav.contratos": "Contracts",
     "nav.produtos": "Products", "nav.financeiro": "Finance", "nav.matriculas": "Enrollments",
-    "nav.colaboradores": "Team", "nav.formularios": "Forms", "nav.templates": "Templates", "nav.mkt": "MKT", "nav.mapamental": "Mind Map",
+    "nav.colaboradores": "Team", "nav.formularios": "Forms", "nav.templates": "Templates", "nav.mkt": "MKT", "nav.linkbio": "My links", "nav.mapamental": "Mind Map",
     "nav.areaaluno": "Student Area", "nav.usuarios": "Users", "nav.sair": "Sign out",
     "nav.alunoLoginLink": "Student login page",
 
@@ -2168,7 +2168,7 @@ const I18N = {
     "nav.dashboard": "Panel", "nav.leads": "Leads", "nav.meusleads": "Mis Leads", "nav.pipeline": "Embudo", "permTable.leads": "Leads",
     "nav.leadsparados": "Leads Detenidos", "nav.cotacao": "Cotizaciones", "nav.contratos": "Contratos",
     "nav.produtos": "Productos", "nav.financeiro": "Finanzas", "nav.matriculas": "Matrículas",
-    "nav.colaboradores": "Equipo", "nav.formularios": "Formularios", "nav.templates": "Plantillas", "nav.mkt": "MKT", "nav.mapamental": "Mapa Mental",
+    "nav.colaboradores": "Equipo", "nav.formularios": "Formularios", "nav.templates": "Plantillas", "nav.mkt": "MKT", "nav.linkbio": "Mis enlaces", "nav.mapamental": "Mapa Mental",
     "nav.areaaluno": "Área del Estudiante", "nav.usuarios": "Usuarios", "nav.sair": "Salir",
     "nav.alunoLoginLink": "Pantalla de acceso del estudiante",
 
