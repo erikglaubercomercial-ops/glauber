@@ -193,6 +193,7 @@ function switchView(view) {
   if (view === "escolas") renderEscolas();
   if (view === "appacomp") renderAppTracking();
   if (view === "mapamental" && typeof renderMindMapView === "function") renderMindMapView();
+  if (view === "areaaluno" && typeof renderAreaAlunoAdmin === "function") renderAreaAlunoAdmin();
   if (view === "templates" && typeof renderEmailTemplates === "function") renderEmailTemplates();
   if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();
   if (view === "financeiro" && typeof showFinanceiroDashboard === "function") showFinanceiroDashboard();

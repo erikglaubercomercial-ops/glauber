@@ -44,6 +44,7 @@ const alunoFill = (str, vars) => Object.entries(vars).reduce((s, [k, v]) => s.re
   renderAlunoAll();
   loadAlunoMessages();
   loadAlunoDocs();
+  loadAlunoVideos();
 
   const { data: fin, error } = await supabase.rpc("aluno_financeiro");
   if (error) console.error("Erro ao carregar pagamentos:", error);
@@ -53,6 +54,32 @@ const alunoFill = (str, vars) => Object.entries(vars).reduce((s, [k, v]) => s.re
 document.getElementById("aluno-btn-signout").addEventListener("click", async () => {
   await supabase.auth.signOut();
   window.location.href = "area-aluno-login.html";
+});
+
+/* ---- vídeos do YouTube (os mesmos para todos; só aluno matriculado lê — a regra está no banco) ---- */
+async function loadAlunoVideos() {
+  const panel = $al("aluno-videos-panel"), grid = $al("aluno-video-grid");
+  if (!panel || !grid) return;
+  const { data, error } = await supabase.from("aluno_videos").select("id, title, description, youtube_id")
+    .eq("ativo", true).order("ordem", { ascending: true }).order("created_at", { ascending: true });
+  if (error || !data || !data.length) { panel.hidden = true; return; }
+  panel.hidden = false;
+  grid.innerHTML = data.map(v => `
+    <div class="aluno-video-card" data-yt="${alunoEsc(v.youtube_id)}">
+      <button type="button" class="aluno-video-thumb" aria-label="${alunoEsc(v.title)}">
+        <img src="https://i.ytimg.com/vi/${alunoEsc(v.youtube_id)}/hqdefault.jpg" alt="" loading="lazy">
+        <span class="aluno-video-play">&#9654;</span>
+      </button>
+      <div class="aluno-video-title">${alunoEsc(v.title)}</div>
+      ${v.description ? `<div class="aluno-video-desc">${alunoEsc(v.description)}</div>` : ""}
+    </div>`).join("");
+}
+/* o player do YouTube só é carregado quando o aluno clica */
+document.addEventListener("click", e => {
+  const btn = e.target.closest(".aluno-video-thumb");
+  if (!btn) return;
+  const id = btn.closest(".aluno-video-card").dataset.yt;
+  btn.outerHTML = `<div class="aluno-video-frame"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0&modestbranding=1" title="Vídeo" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
 });
 
 function renderAlunoAll() {

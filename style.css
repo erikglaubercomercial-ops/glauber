@@ -3042,3 +3042,23 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .bka-google-how summary { cursor: pointer; font-weight: 700; color: var(--primary); }
 .bka-google-how ol { margin: 8px 0 6px 18px; padding: 0; line-height: 1.6; }
 .bka-google-how code { background: var(--content-bg); border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; font-size: 12px; }
+
+/* Área do Aluno: vídeos */
+.aluno-video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.aluno-video-card { display: flex; flex-direction: column; gap: 6px; }
+.aluno-video-thumb { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; padding: 0; border: none; border-radius: 12px; overflow: hidden; cursor: pointer; background: #0f2a55; }
+.aluno-video-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.aluno-video-play { position: absolute; inset: 0; margin: auto; width: 52px; height: 52px; border-radius: 50%; background: rgba(255, 255, 255, 0.92); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 20px; padding-left: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); }
+.aluno-video-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #000; }
+.aluno-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.aluno-video-title { font-weight: 700; font-size: 14px; }
+.aluno-video-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.4; }
+/* CRM: cadastro dos vídeos */
+.av-thumb { width: 96px; height: 54px; object-fit: cover; border-radius: 8px; display: block; }
+.av-desc { display: block; font-weight: 400; color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+.av-row.is-off { opacity: 0.55; }
+.av-preview { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; margin: 2px 0 6px; }
+.av-preview img { width: 120px; height: 68px; object-fit: cover; border-radius: 8px; }
+.av-preview .bad { color: var(--danger, #c0392b); }
+.av-check { display: flex; align-items: center; gap: 8px; align-self: end; margin: 0 0 10px; }
+.av-check input { width: auto; margin: 0; }

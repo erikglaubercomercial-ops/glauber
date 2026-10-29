@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1793234519">
+<link rel="stylesheet" href="style.css?v=1793267203">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -1409,7 +1409,15 @@
       <section class="view" id="view-areaaluno">
         <div class="panel">
           <div class="panel-header"><h2 data-i18n="nav.areaaluno">Área do Aluno</h2></div>
-          <div class="empty-hint" data-i18n="areaalunoAdmin.comingSoon">Em construção — em breve os alunos vão poder acessar essa área.</div>
+          <div id="av-placeholder" class="empty-hint" data-i18n="areaalunoAdmin.comingSoon">Em construção — em breve os alunos vão poder acessar essa área.</div>
+          <div id="av-admin-wrap" hidden>
+            <div class="panel-header" style="padding-top:0;">
+              <h3 class="bka-h" style="margin:0;">Vídeos para os alunos</h3>
+              <button type="button" class="btn btn-primary btn-sm" id="av-new">+ Novo vídeo</button>
+            </div>
+            <p class="muted-note" style="padding:0 20px;">Aparecem no painel dos alunos <b>matriculados</b>, os mesmos para todos, na ordem abaixo. Cole o link do YouTube (o vídeo deve estar como <b>Não listado</b>).</p>
+            <div id="av-admin"></div>
+          </div>
         </div>
       </section>
 
@@ -3034,25 +3042,26 @@
     </div>
   </div>
 
-  <script src="config.js?v=1793234519"></script>
-  <script src="ver-como.js?v=1793234519"></script>
-  <script src="auth.js?v=1793234519"></script>
-  <script src="i18n.js?v=1793234519"></script>
-  <script src="comparativo.js?v=1793234519"></script>
-  <script src="contrato-modelo.js?v=1793234519"></script>
-  <script src="script.js?v=1793234519"></script>
-  <script src="contratos-proposta.js?v=1793234519"></script>
-  <script src="ficha-cliente.js?v=1793234519"></script>
-  <script src="agenda-reunioes.js?v=1793234519"></script>
-  <script src="agendamento-online.js?v=1793234519"></script>
-  <script src="times-arena.js?v=1793234519"></script>
+  <script src="config.js?v=1793267203"></script>
+  <script src="ver-como.js?v=1793267203"></script>
+  <script src="auth.js?v=1793267203"></script>
+  <script src="i18n.js?v=1793267203"></script>
+  <script src="comparativo.js?v=1793267203"></script>
+  <script src="contrato-modelo.js?v=1793267203"></script>
+  <script src="script.js?v=1793267203"></script>
+  <script src="contratos-proposta.js?v=1793267203"></script>
+  <script src="ficha-cliente.js?v=1793267203"></script>
+  <script src="agenda-reunioes.js?v=1793267203"></script>
+  <script src="agendamento-online.js?v=1793267203"></script>
+  <script src="videos-area-aluno.js?v=1793267203"></script>
+  <script src="times-arena.js?v=1793267203"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
   <script id="katex-js" defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-  <script src="mapa-mental.js?v=1793234519"></script>
-  <script src="templates-email.js?v=1793234519"></script>
-  <script src="catalogo-explorer.js?v=1793234519"></script>
-  <script src="financeiro-dashboard.js?v=1793234519"></script>
-  <script src="acomodacao-financeiro.js?v=1793234519"></script>
-  <script src="app-acompanhamento.js?v=1793234519"></script>
+  <script src="mapa-mental.js?v=1793267203"></script>
+  <script src="templates-email.js?v=1793267203"></script>
+  <script src="catalogo-explorer.js?v=1793267203"></script>
+  <script src="financeiro-dashboard.js?v=1793267203"></script>
+  <script src="acomodacao-financeiro.js?v=1793267203"></script>
+  <script src="app-acompanhamento.js?v=1793267203"></script>
 </body>
 </html>
