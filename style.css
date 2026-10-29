@@ -3067,3 +3067,12 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .av-material { border: 1px dashed var(--border); border-radius: 12px; padding: 10px 12px; margin: 6px 0 10px; }
 .av-file-current { font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 6px; }
 .av-clip { font-size: 13px; }
+
+/* botões de ação com ícone + nome (ex.: Formulários: Copiar link x Duplicar) — antes eram dois ícones quase iguais */
+.cell-act-btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+.cell-act-btn svg { flex: 0 0 auto; }
+.cell-act-btn.act-link { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); background: color-mix(in srgb, var(--primary) 7%, var(--surface)); }
+.cell-act-btn.act-link:hover { background: color-mix(in srgb, var(--primary) 15%, var(--surface)); }
+.cell-act-btn.act-dup:hover { background: var(--content-bg); color: var(--text); }
+.cell-act-btn.copied { color: var(--good); border-color: var(--good); background: color-mix(in srgb, var(--good) 8%, var(--surface)); }
+.cell-actions-row { gap: 8px; }

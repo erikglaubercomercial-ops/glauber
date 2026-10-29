@@ -1423,6 +1423,7 @@ const TEMPERATURE_BADGE = {
 };
 const WPP_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
 const CELL_COPY_ICON_SVG = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+const CELL_LINK_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>`;
 const CELL_DUPLICATE_ICON_SVG = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>`;
 /* placeholder de foto do consultor — até termos upload de foto de perfil */
 const PERSON_PHOTO_PLACEHOLDER_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>`;
@@ -7801,8 +7802,8 @@ function renderFormsList() {
       <td><button type="button" class="btn btn-ghost btn-sm" data-act="responses">${t("forms.responses")} (${formSubmissionCount(f.id)})</button></td>
       <td class="cell-actions">
         <div class="cell-actions-row">
-          <button type="button" class="cell-copy-btn" data-act="copy" title="${t("common.copyLink")}">${CELL_COPY_ICON_SVG}</button>
-          <button type="button" class="cell-copy-btn" data-act="duplicate" title="${t("forms.duplicate")}" style="${canManageForms() ? "" : "display:none;"}">${CELL_DUPLICATE_ICON_SVG}</button>
+          <button type="button" class="cell-act-btn act-link" data-act="copy" title="${t("common.copyLink")}">${CELL_LINK_ICON_SVG}<span class="lbl">${t("common.copyLink")}</span></button>
+          <button type="button" class="cell-act-btn act-dup" data-act="duplicate" title="${t("forms.duplicate")}" style="${canManageForms() ? "" : "display:none;"}">${CELL_DUPLICATE_ICON_SVG}<span class="lbl">${t("common.duplicate")}</span></button>
           <span>›</span>
         </div>
       </td>
@@ -7813,7 +7814,9 @@ function renderFormsList() {
       navigator.clipboard.writeText(buildFormPublicUrl(f.slug));
       const btn = e.currentTarget;
       btn.classList.add("copied");
-      setTimeout(() => btn.classList.remove("copied"), 1500);
+      const lbl = btn.querySelector(".lbl"), before = lbl.textContent;
+      lbl.textContent = t("common.copied");
+      setTimeout(() => { btn.classList.remove("copied"); lbl.textContent = before; }, 1500);
     });
     tr.querySelector('[data-act="duplicate"]').addEventListener("click", e => {
       e.stopPropagation();

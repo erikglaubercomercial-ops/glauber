@@ -24,6 +24,8 @@ let fichaTimer = null;
 let fichaShowAll = false;
 let fichaPersonal = null;
 let fichaLoading = false;
+let fichaForm = [];          /* respostas de formulário do lead aberto (rpc lead_form_answers) */
+let fichaFormFor = null;
 
 const $fx = id => document.getElementById(id);
 const fxEsc = s => escapeHtml(s == null ? "" : String(s));
@@ -48,7 +50,7 @@ async function openFicha(leadId) {
     try { leads = await loadLeads(); renderLeads(); } catch (e) { console.error("Erro ao atualizar leads:", e); }
   }
   fichaLeadId = leadId;
-  fichaData = null; fichaJson = ""; fichaShowAll = false; fichaPersonal = null;
+  fichaData = null; fichaJson = ""; fichaShowAll = false; fichaPersonal = null; fichaForm = []; fichaFormFor = null;
   $fx("ficha-loading").style.display = "";
   $fx("ficha-body").style.display = "none";
   $fx("ficha-fu-form").style.display = "none";
@@ -87,6 +89,45 @@ async function fichaLoad() {
   fichaJson = json;
   fichaData = data;
   fichaRender();
+  /* respostas do formulário que o lead preencheu: buscadas uma vez por ficha aberta */
+  if (fichaFormFor !== id) {
+    fichaFormFor = id;
+    supabase.rpc("lead_form_answers", { p_lead: id }).then(r => {
+      if (id !== fichaLeadId) return;
+      fichaForm = !r.error && Array.isArray(r.data) ? r.data : [];
+      if (r.error) console.error("Erro ao carregar as respostas do formulário:", r.error);
+      if (fichaForm.length) fichaRender();
+    });
+  }
+}
+
+/* ---- respostas de formulário ---- */
+function fxFormValue(a) {
+  const v = String(a.value == null ? "" : a.value).trim();
+  if (a.type === "date" && /^\d{4}-\d{2}-\d{2}/.test(v)) return fxDateObj(v).toLocaleDateString("pt-BR");
+  if (a.type === "phone_br") {
+    const c = typeof countryByCode === "function" ? countryByCode(a.country || "BR") : null;
+    return c ? `${c.flag} +${c.ddi} ${v}` : v;
+  }
+  return v;
+}
+/* campos que o lead já mostra em "Dados do lead" (nome, e-mail, telefone, origem) não se repetem no cartão */
+const FX_FORM_SKIP = new Set(["name", "email", "phone_br", "source"]);
+function fxFormPretende() {
+  for (const sub of fichaForm) {
+    const hit = (sub.answers || []).find(a => /pretende\s+vir|quando\s+(pretende|quer|vai)/i.test(a.label || "") && a.value);
+    if (hit) return fxFormValue(hit);
+  }
+  return "";
+}
+function fxFormCard() {
+  if (!fichaForm.length) return "";
+  return fichaForm.map(sub => {
+    const rows = (sub.answers || []).filter(a => !FX_FORM_SKIP.has(a.type) || a.type === "source").map(a => fxRow(fxEsc(a.label), fxEsc(fxFormValue(a)))).join("");
+    return `<div class="fx-card"><h3><span class="ic">📝</span>Respostas do formulário</h3>
+      <div class="fx-mu" style="font-size:12px;margin:-4px 0 6px">${fxEsc(sub.form)} · recebido em ${fxEsc(fxDateTime(sub.when))}</div>
+      ${rows || `<p class="fx-mu" style="font-size:12.5px;margin:0">Sem perguntas extras neste formulário.</p>`}</div>`;
+  }).join("");
 }
 
 /* ---------------- lógica da jornada ---------------- */
@@ -351,8 +392,11 @@ function fxRenderCards(d) {
   } else {
     cards.push(`<div class="fx-card"><h3><span class="ic">👤</span>Dados do lead</h3>
       ${fxRow("Telefone", fxEsc(lead.phone || "—"))}${fxRow("E-mail", fxEsc(lead.email || "—"))}${fxRow("Origem", fxEsc([lead.source, lead.source2].filter(Boolean).join(" + ") || "—"))}
-      ${fxRow("Pretende vir", fxEsc(lead.pretende_vir || "—"))}${fxRow("Status", fxEsc(lead.status || "—"))}</div>`);
+      ${fxRow("Pretende vir", fxEsc(lead.pretende_vir || fxFormPretende() || "—"))}${fxRow("Status", fxEsc(lead.status || "—"))}</div>`);
   }
+  /* o que o lead respondeu no formulário (vem logo depois dos dados do lead) */
+  const formCard = fxFormCard();
+  if (formCard) cards.push(formCard);
 
   /* portal */
   if (e) {
