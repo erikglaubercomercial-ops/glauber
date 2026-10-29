@@ -73,3 +73,6 @@ a.bio-link:hover { transform: translateY(-2px); }
 .bio-icon-grid button { border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 6px; cursor: pointer; color: var(--primary-deep); display: flex; justify-content: center; }
 .bio-icon-grid button:hover, .bio-icon-grid button.active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, #fff); }
 .bio-stats { font-size: 12.5px; color: var(--text-muted); }
+.bio-pub { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding: 9px 12px; border-radius: 10px; font-size: 13px; }
+.bio-pub.on { background: #e6f6ec; color: #14532d; }
+.bio-pub.off { background: #fdeceb; color: #7a1d1a; border: 1px solid #f3b8b4; }

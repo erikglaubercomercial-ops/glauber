@@ -107,7 +107,7 @@ function bioRenderEditor(body) {
     <div>
       <h3>Endereço da página</h3>
       <div class="bio-addr"><span>${bioEsc(bioBase())}</span><input type="text" id="bio-slug" maxlength="30" value="${bioEsc(p.slug)}" autocomplete="off"></div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;"><input type="checkbox" data-pf="published" ${p.published ? "checked" : ""}> <span style="margin:0;">Página publicada (desmarque para tirar do ar)</span></label>
+      <div class="bio-pub" id="bio-pub"></div>
       <div class="bio-actions">
         <button type="button" class="btn btn-primary btn-sm" id="bio-copy">Copiar link</button>
         <button type="button" class="btn btn-ghost btn-sm" id="bio-open">Abrir página</button>
@@ -140,8 +140,19 @@ function bioRenderEditor(body) {
   </div>`;
   bioRenderHeroBlock();
   bioRenderLinksList();
+  bioRenderPub();
   bioPreview();
   bioUpdateStats();
+}
+
+/* situação da página: bem visível, porque página fora do ar mostra "não encontrada" para quem abre o link */
+function bioRenderPub() {
+  const box = bioEl("bio-pub");
+  if (!box || !bioPage) return;
+  box.className = "bio-pub " + (bioPage.published ? "on" : "off");
+  box.innerHTML = bioPage.published
+    ? `<span><b>● No ar.</b> Quem abrir o link vê a página.</span><button type="button" class="btn btn-ghost btn-sm" id="bio-toggle-pub">Tirar do ar</button>`
+    : `<span><b>⚠ Fora do ar.</b> Quem abrir o link vê “página não encontrada”.</span><button type="button" class="btn btn-primary btn-sm" id="bio-toggle-pub">Publicar agora</button>`;
 }
 
 function bioPreview() {
@@ -223,6 +234,10 @@ document.addEventListener("click", async e => {
   const t = e.target;
   const theme = t.closest("[data-theme]");
   if (theme) { bioPage.theme = theme.dataset.theme; bioDirtyPage = true; root.querySelectorAll(".bio-theme-opt").forEach(b => b.classList.toggle("active", b === theme)); bioPreview(); bioQueueSave(); return; }
+  if (t.closest("#bio-toggle-pub")) {
+    if (bioPage.published && !confirm("Tirar a página do ar? O link vai mostrar “página não encontrada” até você publicar de novo.")) return;
+    bioPage.published = !bioPage.published; bioDirtyPage = true; bioRenderPub(); bioQueueSave(); return;
+  }
   if (t.closest("#bio-copy")) { try { await navigator.clipboard.writeText(bioBase() + bioPage.slug); agendaToast("Link copiado: " + bioBase() + bioPage.slug); } catch (err) { prompt("Copie o link:", bioBase() + bioPage.slug); } return; }
   if (t.closest("#bio-open")) { window.open(bioBase() + bioPage.slug, "_blank", "noopener"); return; }
   if (t.closest("#bio-hero-pick")) { bioEl("bio-hero-file").click(); return; }
