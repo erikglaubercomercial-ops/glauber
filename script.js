@@ -196,6 +196,7 @@ function switchView(view) {
   if (view === "appacomp") renderAppTracking();
   if (view === "mapamental" && typeof renderMindMapView === "function") renderMindMapView();
   if (view === "linkbio" && typeof renderLinkBio === "function") renderLinkBio();
+  if (view === "usuarios" && typeof renderApiKeys === "function") renderApiKeys();
   if (view === "areaaluno" && typeof renderAreaAlunoAdmin === "function") renderAreaAlunoAdmin();
   if (view === "templates" && typeof renderEmailTemplates === "function") renderEmailTemplates();
   if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();

@@ -1475,6 +1475,20 @@
           </table>
         </div>
 
+        <!-- ACESSO POR API (só ADM): chaves de leitura para a gestora de tráfego -->
+        <div class="panel" style="margin-bottom:20px;" id="apikeys-panel">
+          <div class="panel-header">
+            <h2>Acesso por API (somente leitura)</h2>
+            <button class="btn btn-primary" id="btn-new-apikey">+ Gerar chave</button>
+          </div>
+          <p class="muted-note" style="padding:0 20px;">Chaves para ferramentas externas (ex.: gestora de tráfego, Looker Studio, planilhas) <b>lerem</b> os dados do CRM. Não alteram nada. Ficam de fora tokens de links, documentos pessoais (passaporte, CPF), arquivos, assinaturas e dados do RH. Cada chave vence sozinha e pode ser revogada na hora.</p>
+          <table class="data-table data-table-list">
+            <thead><tr><th>Nome</th><th>Chave</th><th>Criada em</th><th>Vence em</th><th>Uso</th><th>Status</th></tr></thead>
+            <tbody id="apikeys-tbody"></tbody>
+          </table>
+          <div class="empty-hint" id="apikeys-empty" style="display:none;">Nenhuma chave gerada ainda.</div>
+        </div>
+
         <div class="panel">
           <div class="panel-header">
             <h2 data-i18n="users.permissionsTitle">Permissões por Função</h2>
@@ -2469,6 +2483,31 @@
   </div>
 
   <!-- MODAL: TIME -->
+  <div class="modal-backdrop" id="apikey-modal-backdrop">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <h2>Chave de acesso por API</h2>
+        <button class="btn-icon" id="apikey-close" type="button">&times;</button>
+      </div>
+      <div id="apikey-step-new">
+        <label><span>Nome (para você lembrar de quem é)</span><input type="text" id="apikey-name" maxlength="80" placeholder="Ex.: Gestora de tráfego"></label>
+        <label><span>Validade</span>
+          <select id="apikey-days"><option value="30">30 dias</option><option value="90">90 dias</option><option value="180" selected>180 dias</option><option value="365">1 ano</option></select></label>
+        <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+          <button type="button" class="btn btn-primary" id="apikey-create">Gerar chave</button>
+        </div>
+      </div>
+      <div id="apikey-step-done" hidden>
+        <p style="margin:0 0 8px;"><b>Copie agora.</b> Por segurança, esta chave não aparece de novo (se perder, revogue e gere outra). Vence em <b id="apikey-exp"></b>.</p>
+        <div style="display:flex;gap:8px;"><input type="text" id="apikey-secret" readonly style="flex:1;font-family:monospace;font-size:12px;"><button type="button" class="btn btn-primary" id="apikey-copy">Copiar</button></div>
+        <p class="muted-note" style="margin:12px 0 4px;">Envie à gestora por um canal seguro (não por mensagem aberta). Exemplo de uso:</p>
+        <pre id="apikey-curl" style="white-space:pre-wrap;word-break:break-all;font-size:11.5px;background:var(--surface-2,#f1f4f8);padding:10px;border-radius:8px;margin:0;"></pre>
+        <p class="muted-note" style="margin:8px 0 0;">Abra <code>/crm-api</code> com a chave para ver a lista de tabelas. Parâmetros: <code>limit</code> (até 1000), <code>offset</code> e <code>updated_since</code> (data). A resposta traz <code>next_offset</code> para buscar a próxima página.</p>
+        <div class="modal-footer" style="display:flex;justify-content:flex-end;margin-top:12px;"><button type="button" class="btn btn-ghost" id="apikey-done-close">Já copiei, fechar</button></div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="team-modal-backdrop">
     <div class="modal">
       <div class="modal-header">
@@ -3074,6 +3113,7 @@
   <script id="katex-js" defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
   <script src="mapa-mental.js?v=1793277388"></script>
   <script src="bio-shared.js?v=1793277388"></script>
+  <script src="api-keys.js?v=1793283902"></script>
   <script src="links-bio.js?v=1793277388"></script>
   <script src="templates-email.js?v=1793277388"></script>
   <script src="catalogo-explorer.js?v=1793277388"></script>
