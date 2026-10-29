@@ -57,7 +57,7 @@ document.getElementById("aluno-btn-signout").addEventListener("click", async () 
 });
 
 /* vitrine: quantas aulas couberem na largura da tela, numa linha só (miniaturas grandes) */
-let alunoShowcaseVideos = [];
+let alunoShowcaseVideos = [], alunoVideosAll = [], alunoPlayerIdx = -1;
 const ALUNO_SHOW_MIN = 255, ALUNO_SHOW_GAP = 16;
 function renderAlunoShowcase() {
   const grid = $al("aluno-showcase-grid");
@@ -69,7 +69,7 @@ function renderAlunoShowcase() {
   grid.dataset.fit = String(fit); grid.dataset.n = String(alunoShowcaseVideos.length);
   grid.style.gridTemplateColumns = `repeat(${fit}, minmax(0, 1fr))`;
   grid.innerHTML = alunoShowcaseVideos.slice(0, fit).map(v => `
-    <button type="button" class="aluno-show-card" data-go-lessons>
+    <button type="button" class="aluno-show-card" data-vid="${alunoEsc(v.id)}">
       <span class="aluno-show-thumb"><img src="https://i.ytimg.com/vi/${alunoEsc(v.youtube_id)}/hqdefault.jpg" alt="" loading="lazy"><span class="aluno-video-play">&#9654;</span></span>
       <span class="aluno-show-title">${alunoEsc(v.title)}</span>
       ${v.material_path ? `<span class="aluno-show-tag">&#128206; <span data-i18n="aluno.withMaterial">Com material de apoio</span></span>` : ""}
@@ -96,9 +96,10 @@ async function loadAlunoVideos() {
   if (!has) { grid.innerHTML = ""; return; }
   $al("aluno-showcase-count").textContent = alunoFill(t(data.length === 1 ? "aluno.lessonCountOne" : "aluno.lessonCount"), { n: data.length });
   alunoShowcaseVideos = data;
+  alunoVideosAll = data;
   renderAlunoShowcase();
   grid.innerHTML = data.map(v => `
-    <div class="aluno-video-card" data-yt="${alunoEsc(v.youtube_id)}">
+    <div class="aluno-video-card" data-id="${alunoEsc(v.id)}" data-yt="${alunoEsc(v.youtube_id)}">
       <button type="button" class="aluno-video-thumb" aria-label="${alunoEsc(v.title)}">
         <img src="https://i.ytimg.com/vi/${alunoEsc(v.youtube_id)}/hqdefault.jpg" alt="" loading="lazy">
         <span class="aluno-video-play">&#9654;</span>
@@ -123,13 +124,51 @@ document.addEventListener("click", async e => {
   a.href = data.signedUrl; a.download = btn.dataset.name; a.rel = "noopener";
   document.body.appendChild(a); a.click(); a.remove();
 });
-/* o player do YouTube só é carregado quando o aluno clica */
+/* player grande: abre sobre a parte interna do portal (ao lado do menu); o YouTube só é carregado quando o aluno clica */
+function renderAlunoPlayer() {
+  const v = alunoVideosAll[alunoPlayerIdx];
+  if (!v) return;
+  const box = $al("aluno-player");
+  $al("aluno-player-title").textContent = v.title;
+  $al("aluno-player-frame").innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(v.youtube_id)}?autoplay=1&rel=0&modestbranding=1" title="${alunoEsc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  $al("aluno-player-material").innerHTML = v.material_path
+    ? `<button type="button" class="btn btn-ghost btn-sm aluno-video-dl" data-path="${alunoEsc(v.material_path)}" data-name="${alunoEsc(v.material_name || "material")}"><span aria-hidden="true">&#11015;</span> <span data-i18n="aluno.downloadMaterial">Baixar material de apoio</span></button>` : "";
+  if (typeof applyTranslations === "function") applyTranslations($al("aluno-player-material"));
+  $al("aluno-player-prev").disabled = alunoPlayerIdx === 0;
+  $al("aluno-player-next").disabled = alunoPlayerIdx === alunoVideosAll.length - 1;
+  $al("aluno-player-pos").textContent = `${alunoPlayerIdx + 1} / ${alunoVideosAll.length}`;
+  /* começa na borda do menu lateral, para o player ocupar só a parte interna do portal */
+  const sb = document.querySelector(".sidebar");
+  box.style.left = (sb ? Math.max(0, Math.round(sb.getBoundingClientRect().right)) : 0) + "px";
+  box.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function openAlunoPlayer(id) {
+  const i = alunoVideosAll.findIndex(v => v.id === id);
+  if (i < 0) return;
+  alunoPlayerIdx = i;
+  renderAlunoPlayer();
+}
+function closeAlunoPlayer() {
+  $al("aluno-player-frame").innerHTML = ""; /* tira o iframe: o vídeo para de tocar */
+  $al("aluno-player").hidden = true;
+  document.body.style.overflow = "";
+}
 document.addEventListener("click", e => {
-  const btn = e.target.closest(".aluno-video-thumb");
-  if (!btn) return;
-  const id = btn.closest(".aluno-video-card").dataset.yt;
-  btn.outerHTML = `<div class="aluno-video-frame"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0&modestbranding=1" title="Vídeo" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+  const thumb = e.target.closest(".aluno-video-thumb");
+  if (thumb) { openAlunoPlayer(thumb.closest(".aluno-video-card").dataset.id); return; }
+  const card = e.target.closest(".aluno-show-card[data-vid]");
+  if (card) { openAlunoPlayer(card.dataset.vid); return; }
+  if (e.target.closest("#aluno-player-close") || e.target.id === "aluno-player-stage") closeAlunoPlayer();
+  if (e.target.closest("#aluno-player-prev") && alunoPlayerIdx > 0) { alunoPlayerIdx--; renderAlunoPlayer(); }
+  if (e.target.closest("#aluno-player-next") && alunoPlayerIdx < alunoVideosAll.length - 1) { alunoPlayerIdx++; renderAlunoPlayer(); }
 });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$al("aluno-player").hidden) closeAlunoPlayer(); });
+window.addEventListener("resize", () => { if (!$al("aluno-player").hidden) renderAlunoPlayerPosition(); });
+function renderAlunoPlayerPosition() {
+  const sb = document.querySelector(".sidebar");
+  $al("aluno-player").style.left = (sb ? Math.max(0, Math.round(sb.getBoundingClientRect().right)) : 0) + "px";
+}
 
 function renderAlunoAll() {
   renderAlunoHero();
@@ -322,7 +361,7 @@ document.querySelectorAll(".sidebar-nav [data-nav]").forEach(btn => {
 $al("aluno-docs-back").addEventListener("click", () => showAlunoView("dashboard"));
 $al("aluno-go-docs").addEventListener("click", () => showAlunoView("docs"));
 $al("aluno-ingles-back").addEventListener("click", () => showAlunoView("dashboard"));
-$al("aluno-showcase").addEventListener("click", e => { if (e.target.closest("#aluno-showcase-all, [data-go-lessons]")) showAlunoView("ingles"); });
+$al("aluno-showcase").addEventListener("click", e => { if (e.target.closest("#aluno-showcase-all")) showAlunoView("ingles"); });
 $al("aluno-english-teaser").addEventListener("click", () => showAlunoView("ingles"));
 $al("aluno-english-teaser").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showAlunoView("ingles"); } });
 

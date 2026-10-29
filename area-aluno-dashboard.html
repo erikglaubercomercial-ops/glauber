@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Área do Aluno — Peregrinos Intercâmbio</title>
-<link rel="stylesheet" href="style.css?v=1793291570">
+<link rel="stylesheet" href="style.css?v=1793291653">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -265,8 +265,23 @@
   </div>
 
   <script src="config.js"></script>
-  <script src="i18n.js?v=1793291570"></script>
-  <script src="area-aluno-dashboard.js?v=1793291570"></script>
+  <script src="i18n.js?v=1793291653"></script>
+  <!-- player grande: ocupa a parte interna do portal (ao lado do menu) -->
+  <div class="aluno-player" id="aluno-player" hidden role="dialog" aria-modal="true" aria-label="Vídeo">
+    <div class="aluno-player-bar">
+      <div class="aluno-player-title" id="aluno-player-title"></div>
+      <span id="aluno-player-material"></span>
+      <button type="button" class="aluno-player-close" id="aluno-player-close" aria-label="Fechar" data-i18n-title="aluno.closePlayer" title="Fechar">&times;</button>
+    </div>
+    <div class="aluno-player-stage" id="aluno-player-stage"><div class="aluno-player-frame" id="aluno-player-frame"></div></div>
+    <div class="aluno-player-nav">
+      <button type="button" class="btn btn-ghost btn-sm" id="aluno-player-prev" data-i18n="aluno.prevLesson">← Aula anterior</button>
+      <span id="aluno-player-pos"></span>
+      <button type="button" class="btn btn-ghost btn-sm" id="aluno-player-next" data-i18n="aluno.nextLesson">Próxima aula →</button>
+    </div>
+  </div>
+
+  <script src="area-aluno-dashboard.js?v=1793291653"></script>
   <div class="aluno-toast" id="aluno-toast" role="status" aria-live="polite"></div>
 </body>
 </html>

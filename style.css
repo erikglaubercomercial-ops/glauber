@@ -3094,3 +3094,20 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .aluno-show-thumb .aluno-video-play { width: 56px; height: 56px; font-size: 22px; }
 .aluno-show-title { font-weight: 700; font-size: 14.5px; line-height: 1.3; }
 .aluno-show-tag { font-size: 11.5px; color: var(--text-muted); }
+
+/* player grande do aluno: cobre a parte interna do portal (a borda esquerda é ajustada em JS para ficar ao lado do menu) */
+.aluno-player { position: fixed; top: 0; right: 0; bottom: 0; left: 224px; z-index: 900; display: flex; flex-direction: column; background: rgba(8, 18, 36, 0.96); color: #fff; }
+.aluno-player[hidden] { display: none; }
+.aluno-player-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; }
+.aluno-player-title { flex: 1; font-size: 16px; font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aluno-player-bar .btn-ghost { color: #fff; border-color: rgba(255, 255, 255, 0.35); background: transparent; }
+.aluno-player-bar .btn-ghost:hover, .aluno-player-nav .btn-ghost:hover { background: rgba(255, 255, 255, 0.12); }
+.aluno-player-close { width: 38px; height: 38px; border-radius: 50%; border: none; background: rgba(255, 255, 255, 0.14); color: #fff; font-size: 24px; line-height: 1; cursor: pointer; }
+.aluno-player-close:hover { background: rgba(255, 255, 255, 0.28); }
+.aluno-player-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 4px 24px; }
+.aluno-player-frame { position: relative; aspect-ratio: 16 / 9; width: min(100%, calc((100vh - 140px) * 16 / 9)); border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+.aluno-player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.aluno-player-nav { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 10px 20px 14px; font-size: 13px; color: #c3d2e6; }
+.aluno-player-nav .btn-ghost { color: #fff; border-color: rgba(255, 255, 255, 0.35); background: transparent; }
+.aluno-player-nav .btn[disabled] { opacity: 0.35; cursor: default; }
+@media (max-width: 900px) { .aluno-player-bar { flex-wrap: wrap; } }
