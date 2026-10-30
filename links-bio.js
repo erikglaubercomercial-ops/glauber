@@ -63,6 +63,7 @@ function bioIconGrid(current) {
 function bioLinkRowHtml(l, i) {
   return `<div class="bio-link-row ${l.enabled ? "" : "off"}" data-lid="${l.id}">
     <div class="bio-link-grid">
+      <span class="bio-drag" title="Arraste para mudar a ordem" aria-hidden="true">⠿</span>
       <button type="button" class="btn btn-ghost bio-icon-pick" data-act="icon" title="Escolher ícone">${bioIconSvg(l.icon, 20)}</button>
       <input type="text" data-lf="label" maxlength="80" value="${bioEsc(l.label)}" placeholder="Título (ex.: Fale no WhatsApp)">
       <input type="text" data-lf="url" maxlength="500" value="${bioEsc(l.url)}" placeholder="Endereço (https://…)">
@@ -194,6 +195,53 @@ async function bioFlush() {
   if (!problem && (bioDirtyPage || bioDirtyLinks.size)) bioQueueSave();
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") bioFlush(); });
+
+/* ---- arrastar para reordenar (a linha só fica arrastável quando se pega pela alça ⠿, para não atrapalhar quem seleciona texto) ---- */
+let bioDragId = null;
+function bioDropTarget(e) {
+  const list = bioEl("bio-links-list");
+  const rows = list ? [...list.querySelectorAll(".bio-link-row")].filter(r => r.dataset.lid !== bioDragId) : [];
+  for (const r of rows) { const b = r.getBoundingClientRect(); if (e.clientY < b.top + b.height / 2) return { row: r, before: true }; }
+  return rows.length ? { row: rows[rows.length - 1], before: false } : null;
+}
+function bioClearDrop() { document.querySelectorAll("#bio-links-list .drop-before, #bio-links-list .drop-after, #bio-links-list .dragging").forEach(r => r.classList.remove("drop-before", "drop-after", "dragging")); }
+document.addEventListener("mousedown", e => {
+  const h = e.target.closest && e.target.closest(".bio-drag");
+  if (h) h.closest(".bio-link-row").draggable = true;
+});
+document.addEventListener("mouseup", () => document.querySelectorAll(".bio-link-row[draggable]").forEach(r => { if (!bioDragId) r.removeAttribute("draggable"); }));
+document.addEventListener("dragstart", e => {
+  const row = e.target.closest && e.target.closest(".bio-link-row");
+  if (!row || !bioPage) return;
+  bioDragId = row.dataset.lid;
+  e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", bioDragId); } catch (err) { /* alguns navegadores exigem dado */ }
+  requestAnimationFrame(() => row.classList.add("dragging"));
+});
+document.addEventListener("dragover", e => {
+  if (!bioDragId || !e.target.closest || !e.target.closest("#bio-links-list")) return;
+  e.preventDefault();
+  bioClearDrop();
+  const dragRow = document.querySelector(`.bio-link-row[data-lid="${bioDragId}"]`); if (dragRow) dragRow.classList.add("dragging");
+  const t = bioDropTarget(e); if (t) t.row.classList.add(t.before ? "drop-before" : "drop-after");
+});
+document.addEventListener("drop", e => {
+  if (!bioDragId || !e.target.closest || !e.target.closest("#bio-links-list")) return;
+  e.preventDefault();
+  const t = bioDropTarget(e), from = bioLinks.findIndex(l => l.id === bioDragId);
+  if (t && from >= 0) {
+    const [moved] = bioLinks.splice(from, 1);
+    let to = bioLinks.findIndex(l => l.id === t.row.dataset.lid);
+    if (!t.before) to += 1;
+    bioLinks.splice(to, 0, moved);
+    bioLinks.forEach((l, n) => { if (l.position !== n) { l.position = n; bioDirtyLinks.add(l.id); } });
+    bioRenderLinksList(); bioPreview(); bioQueueSave();
+  }
+});
+document.addEventListener("dragend", () => {
+  bioDragId = null; bioClearDrop();
+  document.querySelectorAll(".bio-link-row[draggable]").forEach(r => r.removeAttribute("draggable"));
+});
 
 /* ---- eventos (um só ouvinte para a tela inteira) ---- */
 document.addEventListener("input", e => {
