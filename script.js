@@ -254,16 +254,10 @@ document.addEventListener("langchange", () => {
    Não altera função nenhuma: só reordena os nós já existentes
    na sidebar (ícones e textos continuam vindo do HTML/i18n).
    ============================================================ */
-/* Ordem da jornada do cliente: captar → atender → vender → cuidar do aluno → financeiro → catálogo → equipe */
+/* Ordem do menu: atender → vender → cuidar do aluno → catálogo → equipe → captação → financeiro (por último) */
 const DEFAULT_MENU_STRUCTURE = {
   sections: [
     { id: "inicio", items: [{ id: "dashboard" }] },
-    { id: "captacao", items: [
-      { id: "linkbio" },
-      { id: "formularios" },
-      { id: "mkt", children: ["mapamental"] },
-      { id: "appacomp" },
-    ] },
     { id: "atendimento", items: [
       { id: "whatsapp" },
       { id: "leads", children: ["meusleads", "leadsparados"] },
@@ -279,7 +273,6 @@ const DEFAULT_MENU_STRUCTURE = {
       { id: "matriculas" },
       { id: "areaaluno", children: ["areaaluno-preview-link"] },
     ] },
-    { id: "fin", items: [{ id: "financeiro" }] },
     { id: "catalogo", items: [
       { id: "produtos" },
       { id: "escolas" },
@@ -288,6 +281,13 @@ const DEFAULT_MENU_STRUCTURE = {
       { id: "colaboradores" },
       { id: "usuarios" },
     ] },
+    { id: "captacao", items: [
+      { id: "linkbio" },
+      { id: "formularios" },
+      { id: "mkt", children: ["mapamental"] },
+      { id: "appacomp" },
+    ] },
+    { id: "fin", items: [{ id: "financeiro" }] },
   ],
 };
 
