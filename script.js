@@ -97,6 +97,32 @@ function initSidebarToggle() {
   }, true);
 }
 
+/* esconde o título de um grupo quando nenhum item dele aparece para esta pessoa (permissões); em modo de edição mostra todos */
+function refreshMenuSectionLabels() {
+  const nav = document.getElementById("sidebar-nav");
+  if (!nav) return;
+  const editing = nav.classList.contains("edit-mode");
+  let label = null, visible = false;
+  const apply = () => {
+    if (!label) return;
+    const hide = !editing && !visible;
+    const want = hide ? "none" : "";
+    if (label.style.display !== want) label.style.display = want;
+  };
+  Array.from(nav.children).forEach(el => {
+    if (el.matches(".nav-label")) { apply(); label = el; visible = false; return; }
+    if (el.classList.contains("nav-item-sub") || el.classList.contains("nav-subitem") || el.classList.contains("nav-drag-handle")) return;
+    if (el.style.display !== "none") visible = true;
+  });
+  apply();
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const nav = document.getElementById("sidebar-nav");
+  if (!nav || typeof MutationObserver !== "function") return;
+  new MutationObserver(refreshMenuSectionLabels).observe(nav, { subtree: true, childList: true, attributes: true, attributeFilter: ["style", "class"] });
+  refreshMenuSectionLabels();
+});
+
 /* ---- submenus recolhíveis: estado salvo por navegador ---- */
 const MENU_COLLAPSED_KEY = "crm-vendas-menu-collapsed";
 function getCollapsedMenuParents() {
@@ -162,7 +188,6 @@ function initNavigation() {
   });
 
   if (session && session.role === "ADM") {
-    document.getElementById("nav-label-admin").style.display = "";
     document.getElementById("btn-manage-stages").style.display = "";
     document.getElementById("btn-manage-rotation").style.display = "";
   }
@@ -229,26 +254,38 @@ document.addEventListener("langchange", () => {
    Não altera função nenhuma: só reordena os nós já existentes
    na sidebar (ícones e textos continuam vindo do HTML/i18n).
    ============================================================ */
+/* Ordem da jornada do cliente: captar → atender → vender → cuidar do aluno → financeiro → catálogo → equipe */
 const DEFAULT_MENU_STRUCTURE = {
   sections: [
-    { id: "geral", items: [
-      { id: "dashboard" },
+    { id: "inicio", items: [{ id: "dashboard" }] },
+    { id: "captacao", items: [
+      { id: "linkbio" },
+      { id: "formularios" },
+      { id: "mkt", children: ["mapamental"] },
+      { id: "appacomp" },
+    ] },
+    { id: "atendimento", items: [
+      { id: "whatsapp" },
       { id: "leads", children: ["meusleads", "leadsparados"] },
-      { id: "pipeline" },
       { id: "agenda" },
+      { id: "templates" },
+    ] },
+    { id: "venda", items: [
+      { id: "pipeline" },
       { id: "cotacao" },
       { id: "contratos" },
-      { id: "produtos" },
-      { id: "financeiro" },
+    ] },
+    { id: "posvenda", items: [
       { id: "matriculas" },
-      { id: "colaboradores" },
-      { id: "appacomp" },
-      { id: "formularios" },
-      { id: "templates" },
-      { id: "mkt", children: ["mapamental"] },
       { id: "areaaluno", children: ["areaaluno-preview-link"] },
     ] },
-    { id: "administracao", items: [
+    { id: "fin", items: [{ id: "financeiro" }] },
+    { id: "catalogo", items: [
+      { id: "produtos" },
+      { id: "escolas" },
+    ] },
+    { id: "equipe", items: [
+      { id: "colaboradores" },
       { id: "usuarios" },
     ] },
   ],
