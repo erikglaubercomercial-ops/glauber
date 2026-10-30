@@ -116,7 +116,7 @@ function renderAppTracking() {
 /* ============================================================
    LINK DE DIVULGAÇÃO: cada pessoa vê só o seu; quem se cadastra pelo link vira lead dela
    ============================================================ */
-const APPT_APP_URL = "https://peregrinos-app-intercambio.vercel.app";
+const APPT_APP_URL = "https://app.peregrinosintercambio.com";
 const apptLinkUrl = codigo => `${APPT_APP_URL}/i/${codigo}`;
 const apptMyLink = { data: null, team: null, error: null, teamOpen: false };
 
