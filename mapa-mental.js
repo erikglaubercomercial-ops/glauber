@@ -62,7 +62,9 @@ const mmRoot = () => (mm.cur ? mm.cur.data : null);
 const mmStrip = (k, v) => (k.startsWith("_") ? undefined : v);
 const mmClone = o => JSON.parse(JSON.stringify(o, mmStrip));
 const mmSnap = () => JSON.stringify(mmRoot(), mmStrip);
-const mmCanUse = () => !!session && ["ADM", "Gerente", "MKT"].includes(session.role);
+const mmCanUse = () => !!session && ["ADM", "Gerente", "MKT", "Consultor"].includes(session.role);
+/* Consultor só VISUALIZA (e usa a apresentação): não cria, não edita, não arrasta, não salva — o banco também só deixa ele ler */
+const mmReadOnly = () => !!session && session.role === "Consultor";
 const mmEsc = s => (typeof escapeHtml === "function" ? escapeHtml(s) : String(s));
 const mmToast = m => (typeof agendaToast === "function" ? agendaToast(m) : alert(m));
 
@@ -137,6 +139,7 @@ function mmColors() {
 
 /* ---------------- histórico ---------------- */
 function mmMutate(fn) {
+  if (mmReadOnly()) return;
   mm.undo.push(mmSnap());
   if (mm.undo.length > MM_MAX_UNDO) mm.undo.shift();
   mm.redo = [];
@@ -147,6 +150,7 @@ function mmMutate(fn) {
   mmRenderPanel();
 }
 function mmRestore(json) {
+  if (mmReadOnly()) return;
   mm.cur.data = JSON.parse(json);
   mm.selSet = new Set([...mm.selSet].filter(i => mmFind(i) || !mmIsNodeId(i)));
   if (!mmFind(mm.sel) && mmIsNodeId(mm.sel)) { mm.sel = mmRoot().id; mm.selSet = new Set([mm.sel]); }
@@ -210,7 +214,11 @@ function mmDeleteSelection() {
   mmMutate(() => nodes.forEach(f => { const ff = mmFind(f.node.id); if (!ff) return; if (ff.parent) ff.parent.c.splice(ff.parent.c.indexOf(ff.node), 1); else mmRoot().fl = (mmRoot().fl || []).filter(x => x.id !== ff.node.id); }));
   mmSelect(mmRoot().id);
 }
-function mmToggle(id) { const f = mmFind(id); if (!f || !(f.node.c || []).length) return; mmMutate(() => { f.node.x = !f.node.x; }); }
+function mmToggle(id) {
+  const f = mmFind(id); if (!f || !(f.node.c || []).length) return;
+  if (mmReadOnly()) { f.node.x = !f.node.x; mmRender(); return; } /* só na tela: recolher/expandir não salva */
+  mmMutate(() => { f.node.x = !f.node.x; });
+}
 function mmDuplicateNode(id) {
   const f = mmFind(id); if (!f || !f.parent) return;
   const copy = JSON.parse(JSON.stringify(f.node, mmStrip));
@@ -297,6 +305,7 @@ function mmUpdateSelection() {
 /* ---------------- edição de texto ---------------- */
 const mmTextEl = el => el.querySelector(".mm-text") || el;
 function mmStartEdit(id, initialChar, isNew) {
+  if (mmReadOnly()) return;
   if (mm.editing && mm.editing !== id) mmCommitEdit();
   const el = mm.els.get(id), obj = mmObj(id);
   if (!el || !obj) return;
@@ -656,6 +665,7 @@ function mmPitchLabel() {
 /* ---------------- painel da direita ---------------- */
 function mmRenderPanel() {
   const box = document.getElementById("mm-panel-body"); if (!box || !mm.cur) return;
+  if (mmReadOnly()) mm.tab = "pitch";
   document.querySelectorAll("#mm-panel .mm-tab").forEach(t => t.classList.toggle("on", t.dataset.tab === mm.tab));
   if (mm.editing && box.contains(document.activeElement)) return;
   const cfg = mmCfg();
@@ -810,9 +820,10 @@ function mmAddZone() {
 
 /* ---------------- salvar / carregar ---------------- */
 function mmSetStatus(s) { mm.status = s; const el = document.getElementById("mm-status"); if (el) el.textContent = s; }
-function mmScheduleSave() { mmSetStatus("Salvando…"); clearTimeout(mm.saveTimer); mm.saveTimer = setTimeout(mmSaveNow, 900); }
+function mmScheduleSave() { if (mmReadOnly()) return; mmSetStatus("Salvando…"); clearTimeout(mm.saveTimer); mm.saveTimer = setTimeout(mmSaveNow, 900); }
 async function mmSaveNow() {
   clearTimeout(mm.saveTimer); mm.saveTimer = null;
+  if (mmReadOnly()) return;
   if (!mm.cur) return;
   const row = { id: mm.cur.id, titulo: (mm.cur.titulo || "Novo mapa").trim() || "Novo mapa", data: JSON.parse(JSON.stringify(mm.cur.data, mmStrip)), updated_by_name: (session && session.name) || "", updated_at: new Date().toISOString() };
   const { error } = await supabase.from("mind_maps").upsert(row);
@@ -840,6 +851,7 @@ async function mmOpenMap(id) {
 }
 async function mmFlush() { if (mm.editing) mmCommitEdit(); if (mm.saveTimer) await mmSaveNow(); }
 async function mmNewMap(copyFrom) {
+  if (mmReadOnly()) return;
   await mmFlush();
   const data = copyFrom ? (() => { const d = mmClone(copyFrom.data); const idmap = new Map(); const fresh = n => { const o = n.id; n.id = mmNewId(); idmap.set(o, n.id); (n.c || []).forEach(fresh); (n.sm || []).forEach(s => { s.id = mmNewId(); }); };
     fresh(d); (d.fl || []).forEach(fresh);
@@ -855,7 +867,7 @@ async function mmNewMap(copyFrom) {
   if (!copyFrom) { mmSelect(mmRoot().id); mmStartEdit(mmRoot().id); }
 }
 async function mmDeleteMap() {
-  if (!mm.cur) return;
+  if (!mm.cur || mmReadOnly()) return;
   if (!(session.role === "ADM" || mm.cur.created_by === session.id)) { alert("Só o ADM ou quem criou o mapa pode excluí-lo."); return; }
   if (!confirm(`Excluir o mapa "${mm.cur.titulo}"? Não dá para desfazer.`)) return;
   const id = mm.cur.id; clearTimeout(mm.saveTimer); mm.saveTimer = null;
@@ -869,6 +881,9 @@ async function mmDeleteMap() {
 /* ---------------- tela ---------------- */
 async function renderMindMapView() {
   if (!mmCanUse()) return;
+  const ro = mmReadOnly();
+  document.getElementById("view-mapamental").classList.toggle("mm-readonly", ro);
+  document.getElementById("mm-title").readOnly = ro;
   if (!mm.loaded) {
     const rows = await mmLoadMaps();
     if (rows === null) { document.getElementById("mm-empty").hidden = false; document.getElementById("mm-empty").textContent = "Não foi possível carregar os mapas agora."; return; }
@@ -1049,7 +1064,7 @@ function mmExportPng() {
       if (mm.editing === zid) return;
       mmSelect(zid); mmFocusCanvas(); e.preventDefault();
       const z = mmObj(zid);
-      if (z && e.button === 0) mm.zdrag = { id: zid, resize: !!e.target.closest(".mm-zone-r"), x: e.clientX, y: e.clientY, ox: z.x, oy: z.y, ow: z.w, oh: z.h, moved: false };
+      if (z && e.button === 0 && !mmReadOnly()) mm.zdrag = { id: zid, resize: !!e.target.closest(".mm-zone-r"), x: e.clientX, y: e.clientY, ox: z.x, oy: z.y, ow: z.w, oh: z.h, moved: false };
       return;
     }
     const fold = e.target.closest(".mm-fold");
@@ -1065,7 +1080,7 @@ function mmExportPng() {
       if (mm.editing) mmCommitEdit();
       mmSelect(nodeEl.dataset.id, false, e.shiftKey || e.metaKey || e.ctrlKey);
       mmFocusCanvas(); e.preventDefault();
-      if (e.button === 0 && mmIsNodeId(nodeEl.dataset.id) && !(e.shiftKey || e.metaKey || e.ctrlKey)) mm.drag = { id: nodeEl.dataset.id, x: e.clientX, y: e.clientY, active: false, ghost: null };
+      if (e.button === 0 && !mmReadOnly() && mmIsNodeId(nodeEl.dataset.id) && !(e.shiftKey || e.metaKey || e.ctrlKey)) mm.drag = { id: nodeEl.dataset.id, x: e.clientX, y: e.clientY, active: false, ghost: null };
       return;
     }
     if (obj) { if (mm.editing) mmCommitEdit(); mmSelect(obj.dataset.obj); mmFocusCanvas(); e.preventDefault(); return; }
@@ -1114,7 +1129,7 @@ function mmExportPng() {
     }
   });
   canvas.addEventListener("dblclick", e => {
-    if (mm.pitch) return;
+    if (mm.pitch || mmReadOnly()) return;
     if (e.target.closest(".mm-fold")) return;
     const nodeEl = e.target.closest(".mm-node");
     if (nodeEl) { if (nodeEl.dataset.id.startsWith("zn:") && !e.target.closest(".mm-zone-h")) return; mmSelect(nodeEl.dataset.id); mmStartEdit(nodeEl.dataset.id); return; }
@@ -1151,6 +1166,10 @@ function mmExportPng() {
     if (mm.editing || !mm.cur) return;
     const mod = e.metaKey || e.ctrlKey, k = e.key;
     if (mm.pitch) { if (k === "ArrowRight" || k === " " || k === "Enter") { e.preventDefault(); mmPitchStep(1); } else if (k === "ArrowLeft") { e.preventDefault(); mmPitchStep(-1); } else if (k === "Escape") mmPitchStop(); return; }
+    if (mmReadOnly()) { /* só navegar, recolher/expandir, dar zoom e sair */
+      const ok = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " ", "Escape"].includes(k) || (mod && ["+", "=", "-"].includes(k));
+      if (!ok) return;
+    }
     if (k === "Escape" && mm.relFrom) { mm.relFrom = null; canvas.classList.remove("mm-linking"); return; }
     if (mod && k.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? mmRedo() : mmUndo(); return; }
     if (mod && k.toLowerCase() === "y") { e.preventDefault(); mmRedo(); return; }

@@ -17,14 +17,14 @@ function canAccessView(view) {
   if (view === "whatsapp") return ["ADM", "Gerente", "Consultor"].includes(session.role);
   if (view === "usuarios") return session.role === "ADM";
   if (view === "agenda") return session.role !== "Influencer";
-  /* MKT e Mapa Mental: ADM, Gerente e MKT */
-  if (view === "mkt" || view === "mapamental") return ["ADM", "Gerente", "MKT"].includes(session.role);
+  /* MKT e Mapa Mental: ADM, Gerente e MKT editam; o Consultor só visualiza (o banco também só deixa ele ler) */
+  if (view === "mkt" || view === "mapamental") return ["ADM", "Gerente", "MKT", "Consultor"].includes(session.role);
   /* Time: a Arena dos Times é para todo o time (competição); o cadastro de colaboradores segue a permissão do módulo */
   if (view === "colaboradores") return session.role !== "Influencer";
   if (view === "leadsparados") return session.role === "ADM" || session.role === "Gerente";
   /* uso do App de Intercâmbio: ADM/Gerente veem tudo; o Consultor vê só o dashboard de números
      (sem leads/usuários do app). Quem restringe de verdade são as funções app_* do Supabase. */
-  if (view === "appacomp") return session.role === "ADM" || session.role === "Gerente" || session.role === "Consultor" || session.role === "Influencer";
+  if (view === "appacomp") return session.role === "ADM" || session.role === "Gerente" || session.role === "Influencer";
   if (view === "meusleads") return hasModuleAccess(session.role, "leads");
   if (view === "escolas") return hasModuleAccess(session.role, "produtos") || hasModuleAccess(session.role, "cotacao");
   return hasModuleAccess(session.role, view);

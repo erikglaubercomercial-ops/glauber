@@ -3149,3 +3149,10 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .wa-composer-row textarea { flex: 1; }
 .wa-test { margin-top: 14px; font-size: 13px; }
 .wa-test-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+/* Mapa Mental para o Consultor: só visualizar + apresentação */
+.mm-readonly #mm-new, .mm-readonly #mm-new-empty, .mm-readonly #mm-dup, .mm-readonly #mm-del,
+.mm-readonly #mm-add-sib, .mm-readonly #mm-add-child, .mm-readonly #mm-rel, .mm-readonly #mm-sum, .mm-readonly #mm-bd,
+.mm-readonly #mm-insert-wrap, .mm-readonly #mm-del-node, .mm-readonly #mm-undo, .mm-readonly #mm-redo, .mm-readonly #mm-colors,
+.mm-readonly .mm-tab:not([data-tab="pitch"]) { display: none !important; }
+.mm-readonly .mm-title { pointer-events: none; }
