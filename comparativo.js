@@ -71,6 +71,83 @@ function cmpGroupByDestino(schools, cities) {
   return order.flatMap(c => schools.filter(s => s.destino === c));
 }
 
+/* ---------- tela de preços do CLIENTE: só o valor do curso de 25 semanas, manhã e tarde ----------
+   Por escola e turno, nesta ordem:
+   1) produto de 25 semanas (se for por semana, soma as 25 semanas);
+   2) preço por semana em faixas (ex.: "17+ semanas"): a faixa que cobre 25 semanas × 25;
+   3) o pacote do primeiro curso do turno (o de menor ordem).
+   Ficam de fora: acomodação, TIE, seguro, livro, matrícula e outras taxas, renovação e preço à vista. */
+const CMP_EXTRA_RE = /\btie\b|livro|book|seguro|insurance|larn|matr[ií]cula|registration|\btaxa|\bfee|transfer|acomoda|twin|\broom\b|host|resid[eê]ncia|exame|\bexam\b|dep[oó]sito|deposit/i;
+function cmpWeekRange(nome) {
+  const n = String(nome || "");
+  let m = /(\d+)\s*(?:a|-|–|to)\s*(\d+)\s*(?:semanas?|weeks?)/i.exec(n);
+  if (m) return [Number(m[1]), Number(m[2])];
+  m = /(\d+)\s*\+\s*(?:semanas?|weeks?)/i.exec(n);
+  if (m) return [Number(m[1]), Infinity];
+  return null;
+}
+function cmpPrice25(items, shift, classify, kind) {
+  const cands = cmpItemsForShift(items, shift, classify, kind)
+    .filter(p => classify(p.turno) === shift && !CMP_EXTRA_RE.test(String(p.nome || "")) && (Number(p.preco) || 0) > 0)
+    .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+  if (!cands.length) return null;
+  const currency = cands.some(p => /£/.test(`${p.nome || ""} ${p.detalhe || ""}`)) ? "GBP" : "EUR";
+  const is25 = p => cmpIs25Weeks(p) || /(^|\D)25\s*(semanas?|weeks?)/i.test(String(p.detalhe || ""));
+  const total = p => (p.unidade === "semana" ? (Number(p.preco) || 0) * CMP_WEEKS_TOTAL : Number(p.preco) || 0);
+  const a = cands.find(is25);
+  if (a) return { value: total(a), currency };
+  const weekly = cands.filter(p => p.unidade === "semana");
+  const tier = weekly.find(p => { const r = cmpWeekRange(p.nome); return r && r[0] <= CMP_WEEKS_TOTAL && CMP_WEEKS_TOTAL <= r[1]; });
+  if (tier) return { value: total(tier), currency };
+  const pkg = cands.find(p => p.unidade !== "semana");
+  return pkg ? { value: Number(pkg.preco) || 0, currency } : null;
+}
+
+/* cartões da tela do cliente: manhã e tarde lado a lado, sem mais nenhum valor */
+function renderSchoolPrices25(rawSchools, opts) {
+  const esc = opts.escape, money = opts.money, L = opts.labels;
+  const rows = rawSchools.map(s => ({ s, am: cmpPrice25(s.items, "am", opts.classify, opts.kind), pm: cmpPrice25(s.items, "pm", opts.classify, opts.kind) })).filter(r => r.am || r.pm);
+  if (!rows.length) return `<p class="muted-note">${esc(L.empty)}</p>`;
+  const schools = cmpGroupByDestino(rows.map(r => r.s), opts.cities);
+  const byName = new Map(rows.map(r => [r.s, r]));
+  const menuCities = opts.cities && opts.cities.length ? opts.cities : [...new Set(schools.map(s => s.destino))];
+  if (cmpActiveCity && !schools.some(s => s.destino === cmpActiveCity)) cmpActiveCity = "";
+  const navAll = menuCities.length > 1 ? `<a class="cmp-nav-link${cmpActiveCity ? "" : " active"}" href="#" data-cmp-city="">${esc(L.all || "Todas")}</a>` : "";
+  const nav = navAll + menuCities.map(city => schools.some(s => s.destino === city)
+    ? `<a class="cmp-nav-link${cmpActiveCity === city ? " active" : ""}" href="#" data-cmp-city="${esc(city)}">${esc(city)}</a>`
+    : `<span class="cmp-nav-link disabled" title="${esc(L.cityNoSchools || "")}">${esc(city)}</span>`).join("");
+  const priceRow = (label, r) => `<div class="cmp-p25-row"><span class="cmp-p25-shift">${esc(label)}</span>${r ? `<b class="cmp-p25-val">${money(r.value, r.currency)}</b>` : `<span class="cmp-p25-na">${esc(L.askConsultant)}</span>`}</div>`;
+  const cards = schools.map((s, i) => {
+    const { am, pm } = byName.get(s);
+    const color = CMP_PALETTE[i % CMP_PALETTE.length];
+    const inclusos = (s.inclusos || []).filter(Boolean);
+    return `
+      <article class="cmp-card" id="${cmpCardId(i)}" data-city="${esc(s.destino)}"${cmpActiveCity && cmpActiveCity !== s.destino ? " hidden" : ""} style="--cmp-color:${color}">
+        <div class="cmp-card-banner${s.coverPath && opts.coverUrl ? " has-photo" : ""}"${s.coverPath && opts.coverUrl ? ` style="background-image:linear-gradient(rgba(0,0,0,0.04), rgba(0,0,0,0.38)), url('${esc(opts.coverUrl(s.coverPath))}')"` : ""}>
+          <span class="cmp-card-logo">${esc(cmpInitials(s.nome))}</span>
+        </div>
+        <div class="cmp-card-body">
+         <div class="cmp-card-clip">
+          <h3 class="cmp-card-title">${esc(s.nome)}</h3>
+          <div class="cmp-card-loc">${esc(s.destino)}${s.categoria ? `, ${esc(s.categoria)}` : ""}</div>
+          <div class="cmp-card-section">${esc(L.course25)}</div>
+          <div class="cmp-p25">${priceRow(L.am, am)}${priceRow(L.pm, pm)}</div>
+          ${inclusos.length ? `
+            <div class="cmp-card-section">${esc(L.includes)}</div>
+            <ul class="cmp-includes">${inclusos.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+         </div>
+         <button type="button" class="cmp-more-btn" data-more="${esc(L.more || "Ver mais")}" data-less="${esc(L.less || "Ver menos")}">${esc(L.more || "Ver mais")}</button>
+        </div>
+      </article>`;
+  }).join("");
+  return `
+    <div class="cmp-topbar">
+      <div class="cmp-topbar-title">${esc(L.overview)} <span>/ ${schools.length} ${esc(schools.length === 1 ? L.option : L.options)}</span></div>
+      <nav class="cmp-nav">${nav}</nav>
+    </div>
+    <div class="cmp-grid">${cards}</div>`;
+}
+
 let cmpActiveCity = "";
 function renderSchoolComparison(rawSchools, itemsFor, shift, opts) {
   const esc = opts.escape, money = opts.money, L = opts.labels;

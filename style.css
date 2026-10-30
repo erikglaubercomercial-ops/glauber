@@ -3156,3 +3156,10 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .mm-readonly #mm-insert-wrap, .mm-readonly #mm-del-node, .mm-readonly #mm-undo, .mm-readonly #mm-redo, .mm-readonly #mm-colors,
 .mm-readonly .mm-tab:not([data-tab="pitch"]) { display: none !important; }
 .mm-readonly .mm-title { pointer-events: none; }
+
+/* tela de preços do cliente: manhã e tarde, só o valor de 25 semanas */
+.cmp-p25 { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 12px; }
+.cmp-p25-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--cmp-color, var(--primary)) 9%, var(--surface, #fff)); }
+.cmp-p25-shift { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.cmp-p25-val { font-size: 20px; font-weight: 800; color: var(--cmp-color, var(--primary-deep)); white-space: nowrap; }
+.cmp-p25-na { font-size: 12.5px; color: var(--text-muted); text-align: right; }
