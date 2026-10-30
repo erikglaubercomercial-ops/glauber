@@ -3166,3 +3166,7 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .wa-tag.ad { background: #e0f2ff; color: #0b4a7a; }
 .wa-ad { padding: 8px 16px; background: #eef7ff; border-bottom: 1px solid #cfe5f8; font-size: 12.5px; color: #0b4a7a; border-radius: 0; }
 .wa-ad small { color: #4d6f8c; }
+
+/* horário em 24 h (time24.js) */
+.t24 { display: flex; align-items: center; gap: 4px; }
+.t24 select { flex: 1; min-width: 0; width: auto; }
