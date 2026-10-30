@@ -204,14 +204,16 @@ async function fxWaRefresh(leadId) {
   const { data: convs, error } = await supabase.from("wa_conversations").select("id, phone").eq("lead_id", leadId).order("last_message_at", { ascending: false }).limit(1);
   if (leadId !== fichaLeadId) return;
   if (error || !convs || !convs.length) { box.hidden = true; fxWaJson = ""; return; }
+  const { data: adRows } = await supabase.from("lead_ad_clicks").select("headline, ad_id").eq("conversation_id", convs[0].id).order("created_at", { ascending: false }).limit(1);
+  const adInfo = adRows && adRows[0] ? adRows[0] : null;
   const { data: msgs } = await supabase.from("wa_messages").select("*").eq("conversation_id", convs[0].id).order("created_at", { ascending: false }).limit(30);
   if (leadId !== fichaLeadId) return;
   const list = (msgs || []).slice().reverse();
-  const json = convs[0].id + JSON.stringify(list.map(m => m.id));
+  const json = convs[0].id + (adInfo ? adInfo.ad_id + adInfo.headline : "") + JSON.stringify(list.map(m => m.id));
   if (json === fxWaJson && !box.hidden) return;
   fxWaJson = json;
   box.hidden = false;
-  box.innerHTML = `<h3><span class="ic">💬</span>Conversa no WhatsApp <button type="button" class="btn btn-ghost btn-sm" id="ficha-wa-open" style="margin-left:auto;">Abrir na caixa de entrada</button></h3><div class="wa-thread wa-thread-ficha" id="ficha-wa-thread">${waBubbles(list)}</div>`;
+  box.innerHTML = `<h3><span class="ic">💬</span>Conversa no WhatsApp <button type="button" class="btn btn-ghost btn-sm" id="ficha-wa-open" style="margin-left:auto;">Abrir na caixa de entrada</button></h3>${adInfo ? `<div class="wa-ad" style="margin-bottom:8px;">📣 Veio de anúncio${adInfo.headline ? `: <b>${fxEsc(adInfo.headline)}</b>` : ""}${adInfo.ad_id ? ` <small>· ID ${fxEsc(adInfo.ad_id)}</small>` : ""}</div>` : ""}<div class="wa-thread wa-thread-ficha" id="ficha-wa-thread">${waBubbles(list)}</div>`;
   const th = $fx("ficha-wa-thread"); th.scrollTop = th.scrollHeight;
   $fx("ficha-wa-open").addEventListener("click", () => { closeFicha(); waOpenConversation(convs[0].id); });
 }

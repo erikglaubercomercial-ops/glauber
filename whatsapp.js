@@ -8,7 +8,7 @@
    Depende de script.js (session, users, leads, escapeHtml, agendaToast, openFicha). Atualiza sozinho a cada 12 s com a tela aberta.
    ============================================================ */
 
-const wa = { convs: [], sel: null, msgs: [], filter: "", timer: null, loading: false, pending: null, built: false };
+const wa = { ads: new Map(), convs: [], sel: null, msgs: [], filter: "", timer: null, loading: false, pending: null, built: false };
 const waEl = id => document.getElementById(id);
 const waManager = () => !!session && ["ADM", "Gerente"].includes(session.role);
 const waUser = id => (typeof users !== "undefined" && users.find(u => u.id === id)) || null;
@@ -40,6 +40,12 @@ async function waLoadConvs() {
   const { data, error } = await supabase.from("wa_conversations").select("*").order("last_message_at", { ascending: false }).limit(300);
   if (error) { console.error("Erro ao carregar conversas:", error); return false; }
   wa.convs = data || [];
+  /* anúncio de origem (Click-to-WhatsApp): o mais recente de cada conversa */
+  wa.ads = new Map();
+  if (wa.convs.length) {
+    const { data: ads } = await supabase.from("lead_ad_clicks").select("conversation_id, headline, ad_id, platform, created_at").in("conversation_id", wa.convs.map(c => c.id)).order("created_at", { ascending: false });
+    (ads || []).forEach(a => { if (!wa.ads.has(a.conversation_id)) wa.ads.set(a.conversation_id, a); });
+  }
   return true;
 }
 async function waLoadMsgs() {
@@ -80,7 +86,7 @@ function waRenderSide() {
     return `<button type="button" class="wa-item ${c.id === wa.sel ? "active" : ""}" data-wa-conv="${c.id}">
       <span class="wa-item-top"><b>${waEsc(waTitle(c))}</b><span>${waTime(c.last_message_at)}</span></span>
       <span class="wa-item-prev">${c.unread ? '<i class="wa-dot"></i>' : ""}${waEsc(c.preview)}</span>
-      <span class="wa-item-tags">${c.is_test ? '<em class="wa-tag test">TESTE</em>' : ""}${!c.consultor_id ? '<em class="wa-tag queue">Na fila</em>' : owner ? `<em class="wa-tag">${waEsc(owner.name)}</em>` : ""}${!c.lead_id && c.consultor_id ? "" : ""}</span></button>`;
+      <span class="wa-item-tags">${c.is_test ? '<em class="wa-tag test">TESTE</em>' : ""}${wa.ads.has(c.id) ? '<em class="wa-tag ad">Anúncio</em>' : ""}${!c.consultor_id ? '<em class="wa-tag queue">Na fila</em>' : owner ? `<em class="wa-tag">${waEsc(owner.name)}</em>` : ""}${!c.lead_id && c.consultor_id ? "" : ""}</span></button>`;
   }).join("") : `<p class="wa-empty">${wa.convs.length ? "Nenhuma conversa neste filtro." : "Nenhuma conversa ainda. Quando o número da empresa for conectado à Meta, as mensagens dos clientes aparecem aqui."}</p>`;
 }
 
@@ -95,10 +101,12 @@ function waRenderMain() {
       <select id="wa-assign-sel"><option value="">Escolha o consultor…</option>${cons.map(u => `<option value="${u.id}" ${u.id === c.consultor_id ? "selected" : ""}>${waEsc(u.name)}</option>`).join("")}</select>
       <button type="button" class="btn btn-primary btn-sm" id="wa-assign-btn">${c.is_test ? "Atribuir" : "Atribuir e criar lead"}</button></div>`;
   }
+  const ad = wa.ads.get(c.id);
+  const adLine = ad ? `<div class="wa-ad">📣 Veio de anúncio${ad.headline ? `: <b>${waEsc(ad.headline)}</b>` : ""}${ad.ad_id ? ` <small>· ID ${waEsc(ad.ad_id)}</small>` : ""}</div>` : "";
   const leadBtn = c.lead_id && typeof openFicha === "function" ? `<button type="button" class="btn btn-ghost btn-sm" id="wa-open-lead">Abrir ficha do lead</button>` : "";
   box.innerHTML = `
     <div class="wa-head"><div><b>${waEsc(waTitle(c))}</b>${c.is_test ? ' <em class="wa-tag test">TESTE</em>' : ""}<small>${waFmtPhone(c.phone)}${owner ? " · consultor: " + waEsc(owner.name) : ""}</small></div>${leadBtn}</div>
-    ${assign}
+    ${adLine}${assign}
     <div class="wa-thread" id="wa-thread">${waBubbles(wa.msgs)}</div>
     <div class="wa-composer">
       <p class="muted-note" style="margin:0 0 6px;">Responder ao cliente por aqui chega na próxima etapa. Já dá para deixar <b>notas internas</b> (o cliente não recebe).</p>

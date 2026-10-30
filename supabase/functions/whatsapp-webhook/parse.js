@@ -29,10 +29,20 @@ export function parseWebhook(payload, expectedPhoneNumberId = "") {
       for (const c of v.contacts || []) if (c.wa_id) names[c.wa_id] = (c.profile && c.profile.name) || "";
       for (const m of v.messages || []) {
         if (!m.from || !m.id) continue;
-        messages.push({
+        const msg = {
           phone: String(m.from), name: names[m.from] || "", wa_message_id: String(m.id), type: String(m.type || "text"),
           body: messageBody(m), ts: m.timestamp ? new Date(Number(m.timestamp) * 1000).toISOString() : new Date().toISOString(),
-        });
+        };
+        /* chegou por anúncio (Click-to-WhatsApp): a Meta manda o id do anúncio e o código do clique (ctwa_clid) */
+        const r = m.referral;
+        if (r && (r.ctwa_clid || r.source_id)) {
+          msg.referral = {
+            source_id: r.source_id ? String(r.source_id) : "", ctwa_clid: r.ctwa_clid ? String(r.ctwa_clid) : "",
+            source_type: r.source_type ? String(r.source_type) : "", source_url: r.source_url ? String(r.source_url) : "",
+            headline: r.headline ? String(r.headline) : "",
+          };
+        }
+        messages.push(msg);
       }
       for (const s of v.statuses || []) if (s.id && s.status) statuses.push({ id: String(s.id), status: String(s.status) });
     }
