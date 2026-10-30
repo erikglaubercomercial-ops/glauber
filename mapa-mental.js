@@ -63,8 +63,17 @@ const mmStrip = (k, v) => (k.startsWith("_") ? undefined : v);
 const mmClone = o => JSON.parse(JSON.stringify(o, mmStrip));
 const mmSnap = () => JSON.stringify(mmRoot(), mmStrip);
 const mmCanUse = () => !!session && ["ADM", "Gerente", "MKT", "Consultor"].includes(session.role);
-/* Consultor só VISUALIZA (e usa a apresentação): não cria, não edita, não arrasta, não salva — o banco também só deixa ele ler */
-const mmReadOnly = () => !!session && session.role === "Consultor";
+/* Consultor edita só os mapas que ELE criou (pode criar e copiar); mapa de outra pessoa ele só visualiza e usa a apresentação:
+   não edita, não arrasta, não salva — o banco também recusa. ADM, Gerente e MKT seguem editando todos. */
+const mmReadOnly = () => !!session && session.role === "Consultor" && !!mm.cur && mm.cur.created_by !== session.id;
+/* aplica o modo (editar x só ver) na tela: chamar ao abrir/criar/excluir mapa */
+function mmApplyAccess() {
+  const ro = mmReadOnly();
+  const v = document.getElementById("view-mapamental"); if (v) v.classList.toggle("mm-readonly", ro);
+  const t = document.getElementById("mm-title"); if (t) t.readOnly = ro;
+  if (ro) mm.tab = "pitch";
+  mmRenderPanel();
+}
 const mmEsc = s => (typeof escapeHtml === "function" ? escapeHtml(s) : String(s));
 const mmToast = m => (typeof agendaToast === "function" ? agendaToast(m) : alert(m));
 
@@ -846,12 +855,11 @@ async function mmOpenMap(id) {
   mm.sel = mm.cur.data.id; mm.selSet = new Set([mm.sel]);
   document.getElementById("mm-title").value = mm.cur.titulo;
   document.getElementById("mm-empty").hidden = true; document.getElementById("mm-workspace").hidden = false;
-  mmSetStatus(""); mmRender(); mmFit(); mmRenderList(); mmRenderPanel(); mmFocusCanvas();
+  mmSetStatus(""); mmRender(); mmFit(); mmRenderList(); mmApplyAccess(); mmFocusCanvas();
   try { localStorage.setItem("crm-mm-last", id); } catch (e) { /* sem armazenamento */ }
 }
 async function mmFlush() { if (mm.editing) mmCommitEdit(); if (mm.saveTimer) await mmSaveNow(); }
 async function mmNewMap(copyFrom) {
-  if (mmReadOnly()) return;
   await mmFlush();
   const data = copyFrom ? (() => { const d = mmClone(copyFrom.data); const idmap = new Map(); const fresh = n => { const o = n.id; n.id = mmNewId(); idmap.set(o, n.id); (n.c || []).forEach(fresh); (n.sm || []).forEach(s => { s.id = mmNewId(); }); };
     fresh(d); (d.fl || []).forEach(fresh);
@@ -867,7 +875,7 @@ async function mmNewMap(copyFrom) {
   if (!copyFrom) { mmSelect(mmRoot().id); mmStartEdit(mmRoot().id); }
 }
 async function mmDeleteMap() {
-  if (!mm.cur || mmReadOnly()) return;
+  if (!mm.cur) return;
   if (!(session.role === "ADM" || mm.cur.created_by === session.id)) { alert("Só o ADM ou quem criou o mapa pode excluí-lo."); return; }
   if (!confirm(`Excluir o mapa "${mm.cur.titulo}"? Não dá para desfazer.`)) return;
   const id = mm.cur.id; clearTimeout(mm.saveTimer); mm.saveTimer = null;
@@ -875,15 +883,13 @@ async function mmDeleteMap() {
   if (error) { alert("Não foi possível excluir."); return; }
   mm.maps = mm.maps.filter(m => m.id !== id); mm.cur = null;
   if (mm.maps.length) await mmOpenMap(mm.maps[0].id);
-  else { document.getElementById("mm-workspace").hidden = true; document.getElementById("mm-empty").hidden = false; mmRenderList(); }
+  else { document.getElementById("mm-workspace").hidden = true; document.getElementById("mm-empty").hidden = false; mmRenderList(); mmApplyAccess(); }
 }
 
 /* ---------------- tela ---------------- */
 async function renderMindMapView() {
   if (!mmCanUse()) return;
-  const ro = mmReadOnly();
-  document.getElementById("view-mapamental").classList.toggle("mm-readonly", ro);
-  document.getElementById("mm-title").readOnly = ro;
+  mmApplyAccess();
   if (!mm.loaded) {
     const rows = await mmLoadMaps();
     if (rows === null) { document.getElementById("mm-empty").hidden = false; document.getElementById("mm-empty").textContent = "Não foi possível carregar os mapas agora."; return; }
