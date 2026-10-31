@@ -65,9 +65,9 @@ function waBuild() {
   const mgr = waManager();
   const teamList = typeof teams !== "undefined" ? teams : [];
   root.innerHTML = `
-    <div class="wa-views">
-      <div class="wa-views-tabs"><button type="button" class="wa-view-btn" data-wa-view="painel">Painel</button><button type="button" class="wa-view-btn" data-wa-view="conversas">Conversas</button></div>
-      <div class="wa-filters" id="wa-p-filters">
+    <div class="wa-topbar">
+      <div class="subtabs wa-subtabs"><button type="button" class="subtab" data-wa-view="painel">Painel</button><button type="button" class="subtab" data-wa-view="conversas">Conversas</button></div>
+      <div class="filter-bar wa-filterbar" id="wa-p-filters">
         ${mgr ? `<select id="wa-p-team"><option value="">Time: todos</option>${teamList.map(t => `<option value="${t.id}">${waEsc(t.name)}</option>`).join("")}</select>
         <select id="wa-p-cons"></select>` : ""}
         <select id="wa-p-period"><option value="hoje">Hoje</option><option value="7d">Últimos 7 dias</option><option value="30d">Últimos 30 dias</option></select>
@@ -75,6 +75,9 @@ function waBuild() {
     </div>
     <div id="wa-panel"><div id="wa-panel-body"><p class="wa-empty">Carregando…</p></div></div>
     <div id="wa-inbox" hidden>
+    <div class="panel">
+    <div class="panel-header"><h2>Caixa de entrada</h2><span class="muted-note" style="margin:0;">Cliente novo cai na fila para o Gerente distribuir; quem já é lead vai para o consultor dele.</span></div>
+    <div style="padding:16px 20px 20px;">
     <div class="wa-layout">
       <aside class="wa-side">
         <div class="wa-tabs" id="wa-tabs"></div>
@@ -87,7 +90,7 @@ function waBuild() {
       <div class="wa-test-row"><input type="text" id="wa-t-phone" placeholder="Número de teste (só dígitos)" maxlength="12"><input type="text" id="wa-t-name" placeholder="Nome" maxlength="60"><input type="text" id="wa-t-body" placeholder="Mensagem" maxlength="300">
       <button type="button" class="btn btn-primary btn-sm" id="wa-t-send">Simular</button><button type="button" class="btn btn-ghost btn-sm" id="wa-t-clean">Apagar testes</button></div>
       <p class="muted-note" style="margin:6px 0 0;">Conversas de teste não criam lead nem mexem em leads existentes; ficam marcadas como TESTE.</p></details>` : ""}
-    </div>`;
+    </div></div></div>`;
   waFillConsultorFilter();
 }
 
@@ -160,12 +163,12 @@ function waRenderPanel() {
   const fromAd = active.filter(r => wa.ads.has(r.c.id)).length;
   const oldestFila = fila.length ? Math.max(...fila.map(c => (now - new Date(c.last_inbound_at || c.created_at).getTime()) / 60000)) : null;
 
-  const kpi = (label, value, sub, cls) => `<div class="wa-k"><small>${label}</small><b>${value}</b>${sub ? `<i class="${cls || ""}">${sub}</i>` : ""}</div>`;
+  const kpi = (label, value, sub) => `<div class="stat-card"><span class="stat-label">${label}</span><span class="stat-value">${value}</span>${sub ? `<span class="stat-sub">${sub}</span>` : ""}</div>`;
   const kpis = [
     kpi(mgr ? "Conversas abertas" : "Minhas conversas abertas", active.length, "com mensagem no período"),
-    mgr ? kpi("Na fila, sem dono", fila.length, oldestFila != null ? `mais antiga: ${waDur(oldestFila)}` : "fila vazia", fila.length ? "warn" : "ok") : "",
-    kpi("Sem resposta", waitingRows.length, red ? `${red} há mais de 1 h` : waitingRows.length ? "nenhuma acima de 1 h" : "ninguém esperando", red ? "bad" : waitingRows.length ? "warn" : "ok"),
-    kpi("1ª resposta (média)", waDur(avgResp), avgResp == null ? "aparece quando as respostas saírem pelo CRM" : `meta: ${WA_GOAL_MIN} min`, waRespClass(avgResp)),
+    mgr ? kpi("Na fila, sem dono", fila.length, oldestFila != null ? `mais antiga: ${waDur(oldestFila)}` : "fila vazia") : "",
+    kpi("Sem resposta", waitingRows.length, red ? `${red} há mais de 1 h` : waitingRows.length ? "nenhuma acima de 1 h" : "ninguém esperando"),
+    kpi("1ª resposta (média)", waDur(avgResp), avgResp == null ? "aparece quando as respostas saírem pelo CRM" : `meta: ${WA_GOAL_MIN} min`),
     kpi("Vindas de anúncio", fromAd, active.length ? `${Math.round((fromAd / active.length) * 100)}% do total` : "—"),
   ].join("");
 
@@ -178,8 +181,9 @@ function waRenderPanel() {
   };
   const personRow = u => {
     const st = stat(u.id);
-    return `<tr class="wa-prow" data-wa-cons="${u.id}" title="Ver as conversas de ${waEsc(u.name)}"><td>${waEsc(u.name)}</td><td>${st.open}</td>
-      <td class="${st.waitRed ? "bad" : st.wait ? "warn" : ""}">${st.wait}</td><td class="${waRespClass(st.resp)}">${waDur(st.resp)}</td><td>${st.novos}</td></tr>`;
+    const respBadge = { ok: "badge-good", warn: "badge-warn", bad: "badge-danger" }[waRespClass(st.resp)] || "badge-neutral";
+    return `<tr data-wa-cons="${u.id}" title="Ver as conversas de ${waEsc(u.name)}"><td class="cell-primary">${waEsc(u.name)}</td><td>${st.open}</td>
+      <td><span class="badge ${st.waitRed ? "badge-danger" : st.wait ? "badge-warn" : "badge-neutral"}">${st.wait}</span></td><td><span class="badge ${respBadge}">${waDur(st.resp)}</span></td><td>${st.novos}</td></tr>`;
   };
   let tableBody = "";
   if (mgr) {
@@ -188,59 +192,60 @@ function waRenderPanel() {
     const noTeam = people.filter(u => !u.team_id || !teamList.some(t => t.id === u.team_id));
     groups.forEach(g => {
       const boss = waUser(g.t.manager_id);
-      tableBody += `<tr><td colspan="5" class="wa-team">${waEsc(g.t.name)}${boss ? ` · gerente ${waEsc(boss.name)}` : ""}</td></tr>` + g.ppl.map(personRow).join("");
+      tableBody += `<tr class="wa-team-row"><td colspan="5">${waEsc(g.t.name)}${boss ? ` <span>· gerente ${waEsc(boss.name)}</span>` : ""}</td></tr>` + g.ppl.map(personRow).join("");
     });
-    if (noTeam.length) tableBody += `<tr><td colspan="5" class="wa-team">Sem time</td></tr>` + noTeam.map(personRow).join("");
+    if (noTeam.length) tableBody += `<tr class="wa-team-row"><td colspan="5">Sem time</td></tr>` + noTeam.map(personRow).join("");
   } else tableBody = people.map(personRow).join("");
-  const table = `<div class="wa-card"><h3>${mgr ? "Times e consultores" : "Meus números"}</h3>
-    <table class="wa-ptable"><tr><th>${mgr ? "Consultor" : "Eu"}</th><th>Abertas</th><th>Sem resposta</th><th>1ª resposta</th><th>Leads novos</th></tr>${tableBody || `<tr><td colspan="5" class="wa-muted">Ninguém neste filtro.</td></tr>`}</table>
-    <div class="wa-muted" style="margin-top:6px">${mgr ? "Clique num consultor para ver as conversas dele." : "Clique na linha para ver suas conversas."}</div></div>`;
+  const table = `<div class="panel"><div class="panel-header"><h2>${mgr ? "Times e consultores" : "Meus números"}</h2><span class="muted-note" style="margin:0;">${mgr ? "Clique num consultor para ver as conversas dele" : "Clique para ver suas conversas"}</span></div>
+    <table class="data-table data-table-list wa-ptable"><thead><tr><th>${mgr ? "Consultor" : "Eu"}</th><th>Abertas</th><th>Sem resposta</th><th>1ª resposta</th><th>Leads novos</th></tr></thead>
+    <tbody>${tableBody || `<tr><td colspan="5" class="cell-muted">Ninguém neste filtro.</td></tr>`}</tbody></table></div>`;
 
   /* precisa de atenção */
   const att = [];
   /* cliente esperando (acima da meta de 20 min; vermelho acima de 1 h) */
   waitingRows.filter(r => r.c.consultor_id).sort((a, b) => b.waiting - a.waiting).forEach(r => {
     if (r.waiting <= WA_GOAL_MIN) return;
-    att.push({ cls: r.waiting > WA_RED_MIN ? "bad" : "warn", pill: waDur(r.waiting), text: `<b>${waEsc(waTitle(r.c))}</b> sem resposta · ${waEsc((waUser(r.c.consultor_id) || {}).name || "consultor")}`, conv: r.c.id });
+    att.push({ cls: r.waiting > WA_RED_MIN ? "bad" : "warn", pill: waDur(r.waiting), text: waEsc(waTitle(r.c)), meta: `Sem resposta · ${waEsc((waUser(r.c.consultor_id) || {}).name || "consultor")}`, conv: r.c.id });
   });
   /* fila sem dono: sempre aparece para quem distribui */
   if (mgr) fila.forEach(c => {
     const age = (now - new Date(c.last_inbound_at || c.created_at).getTime()) / 60000;
-    att.push({ cls: age > WA_RED_MIN ? "bad" : "warn", pill: "fila", text: `<b>${waEsc(waTitle(c))}</b> sem dono há ${waDur(age)}${wa.ads.has(c.id) ? " · veio de anúncio" : ""}`, conv: c.id });
+    att.push({ cls: age > WA_RED_MIN ? "bad" : "warn", pill: "Fila", text: waEsc(waTitle(c)), meta: `Sem dono há ${waDur(age)}${wa.ads.has(c.id) ? " · veio de anúncio" : ""}`, conv: c.id });
   });
   if (typeof leads !== "undefined") leads.forEach(l => {
     if (!l.rotationActive && !l.rotation_active) return;
     const dl = new Date(l.rotationDeadline || l.rotation_deadline || 0).getTime(), left = (dl - now) / 60000;
     const owner = l.consultorId || l.consultor_id;
-    if (left > 0 && left <= 60 && (mgr || owner === session.id)) att.push({ cls: "warn", pill: "rodízio", text: `<b>${waEsc(l.name)}</b> passa para outro em ${waDur(left)} se não houver contato` });
+    if (left > 0 && left <= 60 && (mgr || owner === session.id)) att.push({ cls: "warn", pill: "Rodízio", text: waEsc(l.name), meta: `Passa para outro em ${waDur(left)} se não houver contato` });
   });
-  const attHtml = `<div class="wa-card"><h3>Precisa de atenção</h3>${att.length ? att.slice(0, 8).map(a => `<div class="wa-al"${a.conv ? ` data-wa-open-conv="${a.conv}"` : ""}><span class="wa-pill ${a.cls}">${a.pill}</span><div>${a.text}</div></div>`).join("") : `<p class="wa-muted">Nada pendente agora ✓</p>`}</div>`;
+  const item = (badgeCls, badge, title, meta, conv) => `<div class="dash-agenda-item"${conv ? ` data-wa-open-conv="${conv}"` : ""}><span class="dash-agenda-item-badge ${badgeCls}">${badge}</span><div class="dash-agenda-item-body"><div class="dash-agenda-item-title">${title}</div>${meta ? `<div class="dash-agenda-item-meta">${meta}</div>` : ""}</div></div>`;
+  const attHtml = `<div class="panel"><div class="panel-header"><h2>Precisa de atenção</h2></div><div class="wa-plist">${att.length ? att.slice(0, 8).map(a => item(a.cls === "bad" ? "wa-b-bad" : "wa-b-warn", a.pill, a.text, a.meta, a.conv)).join("") : `<p class="muted-note">Nada pendente agora ✓</p>`}</div></div>`;
 
   /* origem */
   const counts = {};
   active.forEach(r => { counts[r.origin] = (counts[r.origin] || 0) + 1; });
   const orig = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   const maxO = orig.length ? orig[0][1] : 1;
-  const origHtml = `<div class="wa-card"><h3>Origem das conversas</h3>${orig.length ? orig.map(([k, n]) => `<div class="wa-orow"><span>${waEsc(k)}</span><b>${n}</b></div><div class="wa-obar"><i style="width:${Math.round((n / maxO) * 100)}%"></i></div>`).join("") : `<p class="wa-muted">Sem conversas no período.</p>`}</div>`;
+  const origHtml = `<div class="panel"><div class="panel-header"><h2>Origem das conversas</h2></div><div class="wa-plist">${orig.length ? orig.map(([k, n]) => `<div class="wa-orow"><span>${waEsc(k)}</span><b>${n}</b></div><div class="wa-obar"><i style="width:${Math.round((n / maxO) * 100)}%"></i></div>`).join("") : `<p class="muted-note">Sem conversas no período.</p>`}</div></div>`;
 
   /* ao vivo */
   const vis = new Set(rows.map(r => r.c.id));
   const live = wa.pmsgs.filter(m => vis.has(m.conversation_id)).slice(-10).reverse();
-  const liveHtml = `<div class="wa-card"><h3>Conversas ao vivo</h3>${live.length ? live.map(m => {
+  const liveHtml = `<div class="panel"><div class="panel-header"><h2>Conversas ao vivo</h2></div><div class="wa-plist">${live.length ? live.map(m => {
     const c = wa.convs.find(x => x.id === m.conversation_id), owner = c ? waUser(c.consultor_id) : null;
     const who = m.direction === "out" ? `${waEsc((waUser(m.sent_by) || owner || {}).name || "equipe")} → ${waEsc(waTitle(c))}` : `${waEsc(waTitle(c))} → ${owner ? waEsc(owner.name) : "fila"}`;
     const txt = String(m.body || `[${m.msg_type}]`); const short = txt.length > 140 ? txt.slice(0, 140) + "…" : txt;
-    return `<div class="wa-al" data-wa-open-conv="${m.conversation_id}"><span class="wa-pill acc">${waDur((now - new Date(m.created_at).getTime()) / 60000)}</span><div>${who}: <span class="wa-live-txt">"${waEsc(short)}"</span></div></div>`;
-  }).join("") : `<p class="wa-muted">Nenhuma mensagem nos últimos 30 dias.</p>`}</div>`;
+    return item(m.direction === "out" ? "wa-b-out" : "wa-b-in", waDur((now - new Date(m.created_at).getTime()) / 60000), who, `"${waEsc(short)}"`, m.conversation_id);
+  }).join("") : `<p class="muted-note">Nenhuma mensagem nos últimos 30 dias.</p>`}</div></div>`;
 
-  box.innerHTML = `<div class="wa-kpis">${kpis}</div>
-    <div class="wa-pgrid"><div>${table}</div><div class="wa-pcol">${attHtml}${origHtml}</div></div>
+  box.innerHTML = `<div class="stat-row">${kpis}</div>
+    <div class="dash-grid-2 wa-pgrid"><div>${table}</div><div class="wa-pcol">${attHtml}${origHtml}</div></div>
     ${liveHtml}`;
 }
 
 function waShowView(v) {
   wa.view = v;
-  document.querySelectorAll("#wa-root .wa-view-btn").forEach(b => b.classList.toggle("active", b.dataset.waView === v));
+  document.querySelectorAll("#wa-root [data-wa-view]").forEach(b => b.classList.toggle("active", b.dataset.waView === v));
   waEl("wa-panel").hidden = v !== "painel";
   waEl("wa-inbox").hidden = v !== "conversas";
   waEl("wa-p-filters").style.visibility = v === "painel" ? "visible" : "hidden";
