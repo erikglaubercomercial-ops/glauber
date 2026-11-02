@@ -5322,6 +5322,7 @@ function saleSplitFromDb(r) {
   return { dealId: r.deal_id, courseTotal: Number(r.course_total) || 0, fee: Number(r.fee) || 0, base: Number(r.base) || 0,
     peregrinosGross: Number(r.peregrinos_gross) || 0, consultorAmount: Number(r.consultor_amount) || 0,
     managerId: r.manager_id || null, managerAmount: Number(r.manager_amount) || 0, cacAmount: Number(r.cac_amount) || 0,
+    kitAmount: Number(r.kit_amount) || 0, acomCobrado: Number(r.acom_cobrado) || 0, acomPago: Number(r.acom_pago) || 0, acomLucro: Number(r.acom_lucro) || 0,
     peregrinosNet: Number(r.peregrinos_net) || 0 };
 }
 async function loadSaleSplits() {
@@ -6322,6 +6323,10 @@ function renderSaleSplits() {
     return `<tr>
       <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}</td>
       <td class="cell-muted">${currency(sp.courseTotal)}</td>
+      <td class="cell-muted" title="Não é lucro da Peregrinos">${currency(sp.kitAmount)}</td>
+      <td class="cell-muted">${currency(sp.acomCobrado)}</td>
+      <td class="cell-muted">${currency(sp.acomPago)}</td>
+      <td class="cell-muted">${currency(sp.acomLucro)}</td>
       <td class="cell-muted">${currency(sp.base)}</td>
       <td class="cell-primary">${currency(sp.peregrinosGross)}</td>
       <td class="cell-muted">${currency(sp.consultorAmount)}</td>
