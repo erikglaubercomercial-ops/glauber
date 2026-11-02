@@ -736,12 +736,12 @@ function advanceLeadPipelineStage(leadId) {
   const deal = deals.find(d => d.leadId === leadId);
   if (!deal) return;
   recordFirstInteraction(deal);
-  if (isClosedStage(deal.stage)) return;
-  const idx = STAGES.findIndex(s => s.id === deal.stage);
-  if (idx === -1 || idx + 1 >= STAGES.length) return;
-  const next = STAGES[idx + 1];
-  if (next.isWon || next.isLost) return;
-  moveDeal(deal.id, next.id);
+  /* regra: só o PRIMEIRO clique no WhatsApp tira o card de "Lead Novo" para "Contato Feito".
+     Depois disso o movimento é sempre manual, até a venda, que acontece quando o contrato é assinado. */
+  if (!STAGES.length || deal.stage !== STAGES[0].id) return;
+  const contato = STAGES.find(s => s.id === "contato") || STAGES[1];
+  if (!contato || contato.isWon || contato.isLost) return;
+  moveDeal(deal.id, contato.id);
 }
 
 async function loadDeals() {
