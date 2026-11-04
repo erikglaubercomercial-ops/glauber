@@ -155,3 +155,6 @@ end;
 $$;
 revoke all on function public.set_sale_net(uuid, numeric) from public, anon;
 grant execute on function public.set_sale_net(uuid, numeric) to authenticated;
+
+-- ajuste posterior: sem gerente no time, o gerente é o Erik (perfil Gerente, commercial@peregrinosintercambio.com),
+-- mesmo quando ele é quem vendeu. A regra está no corpo da função apply_sale_rules acima (aplicada como migração gerente_padrao_erik_ajuste).
