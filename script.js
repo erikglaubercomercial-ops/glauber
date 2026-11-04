@@ -5323,6 +5323,8 @@ function saleSplitFromDb(r) {
     peregrinosGross: Number(r.peregrinos_gross) || 0, consultorAmount: Number(r.consultor_amount) || 0,
     managerId: r.manager_id || null, managerAmount: Number(r.manager_amount) || 0, cacAmount: Number(r.cac_amount) || 0,
     kitAmount: Number(r.kit_amount) || 0, acomCobrado: Number(r.acom_cobrado) || 0, acomPago: Number(r.acom_pago) || 0, acomLucro: Number(r.acom_lucro) || 0,
+    netCourse: r.net_course == null ? null : Number(r.net_course), courseGross: Number(r.course_gross) || 0, ganhoCurso: Number(r.ganho_curso) || 0,
+    passagemAmount: Number(r.passagem_amount) || 0, trafficFlag: !!r.traffic_flag, influencerAmount: Number(r.influencer_amount) || 0, reservaAmount: Number(r.reserva_amount) || 0,
     peregrinosNet: Number(r.peregrinos_net) || 0 };
 }
 async function loadSaleSplits() {
@@ -6311,30 +6313,53 @@ function commissionRelease(dealId) {
   return { released: sent > 0, sent };
 }
 
-/* partilha por venda: tudo sai do ganho da Peregrinos (só ADM, Gerente e Financeiro enxergam) */
+/* partilha por venda: Ganho = Gross − Net; CAC de R$100 sai só quando há tráfego ou influenciador, senão vai para a caixa de reserva.
+   O Net é digitado por venda; sem Net a venda fica pendente. Só ADM, Gerente e Financeiro enxergam (a tela já é restrita). */
 function renderSaleSplits() {
   const tbody = document.getElementById("fin-splits-tbody");
   if (!tbody) return;
   const list = saleSplits.slice().sort((a, b) => (commissions.find(c => c.dealId === b.dealId) || {}).createdAt - (commissions.find(c => c.dealId === a.dealId) || {}).createdAt);
   document.getElementById("fin-splits-empty").style.display = list.length === 0 ? "block" : "none";
+  const reserva = list.reduce((acc, sp) => acc + (sp.reservaAmount || 0), 0);
+  const reservaEl = document.getElementById("fin-reserva-total");
+  if (reservaEl) reservaEl.textContent = currency(reserva);
   tbody.innerHTML = list.map(sp => {
     const deal = deals.find(d => d.id === sp.dealId);
     const mgr = users.find(u => u.id === sp.managerId);
+    const pendente = sp.netCourse == null;
     return `<tr>
       <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}</td>
       <td class="cell-muted">${currency(sp.courseTotal)}</td>
+      <td><input type="number" min="0" step="0.01" class="split-net" data-deal="${sp.dealId}" value="${pendente ? "" : sp.netCourse}" placeholder="digite" aria-label="Net da venda"></td>
       <td class="cell-muted" title="Não é lucro da Peregrinos">${currency(sp.kitAmount)}</td>
       <td class="cell-muted">${currency(sp.acomCobrado)}</td>
       <td class="cell-muted">${currency(sp.acomPago)}</td>
       <td class="cell-muted">${currency(sp.acomLucro)}</td>
-      <td class="cell-muted">${currency(sp.base)}</td>
-      <td class="cell-primary">${currency(sp.peregrinosGross)}</td>
-      <td class="cell-muted">${currency(sp.consultorAmount)}</td>
-      <td class="cell-muted">${currency(sp.managerAmount)}${mgr ? ` <span class="muted-note">(${escapeHtml(mgr.name)})</span>` : ""}</td>
+      <td class="cell-muted">${currency(sp.passagemAmount)}</td>
       <td class="cell-muted">${currency(sp.cacAmount)}</td>
-      <td class="cell-primary ${sp.peregrinosNet < 0 ? "neg" : ""}">${currency(sp.peregrinosNet)}</td>
+      <td class="cell-muted">${currency(sp.influencerAmount)}</td>
+      <td class="cell-muted">${pendente ? "pendente" : currency(sp.consultorAmount)}</td>
+      <td class="cell-muted">${pendente ? "pendente" : currency(sp.managerAmount)}${mgr ? ` <span class="muted-note">(${escapeHtml(mgr.name)})</span>` : ""}</td>
+      <td class="cell-muted">${currency(sp.reservaAmount)}</td>
+      <td class="cell-primary ${sp.peregrinosNet < 0 ? "neg" : ""}">${pendente ? "pendente" : currency(sp.peregrinosNet)}</td>
     </tr>`;
   }).join("");
+}
+/* digitar o Net: grava e recalcula a venda no banco (função set_sale_net) */
+document.getElementById("fin-splits-tbody").addEventListener("change", async e => {
+  const input = e.target.closest(".split-net");
+  if (!input) return;
+  const value = input.value === "" ? null : Number(input.value);
+  if (value === null || !isFinite(value) || value < 0) { alert("Digite o Net da venda (valor pago à escola)."); await loadSaleSplitsView(); return; }
+  input.disabled = true;
+  const { error } = await supabase.rpc("set_sale_net", { p_deal_id: input.dataset.deal, p_net: value });
+  input.disabled = false;
+  if (error) { alert("Não foi possível salvar o Net: " + error.message); }
+  await loadSaleSplitsView();
+});
+async function loadSaleSplitsView() {
+  saleSplits = await loadSaleSplits();
+  renderSaleSplits();
 }
 
 document.getElementById("fin-commissions-tbody").addEventListener("click", async e => {
