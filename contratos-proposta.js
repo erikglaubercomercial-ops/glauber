@@ -501,16 +501,20 @@ async function openQuoteApprovalModal(q) {
   qaBackdrop.classList.add("open");
   renderQuoteApprovalModal();
   /* se a cotação ainda não está no banco, grava antes: o link (token) só existe depois de gravada */
+  let saveError = null;
   if (!(await refreshQuoteApproval(q))) {
-    await saveQuoteRow(q);
-    await refreshQuoteApproval(q);
+    const { error } = await supabase.from("quotes").upsert(quoteRowToDb(q));
+    saveError = error;
+    if (!error) await refreshQuoteApproval(q);
   }
   renderQuoteApprovalModal();
   renderQuotes();
   if (!q.publicToken) {
     const box = document.getElementById("qa-status");
     box.className = "public-message error";
-    box.textContent = "Não foi possível gerar o link. Confira se a cotação foi salva e tente de novo.";
+    box.textContent = saveError
+      ? "Não foi possível salvar a cotação para gerar o link: " + saveError.message
+      : "Não foi possível gerar o link. Confira se a cotação foi salva e tente de novo.";
   }
 }
 
