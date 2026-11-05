@@ -955,6 +955,9 @@ body > .lang-switcher { position: fixed; top: 18px; right: 18px; z-index: 40; }
 }
 .enr-lead-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
 .enr-lead-search-wrap input { padding-left: 34px !important; }
+#leads-search-wrap input { padding-left: 9px !important; padding-right: 38px; }
+.leads-search-btn { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 5px; background: var(--primary); color: #fff; cursor: pointer; }
+.leads-search-btn:hover { filter: brightness(1.1); }
 .enr-lead-results {
   position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;

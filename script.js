@@ -1827,10 +1827,9 @@ function renderLeadFilterOptions() {
   }
 
   /* onchange (e não addEventListener): esta função roda a cada abertura da tela, sem empilhar ouvintes */
-  [statusSel, sourceSel, consultorSel].forEach(sel => { sel.onchange = renderLeads; });
-  document.getElementById("filter-date-from").onchange = renderLeads;
-  document.getElementById("filter-date-to").onchange = renderLeads;
-  document.getElementById("filter-show-inactive").onchange = renderLeads;
+  [statusSel, sourceSel, consultorSel].forEach(sel => { sel.onchange = leadsFilterChanged; });
+  document.getElementById("filter-date-from").onchange = leadsFilterChanged;
+  document.getElementById("filter-date-to").onchange = leadsFilterChanged;
 }
 
 /* "Novos (7 dias)": filtro rápido pelo card do topo (mesma contagem do número exibido) */
@@ -1846,7 +1845,7 @@ function updateTodayButton() {
   btn.classList.toggle("on", leadsTodayOnly);
   btn.setAttribute("aria-pressed", String(leadsTodayOnly));
 }
-document.getElementById("filter-today").addEventListener("click", () => { leadsTodayOnly = !leadsTodayOnly; renderLeads(); });
+document.getElementById("filter-today").addEventListener("click", () => { leadsTodayOnly = !leadsTodayOnly; leadsFilterChanged(); });
 
 function resetLeadFilters() {
   document.getElementById("filter-status").value = "";
@@ -1854,7 +1853,6 @@ function resetLeadFilters() {
   document.getElementById("filter-consultor").value = "";
   document.getElementById("filter-date-from").value = "";
   document.getElementById("filter-date-to").value = "";
-  document.getElementById("filter-show-inactive").checked = false;
   leadsRecentOnly = false;
   leadsTodayOnly = false;
   clearLeadsSearch();
@@ -1878,33 +1876,34 @@ document.querySelectorAll("#view-leads [data-leads-card]").forEach(card => {
 function updateLeadStatCardsActive() {
   const statusVal = document.getElementById("filter-status").value;
   const flags = { new: leadsRecentOnly, qualified: !leadsRecentOnly && statusVal === "Qualificado" };
-  flags.total = !flags.new && !flags.qualified && !statusVal && !leadsSearchSelectedId;
+  flags.total = !flags.new && !flags.qualified && !statusVal && !leadsSearchSelectedId && !leadsSearchInput.value.trim();
   document.querySelectorAll("#view-leads [data-leads-card]").forEach(c => c.classList.toggle("is-active", !!flags[c.dataset.leadsCard]));
 }
 
-/* ---- busca de lead na própria barra de filtros: digitar mostra um
-   dropdown por nome/e-mail; clicar num resultado deixa só aquele
-   lead na lista (até limpar os filtros) ---- */
+/* ---- busca de lead na própria barra de filtros: digitar mostra um dropdown por nome/e-mail;
+   a lupa ou o Enter aplicam o texto à lista, junto com os demais filtros. Clicar num resultado
+   deixa só aquele lead na lista, até mudar um filtro ou a pesquisa ---- */
 let leadsSearchSelectedId = null;
 const leadsSearchInput = document.getElementById("leads-search-input");
 const leadsSearchResults = document.getElementById("leads-search-results");
 
 function visibleLeadsBase() {
-  const showInactive = document.getElementById("filter-show-inactive").checked;
   const ownOnly = isOwnLeadsOnly() || leadsOwnOnlyMode;
   return leads.filter(l => {
     if (ownOnly && l.consultorId !== session.id) return false;
-    if (!showInactive && l.active === false) return false;
+    if (l.active === false) return false;
     return true;
   });
 }
 
+function leadMatchesSearch(lead, query) {
+  return normalizeImportStr(`${lead.name || ""} ${lead.email || ""}`).includes(normalizeImportStr(query));
+}
+
 function renderLeadsSearchResults(query) {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) { leadsSearchResults.classList.remove("open"); leadsSearchResults.innerHTML = ""; return; }
-  const matches = visibleLeadsBase().filter(l =>
-    (l.name && l.name.toLowerCase().includes(q)) || (l.email && l.email.toLowerCase().includes(q))
-  ).slice(0, 8);
+  const matches = visibleLeadsBase().filter(l => leadMatchesSearch(l, q)).slice(0, 8);
   leadsSearchResults.innerHTML = matches.length
     ? matches.map(l => `
       <div class="enr-lead-result-item" data-id="${l.id}">
@@ -1922,9 +1921,25 @@ function clearLeadsSearch() {
   leadsSearchResults.innerHTML = "";
 }
 
+function applyLeadsSearch() {
+  leadsSearchResults.classList.remove("open");
+  renderLeads();
+}
+/* mudar um filtro solta o lead escolhido no dropdown; um texto digitado continua valendo junto com o filtro */
+function leadsFilterChanged() {
+  if (leadsSearchSelectedId) clearLeadsSearch();
+  renderLeads();
+}
+document.getElementById("leads-search-btn").addEventListener("click", applyLeadsSearch);
+leadsSearchInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); applyLeadsSearch(); }
+});
 leadsSearchInput.addEventListener("input", () => {
+  const hadPick = leadsSearchSelectedId;
   leadsSearchSelectedId = null;
   renderLeadsSearchResults(leadsSearchInput.value);
+  /* apagou o texto ou começou a editar o lead escolhido: a lista não fica presa no resultado anterior */
+  if (hadPick || !leadsSearchInput.value.trim()) renderLeads();
 });
 leadsSearchInput.addEventListener("focus", () => {
   if (leadsSearchInput.value.trim() && !leadsSearchSelectedId) renderLeadsSearchResults(leadsSearchInput.value);
@@ -1954,8 +1969,10 @@ function getFilteredLeads() {
   const consultorId = document.getElementById("filter-consultor").value;
   const dateFrom = document.getElementById("filter-date-from").value;
   const dateTo = document.getElementById("filter-date-to").value;
+  const search = leadsSearchInput.value.trim();
 
   return base.filter(l => {
+    if (search && !leadMatchesSearch(l, search)) return false;
     if (status && (l.status || "Novo") !== status) return false;
     if (source && l.source !== source && l.source2 !== source) return false;
     if (consultorId && l.consultorId !== consultorId) return false;
