@@ -9155,6 +9155,14 @@ function agendaUpdateLeadWpp() {
   a.classList.toggle("disabled", !digits);
   if (digits) { a.href = buildWhatsAppLink(digits); a.title = t("common.openWhatsapp"); }
   else { a.removeAttribute("href"); a.title = lead ? t("lead.noWhatsappConfigured") : "Escolha um lead com telefone para abrir o WhatsApp"; }
+  /* e-mail e WhatsApp do lead escolhido, à vista de quem abre o compromisso */
+  const contact = document.getElementById("agenda-lead-contact");
+  const phoneText = digits ? `+${digits}` : String((lead && lead.phone) || "").trim();
+  const email = lead ? String(lead.email || "").trim() : "";
+  contact.style.display = lead ? "" : "none";
+  contact.innerHTML = !lead ? "" : `
+    <div><span>E-mail</span>${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : "<em>não informado</em>"}</div>
+    <div><span>WhatsApp</span>${digits ? `<a href="${buildWhatsAppLink(digits)}" target="_blank" rel="noopener">${escapeHtml(phoneText)}</a>` : phoneText ? escapeHtml(phoneText) : "<em>não informado</em>"}</div>`;
 }
 function agendaSetLead(leadId) {
   const lead = leadId ? leads.find(l => l.id === leadId) : null;
