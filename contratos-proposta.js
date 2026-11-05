@@ -461,11 +461,13 @@ function quoteApprovalUrl(token) { return `${window.location.origin}/aprovacao-p
 
 /* traz do banco o estado de aprovação (o cliente aprova fora do sistema) */
 async function refreshQuoteApproval(q) {
-  const { data, error } = await supabase.from("quotes").select("status, aprovada_em, public_token").eq("id", q.id).single();
-  if (error || !data) return;
+  const { data, error } = await supabase.from("quotes").select("status, aprovada_em, public_token").eq("id", q.id).maybeSingle();
+  if (error) { console.error("Erro ao buscar aprovação da cotação:", error); return false; }
+  if (!data) return false; /* a cotação ainda não está gravada no banco */
   q.status = data.status;
   q.aprovadaEm = data.aprovada_em ? new Date(data.aprovada_em).getTime() : null;
   q.publicToken = data.public_token || q.publicToken;
+  return true;
 }
 async function refreshAllQuoteApprovals() {
   const { data, error } = await supabase.from("quotes").select("id, status, aprovada_em, public_token");
@@ -498,9 +500,18 @@ async function openQuoteApprovalModal(q) {
   qaCurrentQuote = q;
   qaBackdrop.classList.add("open");
   renderQuoteApprovalModal();
-  await refreshQuoteApproval(q);
+  /* se a cotação ainda não está no banco, grava antes: o link (token) só existe depois de gravada */
+  if (!(await refreshQuoteApproval(q))) {
+    await saveQuoteRow(q);
+    await refreshQuoteApproval(q);
+  }
   renderQuoteApprovalModal();
   renderQuotes();
+  if (!q.publicToken) {
+    const box = document.getElementById("qa-status");
+    box.className = "public-message error";
+    box.textContent = "Não foi possível gerar o link. Confira se a cotação foi salva e tente de novo.";
+  }
 }
 
 document.getElementById("q-btn-aprovacao").addEventListener("click", () => {
