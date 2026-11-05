@@ -731,17 +731,19 @@ function unstickLeadIfNew(leadId) {
   refreshStuckLeadsAfterReassign([leadId]);
 }
 
+/* regra: o botão de WhatsApp só tira o card de "Lead Novo" para "Contato Feito". Depois disso o movimento é sempre
+   manual, até a venda, que acontece quando o contrato é assinado. */
+function advanceDealToContato(deal) {
+  const contato = STAGES.length && deal.stage === STAGES[0].id ? (STAGES.find(s => s.id === "contato") || STAGES[1]) : null;
+  if (!contato || contato.isWon || contato.isLost) { recordFirstInteraction(deal); return; }
+  /* a primeira interação vai junto com a etapa: dois salvamentos seguidos podiam chegar fora de ordem e devolver o card para "Lead Novo" */
+  if (!deal.firstInteractionAt) deal.firstInteractionAt = Date.now();
+  moveDeal(deal.id, contato.id);
+}
 function advanceLeadPipelineStage(leadId) {
   unstickLeadIfNew(leadId);
   const deal = deals.find(d => d.leadId === leadId);
-  if (!deal) return;
-  recordFirstInteraction(deal);
-  /* regra: só o PRIMEIRO clique no WhatsApp tira o card de "Lead Novo" para "Contato Feito".
-     Depois disso o movimento é sempre manual, até a venda, que acontece quando o contrato é assinado. */
-  if (!STAGES.length || deal.stage !== STAGES[0].id) return;
-  const contato = STAGES.find(s => s.id === "contato") || STAGES[1];
-  if (!contato || contato.isWon || contato.isLost) return;
-  moveDeal(deal.id, contato.id);
+  if (deal) advanceDealToContato(deal);
 }
 
 async function loadDeals() {
@@ -1020,8 +1022,8 @@ function renderCard(deal) {
   const wppLink = card.querySelector("a.wpp-btn");
   if (wppLink) wppLink.addEventListener("click", e => {
     e.stopPropagation();
-    recordFirstInteraction(deal);
     unstickLeadIfNew(deal.leadId);
+    advanceDealToContato(deal);
   });
   const nameLink = card.querySelector('[data-act="ficha"]');
   if (nameLink) nameLink.addEventListener("click", e => { e.stopPropagation(); openFicha(deal.leadId); });
@@ -6313,7 +6315,7 @@ function commissionRelease(dealId) {
   return { released: sent > 0, sent };
 }
 
-/* partilha por venda: Ganho = Gross − Net; CAC de R$100 sai só quando há tráfego ou influenciador, senão vai para a caixa de reserva.
+/* partilha por venda: Ganho = Gross − Net; CAC de € 100 sai só quando há tráfego ou influenciador, senão vai para a caixa de reserva.
    O Net é digitado por venda; sem Net a venda fica pendente. Só ADM, Gerente e Financeiro enxergam (a tela já é restrita). */
 function renderSaleSplits() {
   const tbody = document.getElementById("fin-splits-tbody");
