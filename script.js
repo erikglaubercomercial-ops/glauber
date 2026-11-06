@@ -6628,7 +6628,7 @@ document.getElementById("fin-influencer-commissions-tbody").addEventListener("cl
 /* ---- comissão da escola: tabela própria, só quem acessa o Financeiro lê e grava ---- */
 let schoolCommissions = [];
 function schoolCommissionFromDb(r) {
-  return { enrollmentId: r.enrollment_id, amount: Number(r.amount) || 0, status: r.status || "Pendente",
+  return { enrollmentId: r.enrollment_id, amount: Number(r.amount) || 0, percentage: r.percentage == null ? null : Number(r.percentage), baseAmount: r.base_amount == null ? null : Number(r.base_amount), status: r.status || "Pendente",
     expected: r.expected || null, received: r.received || null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now() };
 }
@@ -6639,7 +6639,7 @@ async function loadSchoolCommissions() {
 }
 async function saveSchoolCommissionRemote(c) {
   const { error } = await supabase.from("school_commissions").upsert({
-    enrollment_id: c.enrollmentId, amount: c.amount, status: c.status, expected: c.expected, received: c.received, updated_at: new Date().toISOString(),
+    enrollment_id: c.enrollmentId, amount: c.amount, percentage: c.percentage, base_amount: c.baseAmount, status: c.status, expected: c.expected, received: c.received, updated_at: new Date().toISOString(),
   });
   if (error) { console.error("Erro ao salvar comissão da escola:", error); return false; }
   return true;
@@ -6656,6 +6656,7 @@ function renderSchoolCommissions() {
     tr.innerHTML = `
       <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
+      <td class="cell-muted">${c.percentage == null ? "—" : `${scommNumber(c.percentage)}%`}</td>
       <td class="cell-primary">${currency(c.amount)}</td>
       <td class="cell-muted">${c.expected ? formatDate(c.expected) : "—"}</td>
       <td><span class="badge ${c.status === "Recebido" ? "badge-good" : "badge-warn"}">${c.status === "Recebido" ? t("fin.received") : t("status.pendente")}</span></td>
@@ -6674,6 +6675,33 @@ document.getElementById("fin-schoolcomm-filter-clear").addEventListener("click",
 const scommModalBackdrop = document.getElementById("scomm-modal-backdrop");
 const scommForm = document.getElementById("scomm-form");
 const scommBtnDelete = document.getElementById("scomm-btn-delete");
+const scommNumber = v => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+/* base do percentual: o valor do curso da partilha (sem kit, acomodação e passagem); sem partilha, o valor da matrícula */
+function scommDefaultBase(enrollmentId) {
+  const enr = enrollments.find(e => e.id === enrollmentId);
+  if (!enr) return 0;
+  const deal = deals.find(d => d.leadId === enr.leadId && isWonStage(d.stage)) || deals.find(d => d.leadId === enr.leadId);
+  const split = deal ? saleSplits.find(sp => sp.dealId === deal.id) : null;
+  return (split && split.courseGross) || enr.courseValue || 0;
+}
+function scommFillBase() {
+  const base = scommDefaultBase(document.getElementById("scomm-field-enrollment").value);
+  document.getElementById("scomm-field-base").value = base ? base.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+  scommUpdateCalc();
+}
+function scommValues() {
+  const pct = parseEuroInput(document.getElementById("scomm-field-pct").value);
+  const base = parseEuroInput(document.getElementById("scomm-field-base").value);
+  return { pct, base, valid: isFinite(pct) && pct <= 100 && isFinite(base) && base > 0 };
+}
+function scommUpdateCalc() {
+  const { pct, base, valid } = scommValues();
+  document.getElementById("scomm-calc").innerHTML = valid
+    ? `${escapeHtml(t("fin.schoolCommCalc"))}: <b>${currency(round2(base * pct / 100))}</b> (${scommNumber(pct)}% ${escapeHtml(t("fin.schoolCommOf"))} ${currency(base)})`
+    : "";
+}
+document.getElementById("scomm-field-enrollment").addEventListener("change", scommFillBase);
+["scomm-field-pct", "scomm-field-base"].forEach(id => document.getElementById(id).addEventListener("input", scommUpdateCalc));
 function openSchoolCommModal(enrollmentId) {
   scommForm.reset();
   const sel = document.getElementById("scomm-field-enrollment");
@@ -6686,10 +6714,14 @@ function openSchoolCommModal(enrollmentId) {
   document.getElementById("scomm-modal-title").textContent = cur ? t("fin.schoolCommEdit") : t("fin.schoolCommNew");
   if (cur) {
     sel.value = cur.enrollmentId;
-    document.getElementById("scomm-field-amount").value = cur.amount;
+    document.getElementById("scomm-field-pct").value = cur.percentage == null ? "" : scommNumber(cur.percentage);
+    document.getElementById("scomm-field-base").value = cur.baseAmount == null ? "" : cur.baseAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    scommUpdateCalc();
     document.getElementById("scomm-field-expected").value = cur.expected || "";
     document.getElementById("scomm-field-status").value = cur.status;
     document.getElementById("scomm-field-received").value = cur.received || "";
+  } else {
+    scommFillBase();
   }
   scommBtnDelete.style.display = cur ? "inline-block" : "none";
   scommModalBackdrop.classList.add("open");
@@ -6702,11 +6734,13 @@ scommModalBackdrop.addEventListener("click", e => { if (e.target === scommModalB
 scommForm.addEventListener("submit", async e => {
   e.preventDefault();
   const enrollmentId = document.getElementById("scomm-field-enrollment").value;
-  const amount = round2(parseFloat(document.getElementById("scomm-field-amount").value));
-  if (!enrollmentId || !(amount >= 0)) return;
+  const { pct, base, valid } = scommValues();
+  if (!enrollmentId) return;
+  if (!valid) { alert(t("fin.schoolCommInvalid")); return; }
+  const amount = round2(base * pct / 100);
   const status = document.getElementById("scomm-field-status").value;
   const data = {
-    enrollmentId, amount, status,
+    enrollmentId, amount, percentage: pct, baseAmount: base, status,
     expected: document.getElementById("scomm-field-expected").value || null,
     received: status === "Recebido" ? (document.getElementById("scomm-field-received").value || new Date().toISOString().slice(0, 10)) : null,
     createdAt: (schoolCommissions.find(c => c.enrollmentId === enrollmentId) || {}).createdAt || Date.now(),
