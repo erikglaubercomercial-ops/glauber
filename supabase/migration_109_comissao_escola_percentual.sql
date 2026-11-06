@@ -1,7 +1,7 @@
 -- ============================================================
 -- MIGRAÇÃO 109 — Comissão de escolas registrada em percentual.
--- percentage e base_amount guardam o que foi digitado; amount continua sendo o valor em euro
--- (base × percentual), usado nos painéis do Financeiro.
+-- percentage e base_amount (o NET da venda) guardam o que foi digitado; amount continua sendo o valor em euro
+-- (NET × percentual), usado nos painéis do Financeiro.
 -- ============================================================
 alter table public.school_commissions
   add column if not exists percentage numeric check (percentage between 0 and 100),

@@ -6676,13 +6676,13 @@ const scommModalBackdrop = document.getElementById("scomm-modal-backdrop");
 const scommForm = document.getElementById("scomm-form");
 const scommBtnDelete = document.getElementById("scomm-btn-delete");
 const scommNumber = v => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-/* base do percentual: o valor do curso da partilha (sem kit, acomodação e passagem); sem partilha, o valor da matrícula */
+/* base do percentual: o NET da venda, digitado na Partilha por venda. Net suspeito (ver splitNetLooksWrong) não é aproveitado. */
 function scommDefaultBase(enrollmentId) {
   const enr = enrollments.find(e => e.id === enrollmentId);
   if (!enr) return 0;
   const deal = deals.find(d => d.leadId === enr.leadId && isWonStage(d.stage)) || deals.find(d => d.leadId === enr.leadId);
   const split = deal ? saleSplits.find(sp => sp.dealId === deal.id) : null;
-  return (split && split.courseGross) || enr.courseValue || 0;
+  return split && split.netCourse != null && !splitNetLooksWrong(split.netCourse, split.courseGross) ? split.netCourse : 0;
 }
 function scommFillBase() {
   const base = scommDefaultBase(document.getElementById("scomm-field-enrollment").value);
@@ -6696,9 +6696,10 @@ function scommValues() {
 }
 function scommUpdateCalc() {
   const { pct, base, valid } = scommValues();
+  const noBase = !document.getElementById("scomm-field-base").value.trim();
   document.getElementById("scomm-calc").innerHTML = valid
     ? `${escapeHtml(t("fin.schoolCommCalc"))}: <b>${currency(round2(base * pct / 100))}</b> (${scommNumber(pct)}% ${escapeHtml(t("fin.schoolCommOf"))} ${currency(base)})`
-    : "";
+    : noBase ? escapeHtml(t("fin.schoolCommNoNet")) : "";
 }
 document.getElementById("scomm-field-enrollment").addEventListener("change", scommFillBase);
 ["scomm-field-pct", "scomm-field-base"].forEach(id => document.getElementById(id).addEventListener("input", scommUpdateCalc));
