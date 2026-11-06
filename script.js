@@ -6504,7 +6504,7 @@ function renderSaleSplits() {
     const dirty = field => splitPending.has(splitKey(sp.dealId, field)) ? "split-in-dirty" : "";
     return `<tr>
       <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}<span class="split-sub">Venda total ${currency(sp.courseTotal)}</span></td>
-      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null && !splitPending.has(splitKey(sp.dealId, "custo")) ? "split-in-auto" : ""} ${dirty("custo")}" data-deal="${sp.dealId}" data-field="custo" value="${escapeHtml(val("custo", splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)))}" aria-label="Custo do curso" title="${sp.custoCurso == null ? "Igual ao valor vendido. Se a escola cobrou menos (promoção), digite o valor comprado: a diferença vai para a caixa de reserva." : "Valor comprado da escola. Apague para voltar a valer o valor vendido."}"></td>
+      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null && !splitPending.has(splitKey(sp.dealId, "custo")) ? "split-in-auto" : ""} ${dirty("custo")}" data-deal="${sp.dealId}" data-field="custo" value="${escapeHtml(val("custo", splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)))}" aria-label="Custo do curso (Gross)" title="${sp.custoCurso == null ? "Gross da invoice da escola. Em branco, vale o valor vendido. Se o Gross for menor (promoção que não foi repassada ao cliente), digite-o: a diferença vai para a caixa de reserva." : "Gross da invoice da escola. Apague para voltar a valer o valor vendido."}"></td>
       ${mon(sp.courseGross)}
       <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""} ${dirty("net")}" data-deal="${sp.dealId}" data-field="net" value="${escapeHtml(val("net", pendente ? "" : splitMoney(sp.netCourse)))}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
       ${mon(sp.cacAmount)}${mon(sp.influencerAmount)}
@@ -6614,7 +6614,7 @@ function loadSheetJs() {
 }
 function buildSaleSplitsWorkbook() {
   const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 8], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 3]];
-  const header = ["Negócio", "Custo do curso", "Valor vendido", "Net escola", "CAC fixo", "Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Caixa reserva",
+  const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "CAC fixo", "Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Caixa reserva",
     "Acom. custo", "Acom. venda", "Acom. lucro", "Acom. comissão consultor", "Acom. ganhos Peregrinos", "Kit (custo fixo, sem lucro)", "Passagem", "Passagem: comissão consultor",
     "Venda total", "Lucro Peregrino (total)", "Situação"];
   const rows = saleSplitsSorted().map(sp => {
