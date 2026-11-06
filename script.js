@@ -5942,7 +5942,7 @@ function recRenderDetail(g) {
           <td><span class="badge ${r.paid ? "badge-good" : (late ? "badge-danger" : "badge-warn")}">${r.paid ? t("status.pago") : (late ? "Em atraso" : t("status.pendente"))}</span></td>
           <td class="cell-muted">${r.paid && r.paidAt ? new Date(r.paidAt).toLocaleDateString("pt-BR") : "—"}</td>
           <td class="cell-actions">${r.paid
-            ? `<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>`
+            ? `${recCanEditPaidDate() ? `<button type="button" class="btn btn-ghost btn-sm" data-act="edit-paid-date" data-id="${r.id}">Editar data</button> ` : ""}<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>`
             : `<button type="button" class="btn btn-primary btn-sm" data-act="receive" data-id="${r.id}">Registrar recebimento</button> <button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Entrada e parcelas</button>`}</td>
         </tr>`;
       }).join("")}</tbody>
@@ -5959,6 +5959,8 @@ function recRenumber(dealId) {
   return changed;
 }
 function recRefresh() { renderReceivables(); renderFinanceiroOverview(); }
+/* a data de um pagamento já realizado só muda por ADM ou Financeiro (o banco confere a mesma regra) */
+function recCanEditPaidDate() { return !!session && (session.role === "ADM" || session.role === "Financeiro"); }
 
 function recEnsureModals() {
   if (document.getElementById("rec-recv-backdrop")) return;
@@ -5974,6 +5976,15 @@ function recEnsureModals() {
       <div class="modal-actions"><div class="spacer"></div>
         <button type="button" class="btn btn-ghost" id="rec-recv-cancel">Cancelar</button>
         <button type="submit" class="btn btn-primary">Salvar recebimento</button></div>
+    </form></div></div>
+  <div class="modal-backdrop" id="rec-date-backdrop"><div class="modal">
+    <div class="modal-header"><h2>Editar data do pagamento</h2><button class="btn-icon" id="rec-date-close" type="button">&times;</button></div>
+    <form id="rec-date-form">
+      <p class="muted-note" id="rec-date-info"></p>
+      <label><span>Data do recebimento</span><input type="date" id="rec-date-value" required></label>
+      <div class="modal-actions"><div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" id="rec-date-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="rec-date-save">Salvar data</button></div>
     </form></div></div>
   <div class="modal-backdrop" id="rec-split-backdrop"><div class="modal">
     <div class="modal-header"><h2>Entrada e parcelas</h2><button class="btn-icon" id="rec-split-close" type="button">&times;</button></div>
@@ -5999,6 +6010,35 @@ function recEnsureModals() {
   ["rec-split-close", "rec-split-cancel"].forEach(i => $(i).addEventListener("click", closeSplit));
   $("rec-recv-backdrop").addEventListener("click", e => { if (e.target.id === "rec-recv-backdrop") closeRecv(); });
   $("rec-split-backdrop").addEventListener("click", e => { if (e.target.id === "rec-split-backdrop") closeSplit(); });
+
+  /* data de um pagamento já realizado */
+  const closeDate = () => $("rec-date-backdrop").classList.remove("open");
+  ["rec-date-close", "rec-date-cancel"].forEach(i => $(i).addEventListener("click", closeDate));
+  $("rec-date-backdrop").addEventListener("click", e => { if (e.target.id === "rec-date-backdrop") closeDate(); });
+  const localDay = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  $("rec-date-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const r = receivables.find(x => x.id === recDateId);
+    const when = $("rec-date-value").value;
+    if (!r || !when || when > localDay(Date.now())) return;
+    const before = r.paidAt;
+    const btn = $("rec-date-save");
+    btn.disabled = true;
+    r.paidAt = new Date(`${when}T12:00:00`).getTime();
+    const ok = await saveReceivables([r]);
+    btn.disabled = false;
+    if (!ok) { r.paidAt = before; alert("Não foi possível salvar a data. Confira sua permissão e tente de novo."); return; }
+    closeDate();
+    recRefresh();
+  });
+  window.recOpenDate = id => {
+    const r = receivables.find(x => x.id === id); if (!r || !recCanEditPaidDate()) return;
+    recDateId = id;
+    $("rec-date-info").textContent = `${r.clientName} — parcela ${r.installmentNumber}/${r.installmentsTotal}: ${currency(r.amount)}.`;
+    $("rec-date-value").value = r.paidAt ? localDay(r.paidAt) : "";
+    $("rec-date-value").max = localDay(Date.now());
+    $("rec-date-backdrop").classList.add("open");
+  };
 
   /* recebimento */
   $("rec-recv-form").addEventListener("submit", async e => {
@@ -6110,16 +6150,17 @@ function recEnsureModals() {
     $("rec-recv-backdrop").classList.add("open");
   };
 }
-let recRecvId = null, recSplitId = null;
+let recRecvId = null, recSplitId = null, recDateId = null;
 
 document.getElementById("subview-fin-receivables").addEventListener("click", async e => {
   const openBtn = e.target.closest("[data-rec-open]");
   if (openBtn) { recDetailKey = openBtn.dataset.recOpen; renderReceivables(); window.scrollTo({ top: 0 }); return; }
   if (e.target.closest("[data-rec-back]")) { recDetailKey = null; renderReceivables(); return; }
-  const act = e.target.closest('button[data-act="receive"], button[data-act="split"]');
+  const act = e.target.closest('button[data-act="receive"], button[data-act="split"], button[data-act="edit-paid-date"]');
   if (act) {
     recEnsureModals();
-    if (act.dataset.act === "receive") window.recOpenRecv(act.dataset.id); else window.recOpenSplit(act.dataset.id);
+    const open = { receive: window.recOpenRecv, split: window.recOpenSplit, "edit-paid-date": window.recOpenDate }[act.dataset.act];
+    open(act.dataset.id);
     return;
   }
   const btn = e.target.closest('button[data-act="toggle-paid"]');
