@@ -8171,6 +8171,8 @@ document.getElementById("fr-btn-voltar").addEventListener("click", closeFormResp
 
 let frSelectedIds = new Set();
 
+/* consultor e origem escolhidos em cada resposta: a tabela é redesenhada a cada conversão e as escolhas das outras linhas não podem se perder */
+const frPicks = new Map();
 function renderFormResponses() {
   const form = forms.find(f => f.id === formResponsesFormId);
   const thead = document.getElementById("fr-thead");
@@ -8180,6 +8182,7 @@ function renderFormResponses() {
   /* transformar em lead e escolher/atribuir consultor: só ADM e Gerente (consultor não distribui lead) */
   const canConvert = hasModuleAccess(session.role, "leads") && canDirectLeads();
   const consultants = users.filter(u => isSellRole(u.role));
+  const sourceField = form.fields.find(f => f.type === "source");
 
   thead.innerHTML = `<tr>
     <th class="cell-check"><input type="checkbox" id="fr-select-all"></th>
@@ -8210,11 +8213,20 @@ function renderFormResponses() {
     if (s.leadId) {
       leadCell = `<button type="button" class="fr-lead-badge" data-act="view-lead" data-lead-id="${s.leadId}">${t("forms.viewLeadBtn")}</button>`;
     } else if (canConvert) {
+      /* origem: a que o cliente marcou no formulário já vem escolhida; sem escolha, vale a regra do formulário */
+      const answeredSource = sourceField && s.answers ? String(s.answers[sourceField.id] || "").trim() : "";
+      const pick = frPicks.get(s.id) || {};
+      const pickedSource = pick.source !== undefined ? pick.source : answeredSource;
+      const sourceOptions = pickedSource && !SOURCES.includes(pickedSource) ? [...SOURCES, pickedSource] : SOURCES;
       leadCell = `
         <div class="fr-convert-cell">
-          <select data-role="consultor">
+          <select data-role="consultor" data-submission-id="${s.id}">
             <option value="">${t("forms.noConsultant")}</option>
-            ${consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
+            ${consultants.map(c => `<option value="${c.id}" ${pick.consultor === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
+          </select>
+          <select data-role="source" data-submission-id="${s.id}" aria-label="${escapeHtml(t("forms.sourcePick"))}">
+            <option value="">${escapeHtml(t("forms.sourcePick"))}</option>
+            ${sourceOptions.map(o => `<option value="${escapeHtml(o)}" ${o === pickedSource ? "selected" : ""}>${escapeHtml(o)}</option>`).join("")}
           </select>
           <button type="button" class="btn btn-primary btn-sm" data-act="convert" data-submission-id="${s.id}">${t("forms.convertToLead")}</button>
         </div>`;
@@ -8243,13 +8255,19 @@ function renderFormResponses() {
     btn.addEventListener("click", async () => {
       const row = btn.closest("tr");
       const consultorSel = row.querySelector('[data-role="consultor"]');
+      const sourceSel = row.querySelector('[data-role="source"]');
       btn.disabled = true;
       btn.textContent = t("forms.saving");
-      const res = await convertSubmissionToLead(btn.dataset.submissionId, consultorSel.value || null);
-      if (res && res.duplicate) {
-        alert(`${t("lead.phoneAlreadyExists")} ${res.duplicate.name}.`);
-        renderFormResponses();
-      }
+      const res = await convertSubmissionToLead(btn.dataset.submissionId, consultorSel.value || null, sourceSel.value);
+      if (res && res.duplicate) alert(`${t("lead.phoneAlreadyExists")} ${res.duplicate.name}.`);
+      if (res && !res.ok) renderFormResponses();
+    });
+  });
+  tbody.querySelectorAll(".fr-convert-cell select").forEach(sel => {
+    sel.addEventListener("change", () => {
+      const pick = frPicks.get(sel.dataset.submissionId) || {};
+      pick[sel.dataset.role] = sel.value;
+      frPicks.set(sel.dataset.submissionId, pick);
     });
   });
   tbody.querySelectorAll('[data-act="assign-lead"]').forEach(btn => {
@@ -8391,7 +8409,7 @@ function buildLeadFromSubmission(form, submission) {
   };
 }
 
-async function convertSubmissionToLead(submissionId, consultorId) {
+async function convertSubmissionToLead(submissionId, consultorId, source) {
   if (!canDirectLeads()) return;
   const submission = formSubmissions.find(s => s.id === submissionId);
   const form = forms.find(f => f.id === formResponsesFormId);
@@ -8399,15 +8417,18 @@ async function convertSubmissionToLead(submissionId, consultorId) {
 
   const lead = buildLeadFromSubmission(form, submission);
   lead.consultorId = consultorId || null;
+  if (source) lead.source = source;
 
   const phoneDup = findLeadWithSamePhone(lead);
   if (phoneDup) return { duplicate: phoneDup };
 
+  /* se o lead não gravar, a resposta continua pendente (não fica marcada como convertida para um lead que não existe) */
+  if (!(await saveLeads([lead]))) return { failed: true };
   leads.push(lead);
-  await saveLeads();
   await maybeAssignRotation(lead);
 
   submission.leadId = lead.id;
+  frPicks.delete(submission.id);
   await markSubmissionLeadRemote(submission.id, lead.id);
 
   renderFormResponses();
