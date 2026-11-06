@@ -3274,3 +3274,6 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
   .wa-composer-row textarea { flex: 1 0 100%; max-height: 92px; }
   .wa-quick { width: 100%; }
 }
+
+.fin-splits-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.split-net.split-net-warn { border: 1px solid var(--danger); background: var(--danger-bg); color: var(--danger); }
