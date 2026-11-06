@@ -6459,6 +6459,28 @@ function splitNetLooksWrong(net, base) {
 }
 const splitMoney = v => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const splitBase = sp => (sp.custoCurso != null ? sp.custoCurso : sp.courseGross);
+/* alterações digitadas e ainda não salvas: chave "vendaId|campo" → texto digitado. Só vão para o banco no botão Salvar alterações. */
+const splitPending = new Map();
+const splitKey = (dealId, field) => `${dealId}|${field}`;
+const splitPassValue = sp => (sp.passagemManual != null ? sp.passagemManual : (sp.passagemAmount > 0 ? sp.passagemAmount : null));
+function splitOriginal(field, sp) { return field === "custo" ? sp.custoCurso : field === "net" ? sp.netCourse : splitPassValue(sp); }
+/* o que foi digitado vale o mesmo que já está salvo? (custo em branco vale o valor vendido) */
+function splitSameAsSaved(field, sp, raw) {
+  const empty = raw.trim() === "";
+  const typed = empty ? null : parseEuroInput(raw);
+  if (!empty && !isFinite(typed)) return false;
+  const orig = splitOriginal(field, sp);
+  if (typed === null) return orig == null;
+  if (orig == null) return field === "custo" && typed === sp.courseGross;
+  return Math.abs(typed - orig) < 0.005;
+}
+function splitUpdateBar() {
+  const n = splitPending.size;
+  const save = document.getElementById("fin-splits-save"), discard = document.getElementById("fin-splits-discard");
+  if (!save || !discard) return;
+  save.hidden = discard.hidden = n === 0;
+  save.textContent = `Salvar alterações (${n})`;
+}
 /* Partilha por venda, no padrão da planilha: cálculo da escola, acomodação, kit e passagem.
    Digitam-se o Custo do curso (invoice da escola), o Net e a Passagem; o resto é calculado no banco. Sem Net a venda fica pendente. */
 function renderSaleSplits() {
@@ -6476,23 +6498,27 @@ function renderSaleSplits() {
     const pendente = sp.netCourse == null;
     const wrong = splitNetLooksWrong(sp.netCourse, splitBase(sp));
     const pend = v => `<td class="cell-muted">${pendente ? "pendente" : v}</td>`;
-    const passValue = sp.passagemManual != null ? sp.passagemManual : (sp.passagemAmount > 0 ? sp.passagemAmount : null);
+    const passValue = splitPassValue(sp);
+    /* valor mostrado: o digitado e ainda não salvo, ou o que está salvo */
+    const val = (field, saved) => splitPending.has(splitKey(sp.dealId, field)) ? splitPending.get(splitKey(sp.dealId, field)) : saved;
+    const dirty = field => splitPending.has(splitKey(sp.dealId, field)) ? "split-in-dirty" : "";
     return `<tr>
       <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}<span class="split-sub">Venda total ${currency(sp.courseTotal)}</span></td>
-      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null ? "split-in-auto" : ""}" data-deal="${sp.dealId}" data-field="custo" value="${splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)}" aria-label="Custo do curso" title="${sp.custoCurso == null ? "Igual ao valor vendido. Se a escola cobrou menos (promoção), digite o valor comprado: a diferença vai para a caixa de reserva." : "Valor comprado da escola. Apague para voltar a valer o valor vendido."}"></td>
+      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null && !splitPending.has(splitKey(sp.dealId, "custo")) ? "split-in-auto" : ""} ${dirty("custo")}" data-deal="${sp.dealId}" data-field="custo" value="${escapeHtml(val("custo", splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)))}" aria-label="Custo do curso" title="${sp.custoCurso == null ? "Igual ao valor vendido. Se a escola cobrou menos (promoção), digite o valor comprado: a diferença vai para a caixa de reserva." : "Valor comprado da escola. Apague para voltar a valer o valor vendido."}"></td>
       ${mon(sp.courseGross)}
-      <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""}" data-deal="${sp.dealId}" data-field="net" value="${pendente ? "" : splitMoney(sp.netCourse)}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
+      <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""} ${dirty("net")}" data-deal="${sp.dealId}" data-field="net" value="${escapeHtml(val("net", pendente ? "" : splitMoney(sp.netCourse)))}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
       ${mon(sp.cacAmount)}${mon(sp.influencerAmount)}
       ${pend(currency(sp.consCurso))}
       <td class="cell-muted">${pendente ? "pendente" : currency(sp.managerAmount)}${mgr ? ` <span class="muted-note">(${escapeHtml(mgr.name)})</span>` : ""}</td>
       <td class="cell-muted">${currency(sp.reservaAmount)}${sp.sobraAmount ? `<span class="split-sub">inclui sobra ${currency(sp.sobraAmount)}</span>` : ""}</td>
       <td class="split-sep cell-muted">${currency(sp.acomPago)}</td>${mon(sp.acomCobrado)}${mon(sp.acomLucro)}${mon(sp.acomConsultor)}${mon(sp.acomLucro - sp.acomConsultor)}
       <td class="split-sep cell-muted" title="Kit: custo fixo, sem lucro para a Peregrinos">${currency(sp.kitAmount)}</td>
-      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in" data-deal="${sp.dealId}" data-field="passagem" value="${passValue == null ? "" : splitMoney(passValue)}" placeholder="0,00" aria-label="Passagem"></td>
+      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${dirty("passagem")}" data-deal="${sp.dealId}" data-field="passagem" value="${escapeHtml(val("passagem", passValue == null ? "" : splitMoney(passValue)))}" placeholder="0,00" aria-label="Passagem"></td>
       ${mon(sp.consPassagem)}
       <td class="split-sep cell-primary ${sp.peregrinosNet < 0 ? "neg" : ""}">${pendente ? "pendente" : currency(sp.peregrinosNet)}</td>
     </tr>`;
   }).join("");
+  splitUpdateBar();
 }
 
 /* valor em euro digitado com ponto ou vírgula, em qualquer ordem: 1 ou 2 dígitos no fim são centavos e grupos de 3 são milhares.
@@ -6505,26 +6531,68 @@ function parseEuroInput(text) {
   if (!/^\d+$/.test(whole) && (!groups || (dec && groups[1] === dec[1]))) return NaN;
   return Number(`${whole.replace(/[.,]/g, "")}${dec ? `.${dec[2]}` : ""}`);
 }
-/* digitar Custo do curso, Net ou Passagem: grava e recalcula a venda no banco (função set_sale_input) */
-document.getElementById("fin-splits-tbody").addEventListener("change", async e => {
+/* digitar Custo do curso, Net ou Passagem só marca a alteração como pendente; o botão Salvar alterações grava tudo (função set_sale_input) */
+document.getElementById("fin-splits-tbody").addEventListener("change", e => {
   const input = e.target.closest(".split-in");
   if (!input) return;
-  const field = input.dataset.field, sp = saleSplits.find(x => x.dealId === input.dataset.deal);
+  const sp = saleSplits.find(x => x.dealId === input.dataset.deal);
   if (!sp) return;
-  /* o campo do custo mostra o valor vendido enquanto está em branco: não mudar nada, ou deixar igual ao vendido, não grava */
-  if (field === "custo" && sp.custoCurso == null && input.classList.contains("split-in-auto") && parseEuroInput(input.value) === sp.courseGross) return;
-  const empty = input.value.trim() === "";
-  if (empty && field === "net") { alert("Digite o Net da venda (valor pago à escola)."); await loadSaleSplitsView(); return; }
-  const value = empty ? null : parseEuroInput(input.value);
-  if (value !== null && !isFinite(value)) { alert("Valor não reconhecido. Digite assim: 2.352,00"); await loadSaleSplitsView(); return; }
-  if (field === "net" && splitNetLooksWrong(value, splitBase(sp)) && !confirm(`O Net ficou em ${currency(value)} para um custo de curso de ${currency(splitBase(sp))}. Está certo?`)) { await loadSaleSplitsView(); return; }
-  if (field === "custo" && value !== null && value > sp.courseGross + 0.005 && !confirm(`O custo do curso (${currency(value)}) é maior que o valor vendido (${currency(sp.courseGross)}). A diferença de ${currency(value - sp.courseGross)} sai da caixa de reserva. Está certo?`)) { await loadSaleSplitsView(); return; }
-  if (field === "custo" && value !== null && sp.netCourse != null && splitNetLooksWrong(sp.netCourse, value) && !confirm(`Com custo do curso de ${currency(value)}, o Net de ${currency(sp.netCourse)} fica fora do normal. Está certo?`)) { await loadSaleSplitsView(); return; }
-  input.disabled = true;
-  const { error } = await supabase.rpc("set_sale_input", { p_deal_id: sp.dealId, p_field: field, p_value: value });
-  input.disabled = false;
-  if (error) { alert("Não foi possível salvar: " + error.message); }
+  const key = splitKey(sp.dealId, input.dataset.field);
+  if (splitSameAsSaved(input.dataset.field, sp, input.value)) splitPending.delete(key); else splitPending.set(key, input.value);
+  input.classList.toggle("split-in-dirty", splitPending.has(key));
+  if (input.dataset.field === "custo") input.classList.toggle("split-in-auto", sp.custoCurso == null && !splitPending.has(key));
+  splitUpdateBar();
+});
+document.getElementById("fin-splits-discard").addEventListener("click", () => {
+  splitPending.clear();
+  renderSaleSplits();
+});
+document.getElementById("fin-splits-save").addEventListener("click", async () => {
+  const btn = document.getElementById("fin-splits-save"), discard = document.getElementById("fin-splits-discard");
+  /* 1) ler e validar tudo antes de gravar qualquer coisa */
+  const byDeal = new Map(), errors = [];
+  splitPending.forEach((raw, key) => {
+    const [dealId, field] = key.split("|");
+    const sp = saleSplits.find(x => x.dealId === dealId);
+    if (!sp) { splitPending.delete(key); return; }
+    const deal = deals.find(d => d.id === dealId), name = deal ? deal.name : "venda";
+    const empty = raw.trim() === "";
+    const value = empty ? null : parseEuroInput(raw);
+    if (empty && field === "net") errors.push(`${name}: digite o Net.`);
+    else if (value !== null && !isFinite(value)) errors.push(`${name}: valor não reconhecido em "${raw}". Digite assim: 2.352,00`);
+    else { if (!byDeal.has(dealId)) byDeal.set(dealId, { sp, name, fields: {} }); byDeal.get(dealId).fields[field] = value; }
+  });
+  if (errors.length) { alert(errors.join("\n")); return; }
+  /* 2) conferir valores fora do normal; quem não for confirmado sai desta gravação */
+  byDeal.forEach((item, dealId) => {
+    const { sp, name, fields } = item;
+    const custo = "custo" in fields ? (fields.custo == null ? sp.courseGross : fields.custo) : splitBase(sp);
+    const net = "net" in fields ? fields.net : sp.netCourse;
+    const asks = [];
+    if ("net" in fields && splitNetLooksWrong(net, custo)) asks.push(`${name}: o Net ficou em ${currency(net)} para um custo de curso de ${currency(custo)}. Está certo?`);
+    if ("custo" in fields && fields.custo != null && fields.custo > sp.courseGross + 0.005) asks.push(`${name}: o custo do curso (${currency(fields.custo)}) é maior que o valor vendido (${currency(sp.courseGross)}); a diferença sai da caixa de reserva. Está certo?`);
+    if ("custo" in fields && !("net" in fields) && net != null && splitNetLooksWrong(net, custo)) asks.push(`${name}: com custo do curso de ${currency(custo)}, o Net de ${currency(net)} fica fora do normal. Está certo?`);
+    if (asks.some(q => !confirm(q))) {
+      Object.keys(fields).forEach(f => splitPending.delete(splitKey(dealId, f)));
+      byDeal.delete(dealId);
+    }
+  });
+  if (!byDeal.size) { renderSaleSplits(); return; }
+  /* 3) gravar; o que falhar continua pendente para tentar de novo */
+  btn.disabled = discard.disabled = true;
+  const failed = [];
+  for (const [dealId, { name, fields }] of byDeal) {
+    for (const field of ["custo", "passagem", "net"]) {
+      if (!(field in fields)) continue;
+      const { error } = await supabase.rpc("set_sale_input", { p_deal_id: dealId, p_field: field, p_value: fields[field] });
+      if (error) failed.push(`${name}: ${error.message}`); else splitPending.delete(splitKey(dealId, field));
+    }
+  }
   await loadSaleSplitsView();
+  btn.disabled = discard.disabled = false;
+  splitUpdateBar();
+  if (failed.length) alert("Não foi possível salvar tudo:\n" + failed.join("\n"));
+  else if (typeof agendaToast === "function") agendaToast("Alterações salvas.");
 });
 async function loadSaleSplitsView() {
   [commissions, saleSplits] = await Promise.all([loadCommissions(), loadSaleSplits()]);
