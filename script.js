@@ -2383,11 +2383,42 @@ function viewLeadQuotes(lead) {
 const assignModalBackdrop = document.getElementById("assign-modal-backdrop");
 const assignForm = document.getElementById("assign-form");
 const assignFieldConsultor = document.getElementById("assign-field-consultor");
+const assignEachList = document.getElementById("assign-each-list");
 let assigningLeadIds = [];
+let assigningEach = false;
+
+function assignSetMode(each) {
+  assigningEach = each;
+  assignEachList.style.display = each ? "" : "none";
+  document.getElementById("assign-single-field").style.display = each ? "none" : "";
+  assignModalBackdrop.querySelector(".modal").classList.toggle("modal-lg", each);
+  if (!each) assignEachList.innerHTML = "";
+}
+
+/* lista dos leads sem consultor, com um consultor para cada um (faixa da tela App · Acompanhamento) */
+function openAssignEachModal(leadIds) {
+  if (!canDirectLeads()) return;
+  assigningLeadIds = leadIds;
+  assignSetMode(true);
+  const consultants = users.filter(u => isSellRole(u.role) && u.active !== false);
+  const options = `<option value="">${escapeHtml(t("appt.noConsultor"))}</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  assignEachList.innerHTML = leadIds.map(id => {
+    const lead = leads.find(l => l.id === id);
+    if (!lead) return "";
+    const contact = [lead.phone, lead.email].filter(Boolean).join(" · ") || t("enr.noContact");
+    return `<div class="assign-each-row">
+      <div class="assign-each-lead"><strong>${escapeHtml(lead.name)}</strong><small>${escapeHtml(contact)}</small></div>
+      <select data-assign-lead="${lead.id}" aria-label="${escapeHtml(lead.name)}">${options}</select>
+    </div>`;
+  }).join("");
+  document.getElementById("assign-modal-title").textContent = t("appt.assignEachTitle").replace("{n}", leadIds.length);
+  assignModalBackdrop.classList.add("open");
+}
 
 function openAssignModal(leadIds) {
   if (!canDirectLeads()) return;   /* só ADM e Gerente atribuem consultor */
   assigningLeadIds = leadIds;
+  assignSetMode(false);
   const consultants = users.filter(u => isSellRole(u.role));
   assignFieldConsultor.innerHTML = `<option value="">Sem consultor</option>` + consultants.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
 
@@ -2411,6 +2442,24 @@ assignModalBackdrop.addEventListener("click", e => { if (e.target === assignModa
 
 assignForm.addEventListener("submit", async e => {
   e.preventDefault();
+  if (assigningEach) {
+    /* quem ficou sem escolha não é alterado; se a gravação falhar, a lista continua aberta para tentar de novo */
+    const changed = [];
+    assignEachList.querySelectorAll("select[data-assign-lead]").forEach(sel => {
+      const lead = leads.find(l => l.id === sel.dataset.assignLead);
+      if (lead && sel.value) changed.push({ lead, before: lead.consultorId, after: sel.value });
+    });
+    if (!changed.length) { closeAssignModal(); return; }
+    const submit = assignForm.querySelector("button[type=submit]");
+    submit.disabled = true;
+    changed.forEach(c => { c.lead.consultorId = c.after; });
+    const saved = await saveLeads(changed.map(c => c.lead));
+    submit.disabled = false;
+    if (saved) closeAssignModal();
+    else changed.forEach(c => { c.lead.consultorId = c.before; });
+    renderLeads();
+    return;
+  }
   const consultorId = assignFieldConsultor.value || null;
   assigningLeadIds.forEach(id => {
     const lead = leads.find(l => l.id === id);

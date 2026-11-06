@@ -294,7 +294,7 @@ function apptInit() {
     apptLoadUsers();
   });
   document.getElementById("appt-u-unassigned").addEventListener("click", e => {
-    if (e.target.closest("[data-appt-assign-all]")) openAssignModal(getUnassignedAppLeads().map(l => l.id));
+    if (e.target.closest("[data-appt-assign-all]")) openAssignEachModal(getUnassignedAppLeads().map(l => l.id));
     else if (e.target.closest("[data-appt-rotate]")) distributeUnassignedByRotation(getUnassignedAppLeads().map(l => l.id));
   });
   document.getElementById("appt-u-tbody").addEventListener("click", e => {
