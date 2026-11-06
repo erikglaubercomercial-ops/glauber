@@ -5942,8 +5942,8 @@ function recRenderDetail(g) {
           <td><span class="badge ${r.paid ? "badge-good" : (late ? "badge-danger" : "badge-warn")}">${r.paid ? t("status.pago") : (late ? "Em atraso" : t("status.pendente"))}</span></td>
           <td class="cell-muted">${r.paid && r.paidAt ? new Date(r.paidAt).toLocaleDateString("pt-BR") : "—"}</td>
           <td class="cell-actions">${r.paid
-            ? `${recCanEditPaidDate() ? `<button type="button" class="btn btn-ghost btn-sm" data-act="edit-paid-date" data-id="${r.id}">Editar data</button> ` : ""}<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>`
-            : `<button type="button" class="btn btn-primary btn-sm" data-act="receive" data-id="${r.id}">Registrar recebimento</button> <button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Entrada e parcelas</button>`}</td>
+            ? `${recCanManagePaid() ? `<button type="button" class="btn btn-ghost btn-sm" data-act="edit-paid-date" data-id="${r.id}">Editar data</button> ` : ""}<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>`
+            : `<button type="button" class="btn btn-primary btn-sm" data-act="receive" data-id="${r.id}">Registrar recebimento</button> <button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Entrada e parcelas</button>`}${recCanManagePaid() ? ` <button type="button" class="btn btn-danger btn-sm" data-act="delete-installment" data-id="${r.id}">Excluir</button>` : ""}</td>
         </tr>`;
       }).join("")}</tbody>
     </table>`;
@@ -5959,8 +5959,8 @@ function recRenumber(dealId) {
   return changed;
 }
 function recRefresh() { renderReceivables(); renderFinanceiroOverview(); }
-/* a data de um pagamento já realizado só muda por ADM ou Financeiro (o banco confere a mesma regra) */
-function recCanEditPaidDate() { return !!session && (session.role === "ADM" || session.role === "Financeiro"); }
+/* editar a data de um pagamento já realizado e excluir parcelas: só ADM e Financeiro (o banco também confere) */
+function recCanManagePaid() { return !!session && (session.role === "ADM" || session.role === "Financeiro"); }
 
 function recEnsureModals() {
   if (document.getElementById("rec-recv-backdrop")) return;
@@ -6032,7 +6032,7 @@ function recEnsureModals() {
     recRefresh();
   });
   window.recOpenDate = id => {
-    const r = receivables.find(x => x.id === id); if (!r || !recCanEditPaidDate()) return;
+    const r = receivables.find(x => x.id === id); if (!r || !recCanManagePaid()) return;
     recDateId = id;
     $("rec-date-info").textContent = `${r.clientName} — parcela ${r.installmentNumber}/${r.installmentsTotal}: ${currency(r.amount)}.`;
     $("rec-date-value").value = r.paidAt ? localDay(r.paidAt) : "";
@@ -6152,6 +6152,28 @@ function recEnsureModals() {
 }
 let recRecvId = null, recSplitId = null, recDateId = null;
 
+async function recDeleteInstallment(id) {
+  const r = receivables.find(x => x.id === id);
+  if (!r || !recCanManagePaid()) return;
+  const siblings = receivables.filter(x => x.dealId === r.dealId && x.clientName === r.clientName);
+  const total = siblings.reduce((acc, x) => acc + (Number(x.amount) || 0), 0);
+  const lines = [`Excluir a parcela ${r.installmentNumber}/${r.installmentsTotal} de ${r.clientName}, de ${currency(r.amount)}?`];
+  if (r.paid) lines.push(`Ela já está paga: ${currency(r.amount)} sai do valor recebido e do caixa.`);
+  lines.push(siblings.length > 1 ? `O total desta conta passa de ${currency(total)} para ${currency(total - r.amount)}.` : "É a única parcela: o cliente sai de Contas a Receber.");
+  lines.push("Esta ação não pode ser desfeita.");
+  if (!confirm(lines.join("\n\n"))) return;
+  const { data, error } = await supabase.from("receivables").delete().eq("id", id).select("id");
+  if (error || !data || !data.length) {
+    if (error) console.error("Erro ao excluir parcela:", error);
+    alert("Não foi possível excluir a parcela. Confira sua permissão e tente de novo.");
+    return;
+  }
+  receivables = receivables.filter(x => x.id !== id);
+  const renumbered = r.dealId ? recRenumber(r.dealId) : [];
+  recRefresh();
+  if (renumbered.length && !(await saveReceivables(renumbered))) alert("A parcela foi excluída, mas a numeração das demais não foi salva. Recarregue a página e confira.");
+}
+
 document.getElementById("subview-fin-receivables").addEventListener("click", async e => {
   const openBtn = e.target.closest("[data-rec-open]");
   if (openBtn) { recDetailKey = openBtn.dataset.recOpen; renderReceivables(); window.scrollTo({ top: 0 }); return; }
@@ -6163,6 +6185,8 @@ document.getElementById("subview-fin-receivables").addEventListener("click", asy
     open(act.dataset.id);
     return;
   }
+  const del = e.target.closest('button[data-act="delete-installment"]');
+  if (del) { await recDeleteInstallment(del.dataset.id); return; }
   const btn = e.target.closest('button[data-act="toggle-paid"]');
   if (!btn) return;
   const r = receivables.find(x => x.id === btn.dataset.id);
