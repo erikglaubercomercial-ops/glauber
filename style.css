@@ -3293,3 +3293,5 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .split-sub { display: block; font-weight: 500; font-size: 11px; color: var(--text-muted); }
 .split-in { width: 104px; font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--content-bg); color: var(--text); text-align: right; }
 .split-in.split-net-warn { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+.split-in.split-in-auto { color: var(--text-muted); background: transparent; border-style: dashed; }
+.split-in.split-in-auto:focus { color: var(--text); background: var(--content-bg); border-style: solid; }

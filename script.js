@@ -6479,13 +6479,13 @@ function renderSaleSplits() {
     const passValue = sp.passagemManual != null ? sp.passagemManual : (sp.passagemAmount > 0 ? sp.passagemAmount : null);
     return `<tr>
       <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}<span class="split-sub">Venda total ${currency(sp.courseTotal)}</span></td>
-      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in" data-deal="${sp.dealId}" data-field="custo" value="${sp.custoCurso == null ? "" : splitMoney(sp.custoCurso)}" placeholder="= vendido" aria-label="Custo do curso" title="O que a escola cobra pelo curso (invoice). Em branco, vale o valor vendido."></td>
+      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null ? "split-in-auto" : ""}" data-deal="${sp.dealId}" data-field="custo" value="${splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)}" aria-label="Custo do curso" title="${sp.custoCurso == null ? "Igual ao valor vendido. Se a escola cobrou menos (promoção), digite o valor comprado: a diferença vai para a caixa de reserva." : "Valor comprado da escola. Apague para voltar a valer o valor vendido."}"></td>
       ${mon(sp.courseGross)}
       <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""}" data-deal="${sp.dealId}" data-field="net" value="${pendente ? "" : splitMoney(sp.netCourse)}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
       ${mon(sp.cacAmount)}${mon(sp.influencerAmount)}
       ${pend(currency(sp.consCurso))}
       <td class="cell-muted">${pendente ? "pendente" : currency(sp.managerAmount)}${mgr ? ` <span class="muted-note">(${escapeHtml(mgr.name)})</span>` : ""}</td>
-      <td class="cell-muted" ${sp.sobraAmount ? `title="Inclui a sobra do curso: ${currency(sp.sobraAmount)}"` : ""}>${currency(sp.reservaAmount)}</td>
+      <td class="cell-muted">${currency(sp.reservaAmount)}${sp.sobraAmount ? `<span class="split-sub">inclui sobra ${currency(sp.sobraAmount)}</span>` : ""}</td>
       <td class="split-sep cell-muted">${currency(sp.acomPago)}</td>${mon(sp.acomCobrado)}${mon(sp.acomLucro)}${mon(sp.acomConsultor)}${mon(sp.acomLucro - sp.acomConsultor)}
       <td class="split-sep cell-muted" title="Kit: custo fixo, sem lucro para a Peregrinos">${currency(sp.kitAmount)}</td>
       <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in" data-deal="${sp.dealId}" data-field="passagem" value="${passValue == null ? "" : splitMoney(passValue)}" placeholder="0,00" aria-label="Passagem"></td>
@@ -6511,11 +6511,14 @@ document.getElementById("fin-splits-tbody").addEventListener("change", async e =
   if (!input) return;
   const field = input.dataset.field, sp = saleSplits.find(x => x.dealId === input.dataset.deal);
   if (!sp) return;
+  /* o campo do custo mostra o valor vendido enquanto está em branco: não mudar nada, ou deixar igual ao vendido, não grava */
+  if (field === "custo" && sp.custoCurso == null && input.classList.contains("split-in-auto") && parseEuroInput(input.value) === sp.courseGross) return;
   const empty = input.value.trim() === "";
   if (empty && field === "net") { alert("Digite o Net da venda (valor pago à escola)."); await loadSaleSplitsView(); return; }
   const value = empty ? null : parseEuroInput(input.value);
   if (value !== null && !isFinite(value)) { alert("Valor não reconhecido. Digite assim: 2.352,00"); await loadSaleSplitsView(); return; }
   if (field === "net" && splitNetLooksWrong(value, splitBase(sp)) && !confirm(`O Net ficou em ${currency(value)} para um custo de curso de ${currency(splitBase(sp))}. Está certo?`)) { await loadSaleSplitsView(); return; }
+  if (field === "custo" && value !== null && value > sp.courseGross + 0.005 && !confirm(`O custo do curso (${currency(value)}) é maior que o valor vendido (${currency(sp.courseGross)}). A diferença de ${currency(value - sp.courseGross)} sai da caixa de reserva. Está certo?`)) { await loadSaleSplitsView(); return; }
   if (field === "custo" && value !== null && sp.netCourse != null && splitNetLooksWrong(sp.netCourse, value) && !confirm(`Com custo do curso de ${currency(value)}, o Net de ${currency(sp.netCourse)} fica fora do normal. Está certo?`)) { await loadSaleSplitsView(); return; }
   input.disabled = true;
   const { error } = await supabase.rpc("set_sale_input", { p_deal_id: sp.dealId, p_field: field, p_value: value });
