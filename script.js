@@ -5435,7 +5435,7 @@ function influencerCommissionFromDb(r) {
   return {
     id: r.id, dealId: r.deal_id, enrollmentId: r.enrollment_id || null, source: r.source || "",
     dealName: r.deal_name || "", dealValue: Number(r.deal_value) || 0,
-    percentage: Number(r.percentage) || 0, amount: Number(r.amount) || 0,
+    percentage: Number(r.percentage) || 0, amount: Number(r.amount) || 0, paidAmount: Number(r.paid_amount) || 0,
     status: r.status, paidAt: r.paid_at ? new Date(r.paid_at).getTime() : null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
@@ -5444,7 +5444,7 @@ function influencerCommissionToDb(c) {
   return {
     id: c.id, deal_id: c.dealId || null, enrollment_id: c.enrollmentId || null, source: c.source,
     deal_name: c.dealName, deal_value: c.dealValue,
-    percentage: c.percentage, amount: c.amount, status: c.status,
+    percentage: c.percentage, amount: c.amount, paid_amount: c.paidAmount || 0, status: c.status,
     paid_at: c.paidAt ? new Date(c.paidAt).toISOString() : null,
     created_at: new Date(c.createdAt).toISOString(),
   };
@@ -5596,7 +5596,7 @@ async function handleEnrollmentInfluencerCommission(enr) {
   const commission = {
     id: uid(), dealId: deal ? deal.id : null, enrollmentId: enr.id, source: infSource,
     dealName: enr.name, dealValue: enr.courseValue,
-    percentage: 0, amount,
+    percentage: 0, amount, paidAmount: 0,
     status: "Pendente", paidAt: null, createdAt: Date.now(),
   };
   influencerCommissions.push(commission);
@@ -5623,7 +5623,7 @@ async function handleDealWon(deal, saving) {
       const influencerCommission = {
         id: uid(), dealId: deal.id, source: infSourceWon,
         dealName: deal.name, dealValue: deal.value,
-        percentage: cfg.commissionPct, amount: round2(deal.value * cfg.commissionPct / 100),
+        percentage: cfg.commissionPct, amount: round2(deal.value * cfg.commissionPct / 100), paidAmount: 0,
         status: "Pendente", paidAt: null, createdAt: Date.now(),
       };
       influencerCommissions.push(influencerCommission);
@@ -6601,12 +6601,16 @@ document.getElementById("fin-commission-pct-save").addEventListener("click", asy
 });
 
 /* ---- comissões de influencer (mesmo padrão das comissões de consultor) ---- */
+const infMoneyInput = v => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const infRemaining = c => Math.max(round2(c.amount - c.paidAmount), 0);
 function renderInfluencerCommissions() {
   const list = influencerCommissions.slice().sort((a, b) => b.createdAt - a.createdAt);
   const tbody = document.getElementById("fin-influencer-commissions-tbody");
   tbody.innerHTML = "";
   document.getElementById("fin-influencer-commissions-empty").style.display = list.length === 0 ? "block" : "none";
   list.forEach(c => {
+    const partial = c.status !== "Pago" && c.paidAmount > 0;
+    const remaining = infRemaining(c);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-primary">${escapeHtml(c.source)}</td>
@@ -6615,27 +6619,40 @@ function renderInfluencerCommissions() {
       <td class="cell-muted">${c.percentage}%</td>
       <td class="cell-primary">${c.status === "Pago"
         ? currency(c.amount)
-        : `<input type="number" class="inf-amount" data-id="${c.id}" min="0" step="0.01" value="${c.amount}" title="Valor da comissão a ser pago — edite se for diferente" aria-label="Valor a pagar">`}</td>
-      <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${escapeHtml(statusLabel(c.status))}</span></td>
+        : `<input type="text" inputmode="decimal" autocomplete="off" class="inf-amount" data-id="${c.id}" value="${infMoneyInput(c.amount)}" title="Valor da comissão a ser pago — edite se for diferente" aria-label="Valor a pagar">`}</td>
+      <td class="cell-primary"><input type="text" inputmode="decimal" autocomplete="off" class="inf-amount inf-paid" data-id="${c.id}" value="${infMoneyInput(c.paidAmount)}" title="Quanto já foi pago ao influencer" aria-label="Valor pago"></td>
+      <td class="cell-primary ${remaining > 0 ? "inf-remaining" : "cell-muted"}">${currency(remaining)}</td>
+      <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${partial ? escapeHtml(t("fin.influencerPartial")) : escapeHtml(statusLabel(c.status))}</span></td>
       <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? t("fin.markPending") : t("fin.markPaid")}</button></td>
     `;
     tbody.appendChild(tr);
   });
 }
+/* grava a comissão; se falhar, volta ao que estava antes */
+async function infSave(c, changes) {
+  const before = { amount: c.amount, paidAmount: c.paidAmount, status: c.status, paidAt: c.paidAt };
+  Object.assign(c, changes);
+  const ok = await saveInfluencerCommission(c);
+  if (ok === false) { Object.assign(c, before); alert("Não foi possível salvar a comissão. Tente de novo."); }
+  renderInfluencerCommissions();
+  return ok !== false;
+}
 
-/* valor a pagar editável (o financeiro ajusta quanto vai pagar de comissão ao influencer) */
+/* valor a pagar e valor pago editáveis (o financeiro ajusta e registra pagamento parcial); pago por inteiro vira "Pago" */
 document.getElementById("fin-influencer-commissions-tbody").addEventListener("change", async e => {
   const inp = e.target.closest("input.inf-amount");
   if (!inp) return;
   const c = influencerCommissions.find(x => x.id === inp.dataset.id);
-  if (!c || c.status === "Pago") return;
-  const v = round2(parseFloat(inp.value));
-  if (!(v >= 0)) { inp.value = c.amount; return; }
-  const before = c.amount;
-  c.amount = v;
-  const ok = await saveInfluencerCommission(c);
-  if (ok === false) { c.amount = before; inp.value = before; alert("Não foi possível salvar o valor. Tente de novo."); return; }
-  if (typeof agendaToast === "function") agendaToast("Valor da comissão salvo");
+  if (!c) return;
+  const isPaidField = inp.classList.contains("inf-paid");
+  const v = round2(parseEuroInput(inp.value));
+  if (!isFinite(parseEuroInput(inp.value))) { alert("Valor não reconhecido. Digite assim: 150,00"); renderInfluencerCommissions(); return; }
+  const amount = isPaidField ? c.amount : v, paid = isPaidField ? v : c.paidAmount;
+  if (paid > amount + 0.005) { alert(`O valor pago (${currency(paid)}) não pode passar do valor a pagar (${currency(amount)}).`); renderInfluencerCommissions(); return; }
+  const fullyPaid = amount > 0 && paid >= amount - 0.005;
+  const changes = { amount, paidAmount: paid, status: fullyPaid ? "Pago" : "Pendente",
+    paidAt: paid > 0 ? (isPaidField && paid !== c.paidAmount ? Date.now() : c.paidAt || Date.now()) : null };
+  if (await infSave(c, changes) && typeof agendaToast === "function") agendaToast("Comissão salva");
 });
 
 document.getElementById("fin-influencer-commissions-tbody").addEventListener("click", async e => {
@@ -6643,10 +6660,9 @@ document.getElementById("fin-influencer-commissions-tbody").addEventListener("cl
   if (!btn) return;
   const c = influencerCommissions.find(x => x.id === btn.dataset.id);
   if (!c) return;
-  c.status = c.status === "Pago" ? "Pendente" : "Pago";
-  c.paidAt = c.status === "Pago" ? Date.now() : null;
-  renderInfluencerCommissions();
-  await saveInfluencerCommission(c);
+  await infSave(c, c.status === "Pago"
+    ? { status: "Pendente", paidAmount: 0, paidAt: null }
+    : { status: "Pago", paidAmount: c.amount, paidAt: Date.now() });
 });
 
 /* ---- comissão da escola: tabela própria, só quem acessa o Financeiro lê e grava ---- */

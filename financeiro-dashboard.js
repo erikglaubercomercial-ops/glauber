@@ -75,7 +75,7 @@ function fdCashOutParts(a, b) {
   return {
     "Despesas pagas": fdSum(expenses.filter(e => e.paid && fdIn(e.paidAt || fdDay(e.dueDate), a, b)), e => e.amount),
     "Comissões pagas": fdSum(commissions.filter(c => c.status === "Pago" && fdIn(c.paidAt, a, b)), c => c.amount)
-      + fdSum(influencerCommissions.filter(c => c.status === "Pago" && fdIn(c.paidAt, a, b)), c => c.amount),
+      + fdSum(influencerCommissions.filter(c => c.paidAmount > 0 && fdIn(c.paidAt, a, b)), c => c.paidAmount),
     "Envios às escolas": fdSum(schoolTransfers.filter(x => fdIn(fdDay(x.sentAt), a, b)), x => x.amount),
     "Tráfego pago": fdSum(adSpend.filter(x => fdIn(fdDay(x.spendDate), a, b)), x => x.amount),
   };

@@ -3277,3 +3277,6 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 
 .fin-splits-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .split-net.split-net-warn { border: 1px solid var(--danger); background: var(--danger-bg); color: var(--danger); }
+
+.inf-remaining { color: var(--danger); }
+.inf-amount.inf-paid { background: var(--good-bg); }
