@@ -3280,3 +3280,16 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 
 .inf-remaining { color: var(--danger); }
 .inf-amount.inf-paid { background: var(--good-bg); }
+
+/* Partilha por venda: grupos de colunas no padrão da planilha */
+.split-table th, .split-table td { white-space: nowrap; }
+.split-table .split-groups th { text-align: center; letter-spacing: .06em; }
+.split-table .split-g { color: #fff; border-radius: 0; }
+.split-table .split-g-school { background: #6c9bd2; }
+.split-table .split-g-acom { background: #f4a950; }
+.split-table .split-g-green { background: #8fc17b; color: #17331a; }
+.split-table .split-neg, .split-table .split-total { vertical-align: bottom; }
+.split-table td.split-sep, .split-table th.split-sep { border-left: 2px solid var(--border); }
+.split-sub { display: block; font-weight: 500; font-size: 11px; color: var(--text-muted); }
+.split-in { width: 104px; font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--content-bg); color: var(--text); text-align: right; }
+.split-in.split-net-warn { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }

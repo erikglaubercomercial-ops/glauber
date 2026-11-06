@@ -5392,6 +5392,8 @@ function saleSplitFromDb(r) {
     managerId: r.manager_id || null, managerAmount: Number(r.manager_amount) || 0, cacAmount: Number(r.cac_amount) || 0,
     kitAmount: Number(r.kit_amount) || 0, acomCobrado: Number(r.acom_cobrado) || 0, acomPago: Number(r.acom_pago) || 0, acomLucro: Number(r.acom_lucro) || 0,
     netCourse: r.net_course == null ? null : Number(r.net_course), courseGross: Number(r.course_gross) || 0, ganhoCurso: Number(r.ganho_curso) || 0,
+    custoCurso: r.custo_curso == null ? null : Number(r.custo_curso), passagemManual: r.passagem_manual == null ? null : Number(r.passagem_manual),
+    sobraAmount: Number(r.sobra_amount) || 0, consCurso: Number(r.cons_curso) || 0, consPassagem: Number(r.cons_passagem) || 0, acomConsultor: Number(r.acom_consultor) || 0,
     passagemAmount: Number(r.passagem_amount) || 0, trafficFlag: !!r.traffic_flag, influencerAmount: Number(r.influencer_amount) || 0, reservaAmount: Number(r.reserva_amount) || 0,
     peregrinosNet: Number(r.peregrinos_net) || 0 };
 }
@@ -6451,10 +6453,14 @@ function commissionRelease(dealId) {
 function saleSplitsSorted() {
   return saleSplits.slice().sort((a, b) => (commissions.find(c => c.dealId === b.dealId) || {}).createdAt - (commissions.find(c => c.dealId === a.dealId) || {}).createdAt);
 }
-/* Net fora do normal: abaixo de 20% do curso ou acima do curso costuma ser erro de digitação */
-function splitNetLooksWrong(net, courseGross) {
-  return net != null && courseGross > 0 && (net < courseGross * 0.2 || net > courseGross);
+/* Net fora do normal: abaixo de 20% do custo do curso ou acima dele costuma ser erro de digitação (base = custo do curso, ou o valor vendido quando o custo está em branco) */
+function splitNetLooksWrong(net, base) {
+  return net != null && base > 0 && (net < base * 0.2 || net > base);
 }
+const splitMoney = v => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const splitBase = sp => (sp.custoCurso != null ? sp.custoCurso : sp.courseGross);
+/* Partilha por venda, no padrão da planilha: cálculo da escola, acomodação, kit e passagem.
+   Digitam-se o Custo do curso (invoice da escola), o Net e a Passagem; o resto é calculado no banco. Sem Net a venda fica pendente. */
 function renderSaleSplits() {
   const tbody = document.getElementById("fin-splits-tbody");
   if (!tbody) return;
@@ -6463,28 +6469,32 @@ function renderSaleSplits() {
   const reserva = list.reduce((acc, sp) => acc + (sp.reservaAmount || 0), 0);
   const reservaEl = document.getElementById("fin-reserva-total");
   if (reservaEl) reservaEl.textContent = currency(reserva);
+  const mon = v => `<td class="cell-muted">${currency(v)}</td>`;
   tbody.innerHTML = list.map(sp => {
     const deal = deals.find(d => d.id === sp.dealId);
     const mgr = users.find(u => u.id === sp.managerId);
     const pendente = sp.netCourse == null;
+    const wrong = splitNetLooksWrong(sp.netCourse, splitBase(sp));
+    const pend = v => `<td class="cell-muted">${pendente ? "pendente" : v}</td>`;
+    const passValue = sp.passagemManual != null ? sp.passagemManual : (sp.passagemAmount > 0 ? sp.passagemAmount : null);
     return `<tr>
-      <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}</td>
-      <td class="cell-muted">${currency(sp.courseTotal)}</td>
-      <td><input type="text" inputmode="decimal" autocomplete="off" class="split-net ${splitNetLooksWrong(sp.netCourse, sp.courseGross) ? "split-net-warn" : ""}" data-deal="${sp.dealId}" value="${pendente ? "" : sp.netCourse.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" placeholder="digite" aria-label="Net da venda" ${splitNetLooksWrong(sp.netCourse, sp.courseGross) ? `title="Confira: o valor do curso é ${currency(sp.courseGross)}"` : ""}></td>
-      <td class="cell-muted" title="Não é lucro da Peregrinos">${currency(sp.kitAmount)}</td>
-      <td class="cell-muted">${currency(sp.acomCobrado)}</td>
-      <td class="cell-muted">${currency(sp.acomPago)}</td>
-      <td class="cell-muted">${currency(sp.acomLucro)}</td>
-      <td class="cell-muted">${currency(sp.passagemAmount)}</td>
-      <td class="cell-muted">${currency(sp.cacAmount)}</td>
-      <td class="cell-muted">${currency(sp.influencerAmount)}</td>
-      <td class="cell-muted">${pendente ? "pendente" : currency(sp.consultorAmount)}</td>
+      <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}<span class="split-sub">Venda total ${currency(sp.courseTotal)}</span></td>
+      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in" data-deal="${sp.dealId}" data-field="custo" value="${sp.custoCurso == null ? "" : splitMoney(sp.custoCurso)}" placeholder="= vendido" aria-label="Custo do curso" title="O que a escola cobra pelo curso (invoice). Em branco, vale o valor vendido."></td>
+      ${mon(sp.courseGross)}
+      <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""}" data-deal="${sp.dealId}" data-field="net" value="${pendente ? "" : splitMoney(sp.netCourse)}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
+      ${mon(sp.cacAmount)}${mon(sp.influencerAmount)}
+      ${pend(currency(sp.consCurso))}
       <td class="cell-muted">${pendente ? "pendente" : currency(sp.managerAmount)}${mgr ? ` <span class="muted-note">(${escapeHtml(mgr.name)})</span>` : ""}</td>
-      <td class="cell-muted">${currency(sp.reservaAmount)}</td>
-      <td class="cell-primary ${sp.peregrinosNet < 0 ? "neg" : ""}">${pendente ? "pendente" : currency(sp.peregrinosNet)}</td>
+      <td class="cell-muted" ${sp.sobraAmount ? `title="Inclui a sobra do curso: ${currency(sp.sobraAmount)}"` : ""}>${currency(sp.reservaAmount)}</td>
+      <td class="split-sep cell-muted">${currency(sp.acomPago)}</td>${mon(sp.acomCobrado)}${mon(sp.acomLucro)}${mon(sp.acomConsultor)}${mon(sp.acomLucro - sp.acomConsultor)}
+      <td class="split-sep cell-muted" title="Kit: custo fixo, sem lucro para a Peregrinos">${currency(sp.kitAmount)}</td>
+      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in" data-deal="${sp.dealId}" data-field="passagem" value="${passValue == null ? "" : splitMoney(passValue)}" placeholder="0,00" aria-label="Passagem"></td>
+      ${mon(sp.consPassagem)}
+      <td class="split-sep cell-primary ${sp.peregrinosNet < 0 ? "neg" : ""}">${pendente ? "pendente" : currency(sp.peregrinosNet)}</td>
     </tr>`;
   }).join("");
 }
+
 /* valor em euro digitado com ponto ou vírgula, em qualquer ordem: 1 ou 2 dígitos no fim são centavos e grupos de 3 são milhares.
    "2.352", "2,352", "2.352,00", "1,851.75", "1851,75" e "1851.75" valem; o que for ambíguo, como "1.85175", é recusado */
 function parseEuroInput(text) {
@@ -6495,18 +6505,22 @@ function parseEuroInput(text) {
   if (!/^\d+$/.test(whole) && (!groups || (dec && groups[1] === dec[1]))) return NaN;
   return Number(`${whole.replace(/[.,]/g, "")}${dec ? `.${dec[2]}` : ""}`);
 }
-/* digitar o Net: grava e recalcula a venda no banco (função set_sale_net) */
+/* digitar Custo do curso, Net ou Passagem: grava e recalcula a venda no banco (função set_sale_input) */
 document.getElementById("fin-splits-tbody").addEventListener("change", async e => {
-  const input = e.target.closest(".split-net");
+  const input = e.target.closest(".split-in");
   if (!input) return;
-  const value = parseEuroInput(input.value);
-  if (!isFinite(value)) { alert("Valor não reconhecido. Digite o Net assim: 2.352,00"); await loadSaleSplitsView(); return; }
-  const sp = saleSplits.find(x => x.dealId === input.dataset.deal);
-  if (sp && splitNetLooksWrong(value, sp.courseGross) && !confirm(`O Net ficou em ${currency(value)} para um curso de ${currency(sp.courseGross)}. Está certo?`)) { await loadSaleSplitsView(); return; }
+  const field = input.dataset.field, sp = saleSplits.find(x => x.dealId === input.dataset.deal);
+  if (!sp) return;
+  const empty = input.value.trim() === "";
+  if (empty && field === "net") { alert("Digite o Net da venda (valor pago à escola)."); await loadSaleSplitsView(); return; }
+  const value = empty ? null : parseEuroInput(input.value);
+  if (value !== null && !isFinite(value)) { alert("Valor não reconhecido. Digite assim: 2.352,00"); await loadSaleSplitsView(); return; }
+  if (field === "net" && splitNetLooksWrong(value, splitBase(sp)) && !confirm(`O Net ficou em ${currency(value)} para um custo de curso de ${currency(splitBase(sp))}. Está certo?`)) { await loadSaleSplitsView(); return; }
+  if (field === "custo" && value !== null && sp.netCourse != null && splitNetLooksWrong(sp.netCourse, value) && !confirm(`Com custo do curso de ${currency(value)}, o Net de ${currency(sp.netCourse)} fica fora do normal. Está certo?`)) { await loadSaleSplitsView(); return; }
   input.disabled = true;
-  const { error } = await supabase.rpc("set_sale_net", { p_deal_id: input.dataset.deal, p_net: value });
+  const { error } = await supabase.rpc("set_sale_input", { p_deal_id: sp.dealId, p_field: field, p_value: value });
   input.disabled = false;
-  if (error) { alert("Não foi possível salvar o Net: " + error.message); }
+  if (error) { alert("Não foi possível salvar: " + error.message); }
   await loadSaleSplitsView();
 });
 async function loadSaleSplitsView() {
@@ -6528,24 +6542,28 @@ function loadSheetJs() {
   });
 }
 function buildSaleSplitsWorkbook() {
-  const money = ["Valor da venda", "Net (escola)", "Kit", "Acom. cobrado", "Acom. pago", "Acom. lucro", "Passagem", "CAC", "Influenciador", "Ganho Peregrinos", "Consultor", "Gerente", "Caixa reserva", "Resultado Peregrinos"];
-  const header = ["Negócio", ...money.slice(0, 11), "Gerente", "Nome do gerente", "Caixa reserva", "Resultado Peregrinos", "Situação"];
+  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 8], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 3]];
+  const header = ["Negócio", "Custo do curso", "Valor vendido", "Net escola", "CAC fixo", "Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Caixa reserva",
+    "Acom. custo", "Acom. venda", "Acom. lucro", "Acom. comissão consultor", "Acom. ganhos Peregrinos", "Kit (custo fixo, sem lucro)", "Passagem", "Passagem: comissão consultor",
+    "Venda total", "Lucro Peregrino (total)", "Situação"];
   const rows = saleSplitsSorted().map(sp => {
     const deal = deals.find(d => d.id === sp.dealId);
-    const mgr = users.find(u => u.id === sp.managerId);
     const pendente = sp.netCourse == null;
     const calc = v => (pendente ? null : v);
-    return [deal ? deal.name : "", sp.courseTotal, sp.netCourse, sp.kitAmount, sp.acomCobrado, sp.acomPago, sp.acomLucro, sp.passagemAmount, sp.cacAmount, sp.influencerAmount,
-      calc(sp.peregrinosGross), calc(sp.consultorAmount), calc(sp.managerAmount), mgr ? mgr.name : "", sp.reservaAmount, calc(sp.peregrinosNet), pendente ? "Pendente: falta o Net" : "Calculado"];
+    return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, sp.cacAmount, sp.influencerAmount, calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount,
+      sp.acomPago, sp.acomCobrado, sp.acomLucro, sp.acomConsultor, sp.acomLucro - sp.acomConsultor, sp.kitAmount, sp.passagemAmount, sp.consPassagem,
+      sp.courseTotal, calc(sp.peregrinosNet), pendente ? "Pendente: falta o Net" : "Calculado"];
   });
-  const totals = header.map((h, col) => {
-    if (col === 0) return "Total";
-    if (h === "Nome do gerente" || h === "Situação") return "";
-    return Math.round(rows.reduce((acc, r) => acc + (Number(r[col]) || 0), 0) * 100) / 100;
-  });
-  const ws = XLSX.utils.aoa_to_sheet([header, ...rows, totals]);
+  const textCols = new Set([0, header.length - 1]);
+  const totals = header.map((h, col) => textCols.has(col) ? (col === 0 ? "Total" : "") : Math.round(rows.reduce((acc, r) => acc + (Number(r[col]) || 0), 0) * 100) / 100);
+  const groupRow = [];
+  groups.forEach(([name, span]) => { groupRow.push(name); for (let i = 1; i < span; i++) groupRow.push(""); });
+  const ws = XLSX.utils.aoa_to_sheet([groupRow, header, ...rows, totals]);
+  const merges = []; let col = 0;
+  groups.forEach(([name, span]) => { if (span > 1) merges.push({ s: { r: 0, c: col }, e: { r: 0, c: col + span - 1 } }); col += span; });
+  ws["!merges"] = merges;
   const range = XLSX.utils.decode_range(ws["!ref"]);
-  for (let r = 1; r <= range.e.r; r++) {
+  for (let r = 2; r <= range.e.r; r++) {
     for (let c = 1; c <= range.e.c; c++) {
       const cell = ws[XLSX.utils.encode_cell({ r, c })];
       if (cell && cell.t === "n") cell.z = '"€" #,##0.00';
@@ -6722,7 +6740,7 @@ function scommDefaultBase(enrollmentId) {
   if (!enr) return 0;
   const deal = deals.find(d => d.leadId === enr.leadId && isWonStage(d.stage)) || deals.find(d => d.leadId === enr.leadId);
   const split = deal ? saleSplits.find(sp => sp.dealId === deal.id) : null;
-  return split && split.netCourse != null && !splitNetLooksWrong(split.netCourse, split.courseGross) ? split.netCourse : 0;
+  return split && split.netCourse != null && !splitNetLooksWrong(split.netCourse, splitBase(split)) ? split.netCourse : 0;
 }
 function scommFillBase() {
   const base = scommDefaultBase(document.getElementById("scomm-field-enrollment").value);
