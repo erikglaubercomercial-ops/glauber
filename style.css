@@ -3236,6 +3236,9 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .wa-quick-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 0; font-size: 14.5px; color: var(--text); }
 .wa-side input[type="search"], .wa-quick input[type="search"] { width: 100%; box-sizing: border-box; font: inherit; font-size: 12.5px; color: var(--text); background: var(--content-bg); border: 1px solid var(--border); border-radius: 999px; padding: 7px 12px; outline: none; }
 .wa-side input[type="search"]:focus, .wa-quick input[type="search"]:focus { border-color: var(--primary); }
+.wa-quick-tools { display: flex; align-items: center; gap: 6px; }
+.wa-q-hint { margin: 0; padding: 9px 11px; border: 1px dashed var(--border); border-radius: 10px; font-size: 12px; color: var(--text-muted); }
+.wa-q-main .wa-tag { margin-left: 4px; font-size: 9.5px; }
 .wa-q-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 .wa-q-sec { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .wa-q-title { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 10px; border: none; background: var(--primary); color: #fff; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; text-align: left; }

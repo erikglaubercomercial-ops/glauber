@@ -4,8 +4,9 @@
    • Número que já é lead: a conversa vai para o consultor dono do lead. Número novo: cai na FILA; o Gerente escolhe o consultor
      (wa_assign) e o lead é criado nessa hora. Cada consultor vê só as próprias conversas; ADM e Gerente veem todas.
    • Notas internas (o cliente nunca recebe). Responder pelo CRM é a etapa 2: até lá o botão Enviar fica desligado e o texto pode ser copiado.
-   • Aba CONVERSAS: contatos à esquerda, conversa no centro e links rápidos à direita (formulários ativos, link de agendamento do
-     consultor da conversa e os links de "Meus links" de quem está logado). Clicar num link coloca o endereço na caixa de mensagem.
+   • Aba CONVERSAS: contatos à esquerda, conversa no centro e respostas rápidas à direita: as mensagens salvas (wa_quick_replies:
+     da equipe, que só ADM e Gerente editam, ou pessoais) e os links prontos (formulários ativos, agendamento do consultor da conversa
+     e "Meus links" de quem está logado). Clicar num item coloca o texto na caixa de mensagem.
    • ADM: "Teste" simula uma mensagem recebida sem tocar em leads reais (e apaga os testes depois).
    • Aba PAINEL (abre primeiro): indicadores do período, times e consultores, "precisa de atenção", origem e conversas ao vivo.
      ADM e Gerente veem todos os times; o Consultor vê só os próprios números (o banco já limita as conversas de cada um).
@@ -14,7 +15,7 @@
    ============================================================ */
 
 const WA_GOAL_MIN = 20, WA_RED_MIN = 60;
-const wa = { view: "painel", panel: { period: "hoje", team: "", consultor: "" }, pmsgs: [], tick: 0, filterConsultor: "", ads: new Map(), convs: [], sel: null, msgs: [], filter: "", timer: null, loading: false, pending: null, built: false, mode: "msg", drafts: new Map(), bio: [], bioPage: null, booking: new Map(), qItems: [], qClosed: new Set(), quickOpen: null };
+const wa = { view: "painel", panel: { period: "hoje", team: "", consultor: "" }, pmsgs: [], tick: 0, filterConsultor: "", ads: new Map(), convs: [], sel: null, msgs: [], filter: "", timer: null, loading: false, pending: null, built: false, mode: "msg", drafts: new Map(), bio: [], bioPage: null, booking: new Map(), qItems: [], qClosed: new Set(), quickOpen: null, replies: [], qrEditing: null };
 const waEl = id => document.getElementById(id);
 const waManager = () => !!session && ["ADM", "Gerente"].includes(session.role);
 const waUser = id => (typeof users !== "undefined" && users.find(u => u.id === id)) || null;
@@ -99,8 +100,8 @@ function waBuild() {
       </aside>
       <section class="wa-main" id="wa-main"></section>
       <aside class="wa-quick" id="wa-quick">
-        <div class="wa-quick-head"><b>Links rápidos</b><button type="button" class="btn-icon" id="wa-quick-close" title="Fechar">&times;</button></div>
-        <input type="search" id="wa-q-search" placeholder="Buscar link" autocomplete="off">
+        <div class="wa-quick-head"><b>Respostas rápidas</b><div class="wa-quick-tools"><button type="button" class="btn btn-primary btn-sm" id="wa-qr-new">+ Nova</button><button type="button" class="btn-icon" id="wa-quick-close" title="Fechar">&times;</button></div></div>
+        <input type="search" id="wa-q-search" placeholder="Buscar resposta" autocomplete="off">
         <div class="wa-q-body" id="wa-q-body"></div>
       </aside>
     </div>
@@ -307,7 +308,7 @@ function waRenderMain() {
   const box = waEl("wa-main"), c = wa.convs.find(x => x.id === wa.sel);
   waEl("wa-chat").classList.toggle("has-sel", !!c);
   waApplyQuickOpen();
-  const quickBtn = `<button type="button" class="btn btn-ghost btn-sm" data-wa-quick-toggle>Links rápidos</button>`;
+  const quickBtn = `<button type="button" class="btn btn-ghost btn-sm" data-wa-quick-toggle>Respostas rápidas</button>`;
   if (!c) { box.innerHTML = `<div class="wa-placeholder"><p>Selecione uma conversa</p>${quickBtn}</div>`; return; }
   const active = document.activeElement;
   const hadFocus = !!active && active.id === "wa-compose";
@@ -352,8 +353,64 @@ function waRenderMain() {
   const th = waEl("wa-thread"); th.scrollTop = th.scrollHeight;
 }
 
-/* ---------------- LINKS RÁPIDOS ---------------- */
+/* ---------------- RESPOSTAS RÁPIDAS ---------------- */
+const WA_QR_GROUPS = ["Topo de Funil", "Meio de Funil", "Em Fechamento"];
+async function waLoadReplies() {
+  const { data, error } = await supabase.from("wa_quick_replies").select("*").order("title");
+  if (error) { console.error("Erro ao carregar respostas rápidas:", error); return; }
+  wa.replies = data || [];
+}
+const waQrCanEdit = r => r.owner_id === session.id || (!r.owner_id && waManager());
+/* grupos das mensagens salvas: os do funil primeiro, os demais em ordem alfabética */
+function waQrGroups() {
+  const names = [...new Set(wa.replies.map(r => r.category))];
+  const rank = n => { const i = WA_QR_GROUPS.indexOf(n); return i === -1 ? WA_QR_GROUPS.length : i; };
+  return names.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+function waOpenReplyModal(reply) {
+  wa.qrEditing = reply || null;
+  waEl("wa-qr-title").textContent = reply ? "Editar resposta rápida" : "Nova resposta rápida";
+  waEl("wa-qr-f-title").value = reply ? reply.title : "";
+  waEl("wa-qr-f-cat").value = reply ? reply.category : "";
+  waEl("wa-qr-f-body").value = reply ? reply.body : "";
+  waEl("wa-qr-f-team").checked = reply ? !reply.owner_id : waManager();
+  waEl("wa-qr-team-wrap").style.display = waManager() ? "" : "none";
+  waEl("wa-qr-delete").style.display = reply ? "" : "none";
+  waEl("wa-qr-cats").innerHTML = [...new Set([...WA_QR_GROUPS, ...wa.replies.map(r => r.category)])].map(c => `<option value="${waEsc(c)}"></option>`).join("");
+  waEl("wa-qr-backdrop").classList.add("open");
+  waEl("wa-qr-f-title").focus();
+}
+function waCloseReplyModal() { waEl("wa-qr-backdrop").classList.remove("open"); wa.qrEditing = null; }
+waEl("wa-qr-close").addEventListener("click", waCloseReplyModal);
+waEl("wa-qr-cancel").addEventListener("click", waCloseReplyModal);
+waEl("wa-qr-backdrop").addEventListener("click", e => { if (e.target === waEl("wa-qr-backdrop")) waCloseReplyModal(); });
+waEl("wa-qr-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const title = waEl("wa-qr-f-title").value.trim(), body = waEl("wa-qr-f-body").value.trim();
+  if (!title || !body) { agendaToast("Preencha o título e a mensagem."); return; }
+  const row = { title, body, category: waEl("wa-qr-f-cat").value.trim() || "Geral", owner_id: waManager() && waEl("wa-qr-f-team").checked ? null : session.id, updated_at: new Date().toISOString() };
+  const btn = waEl("wa-qr-save");
+  btn.disabled = true;
+  const { error } = wa.qrEditing ? await supabase.from("wa_quick_replies").update(row).eq("id", wa.qrEditing.id) : await supabase.from("wa_quick_replies").insert(row);
+  btn.disabled = false;
+  if (error) { agendaToast("Não foi possível salvar: " + error.message); return; }
+  waCloseReplyModal();
+  await waLoadReplies();
+  waRenderQuick();
+  agendaToast("Resposta salva.");
+});
+waEl("wa-qr-delete").addEventListener("click", async () => {
+  if (!wa.qrEditing || !confirm(`Excluir a resposta "${wa.qrEditing.title}"?`)) return;
+  const { error } = await supabase.from("wa_quick_replies").delete().eq("id", wa.qrEditing.id);
+  if (error) { agendaToast("Não foi possível excluir: " + error.message); return; }
+  waCloseReplyModal();
+  await waLoadReplies();
+  waRenderQuick();
+  agendaToast("Resposta excluída.");
+});
+
 async function waLoadQuick() {
+  await waLoadReplies();
   wa.bio = []; wa.bioPage = null;
   const { data: page } = await supabase.from("bio_pages").select("slug").eq("user_id", session.id).maybeSingle();
   if (!page) return;
@@ -384,14 +441,17 @@ function waQuickSections() {
     const url = bioSafeUrl(bioNormalizeUrl(l.url));
     if (url) bioItems.push({ label: l.label || url, url });
   });
-  return [["Formulários", formItems], ["Agendamento", bookingItems], ["Meus links", bioItems]];
+  const replySections = waQrGroups().map(group => [group, wa.replies.filter(r => r.category === group).map(r => ({
+    label: r.title, sub: r.body.replace(/\s+/g, " "), text: r.body, search: r.body, tag: r.owner_id ? "Só minha" : "", replyId: waQrCanEdit(r) ? r.id : null,
+  }))]);
+  return [...replySections, ["Formulários", formItems], ["Agendamento", bookingItems], ["Meus links", bioItems]];
 }
 function waRenderQuick() {
   const body = waEl("wa-q-body"); if (!body) return;
   const q = (waEl("wa-q-search").value || "").trim().toLowerCase();
   wa.qItems = [];
   const html = waQuickSections().map(([title, items]) => {
-    const list = items.filter(i => !q || `${i.label} ${i.url}`.toLowerCase().includes(q));
+    const list = items.filter(i => !q || `${i.label} ${i.url || ""} ${i.search || ""}`.toLowerCase().includes(q));
     if (!list.length) return "";
     const closed = wa.qClosed.has(title) && !q;
     return `<section class="wa-q-sec">
@@ -399,14 +459,16 @@ function waRenderQuick() {
       ${closed ? "" : list.map(item => {
         const idx = wa.qItems.push(item) - 1;
         return `<div class="wa-q-item">
-          <button type="button" class="wa-q-main" data-wa-q-ins="${idx}" title="Colocar na mensagem"><b>${waEsc(item.label)}</b>${item.sub ? `<small>${waEsc(item.sub)}</small>` : ""}</button>
-          <button type="button" class="wa-q-act" data-wa-q-copy="${idx}" title="Copiar link" aria-label="Copiar link"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-          <a class="wa-q-act" href="${waEsc(item.url)}" target="_blank" rel="noopener" title="Abrir link" aria-label="Abrir link"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+          <button type="button" class="wa-q-main" data-wa-q-ins="${idx}" title="Colocar na mensagem"><b>${waEsc(item.label)}${item.tag ? ` <em class="wa-tag">${waEsc(item.tag)}</em>` : ""}</b>${item.sub ? `<small>${waEsc(item.sub)}</small>` : ""}</button>
+          <button type="button" class="wa-q-act" data-wa-q-copy="${idx}" title="Copiar" aria-label="Copiar"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          ${item.replyId ? `<button type="button" class="wa-q-act" data-wa-q-edit="${item.replyId}" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>` : ""}
+          ${item.url ? `<a class="wa-q-act" href="${waEsc(item.url)}" target="_blank" rel="noopener" title="Abrir link" aria-label="Abrir link"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ""}
         </div>`;
       }).join("")}
     </section>`;
   }).join("");
-  body.innerHTML = html || `<p class="wa-empty">${q ? "Nenhum link encontrado." : "Nenhum link ainda. Eles vêm de Formulários, do Agendamento online e de Meus links."}</p>`;
+  const hint = !q && !wa.replies.length ? `<p class="wa-q-hint">Nenhuma mensagem salva ainda. Clique em <b>+ Nova</b> para criar a primeira.</p>` : "";
+  body.innerHTML = hint + (html || (q ? `<p class="wa-empty">Nenhuma resposta encontrada.</p>` : ""));
 }
 const WA_QUICK_KEY = "crm-wa-quick-open";
 function waApplyQuickOpen() {
@@ -423,10 +485,10 @@ function waSetQuickOpen(open) {
   waApplyQuickOpen();
 }
 function waInsertQuick(item) {
-  if (!wa.convs.some(c => c.id === wa.sel)) { agendaToast("Selecione uma conversa para colocar o link na mensagem, ou use o botão de copiar."); return; }
+  if (!wa.convs.some(c => c.id === wa.sel)) { agendaToast("Selecione uma conversa para colocar a resposta na mensagem, ou use o botão de copiar."); return; }
   wa.mode = "msg";
   const cur = wa.drafts.get(waDraftKey()) || "";
-  wa.drafts.set(waDraftKey(), cur + (cur && !/\s$/.test(cur) ? "\n" : "") + item.url);
+  wa.drafts.set(waDraftKey(), cur + (cur && !/\s$/.test(cur) ? "\n" : "") + (item.text || item.url));
   waRenderMain();
   const ta = waEl("wa-compose");
   ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
@@ -517,7 +579,7 @@ document.addEventListener("click", async e => {
   if (modeBtn) { wa.mode = modeBtn.dataset.waMode; waRenderMain(); waEl("wa-compose").focus(); return; }
   if (e.target.closest("#wa-copy-msg")) {
     const text = waEl("wa-compose").value.trim();
-    if (!text) { agendaToast("Digite a mensagem ou escolha um link rápido."); return; }
+    if (!text) { agendaToast("Digite a mensagem ou escolha uma resposta rápida."); return; }
     await waCopy(text, "Mensagem copiada."); return;
   }
   if (e.target.closest("#wa-back")) { wa.sel = null; wa.msgs = []; waRenderSide(); waRenderMain(); waRenderQuick(); return; }
@@ -528,7 +590,10 @@ document.addEventListener("click", async e => {
   const qIns = e.target.closest("[data-wa-q-ins]");
   if (qIns) { waInsertQuick(wa.qItems[Number(qIns.dataset.waQIns)]); return; }
   const qCopy = e.target.closest("[data-wa-q-copy]");
-  if (qCopy) { await waCopy(wa.qItems[Number(qCopy.dataset.waQCopy)].url, "Link copiado."); return; }
+  if (qCopy) { const it = wa.qItems[Number(qCopy.dataset.waQCopy)]; await waCopy(it.text || it.url, it.text ? "Resposta copiada." : "Link copiado."); return; }
+  const qEdit = e.target.closest("[data-wa-q-edit]");
+  if (qEdit) { waOpenReplyModal(wa.replies.find(r => r.id === qEdit.dataset.waQEdit)); return; }
+  if (e.target.closest("#wa-qr-new")) { waOpenReplyModal(null); return; }
   if (e.target.closest("#wa-t-send")) {
     const { error } = await supabase.rpc("wa_simulate_inbound", { p_phone: waEl("wa-t-phone").value, p_name: waEl("wa-t-name").value, p_body: waEl("wa-t-body").value || "Olá, tenho interesse em intercâmbio" });
     if (error) { agendaToast("Erro no teste: " + error.message); return; }
