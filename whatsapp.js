@@ -3,7 +3,9 @@
    As mensagens chegam pela função whatsapp-webhook (API oficial da Meta) e ficam em wa_conversations / wa_messages.
    • Número que já é lead: a conversa vai para o consultor dono do lead. Número novo: cai na FILA; o Gerente escolhe o consultor
      (wa_assign) e o lead é criado nessa hora. Cada consultor vê só as próprias conversas; ADM e Gerente veem todas.
-   • Notas internas (o cliente nunca recebe). Responder pelo CRM é a etapa 2.
+   • Notas internas (o cliente nunca recebe). Responder pelo CRM é a etapa 2: até lá o botão Enviar fica desligado e o texto pode ser copiado.
+   • Aba CONVERSAS: contatos à esquerda, conversa no centro e links rápidos à direita (formulários ativos, link de agendamento do
+     consultor da conversa e os links de "Meus links" de quem está logado). Clicar num link coloca o endereço na caixa de mensagem.
    • ADM: "Teste" simula uma mensagem recebida sem tocar em leads reais (e apaga os testes depois).
    • Aba PAINEL (abre primeiro): indicadores do período, times e consultores, "precisa de atenção", origem e conversas ao vivo.
      ADM e Gerente veem todos os times; o Consultor vê só os próprios números (o banco já limita as conversas de cada um).
@@ -12,7 +14,7 @@
    ============================================================ */
 
 const WA_GOAL_MIN = 20, WA_RED_MIN = 60;
-const wa = { view: "painel", panel: { period: "hoje", team: "", consultor: "" }, pmsgs: [], tick: 0, filterConsultor: "", ads: new Map(), convs: [], sel: null, msgs: [], filter: "", timer: null, loading: false, pending: null, built: false };
+const wa = { view: "painel", panel: { period: "hoje", team: "", consultor: "" }, pmsgs: [], tick: 0, filterConsultor: "", ads: new Map(), convs: [], sel: null, msgs: [], filter: "", timer: null, loading: false, pending: null, built: false, mode: "msg", drafts: new Map(), bio: [], bioPage: null, booking: new Map(), qItems: [], qClosed: new Set(), quickOpen: null };
 const waEl = id => document.getElementById(id);
 const waManager = () => !!session && ["ADM", "Gerente"].includes(session.role);
 const waUser = id => (typeof users !== "undefined" && users.find(u => u.id === id)) || null;
@@ -29,15 +31,29 @@ function waTitle(c) {
 }
 
 /* balões — também usados na ficha do lead */
-function waBubbles(msgs) {
+function waDayLabel(d) {
+  const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(new Date()) - day(d)) / 86400000);
+  return diff === 0 ? "Hoje" : diff === 1 ? "Ontem" : d.toLocaleDateString("pt-BR");
+}
+/* days: separa por dia, como no WhatsApp, e o balão mostra só a hora (a ficha do lead mantém data e hora em cada balão) */
+function waBubbles(msgs, days) {
   if (!msgs.length) return '<p class="wa-empty">Nenhuma mensagem ainda.</p>';
+  let lastDay = "";
   return msgs.map(m => {
-    const when = new Date(m.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const at = new Date(m.created_at);
+    const when = at.toLocaleString("pt-BR", days ? { hour: "2-digit", minute: "2-digit" } : { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const label = days ? waDayLabel(at) : "";
+    const sep = label && label !== lastDay ? `<div class="wa-day"><span>${label}</span></div>` : "";
+    lastDay = label;
+    return sep + waBubble(m, when);
+  }).join("");
+}
+function waBubble(m, when) {
     if (m.direction === "note") return `<div class="wa-note"><small>Nota interna · ${waEsc((waUser(m.sent_by) || {}).name || "equipe")} · ${when}</small>${waEsc(m.body)}</div>`;
     const who = m.direction === "out" ? ` · ${waEsc((waUser(m.sent_by) || {}).name || "equipe")}` : "";
     const tick = m.direction === "out" ? ({ sent: " ✓", delivered: " ✓✓", read: " ✓✓", failed: " ⚠" }[m.status] || "") : "";
     return `<div class="wa-b ${m.direction === "out" ? "out" : "in"}"><span class="wa-body">${waEsc(m.body || "[" + m.msg_type + "]")}</span><small>${when}${who}${tick}</small></div>`;
-  }).join("");
 }
 
 async function waLoadConvs() {
@@ -75,22 +91,24 @@ function waBuild() {
     </div>
     <div id="wa-panel"><div id="wa-panel-body"><p class="wa-empty">Carregando…</p></div></div>
     <div id="wa-inbox" hidden>
-    <div class="panel">
-    <div class="panel-header"><h2>Caixa de entrada</h2><span class="muted-note" style="margin:0;">Cliente novo cai na fila para o Gerente distribuir; quem já é lead vai para o consultor dele.</span></div>
-    <div style="padding:16px 20px 20px;">
-    <div class="wa-layout">
+    <div class="wa-chat" id="wa-chat">
       <aside class="wa-side">
-        <div class="wa-tabs" id="wa-tabs"></div>
+        <div class="wa-side-head"><b>Conversas</b><div class="wa-tabs" id="wa-tabs"></div></div>
         <input type="search" id="wa-search" placeholder="Buscar por nome ou telefone" autocomplete="off">
         <div class="wa-list" id="wa-list"></div>
       </aside>
       <section class="wa-main" id="wa-main"></section>
+      <aside class="wa-quick" id="wa-quick">
+        <div class="wa-quick-head"><b>Links rápidos</b><button type="button" class="btn-icon" id="wa-quick-close" title="Fechar">&times;</button></div>
+        <input type="search" id="wa-q-search" placeholder="Buscar link" autocomplete="off">
+        <div class="wa-q-body" id="wa-q-body"></div>
+      </aside>
     </div>
     ${session.role === "ADM" ? `<details class="wa-test"><summary>Teste (só ADM) — simular mensagem recebida</summary>
       <div class="wa-test-row"><input type="text" id="wa-t-phone" placeholder="Número de teste (só dígitos)" maxlength="12"><input type="text" id="wa-t-name" placeholder="Nome" maxlength="60"><input type="text" id="wa-t-body" placeholder="Mensagem" maxlength="300">
       <button type="button" class="btn btn-primary btn-sm" id="wa-t-send">Simular</button><button type="button" class="btn btn-ghost btn-sm" id="wa-t-clean">Apagar testes</button></div>
       <p class="muted-note" style="margin:6px 0 0;">Conversas de teste não criam lead nem mexem em leads existentes; ficam marcadas como TESTE.</p></details>` : ""}
-    </div></div></div>`;
+    </div>`;
   waFillConsultorFilter();
 }
 
@@ -248,8 +266,17 @@ function waShowView(v) {
   document.querySelectorAll("#wa-root [data-wa-view]").forEach(b => b.classList.toggle("active", b.dataset.waView === v));
   waEl("wa-panel").hidden = v !== "painel";
   waEl("wa-inbox").hidden = v !== "conversas";
-  waEl("wa-p-filters").style.visibility = v === "painel" ? "visible" : "hidden";
-  if (v === "painel") waRenderPanel(); else { waRenderSide(); waRenderMain(); }
+  waEl("wa-p-filters").style.display = v === "painel" ? "" : "none";
+  if (v === "painel") waRenderPanel(); else { waRenderSide(); waRenderMain(); waRenderQuick(); }
+}
+
+const WA_AVATAR_COLORS = ["#3167a1", "#1f4670", "#fb9d2d", "#16a34a", "#0e7490", "#7c5cc4", "#c2571a"];
+function waAvatar(name) {
+  const clean = String(name || "").replace(/[^\p{L}\p{N} ]/gu, "").trim();
+  const words = clean.split(/\s+/).filter(Boolean);
+  const initials = (words.length > 1 ? words[0][0] + words[words.length - 1][0] : clean.slice(0, 2)).toUpperCase() || "?";
+  const hash = [...clean].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return `<span class="wa-av" style="background:${WA_AVATAR_COLORS[hash % WA_AVATAR_COLORS.length]}">${waEsc(initials)}</span>`;
 }
 
 function waRenderSide() {
@@ -266,15 +293,25 @@ function waRenderSide() {
   waEl("wa-list").innerHTML = list.length ? list.map(c => {
     const owner = waUser(c.consultor_id);
     return `<button type="button" class="wa-item ${c.id === wa.sel ? "active" : ""}" data-wa-conv="${c.id}">
+      ${waAvatar(waTitle(c))}<span class="wa-item-body">
       <span class="wa-item-top"><b>${waEsc(waTitle(c))}</b><span>${waTime(c.last_message_at)}</span></span>
       <span class="wa-item-prev">${c.unread ? '<i class="wa-dot"></i>' : ""}${waEsc(c.preview)}</span>
-      <span class="wa-item-tags">${c.is_test ? '<em class="wa-tag test">TESTE</em>' : ""}${wa.ads.has(c.id) ? '<em class="wa-tag ad">Anúncio</em>' : ""}${!c.consultor_id ? '<em class="wa-tag queue">Na fila</em>' : owner ? `<em class="wa-tag">${waEsc(owner.name)}</em>` : ""}${!c.lead_id && c.consultor_id ? "" : ""}</span></button>`;
+      <span class="wa-item-tags">${c.is_test ? '<em class="wa-tag test">TESTE</em>' : ""}${wa.ads.has(c.id) ? '<em class="wa-tag ad">Anúncio</em>' : ""}${!c.consultor_id ? '<em class="wa-tag queue">Na fila</em>' : owner ? `<em class="wa-tag">${waEsc(owner.name)}</em>` : ""}</span></span></button>`;
   }).join("") : `<p class="wa-empty">${wa.convs.length ? "Nenhuma conversa neste filtro." : "Nenhuma conversa ainda. Quando o número da empresa for conectado à Meta, as mensagens dos clientes aparecem aqui."}</p>`;
 }
 
+function waDraftKey() { return `${wa.sel}:${wa.mode}`; }
+/* a caixa de mensagem cresce com o texto, até o limite do CSS */
+function waFitCompose(ta) { ta.style.height = "auto"; ta.style.height = `${ta.scrollHeight + 2}px`; }
 function waRenderMain() {
   const box = waEl("wa-main"), c = wa.convs.find(x => x.id === wa.sel);
-  if (!c) { box.innerHTML = '<div class="wa-placeholder">Selecione uma conversa</div>'; return; }
+  waEl("wa-chat").classList.toggle("has-sel", !!c);
+  waApplyQuickOpen();
+  const quickBtn = `<button type="button" class="btn btn-ghost btn-sm" data-wa-quick-toggle>Links rápidos</button>`;
+  if (!c) { box.innerHTML = `<div class="wa-placeholder"><p>Selecione uma conversa</p>${quickBtn}</div>`; return; }
+  const active = document.activeElement;
+  const hadFocus = !!active && active.id === "wa-compose";
+  const caret = hadFocus ? active.selectionStart : null;
   const owner = waUser(c.consultor_id);
   let assign = "";
   if (waManager() && !c.lead_id) {
@@ -286,15 +323,118 @@ function waRenderMain() {
   const ad = wa.ads.get(c.id);
   const adLine = ad ? `<div class="wa-ad">📣 Veio de anúncio${ad.headline ? `: <b>${waEsc(ad.headline)}</b>` : ""}${ad.ad_id ? ` <small>· ID ${waEsc(ad.ad_id)}</small>` : ""}</div>` : "";
   const leadBtn = c.lead_id && typeof openFicha === "function" ? `<button type="button" class="btn btn-ghost btn-sm" id="wa-open-lead">Abrir ficha do lead</button>` : "";
+  const isNote = wa.mode === "note";
   box.innerHTML = `
-    <div class="wa-head"><div><b>${waEsc(waTitle(c))}</b>${c.is_test ? ' <em class="wa-tag test">TESTE</em>' : ""}<small>${waFmtPhone(c.phone)}${owner ? " · consultor: " + waEsc(owner.name) : ""}</small></div>${leadBtn}</div>
+    <div class="wa-head">
+      <button type="button" class="btn-icon wa-back" id="wa-back" title="Voltar para a lista" aria-label="Voltar para a lista">&larr;</button>
+      ${waAvatar(waTitle(c))}
+      <div class="wa-head-who"><b>${waEsc(waTitle(c))}</b>${c.is_test ? ' <em class="wa-tag test">TESTE</em>' : ""}<small>${waFmtPhone(c.phone)}${owner ? " · consultor: " + waEsc(owner.name) : ""}</small></div>
+      <div class="wa-head-actions">${leadBtn}${quickBtn}</div>
+    </div>
     ${adLine}${assign}
-    <div class="wa-thread" id="wa-thread">${waBubbles(wa.msgs)}</div>
-    <div class="wa-composer">
-      <p class="muted-note" style="margin:0 0 6px;">Responder ao cliente por aqui chega na próxima etapa. Já dá para deixar <b>notas internas</b> (o cliente não recebe).</p>
-      <div class="wa-composer-row"><textarea id="wa-note-text" rows="2" maxlength="2000" placeholder="Nota interna sobre esta conversa…"></textarea><button type="button" class="btn btn-primary btn-sm" id="wa-note-save">Salvar nota</button></div>
+    <div class="wa-thread" id="wa-thread">${waBubbles(wa.msgs, true)}</div>
+    <div class="wa-composer ${isNote ? "is-note" : ""}">
+      <div class="wa-mode">
+        <button type="button" class="wa-tab ${isNote ? "" : "active"}" data-wa-mode="msg">Mensagem</button>
+        <button type="button" class="wa-tab ${isNote ? "active" : ""}" data-wa-mode="note">Nota interna</button>
+      </div>
+      <div class="wa-composer-row">
+        <textarea id="wa-compose" rows="2" maxlength="2000" placeholder="${isNote ? "Nota interna sobre esta conversa…" : "Digite uma mensagem"}"></textarea>
+        ${isNote ? `<button type="button" class="btn btn-primary btn-sm" id="wa-note-save">Salvar nota</button>`
+          : `<button type="button" class="btn btn-ghost btn-sm" id="wa-copy-msg">Copiar</button><button type="button" class="btn btn-primary btn-sm" id="wa-send" disabled title="Liberado quando a conexão de envio com a Meta for concluída">Enviar</button>`}
+      </div>
+      <p class="muted-note wa-composer-hint">${isNote ? "O cliente não recebe as notas internas." : "O envio pelo CRM ainda não está ligado: por enquanto, copie o texto e envie pelo WhatsApp."}</p>
     </div>`;
+  const ta = waEl("wa-compose");
+  ta.value = wa.drafts.get(waDraftKey()) || "";
+  waFitCompose(ta);
+  if (hadFocus) { ta.focus(); ta.setSelectionRange(caret, caret); }
   const th = waEl("wa-thread"); th.scrollTop = th.scrollHeight;
+}
+
+/* ---------------- LINKS RÁPIDOS ---------------- */
+async function waLoadQuick() {
+  wa.bio = []; wa.bioPage = null;
+  const { data: page } = await supabase.from("bio_pages").select("slug").eq("user_id", session.id).maybeSingle();
+  if (!page) return;
+  wa.bioPage = page;
+  const { data: links } = await supabase.from("bio_links").select("label, url, enabled").eq("user_id", session.id).order("position").order("created_at");
+  wa.bio = (links || []).filter(l => l.enabled !== false && String(l.url || "").trim());
+}
+/* o link de agendamento é o do consultor dono da conversa (sem dono, o de quem está logado) */
+async function waLoadBooking(consultorId) {
+  if (!consultorId || wa.booking.has(consultorId)) return;
+  const { data } = await supabase.from("booking_settings").select("slug, enabled").eq("consultor_id", consultorId).maybeSingle();
+  wa.booking.set(consultorId, data || null);
+}
+function waQuickConsultor() {
+  const c = wa.convs.find(x => x.id === wa.sel);
+  return (c && c.consultor_id) || (session && session.id) || null;
+}
+function waQuickSections() {
+  const c = wa.convs.find(x => x.id === wa.sel);
+  const lead = c && c.lead_id && typeof leads !== "undefined" ? leads.find(l => l.id === c.lead_id) : null;
+  const formItems = (typeof forms !== "undefined" ? forms : []).filter(f => f.active && f.slug).map(f => ({ label: f.title, url: buildFormPublicUrl(f.slug) }));
+  const cid = waQuickConsultor(), bk = wa.booking.get(cid);
+  const bookingItems = bk && bk.slug && typeof bkaLink === "function"
+    ? [{ label: "Link de agendamento", sub: `${(waUser(cid) || {}).name || ""}${bk.enabled ? "" : " · link desativado na Agenda"}`, url: bkaLink(bk.slug, lead && lead.bookingToken) }] : [];
+  const bioItems = [];
+  if (wa.bioPage && wa.bioPage.slug) bioItems.push({ label: "Minha página de links", url: `${location.origin}/l/${encodeURIComponent(wa.bioPage.slug)}` });
+  wa.bio.forEach(l => {
+    const url = bioSafeUrl(bioNormalizeUrl(l.url));
+    if (url) bioItems.push({ label: l.label || url, url });
+  });
+  return [["Formulários", formItems], ["Agendamento", bookingItems], ["Meus links", bioItems]];
+}
+function waRenderQuick() {
+  const body = waEl("wa-q-body"); if (!body) return;
+  const q = (waEl("wa-q-search").value || "").trim().toLowerCase();
+  wa.qItems = [];
+  const html = waQuickSections().map(([title, items]) => {
+    const list = items.filter(i => !q || `${i.label} ${i.url}`.toLowerCase().includes(q));
+    if (!list.length) return "";
+    const closed = wa.qClosed.has(title) && !q;
+    return `<section class="wa-q-sec">
+      <button type="button" class="wa-q-title" data-wa-q-sec="${waEsc(title)}" aria-expanded="${!closed}"><span>${waEsc(title)}</span><small>${list.length}</small><i>${closed ? "▸" : "▾"}</i></button>
+      ${closed ? "" : list.map(item => {
+        const idx = wa.qItems.push(item) - 1;
+        return `<div class="wa-q-item">
+          <button type="button" class="wa-q-main" data-wa-q-ins="${idx}" title="Colocar na mensagem"><b>${waEsc(item.label)}</b>${item.sub ? `<small>${waEsc(item.sub)}</small>` : ""}</button>
+          <button type="button" class="wa-q-act" data-wa-q-copy="${idx}" title="Copiar link" aria-label="Copiar link"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          <a class="wa-q-act" href="${waEsc(item.url)}" target="_blank" rel="noopener" title="Abrir link" aria-label="Abrir link"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+        </div>`;
+      }).join("")}
+    </section>`;
+  }).join("");
+  body.innerHTML = html || `<p class="wa-empty">${q ? "Nenhum link encontrado." : "Nenhum link ainda. Eles vêm de Formulários, do Agendamento online e de Meus links."}</p>`;
+}
+const WA_QUICK_KEY = "crm-wa-quick-open";
+function waApplyQuickOpen() {
+  if (wa.quickOpen === null) {
+    let saved = null;
+    try { saved = localStorage.getItem(WA_QUICK_KEY); } catch (err) { /* sem storage */ }
+    wa.quickOpen = saved === null ? window.innerWidth > 1180 : saved === "1";
+  }
+  waEl("wa-chat").classList.toggle("quick-on", wa.quickOpen);
+}
+function waSetQuickOpen(open) {
+  wa.quickOpen = open;
+  try { localStorage.setItem(WA_QUICK_KEY, open ? "1" : "0"); } catch (err) { /* sem storage */ }
+  waApplyQuickOpen();
+}
+function waInsertQuick(item) {
+  if (!wa.convs.some(c => c.id === wa.sel)) { agendaToast("Selecione uma conversa para colocar o link na mensagem, ou use o botão de copiar."); return; }
+  wa.mode = "msg";
+  const cur = wa.drafts.get(waDraftKey()) || "";
+  wa.drafts.set(waDraftKey(), cur + (cur && !/\s$/.test(cur) ? "\n" : "") + item.url);
+  waRenderMain();
+  const ta = waEl("wa-compose");
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  if (window.innerWidth <= 1180) waSetQuickOpen(false);
+}
+async function waCopy(text, okMsg) {
+  const ok = typeof bkaCopy === "function" ? await bkaCopy(text) : await navigator.clipboard.writeText(text).then(() => true, () => false);
+  agendaToast(ok ? okMsg : "Não foi possível copiar. Selecione o texto e copie manualmente.");
 }
 
 async function waSelect(id) {
@@ -303,6 +443,8 @@ async function waSelect(id) {
   const c = wa.convs.find(x => x.id === id);
   if (c && c.unread) { c.unread = false; supabase.rpc("wa_mark_read", { p_conv: id }).then(r => { if (r.error) console.error(r.error); }); }
   waRenderSide(); waRenderMain();
+  await waLoadBooking(waQuickConsultor());
+  waRenderQuick();
 }
 
 async function waRefresh(first) {
@@ -327,7 +469,7 @@ async function renderWhatsApp() {
   if (!waEl("wa-root") || !session) return;
   waBuild();
   await waRefresh(true);
-  await waLoadPanelMsgs();
+  await Promise.all([waLoadPanelMsgs(), waLoadQuick(), waLoadBooking(waQuickConsultor())]);
   waShowView(wa.view);
   clearInterval(wa.timer);
   wa.timer = setInterval(async () => {
@@ -366,11 +508,27 @@ document.addEventListener("click", async e => {
     return;
   }
   if (e.target.closest("#wa-note-save")) {
-    const ta = waEl("wa-note-text"), body = ta.value.trim(); if (!body) return;
+    const ta = waEl("wa-compose"), body = ta.value.trim(); if (!body) return;
     const { error } = await supabase.rpc("wa_add_note", { p_conv: wa.sel, p_body: body });
     if (error) { agendaToast("Não foi possível salvar a nota: " + error.message); return; }
-    ta.value = ""; await waLoadMsgs(); waRenderMain(); return;
+    wa.drafts.delete(waDraftKey()); await waLoadMsgs(); waRenderMain(); return;
   }
+  const modeBtn = e.target.closest("[data-wa-mode]");
+  if (modeBtn) { wa.mode = modeBtn.dataset.waMode; waRenderMain(); waEl("wa-compose").focus(); return; }
+  if (e.target.closest("#wa-copy-msg")) {
+    const text = waEl("wa-compose").value.trim();
+    if (!text) { agendaToast("Digite a mensagem ou escolha um link rápido."); return; }
+    await waCopy(text, "Mensagem copiada."); return;
+  }
+  if (e.target.closest("#wa-back")) { wa.sel = null; wa.msgs = []; waRenderSide(); waRenderMain(); waRenderQuick(); return; }
+  if (e.target.closest("[data-wa-quick-toggle]")) { waSetQuickOpen(!wa.quickOpen); return; }
+  if (e.target.closest("#wa-quick-close")) { waSetQuickOpen(false); return; }
+  const qSec = e.target.closest("[data-wa-q-sec]");
+  if (qSec) { const k = qSec.dataset.waQSec; if (wa.qClosed.has(k)) wa.qClosed.delete(k); else wa.qClosed.add(k); waRenderQuick(); return; }
+  const qIns = e.target.closest("[data-wa-q-ins]");
+  if (qIns) { waInsertQuick(wa.qItems[Number(qIns.dataset.waQIns)]); return; }
+  const qCopy = e.target.closest("[data-wa-q-copy]");
+  if (qCopy) { await waCopy(wa.qItems[Number(qCopy.dataset.waQCopy)].url, "Link copiado."); return; }
   if (e.target.closest("#wa-t-send")) {
     const { error } = await supabase.rpc("wa_simulate_inbound", { p_phone: waEl("wa-t-phone").value, p_name: waEl("wa-t-name").value, p_body: waEl("wa-t-body").value || "Olá, tenho interesse em intercâmbio" });
     if (error) { agendaToast("Erro no teste: " + error.message); return; }
@@ -383,7 +541,11 @@ document.addEventListener("click", async e => {
     agendaToast(`${data} conversa(s) de teste apagada(s).`); wa.sel = null; await waRefresh(true);
   }
 });
-document.addEventListener("input", e => { if (e.target.id === "wa-search") waRenderSide(); });
+document.addEventListener("input", e => {
+  if (e.target.id === "wa-search") waRenderSide();
+  if (e.target.id === "wa-q-search") waRenderQuick();
+  if (e.target.id === "wa-compose") { wa.drafts.set(waDraftKey(), e.target.value); waFitCompose(e.target); }
+});
 document.addEventListener("change", e => {
   if (e.target.id === "wa-p-period") { wa.panel.period = e.target.value; waRenderPanel(); }
   if (e.target.id === "wa-p-team") { wa.panel.team = e.target.value; waFillConsultorFilter(); waRenderPanel(); }
