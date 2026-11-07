@@ -8290,9 +8290,31 @@ function newFormFieldId() {
   return `campo_${Date.now().toString(36)}${formBuilderFieldSeq}`;
 }
 
+/* opções de uma pergunta "lista": sem vazias nem repetidas (ignora maiúsculas) */
+function cleanFormOptions(f) {
+  const seen = new Set();
+  return (f.options || []).map(o => String(o).trim()).filter(o => {
+    const k = o.toLowerCase();
+    if (!o || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+function formOptionsEditor(f, dis) {
+  return `<div class="ff-opts">
+    <span class="ff-opts-title">${escapeHtml(t("forms.optionsTitle"))}</span>
+    ${(f.options || []).map((o, oi) => `<div class="ff-opt-row"><span class="ff-opt-n">${oi + 1}</span>
+      <input type="text" class="ff-opt" ${dis} maxlength="100" data-oi="${oi}" placeholder="${escapeHtml(t("forms.optionPlaceholder"))}" value="${escapeHtml(o)}">
+      ${dis ? "" : `<button type="button" class="btn-icon ff-opt-del" data-oi="${oi}" title="${escapeHtml(t("forms.removeOption"))}" aria-label="${escapeHtml(t("forms.removeOption"))}">&times;</button>`}</div>`).join("")}
+    ${dis ? "" : `<div class="ff-opts-foot"><button type="button" class="btn btn-ghost btn-sm ff-opt-add">+ ${escapeHtml(t("forms.addOption"))}</button><small class="muted-note">${escapeHtml(t("forms.optionsHint"))}</small></div>`}
+  </div>`;
+}
+
 function renderFormBuilderFields() {
   const container = document.getElementById("form-builder-fields");
   const dis = formBuilderReadOnly ? "disabled" : "";
+  /* uma pergunta de lista sempre mostra pelo menos uma linha de opção para preencher */
+  if (!formBuilderReadOnly) formBuilderFields.forEach(f => { if (f.type === "select" && !(f.options || []).length) f.options = [""]; });
   container.innerHTML = formBuilderFields.map((f, i) => `
     <div class="form-field-row" data-index="${i}">
       <div class="form-field-row-main">
@@ -8303,10 +8325,14 @@ function renderFormBuilderFields() {
       </div>
       <div class="form-field-row-sub">
         <label class="checkbox-label"><input type="checkbox" class="ff-required" ${dis} ${f.required ? "checked" : ""}><span>${t("forms.required")}</span></label>
-        <input type="text" class="ff-options" ${dis} placeholder="${t("forms.optionsPlaceholder")}" value="${escapeHtml((f.options || []).join(", "))}" style="${f.type === "select" ? "" : "display:none;"}">
         ${formBuilderReadOnly ? "" : `<button type="button" class="btn-icon ff-delete" title="${t("forms.deleteField")}">&times;</button>`}
       </div>
+      ${f.type === "select" ? formOptionsEditor(f, dis) : ""}
     </div>`).join("");
+}
+function focusFormOption(rowIndex, optionIndex) {
+  const el = document.querySelector(`#form-builder-fields .form-field-row[data-index="${rowIndex}"] .ff-opt[data-oi="${optionIndex}"]`);
+  if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
 }
 
 document.getElementById("form-builder-fields").addEventListener("input", e => {
@@ -8314,9 +8340,29 @@ document.getElementById("form-builder-fields").addEventListener("input", e => {
   if (!row) return;
   const i = parseInt(row.dataset.index, 10);
   if (e.target.classList.contains("ff-label")) formBuilderFields[i].label = e.target.value;
-  if (e.target.classList.contains("ff-options")) {
-    formBuilderFields[i].options = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
-  }
+  if (e.target.classList.contains("ff-opt")) formBuilderFields[i].options[parseInt(e.target.dataset.oi, 10)] = e.target.value;
+});
+/* Enter na opção cria a próxima (e não envia o formulário) */
+document.getElementById("form-builder-fields").addEventListener("keydown", e => {
+  if (e.key !== "Enter" || !e.target.classList.contains("ff-opt")) return;
+  e.preventDefault();
+  const i = parseInt(e.target.closest(".form-field-row").dataset.index, 10), oi = parseInt(e.target.dataset.oi, 10);
+  formBuilderFields[i].options.splice(oi + 1, 0, "");
+  renderFormBuilderFields();
+  focusFormOption(i, oi + 1);
+});
+/* colar uma lista (uma opção por linha, ou separadas por vírgula, ponto e vírgula ou tab) cria uma opção para cada item */
+document.getElementById("form-builder-fields").addEventListener("paste", e => {
+  const input = e.target.closest(".ff-opt");
+  if (!input) return;
+  const parts = ((e.clipboardData || window.clipboardData).getData("text") || "").split(/[\n\r\t;,]+/).map(x => x.trim()).filter(Boolean);
+  if (parts.length < 2) return;
+  e.preventDefault();
+  const i = parseInt(input.closest(".form-field-row").dataset.index, 10), oi = parseInt(input.dataset.oi, 10);
+  const opts = formBuilderFields[i].options;
+  if (!input.value.trim()) opts.splice(oi, 1, ...parts); else opts.splice(oi + 1, 0, ...parts);
+  renderFormBuilderFields();
+  focusFormOption(i, (input.value.trim() ? oi + 1 : oi) + parts.length - 1);
 });
 document.getElementById("form-builder-fields").addEventListener("change", e => {
   const row = e.target.closest(".form-field-row");
@@ -8325,10 +8371,25 @@ document.getElementById("form-builder-fields").addEventListener("change", e => {
   if (e.target.classList.contains("ff-type")) {
     formBuilderFields[i].type = e.target.value;
     renderFormBuilderFields();
+    if (e.target.value === "select") focusFormOption(i, 0);
   }
   if (e.target.classList.contains("ff-required")) formBuilderFields[i].required = e.target.checked;
 });
 document.getElementById("form-builder-fields").addEventListener("click", e => {
+  const optRow = e.target.closest(".form-field-row");
+  if (optRow && e.target.closest(".ff-opt-add")) {
+    const i = parseInt(optRow.dataset.index, 10), opts = formBuilderFields[i].options;
+    opts.push("");
+    renderFormBuilderFields();
+    focusFormOption(i, opts.length - 1);
+    return;
+  }
+  if (optRow && e.target.closest(".ff-opt-del")) {
+    const i = parseInt(optRow.dataset.index, 10);
+    formBuilderFields[i].options.splice(parseInt(e.target.closest(".ff-opt-del").dataset.oi, 10), 1);
+    renderFormBuilderFields();
+    return;
+  }
   const btn = e.target.closest(".ff-delete");
   if (!btn) return;
   const i = parseInt(btn.closest(".form-field-row").dataset.index, 10);
@@ -8407,6 +8468,10 @@ formBuilderForm.addEventListener("submit", async e => {
     alert(t("forms.fillQuestionsError"));
     return;
   }
+  if (formBuilderFields.some(f => f.type === "select" && !cleanFormOptions(f).length)) {
+    alert(t("forms.optionsRequiredError"));
+    return;
+  }
 
   const slug = id ? formModalSlug : uniqueFormSlug(slugify(title));
   const data = {
@@ -8414,7 +8479,7 @@ formBuilderForm.addEventListener("submit", async e => {
     title, subtitle, slug,
     fields: formBuilderFields.map(f => ({
       id: f.id, label: f.label.trim(), type: f.type, required: !!f.required,
-      ...(f.type === "select" ? { options: f.options || [] } : {}),
+      ...(f.type === "select" ? { options: cleanFormOptions(f) } : {}),
     })),
     active: true,
   };
