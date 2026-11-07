@@ -311,7 +311,7 @@ const I18N = {
     "nav.areaaluno": "Área do Aluno", "nav.usuarios": "Usuários", "nav.sair": "Sair",
     "nav.alunoLoginLink": "Tela de login do aluno",
 
-    "topbar.search": "Buscar...", "topbar.notifications": "Notificações",
+    "topbar.notifications": "Notificações",
 
     "common.save": "Salvar", "common.cancel": "Cancelar", "common.delete": "Excluir",
     "common.edit": "Editar", "common.close": "Fechar", "common.understood": "Entendi",
@@ -1245,7 +1245,7 @@ const I18N = {
     "nav.areaaluno": "Student Area", "nav.usuarios": "Users", "nav.sair": "Sign out",
     "nav.alunoLoginLink": "Student login page",
 
-    "topbar.search": "Search...", "topbar.notifications": "Notifications",
+    "topbar.notifications": "Notifications",
 
     "common.save": "Save", "common.cancel": "Cancel", "common.delete": "Delete",
     "common.edit": "Edit", "common.close": "Close", "common.understood": "Got it",
@@ -2179,7 +2179,7 @@ const I18N = {
     "nav.areaaluno": "Área del Estudiante", "nav.usuarios": "Usuarios", "nav.sair": "Salir",
     "nav.alunoLoginLink": "Pantalla de acceso del estudiante",
 
-    "topbar.search": "Buscar...", "topbar.notifications": "Notificaciones",
+    "topbar.notifications": "Notificaciones",
 
     "common.save": "Guardar", "common.cancel": "Cancelar", "common.delete": "Eliminar",
     "common.edit": "Editar", "common.close": "Cerrar", "common.understood": "Entendido",
