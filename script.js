@@ -1896,8 +1896,19 @@ function visibleLeadsBase() {
   });
 }
 
+/* números do lead para busca: telefone digitado, DDD + número e o mesmo com o DDI do país (ex.: 21999991111 e 5521999991111) */
+function leadPhoneDigits(lead) {
+  const raw = String(lead.phone || "").replace(/\D/g, "");
+  const local = `${lead.phoneDdd || ""}${lead.phoneNumber || ""}`.replace(/\D/g, "");
+  const ddi = String((countryByCode(lead.countryCode || "BR") || {}).ddi || "").replace(/\D/g, "");
+  return [raw, local, local && ddi ? ddi + local : "", String(lead.phoneNumber || "").replace(/\D/g, "")].filter(Boolean);
+}
+/* a busca procura por nome, e-mail e telefone; só vira busca por telefone quando o texto tem só números e símbolos de telefone */
 function leadMatchesSearch(lead, query) {
-  return normalizeImportStr(`${lead.name || ""} ${lead.email || ""}`).includes(normalizeImportStr(query));
+  if (normalizeImportStr(`${lead.name || ""} ${lead.email || ""}`).includes(normalizeImportStr(query))) return true;
+  if (!/^[\d\s()+.\-]+$/.test(query.trim())) return false;
+  const digits = query.replace(/\D/g, "").replace(/^0+/, "");
+  return digits.length >= 3 && leadPhoneDigits(lead).some(n => n.includes(digits));
 }
 
 function renderLeadsSearchResults(query) {
@@ -1908,7 +1919,7 @@ function renderLeadsSearchResults(query) {
     ? matches.map(l => `
       <div class="enr-lead-result-item" data-id="${l.id}">
         <div>${escapeHtml(l.name)}</div>
-        <div class="sub">${escapeHtml(l.email || l.phone || t("enr.noContact"))}</div>
+        <div class="sub">${escapeHtml([l.email, l.phone].filter(Boolean).join(" · ") || t("enr.noContact"))}</div>
       </div>`).join("")
     : `<div class="enr-lead-result-empty">${t("enr.noLeadFound")}</div>`;
   leadsSearchResults.classList.add("open");
