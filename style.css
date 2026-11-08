@@ -3306,3 +3306,15 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .pf-nav .btn { min-width: 110px; }
 @keyframes pfStepIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .pf-step { animation: none; } .pf-progress-bar i { transition: none; } }
+
+/* formulário público no celular: topo mais compacto e espaço para rolar a pergunta acima do teclado */
+@media (max-width: 640px) {
+  .pf-page .public-page { align-items: flex-start; padding: 68px 10px 10px; min-height: 0; }
+  .pf-page .public-card { margin: 0; padding: 16px 14px 20px; }
+  .pf-page .public-logo { max-width: 70px; margin-bottom: 6px; }
+  .pf-page .public-title { font-size: 18px; }
+  .pf-page .public-subtitle { margin-bottom: 12px; }
+  .pf-page .pf-steps { min-height: 0; justify-content: flex-start; margin: 6px 0; }
+  .pf-page .pf-step > label > span:first-child { font-size: 17px; }
+  html.pf-editing .pf-page .public-page { padding-bottom: 60vh; }
+}

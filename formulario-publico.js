@@ -163,6 +163,27 @@ function validateStep(i) {
   }
   return true;
 }
+/* no celular o teclado cobre a metade de baixo da tela: leva a pergunta (e o campo) para a parte visível, acima do teclado */
+function pfReveal(el) {
+  if (window.innerWidth > 640) return;
+  const step = el.closest(".pf-step") || el;
+  const top = step.getBoundingClientRect().top + window.scrollY - 64;
+  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+}
+form.addEventListener("focusin", e => {
+  if (!e.target.matches("input, textarea, select")) return;
+  document.documentElement.classList.add("pf-editing");
+  pfReveal(e.target);
+  setTimeout(() => pfReveal(e.target), 350);   /* de novo quando o teclado terminar de subir */
+});
+form.addEventListener("focusout", () => setTimeout(() => {
+  if (!form.contains(document.activeElement)) document.documentElement.classList.remove("pf-editing");
+}, 150));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => {
+  const a = document.activeElement;
+  if (a && form.contains(a) && a.matches("input, textarea, select")) pfReveal(a);
+});
+
 function goToStep(i, focus = true) {
   const total = currentFields.length;
   currentStep = Math.max(0, Math.min(i, total - 1));
@@ -175,8 +196,8 @@ function goToStep(i, focus = true) {
   document.getElementById("pf-progress-text").textContent = t("form.stepOf").replace("{n}", currentStep + 1).replace("{total}", total);
   if (focus) {
     const el = form.querySelector(`.pf-step[data-step="${currentStep}"] input:not([type="radio"]), .pf-step[data-step="${currentStep}"] textarea`);
-    if (el) requestAnimationFrame(() => el.focus({ preventScroll: true }));
-    form.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (el) requestAnimationFrame(() => el.focus());
+    else form.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 }
 
