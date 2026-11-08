@@ -304,6 +304,7 @@ bkaEl("booking-modal-close").addEventListener("click", bkaClose);
 bkaEl("booking-modal-backdrop").addEventListener("click", e => { if (e.target === bkaEl("booking-modal-backdrop")) bkaClose(); });
 bkaEl("booking-who").addEventListener("change", async e => { if (await bkaLoad(e.target.value)) { bkaRenderForm(); bkaResetBlockForm(); } });
 bkaEl("booking-copy").addEventListener("click", async () => { bkaToast((await bkaCopy(bkaEl("booking-link").value)) ? "Link copiado!" : "Selecione e copie o link manualmente."); });
+bkaEl("booking-copy-meta").addEventListener("click", async () => { bkaToast((await bkaCopy(`${bkaEl("booking-link").value}&origem=meta`)) ? "Link para anúncio Meta copiado!" : "Selecione e copie o link manualmente."); });
 bkaEl("booking-save").addEventListener("click", bkaSave);
 bkaEl("booking-block-form").addEventListener("submit", bkaAddBlock);
 bkaEl("bkb-allday").addEventListener("change", bkaToggleAllDay);

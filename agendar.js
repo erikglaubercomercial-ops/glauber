@@ -13,6 +13,15 @@
 const bkQuery = new URLSearchParams(window.location.search);
 const bkSlug = (bkQuery.get("c") || "").trim();
 const bkLeadToken = bkQuery.get("l") || null;
+/* rastreamento do link de anúncio (?origem=meta etc.): o lead novo nasce com a origem do anúncio */
+function bkTracking() {
+  const track = {};
+  ["origem", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "fbclid", "gclid"].forEach(k => {
+    const v = (bkQuery.get(k) || "").trim();
+    if (v) track[k] = v.slice(0, 150);
+  });
+  return Object.keys(track).length ? track : null;
+}
 const bkManageToken = bkQuery.get("b") || null;
 const bkRescheduleToken = bkQuery.get("r") || null;
 const bkRoot = document.getElementById("bk-root");
@@ -226,7 +235,7 @@ function bkBindForm() {
     bk.busy = true; btn.disabled = true; btn.textContent = t("book.confirming");
     const { data, error } = await supabase.rpc("booking_create", {
       p_slug: bkSlug, p_start: bk.slot, p_name: form.elements.name.value, p_email: form.elements.email.value,
-      p_phone: phone.value, p_country: country.value, p_lead: bkLeadToken,
+      p_phone: phone.value, p_country: country.value, p_lead: bkLeadToken, p_tracking: bkTracking(),
     });
     if (error || !data) {
       const key = mapError(error);

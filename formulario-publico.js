@@ -21,6 +21,17 @@ const successEl = document.getElementById("pf-success");
 let currentFields = [];
 let currentStep = 0;
 
+/* rastreamento do link: ?origem=meta (ou utm_source=facebook/instagram, gclid do Google). O banco só aceita as origens
+   "Anúncio Meta" e "Anúncio Google" e descarta qualquer outro texto. */
+function pfTracking() {
+  const track = {};
+  ["origem", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "fbclid", "gclid"].forEach(k => {
+    const v = (params.get(k) || "").trim();
+    if (v) track[k] = v.slice(0, 150);
+  });
+  return Object.keys(track).length ? track : null;
+}
+
 /* países aceitos no telefone (mesma lista do cadastro de leads do CRM) */
 const PF_COUNTRIES = [
   { code: "BR", name: "Brasil", ddi: "55", flag: "🇧🇷" },
@@ -253,7 +264,7 @@ form.addEventListener("submit", async e => {
     return;
   }
 
-  const { error } = await supabase.rpc("submit_form_public", { p_slug: slug, p_answers: answers });
+  const { error } = await supabase.rpc("submit_form_public", { p_slug: slug, p_answers: answers, p_tracking: pfTracking() });
 
   /* telefone ou e-mail já cadastrado (23505): do ponto de vista de quem
      preenche, já está na nossa base — mostra o agradecimento, não erro */

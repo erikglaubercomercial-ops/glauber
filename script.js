@@ -8170,7 +8170,7 @@ async function loadForms() {
 }
 function formSubmissionFromDb(r) {
   return {
-    id: r.id, formId: r.form_id, answers: r.answers || {}, leadId: r.lead_id,
+    id: r.id, formId: r.form_id, answers: r.answers || {}, leadId: r.lead_id, tracking: r.tracking || null,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
 }
@@ -8476,6 +8476,7 @@ const formModalBackdrop = document.getElementById("form-modal-backdrop");
 const formBuilderForm = document.getElementById("form-builder-form");
 const formBtnDelete = document.getElementById("form-btn-delete");
 const formBtnCopyLink = document.getElementById("form-btn-copy-link");
+const formBtnCopyLinkMeta = document.getElementById("form-btn-copy-link-meta");
 let formModalSlug = "";
 
 function openFormModal(id) {
@@ -8492,6 +8493,7 @@ function openFormModal(id) {
     formModalSlug = existing.slug;
     formBtnDelete.style.display = formBuilderReadOnly ? "none" : "inline-block";
     formBtnCopyLink.style.display = "inline-block";
+    formBtnCopyLinkMeta.style.display = "inline-block";
   } else {
     document.getElementById("form-modal-title").textContent = t("forms.newTitle");
     document.getElementById("form-id").value = "";
@@ -8499,6 +8501,7 @@ function openFormModal(id) {
     formModalSlug = "";
     formBtnDelete.style.display = "none";
     formBtnCopyLink.style.display = "none";
+    formBtnCopyLinkMeta.style.display = "none";
   }
   renderFormBuilderFields();
 
@@ -8522,6 +8525,14 @@ formBtnCopyLink.addEventListener("click", () => {
   navigator.clipboard.writeText(buildFormPublicUrl(formModalSlug));
   formBtnCopyLink.textContent = t("common.copied");
   setTimeout(() => { formBtnCopyLink.textContent = t("common.copyLink"); }, 1500);
+});
+
+/* link do formulário com o rastreamento: quem se cadastrar por ele entra no CRM com a origem "Anúncio Meta" */
+formBtnCopyLinkMeta.addEventListener("click", () => {
+  if (!formModalSlug) return;
+  navigator.clipboard.writeText(`${buildFormPublicUrl(formModalSlug)}&origem=meta`);
+  formBtnCopyLinkMeta.textContent = t("common.copied");
+  setTimeout(() => { formBtnCopyLinkMeta.textContent = "Copiar link para anúncio Meta"; }, 1500);
 });
 
 formBuilderForm.addEventListener("submit", async e => {
@@ -8632,14 +8643,14 @@ function renderFormResponses() {
       }
       return `<td>${escapeHtml(value)}</td>`;
     }).join("");
-    const when = new Date(s.createdAt).toLocaleString("pt-BR");
+    const when = new Date(s.createdAt).toLocaleString("pt-BR") + (s.tracking && s.tracking.origem ? `<span class="split-sub" title="${escapeHtml(formTrackingNote(s.tracking).trim())}">📣 ${escapeHtml(s.tracking.origem)}</span>` : "");
 
     let leadCell;
     if (s.leadId) {
       leadCell = `<button type="button" class="fr-lead-badge" data-act="view-lead" data-lead-id="${s.leadId}">${t("forms.viewLeadBtn")}</button>`;
     } else if (canConvert) {
       /* origem: a que o cliente marcou no formulário já vem escolhida; sem escolha, vale a regra do formulário */
-      const answeredSource = sourceField && s.answers ? String(s.answers[sourceField.id] || "").trim() : "";
+      const answeredSource = (s.tracking && s.tracking.origem) || (sourceField && s.answers ? String(s.answers[sourceField.id] || "").trim() : "");
       const pick = frPicks.get(s.id) || {};
       const pickedSource = pick.source !== undefined ? pick.source : answeredSource;
       const sourceOptions = pickedSource && !SOURCES.includes(pickedSource) ? [...SOURCES, pickedSource] : SOURCES;
@@ -8797,6 +8808,12 @@ function formFieldKind(f, taken) {
   return kind !== "text" && taken.has(kind) ? "text" : kind;
 }
 
+/* "📣 Veio de anúncio Meta · campanha: X · anúncio: Y." */
+function formTrackingNote(tr) {
+  if (!tr || !tr.origem) return "";
+  const o = String(tr.origem);
+  return `\n📣 Veio de ${o.charAt(0).toLowerCase()}${o.slice(1)}${tr.utm_campaign ? ` · campanha: ${tr.utm_campaign}` : ""}${tr.utm_content ? ` · anúncio: ${tr.utm_content}` : ""}.`;
+}
 function buildLeadFromSubmission(form, submission) {
   const answers = submission.answers || {};
   let name = "", email = "", ddd = "", number = "", source = "Outro", notes = "", countryCode = "BR";
@@ -8824,6 +8841,11 @@ function buildLeadFromSubmission(form, submission) {
     }
   });
 
+  /* veio por link de anúncio: a origem do link vale mais que a resposta do cliente, e a campanha vai para as observações */
+  if (submission.tracking && submission.tracking.origem) {
+    source = submission.tracking.origem;
+    notes += formTrackingNote(submission.tracking);
+  }
   return {
     id: uid(), name: name || t("forms.leadNoName"), company: "", email,
     countryCode, phoneDdd: ddd, phoneNumber: number,
