@@ -4,6 +4,8 @@
    responder. Os campos são montados dinamicamente a partir da
    definição salva no banco (get_form_by_slug); o envio cria um
    lead automaticamente (submit_form_public), sem passar por aqui.
+   Uma pergunta por página: Próxima valida a resposta atual, Voltar não perde o que já foi preenchido
+   (todos os campos continuam na página, só um aparece por vez) e a última página envia.
    Depende de config.js (variável global `supabase`) já carregado.
    ============================================================ */
 
@@ -17,6 +19,7 @@ const form = document.getElementById("pf-form");
 const successEl = document.getElementById("pf-success");
 
 let currentFields = [];
+let currentStep = 0;
 
 /* países aceitos no telefone (mesma lista do cadastro de leads do CRM) */
 const PF_COUNTRIES = [
@@ -124,6 +127,48 @@ function formatPhoneInput(input) {
   });
 }
 
+/* telefone com poucos dígitos não serve para o WhatsApp */
+function phoneIsInvalid(f) {
+  if (f.type !== "phone_br") return false;
+  const country = (form.querySelector(`[name="${f.id}__pais"]`) || {}).value || "BR";
+  const el = form.querySelector(`[name="${f.id}"]`);
+  const digits = (el ? el.value : "").replace(/\D/g, "");
+  return (f.required || digits) && digits.length < ((country === "US" || country === "CA") ? 3 : 2) + 6;
+}
+/* confere a pergunta de uma página; se houver problema, mostra o aviso do navegador na própria pergunta */
+function validateStep(i) {
+  const step = form.querySelector(`.pf-step[data-step="${i}"]`);
+  if (!step) return true;
+  const f = currentFields[i];
+  const els = [...step.querySelectorAll("input, select, textarea")];
+  for (const el of els) {
+    if (!el.checkValidity()) { el.reportValidity(); return false; }
+  }
+  if (phoneIsInvalid(f)) {
+    const el = step.querySelector('input[type="tel"]');
+    el.setCustomValidity(t("form.phoneInvalid"));
+    el.reportValidity();
+    return false;
+  }
+  return true;
+}
+function goToStep(i, focus = true) {
+  const total = currentFields.length;
+  currentStep = Math.max(0, Math.min(i, total - 1));
+  form.querySelectorAll(".pf-step").forEach(el => { el.hidden = Number(el.dataset.step) !== currentStep; });
+  const last = currentStep === total - 1;
+  document.getElementById("pf-back").style.visibility = currentStep === 0 ? "hidden" : "visible";
+  document.getElementById("pf-submit").textContent = last ? t("form.submit") : t("form.next");
+  document.getElementById("pf-progress").style.display = total > 1 ? "" : "none";
+  document.getElementById("pf-progress-fill").style.width = `${((currentStep + 1) / total) * 100}%`;
+  document.getElementById("pf-progress-text").textContent = t("form.stepOf").replace("{n}", currentStep + 1).replace("{total}", total);
+  if (focus) {
+    const el = form.querySelector(`.pf-step[data-step="${currentStep}"] input:not([type="radio"]), .pf-step[data-step="${currentStep}"] textarea`);
+    if (el) requestAnimationFrame(() => el.focus({ preventScroll: true }));
+    form.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+
 (async () => {
   if (!slug) {
     loadingEl.style.display = "none";
@@ -143,8 +188,18 @@ function formatPhoneInput(input) {
   document.getElementById("pf-subtitle").textContent = data.subtitle || "";
   document.title = `${data.title || t("form.title")} — Peregrinos Intercâmbio`;
 
-  form.innerHTML = currentFields.map(fieldInputHtml).join("") + `<button type="submit" class="btn btn-primary" id="pf-submit">${t("form.submit")}</button>`;
+  form.noValidate = true;   /* a validação é feita por página, em validateStep */
+  form.innerHTML = `
+    <div class="pf-progress" id="pf-progress"><div class="pf-progress-bar"><i id="pf-progress-fill"></i></div><span id="pf-progress-text"></span></div>
+    <div class="pf-steps">${currentFields.map((f, i) => `<div class="pf-step" data-step="${i}" hidden>${fieldInputHtml(f)}</div>`).join("")}</div>
+    <div class="pf-nav">
+      <button type="button" class="btn btn-ghost" id="pf-back">${t("form.back")}</button>
+      <button type="submit" class="btn btn-primary" id="pf-submit">${t("form.next")}</button>
+    </div>`;
   form.querySelectorAll('input[type="tel"]').forEach(formatPhoneInput);
+  form.addEventListener("input", e => { if (e.target.setCustomValidity) e.target.setCustomValidity(""); });
+  document.getElementById("pf-back").addEventListener("click", () => goToStep(currentStep - 1));
+  goToStep(0, false);
 
   loadingEl.style.display = "none";
   contentEl.style.display = "block";
@@ -152,6 +207,18 @@ function formatPhoneInput(input) {
 
 form.addEventListener("submit", async e => {
   e.preventDefault();
+  /* fora da última página, "Próxima" (ou Enter) só valida a resposta atual e avança */
+  if (currentStep < currentFields.length - 1) {
+    if (validateStep(currentStep)) goToStep(currentStep + 1);
+    return;
+  }
+  /* na última: confere todas as páginas; a primeira com problema é reaberta */
+  for (let i = 0; i < currentFields.length; i++) {
+    if (!validateStep(i)) {
+      if (i !== currentStep) { goToStep(i); validateStep(i); }
+      return;
+    }
+  }
   const submitBtn = document.getElementById("pf-submit");
   submitBtn.disabled = true;
   submitBtn.textContent = t("auth.sending");
@@ -180,8 +247,7 @@ form.addEventListener("submit", async e => {
   });
   if (badPhone) {
     alert(t("form.phoneInvalid"));
-    const el = form.querySelector(`[name="${badPhone.id}"]`);
-    if (el) el.focus();
+    goToStep(currentFields.indexOf(badPhone));
     submitBtn.disabled = false;
     submitBtn.textContent = t("form.submit");
     return;

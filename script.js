@@ -8324,8 +8324,10 @@ function renderFormBuilderFields() {
         </select>
       </div>
       <div class="form-field-row-sub">
+        ${formBuilderReadOnly ? "" : `<span class="ff-drag" title="${escapeHtml(t("forms.dragToReorder"))}" aria-hidden="true">⠿</span>`}
         <label class="checkbox-label"><input type="checkbox" class="ff-required" ${dis} ${f.required ? "checked" : ""}><span>${t("forms.required")}</span></label>
-        ${formBuilderReadOnly ? "" : `<button type="button" class="btn-icon ff-delete" title="${t("forms.deleteField")}">&times;</button>`}
+        ${formBuilderReadOnly ? "" : `<span class="ff-move"><button type="button" class="btn-icon ff-up" ${i === 0 ? "disabled" : ""} title="${escapeHtml(t("forms.moveUp"))}" aria-label="${escapeHtml(t("forms.moveUp"))}">▲</button><button type="button" class="btn-icon ff-down" ${i === formBuilderFields.length - 1 ? "disabled" : ""} title="${escapeHtml(t("forms.moveDown"))}" aria-label="${escapeHtml(t("forms.moveDown"))}">▼</button></span>
+        <button type="button" class="btn-icon ff-delete" title="${t("forms.deleteField")}">&times;</button>`}
       </div>
       ${f.type === "select" ? formOptionsEditor(f, dis) : ""}
     </div>`).join("");
@@ -8377,6 +8379,17 @@ document.getElementById("form-builder-fields").addEventListener("change", e => {
 });
 document.getElementById("form-builder-fields").addEventListener("click", e => {
   const optRow = e.target.closest(".form-field-row");
+  const mover = e.target.closest(".ff-up, .ff-down");
+  if (optRow && mover && !mover.disabled) {
+    const i = parseInt(optRow.dataset.index, 10), to = mover.classList.contains("ff-up") ? i - 1 : i + 1;
+    if (to >= 0 && to < formBuilderFields.length) {
+      [formBuilderFields[i], formBuilderFields[to]] = [formBuilderFields[to], formBuilderFields[i]];
+      renderFormBuilderFields();
+      const again = document.querySelector(`#form-builder-fields .form-field-row[data-index="${to}"] .${mover.classList.contains("ff-up") ? "ff-up" : "ff-down"}`);
+      if (again && !again.disabled) again.focus();
+    }
+    return;
+  }
   if (optRow && e.target.closest(".ff-opt-add")) {
     const i = parseInt(optRow.dataset.index, 10), opts = formBuilderFields[i].options;
     opts.push("");
@@ -8399,6 +8412,63 @@ document.getElementById("form-builder-fields").addEventListener("click", e => {
 document.getElementById("form-btn-add-field").addEventListener("click", () => {
   formBuilderFields.push({ id: newFormFieldId(), label: "", type: "text", required: false, options: [] });
   renderFormBuilderFields();
+  const rows = document.querySelectorAll("#form-builder-fields .form-field-row");
+  const last = rows[rows.length - 1];
+  if (last) { last.scrollIntoView({ block: "nearest", behavior: "smooth" }); const input = last.querySelector(".ff-label"); if (input) input.focus(); }
+});
+
+/* arrastar as perguntas pela alça ⠿ para mudar a ordem (a linha só fica arrastável enquanto o mouse está na alça,
+   para não atrapalhar a seleção de texto nos campos) */
+let formDragIndex = null;
+function formDropTarget(e) {
+  const rows = [...document.querySelectorAll("#form-builder-fields .form-field-row")];
+  for (const row of rows) {
+    const r = row.getBoundingClientRect();
+    if (e.clientY < r.top + r.height / 2) return { row, before: true };
+  }
+  return rows.length ? { row: rows[rows.length - 1], before: false } : null;
+}
+function formClearDrop() {
+  document.querySelectorAll("#form-builder-fields .drop-before, #form-builder-fields .drop-after, #form-builder-fields .dragging").forEach(r => r.classList.remove("drop-before", "drop-after", "dragging"));
+}
+document.addEventListener("mousedown", e => {
+  const h = e.target.closest && e.target.closest(".ff-drag");
+  if (h) h.closest(".form-field-row").draggable = true;
+});
+document.addEventListener("mouseup", () => document.querySelectorAll("#form-builder-fields .form-field-row[draggable]").forEach(r => { if (formDragIndex === null) r.removeAttribute("draggable"); }));
+document.addEventListener("dragstart", e => {
+  const row = e.target.closest && e.target.closest("#form-builder-fields .form-field-row");
+  if (!row || formBuilderReadOnly) return;
+  formDragIndex = parseInt(row.dataset.index, 10);
+  e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", String(formDragIndex)); } catch (err) { /* alguns navegadores exigem dado */ }
+  requestAnimationFrame(() => row.classList.add("dragging"));
+});
+document.addEventListener("dragover", e => {
+  if (formDragIndex === null || !e.target.closest || !e.target.closest("#form-builder-fields")) return;
+  e.preventDefault();
+  formClearDrop();
+  const dragRow = document.querySelector(`#form-builder-fields .form-field-row[data-index="${formDragIndex}"]`);
+  if (dragRow) dragRow.classList.add("dragging");
+  const target = formDropTarget(e);
+  if (target) target.row.classList.add(target.before ? "drop-before" : "drop-after");
+});
+document.addEventListener("drop", e => {
+  if (formDragIndex === null || !e.target.closest || !e.target.closest("#form-builder-fields")) return;
+  e.preventDefault();
+  const target = formDropTarget(e), from = formDragIndex;
+  formDragIndex = null;
+  if (!target) return;
+  let to = parseInt(target.row.dataset.index, 10) + (target.before ? 0 : 1);
+  const [moved] = formBuilderFields.splice(from, 1);
+  if (from < to) to -= 1;
+  formBuilderFields.splice(to, 0, moved);
+  renderFormBuilderFields();
+});
+document.addEventListener("dragend", () => {
+  formDragIndex = null;
+  formClearDrop();
+  document.querySelectorAll("#form-builder-fields .form-field-row[draggable]").forEach(r => r.removeAttribute("draggable"));
 });
 
 /* ---- modal do formulário (criar/editar) ---- */

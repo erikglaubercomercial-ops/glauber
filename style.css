@@ -1116,7 +1116,18 @@ body > .lang-switcher { position: fixed; top: 18px; right: 18px; z-index: 40; }
 .ff-opt:focus { outline: 2px solid color-mix(in srgb, var(--primary) 45%, transparent); background: #fff; }
 .ff-opts-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
 .ff-opts-foot small { margin: 0; }
-.ff-delete { margin-left: auto; }
+.ff-move { margin-left: auto; display: flex; gap: 2px; }
+.ff-move + .ff-delete { margin-left: 0; }
+.ff-move .btn-icon { font-size: 10px; width: 26px; height: 26px; }
+.ff-move .btn-icon[disabled] { opacity: .3; cursor: default; }
+.ff-drag { cursor: grab; color: var(--text-muted); font-size: 18px; line-height: 1; user-select: none; padding: 0 2px; }
+.ff-drag:active { cursor: grabbing; }
+.form-field-row.dragging { opacity: .4; }
+.form-field-row.drop-before { box-shadow: 0 -3px 0 0 var(--primary); }
+.form-field-row.drop-after { box-shadow: 0 3px 0 0 var(--primary); }
+.form-add-field { align-self: flex-start; margin-top: 10px; }
+.form-builder-fields-header { gap: 12px; flex-wrap: wrap; }
+.form-builder-fields-header .muted-note { margin: 0; font-weight: 500; }
 
 /* respostas de formulário */
 .fr-convert-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -3279,3 +3290,19 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .split-in.split-in-auto { color: var(--text-muted); background: transparent; border-style: dashed; }
 .split-in.split-in-auto:focus { color: var(--text); background: var(--content-bg); border-style: solid; }
 .split-in.split-in-dirty { border: 1px solid var(--warn); background: var(--warn-bg); color: var(--text); border-style: solid; }
+
+/* formulário público: uma pergunta por página */
+.pf-progress { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+.pf-progress-bar { height: 6px; border-radius: 999px; background: var(--content-bg); overflow: hidden; border: 1px solid var(--border); }
+.pf-progress-bar i { display: block; height: 100%; width: 0; background: var(--primary); border-radius: 999px; transition: width .3s ease; }
+.pf-progress span { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.pf-steps { min-height: 150px; display: flex; flex-direction: column; justify-content: center; }
+.pf-step { animation: pfStepIn .25s ease; }
+.pf-step[hidden] { display: none; }
+.pf-step > label { gap: 10px; }
+.pf-step > label > span:first-child { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1.35; }
+.pf-step input, .pf-step select, .pf-step textarea { font-size: 16px; padding: 12px 14px; }
+.pf-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.pf-nav .btn { min-width: 110px; }
+@keyframes pfStepIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pf-step { animation: none; } .pf-progress-bar i { transition: none; } }

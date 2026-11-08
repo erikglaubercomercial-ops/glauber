@@ -405,6 +405,7 @@ const I18N = {
     "form.title": "Formulário", "form.submit": "Enviar", "form.thankYou": "Recebemos suas informações! Em breve alguém da nossa equipe vai entrar em contato.",
     "form.notFound": "Não encontramos esse formulário. Verifique se o link está correto.", "form.sendError": "Não foi possível enviar. Confira os campos e tente novamente.",
     "form.yes": "Sim", "form.no": "Não",
+    "form.next": "Próxima", "form.back": "Voltar", "form.stepOf": "Pergunta {n} de {total}",
 
     "contract.title": "Contrato", "contract.readCarefully": "Leia o contrato abaixo com atenção antes de assinar.",
     "contract.alreadySigned": "Este contrato já foi assinado. Se precisar de uma cópia, fale com seu consultor.",
@@ -886,6 +887,7 @@ const I18N = {
     "forms.leadNoName": "Lead sem nome",
     "forms.noConsultant": "Sem consultor", "forms.sourcePick": "Origem",
     "forms.optionsPlaceholder": "Opções separadas por vírgula",
+    "forms.reorderHint": "Arraste pela alça ⠿ (ou use as setas) para mudar a ordem das perguntas.", "forms.dragToReorder": "Arraste para mudar a ordem", "forms.moveUp": "Subir pergunta", "forms.moveDown": "Descer pergunta",
     "forms.optionsTitle": "Opções de resposta", "forms.optionPlaceholder": "Digite uma opção", "forms.addOption": "Adicionar opção", "forms.removeOption": "Remover opção", "forms.optionsHint": "Enter cria outra opção. Cole uma lista para criar várias de uma vez.", "forms.optionsRequiredError": "Cada pergunta de lista precisa de pelo menos uma opção.",
     "forms.questionPlaceholder": "Pergunta",
     "forms.receivedOn": "Recebido em",
@@ -1340,6 +1342,7 @@ const I18N = {
     "form.title": "Form", "form.submit": "Submit", "form.thankYou": "We've received your info! Someone from our team will reach out soon.",
     "form.notFound": "We couldn't find this form. Check that the link is correct.", "form.sendError": "Couldn't submit. Check the fields and try again.",
     "form.yes": "Yes", "form.no": "No",
+    "form.next": "Next", "form.back": "Back", "form.stepOf": "Question {n} of {total}",
 
     "contract.title": "Contract", "contract.readCarefully": "Please read the contract below carefully before signing.",
     "contract.alreadySigned": "This contract has already been signed. If you need a copy, talk to your consultant.",
@@ -1821,6 +1824,7 @@ const I18N = {
     "forms.leadNoName": "Unnamed lead",
     "forms.noConsultant": "No consultant", "forms.sourcePick": "Source",
     "forms.optionsPlaceholder": "Options separated by commas",
+    "forms.reorderHint": "Drag by the ⠿ handle (or use the arrows) to change the order of the questions.", "forms.dragToReorder": "Drag to reorder", "forms.moveUp": "Move question up", "forms.moveDown": "Move question down",
     "forms.optionsTitle": "Answer options", "forms.optionPlaceholder": "Type an option", "forms.addOption": "Add option", "forms.removeOption": "Remove option", "forms.optionsHint": "Enter creates another option. Paste a list to create several at once.", "forms.optionsRequiredError": "Each list question needs at least one option.",
     "forms.questionPlaceholder": "Question",
     "forms.receivedOn": "Received on",
@@ -2275,6 +2279,7 @@ const I18N = {
     "form.title": "Formulario", "form.submit": "Enviar", "form.thankYou": "¡Recibimos tu información! Pronto alguien de nuestro equipo se pondrá en contacto.",
     "form.notFound": "No encontramos ese formulario. Verifica que el enlace sea correcto.", "form.sendError": "No fue posible enviar. Revisa los campos e inténtalo de nuevo.",
     "form.yes": "Sí", "form.no": "No",
+    "form.next": "Siguiente", "form.back": "Atrás", "form.stepOf": "Pregunta {n} de {total}",
 
     "contract.title": "Contrato", "contract.readCarefully": "Lee el contrato a continuación con atención antes de firmar.",
     "contract.alreadySigned": "Este contrato ya fue firmado. Si necesitas una copia, habla con tu consultor.",
@@ -2756,6 +2761,7 @@ const I18N = {
     "forms.leadNoName": "Lead sin nombre",
     "forms.noConsultant": "Sin consultor", "forms.sourcePick": "Origen",
     "forms.optionsPlaceholder": "Opciones separadas por comas",
+    "forms.reorderHint": "Arrastra por el asa ⠿ (o usa las flechas) para cambiar el orden de las preguntas.", "forms.dragToReorder": "Arrastra para reordenar", "forms.moveUp": "Subir pregunta", "forms.moveDown": "Bajar pregunta",
     "forms.optionsTitle": "Opciones de respuesta", "forms.optionPlaceholder": "Escribe una opción", "forms.addOption": "Añadir opción", "forms.removeOption": "Quitar opción", "forms.optionsHint": "Enter crea otra opción. Pega una lista para crear varias a la vez.", "forms.optionsRequiredError": "Cada pregunta de lista necesita al menos una opción.",
     "forms.questionPlaceholder": "Pregunta",
     "forms.receivedOn": "Recibido el",
