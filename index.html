@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1794136794">
-<link rel="stylesheet" href="bio.css?v=1794136794">
+<link rel="stylesheet" href="style.css?v=1794141548">
+<link rel="stylesheet" href="bio.css?v=1794141548">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -362,11 +362,12 @@
               <thead>
                 <tr>
                   <th class="cell-check"><input type="checkbox" id="leads-select-all"></th>
-                  <th data-i18n="common.name">Nome</th>
-                  <th data-i18n="common.phone">Telefone</th>
+                  <th data-i18n="leads.colFullName">Nome completo</th>
                   <th data-i18n="common.email">E-mail</th>
+                  <th>WhatsApp</th>
+                  <th data-i18n="leads.colHowMet">Como conheceu</th>
                   <th data-i18n="common.source">Origem</th>
-                  <th data-i18n="lead.whenToCome">Quando pretende vir?</th>
+                  <th data-i18n="forms.receivedOn">Recebido em</th>
                   <th data-i18n="common.consultant">Consultor</th>
                   <th></th>
                 </tr>
@@ -1781,6 +1782,9 @@
         <label><span data-i18n="lead.whenToCome">Quando pretende vir?</span>
           <input type="text" id="lead-field-pretende-vir" maxlength="80" placeholder="Ex: 03/2027, em 6 meses" data-i18n-placeholder="lead.whenToComePlaceholder">
         </label>
+        <label><span data-i18n="leads.colHowMet">Como conheceu</span>
+          <input type="text" id="lead-field-como-conheceu" maxlength="120" placeholder="Ex: vídeo no Instagram, indicação de amigo" data-i18n-placeholder="lead.howMetPlaceholder">
+        </label>
         <label><span data-i18n="common.notes">Notas</span>
           <textarea id="lead-field-notes" rows="3" placeholder="Detalhes adicionais (ex: respostas de formulário)"></textarea>
         </label>
@@ -3169,31 +3173,31 @@
     </div>
   </div>
 
-  <script src="config.js?v=1794136794"></script>
-  <script src="ver-como.js?v=1794136794"></script>
-  <script src="auth.js?v=1794136794"></script>
-  <script src="i18n.js?v=1794136794"></script>
-  <script src="comparativo.js?v=1794136794"></script>
-  <script src="contrato-modelo.js?v=1794136794"></script>
-  <script src="script.js?v=1794136794"></script>
-  <script src="contratos-proposta.js?v=1794136794"></script>
-  <script src="ficha-cliente.js?v=1794136794"></script>
-  <script src="agenda-reunioes.js?v=1794136794"></script>
-  <script src="agendamento-online.js?v=1794136794"></script>
-  <script src="videos-area-aluno.js?v=1794136794"></script>
-  <script src="times-arena.js?v=1794136794"></script>
+  <script src="config.js?v=1794141548"></script>
+  <script src="ver-como.js?v=1794141548"></script>
+  <script src="auth.js?v=1794141548"></script>
+  <script src="i18n.js?v=1794141548"></script>
+  <script src="comparativo.js?v=1794141548"></script>
+  <script src="contrato-modelo.js?v=1794141548"></script>
+  <script src="script.js?v=1794141548"></script>
+  <script src="contratos-proposta.js?v=1794141548"></script>
+  <script src="ficha-cliente.js?v=1794141548"></script>
+  <script src="agenda-reunioes.js?v=1794141548"></script>
+  <script src="agendamento-online.js?v=1794141548"></script>
+  <script src="videos-area-aluno.js?v=1794141548"></script>
+  <script src="times-arena.js?v=1794141548"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
   <script id="katex-js" defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-  <script src="mapa-mental.js?v=1794136794"></script>
-  <script src="bio-shared.js?v=1794136794"></script>
+  <script src="mapa-mental.js?v=1794141548"></script>
+  <script src="bio-shared.js?v=1794141548"></script>
   <script src="api-keys.js?v=1793283902"></script>
-  <script src="time24.js?v=1794136794"></script>
-  <script src="whatsapp.js?v=1794136794"></script>
-  <script src="links-bio.js?v=1794136794"></script>
-  <script src="templates-email.js?v=1794136794"></script>
-  <script src="catalogo-explorer.js?v=1794136794"></script>
-  <script src="financeiro-dashboard.js?v=1794136794"></script>
-  <script src="acomodacao-financeiro.js?v=1794136794"></script>
-  <script src="app-acompanhamento.js?v=1794136794"></script>
+  <script src="time24.js?v=1794141548"></script>
+  <script src="whatsapp.js?v=1794141548"></script>
+  <script src="links-bio.js?v=1794141548"></script>
+  <script src="templates-email.js?v=1794141548"></script>
+  <script src="catalogo-explorer.js?v=1794141548"></script>
+  <script src="financeiro-dashboard.js?v=1794141548"></script>
+  <script src="acomodacao-financeiro.js?v=1794141548"></script>
+  <script src="app-acompanhamento.js?v=1794141548"></script>
 </body>
 </html>

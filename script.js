@@ -1594,7 +1594,7 @@ function leadFromDb(r) {
     id: r.id, name: r.name, company: r.company || "", phone: r.phone || "", email: r.email || "",
     countryCode: r.country_code || "BR", phoneDdd: r.phone_ddd || "", phoneNumber: r.phone_number || "",
     source: r.source, source2: r.source2 || "", category: r.category, status: r.status, temperature: r.temperature || "",
-    consultorId: r.consultor_id, active: r.active, notes: r.notes || "", pretendeVir: r.pretende_vir || "",
+    consultorId: r.consultor_id, active: r.active, notes: r.notes || "", pretendeVir: r.pretende_vir || "", comoConheceu: r.como_conheceu || "",
     bookingToken: r.booking_token || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     rotationActive: !!r.rotation_active,
@@ -1609,7 +1609,7 @@ function leadToDb(l) {
     id: l.id, name: l.name, company: l.company, phone: l.phone, email: l.email,
     country_code: l.countryCode || "BR", phone_ddd: l.phoneDdd || "", phone_number: l.phoneNumber || "",
     source: l.source, source2: l.source2 || null, category: l.category, status: l.status, temperature: l.temperature || null,
-    consultor_id: l.consultorId || null, active: l.active, notes: l.notes || "", pretende_vir: l.pretendeVir || "",
+    consultor_id: l.consultorId || null, active: l.active, notes: l.notes || "", pretende_vir: l.pretendeVir || "", como_conheceu: l.comoConheceu || "",
     created_at: new Date(l.createdAt).toISOString(),
     rotation_active: !!l.rotationActive,
     rotation_assigned_at: l.rotationAssignedAt ? new Date(l.rotationAssignedAt).toISOString() : null,
@@ -2026,21 +2026,22 @@ function renderLeads() {
         </div>
       </td>
       <td class="cell-muted">
-        ${lead.phone ? `
-          <div class="cell-email-row">
-            <span>${escapeHtml(lead.phone)}</span>
-            <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.phone)}" title="${t("lead.copyPhone")}">${CELL_COPY_ICON_SVG}</button>
-          </div>` : "—"}
-      </td>
-      <td class="cell-muted">
         ${lead.email ? `
           <div class="cell-email-row">
             <span>${escapeHtml(lead.email)}</span>
             <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.email)}" title="${t("lead.copyEmail")}">${CELL_COPY_ICON_SVG}</button>
           </div>` : "—"}
       </td>
+      <td class="cell-muted">
+        ${lead.phone ? `
+          <div class="cell-email-row">
+            <span>${escapeHtml(lead.phone)}</span>
+            <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.phone)}" title="${t("lead.copyPhone")}">${CELL_COPY_ICON_SVG}</button>
+          </div>` : "—"}
+      </td>
+      <td class="cell-muted">${lead.comoConheceu ? escapeHtml(lead.comoConheceu) : "—"}</td>
       <td class="cell-muted">${originBadges(lead)}</td>
-      <td class="cell-muted">${lead.pretendeVir ? escapeHtml(lead.pretendeVir) : "—"}</td>
+      <td class="cell-muted">${escapeHtml(new Date(lead.createdAt).toLocaleString("pt-BR"))}</td>
       <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : (lead.active === false ? "—" : noConsultorMark())}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
     `;
@@ -2688,6 +2689,7 @@ function openLeadModal(id) {
     document.getElementById("lead-field-status").value = lead.status || "Novo";
     document.getElementById("lead-field-notes").value = lead.notes || "";
     document.getElementById("lead-field-pretende-vir").value = lead.pretendeVir || "";
+    document.getElementById("lead-field-como-conheceu").value = lead.comoConheceu || "";
     document.getElementById("lead-field-active").checked = lead.active !== false;
     leadBtnDelete.style.display = "inline-block";
     const referredLead = lead.referredByLeadId ? leads.find(l => l.id === lead.referredByLeadId) : null;
@@ -2809,6 +2811,7 @@ leadForm.addEventListener("submit", async e => {
     status: document.getElementById("lead-field-status").value,
     notes: document.getElementById("lead-field-notes").value.trim(),
     pretendeVir: document.getElementById("lead-field-pretende-vir").value.trim(),
+    comoConheceu: document.getElementById("lead-field-como-conheceu").value.trim(),
     active: document.getElementById("lead-field-active").checked,
     referredByLeadId: document.getElementById("lead-field-referred-by").value || null,
   };
@@ -8816,13 +8819,15 @@ function formTrackingNote(tr) {
 }
 function buildLeadFromSubmission(form, submission) {
   const answers = submission.answers || {};
-  let name = "", email = "", ddd = "", number = "", source = "Outro", notes = "", countryCode = "BR";
+  let name = "", email = "", ddd = "", number = "", source = "Outro", notes = "", countryCode = "BR", comoConheceu = "";
   const taken = new Set(form.fields.filter(f => ["name", "email", "phone_br"].includes(f.type)).map(f => f.type));
 
   form.fields.forEach(f => {
     const val = (answers[f.id] || "").toString().trim();
     const kind = formFieldKind(f, taken);
     if (kind !== f.type) taken.add(kind);
+    /* pergunta "Como você nos conheceu?" (qualquer tipo): a resposta vira o campo Como conheceu do lead */
+    if (val && /conhec/i.test(f.label || "") && !comoConheceu) comoConheceu = val.slice(0, 120);
     if (kind === "name") name = val;
     else if (kind === "email") email = val;
     else if (kind === "phone_br") {
@@ -8847,7 +8852,7 @@ function buildLeadFromSubmission(form, submission) {
     notes += formTrackingNote(submission.tracking);
   }
   return {
-    id: uid(), name: name || t("forms.leadNoName"), company: "", email,
+    id: uid(), name: name || t("forms.leadNoName"), company: "", email, comoConheceu,
     countryCode, phoneDdd: ddd, phoneNumber: number,
     phone: ddd && number ? `(${ddd}) ${number}` : "",
     source, category: "Outro", status: "Novo", temperature: "",
