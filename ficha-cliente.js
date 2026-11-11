@@ -15,6 +15,7 @@ const FICHA_DOCS = [
   { kind: "passagens", label: "Passagens aéreas" },
   { kind: "comprovante_financeiro", label: "Comprovante financeiro" },
   { kind: "matricula_seguros", label: "Matrícula da escola com seguros" },
+  { kind: "acomodacao", label: "Comprovação da acomodação" },
 ];
 
 let fichaLeadId = null;
@@ -883,7 +884,7 @@ async function fxDeparturePopup(e, lead, days, kind) {
     ? `<p style="margin:0;font-size:13px">Faltam ${days} dias. Hora de marcar a reunião de pré-embarque com ${fxEsc(lead.name)}.</p>`
     : `<p style="margin:0;font-size:13px">Confira antes de seguir:</p><ul class="fx-chk">
         ${li("💶", "Pagamentos", payOk, payOk ? "tudo pago" : (recs.length ? `${currency(open)} pendentes` : "sem parcelas lançadas"))}
-        ${docs.map(x => li({ passaporte: "🛂", passagens: "✈", comprovante_financeiro: "💼", matricula_seguros: "🛡" }[x.kind], x.label, x.received && x.passportValid !== false, x.received ? (x.passportValid === false ? "validade curta" : "em mãos") : "pendente")).join("")}</ul>`;
+        ${docs.map(x => li({ passaporte: "🛂", passagens: "✈", comprovante_financeiro: "💼", matricula_seguros: "🛡", acomodacao: "🏠" }[x.kind], x.label, x.received && x.passportValid !== false, x.received ? (x.passportValid === false ? "validade curta" : "em mãos") : "pendente")).join("")}</ul>`;
   fxShowPopup(`
     <div class="fx-pop-top"><div class="fx-pop-ic" style="background:${is15 ? "var(--warn-bg)" : "var(--danger-bg)"};color:${is15 ? "#c97a0a" : "var(--danger)"}">🔔</div>
       <div><div style="font-weight:800;font-size:16px">${is15 ? "Reunião de pré-embarque" : `Embarque em ${days} dias`}</div>
