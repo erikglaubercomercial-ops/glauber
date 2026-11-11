@@ -7233,7 +7233,8 @@ function buildAlunoLoginUrl() {
 }
 
 const studentAccessModalBackdrop = document.getElementById("student-access-modal-backdrop");
-function openStudentAccessModal(enr, password) {
+function openStudentAccessModal(enr, password, title) {
+  document.querySelector("#student-access-modal-backdrop h2").textContent = title || t("studentAccess.title");
   document.getElementById("student-access-link").value = buildAlunoLoginUrl();
   document.getElementById("student-access-email").value = enr.email;
   document.getElementById("student-access-password").value = password;

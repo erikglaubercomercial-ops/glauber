@@ -430,7 +430,8 @@ function fxRenderCards(d) {
       ${fxRow("Login", fxEsc(p.login || e.email || "—"))}
       ${fxRow("Último acesso", p.last_sign_in_at ? fxDateTime(p.last_sign_in_at) : "—")}
       ${fxRow("Mensagens", `${p.messages_total || 0} trocadas${p.unread_from_student ? ` · <span class="fx-wr">${p.unread_from_student} não lida(s)</span>` : ""}`)}
-      <div class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" id="fx-copy-link">Copiar link da matrícula</button><button type="button" class="btn btn-ghost btn-sm" id="fx-open-enr">Abrir matrícula</button></div></div>`);
+      ${fxRow("Link do portal", `<a href="${fxEsc(buildAlunoLoginUrl())}" target="_blank" rel="noopener" class="fx-portal-link" title="${fxEsc(buildAlunoLoginUrl())}">${fxEsc(buildAlunoLoginUrl().replace(/^https?:\/\//, ""))}</a>`)}
+      <div class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" id="fx-copy-portal">Copiar link do portal</button>${p.active ? '<button type="button" class="btn btn-ghost btn-sm" id="fx-new-pass">Criar nova senha</button>' : '<button type="button" class="btn btn-ghost btn-sm" id="fx-create-access">Criar acesso do aluno</button>'}<button type="button" class="btn btn-ghost btn-sm" id="fx-copy-link">Copiar link da matrícula</button><button type="button" class="btn btn-ghost btn-sm" id="fx-open-enr">Abrir matrícula</button></div></div>`);
   }
 
   $fx("ficha-cards").innerHTML = cards.join("");
@@ -495,6 +496,34 @@ function fxBindCards(d) {
     if (error) { console.error(error); alert("Não foi possível salvar a reunião."); return; }
     const local = enrollments.find(x => x.id === e.id); if (local) local.preEmbarkAt = new Date(v).toISOString();
     fichaJson = ""; fichaLoad();
+  });
+  const portalBtn = $fx("fx-copy-portal");
+  if (portalBtn) portalBtn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(buildAlunoLoginUrl()); portalBtn.textContent = "Link copiado"; setTimeout(() => { portalBtn.textContent = "Copiar link do portal"; }, 1500); }
+    catch { prompt("Copie o link:", buildAlunoLoginUrl()); }
+  });
+  /* nova senha: gera aqui, grava só o hash no banco e mostra a senha uma única vez */
+  const newPass = $fx("fx-new-pass");
+  if (newPass) newPass.addEventListener("click", async () => {
+    const login = (d.portal && d.portal.login) || e.email || "";
+    if (!confirm(`Criar uma nova senha para ${login}?\n\nA senha atual deixa de funcionar e o aluno será desconectado.`)) return;
+    const password = generateStudentPassword();
+    newPass.disabled = true; newPass.textContent = "Criando...";
+    const { data: email, error } = await supabase.rpc("set_student_password", { p_enrollment: e.id, p_password: password });
+    newPass.disabled = false; newPass.textContent = "Criar nova senha";
+    if (error) { console.error("Erro ao criar nova senha:", error); alert("Não foi possível criar a nova senha. Tente de novo."); return; }
+    openStudentAccessModal({ email: email || login }, password, "Nova senha do aluno");
+  });
+  const createAccess = $fx("fx-create-access");
+  if (createAccess) createAccess.addEventListener("click", async () => {
+    const local = enrollments.find(x => x.id === e.id);
+    if (!local || !local.email) { alert("A matrícula precisa ter um e-mail para criar o acesso."); return; }
+    createAccess.disabled = true; createAccess.textContent = "Criando...";
+    const result = await provisionStudentAccess(local);
+    createAccess.disabled = false; createAccess.textContent = "Criar acesso do aluno";
+    if (result && result.password) { openStudentAccessModal(local, result.password); fichaJson = ""; fichaLoad(); }
+    else if (result && result.alreadyExists) alert("Já existe um login com esse e-mail. Use \"Esqueci minha senha\" na tela de login do aluno.");
+    else alert("Não foi possível criar o acesso do aluno.");
   });
   const link = $fx("fx-copy-link");
   if (link) link.addEventListener("click", async () => {
