@@ -3349,3 +3349,22 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .aluno-spectator-bar { position: sticky; top: 0; z-index: 80; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #fff4e0; color: #7a4a00; border-bottom: 1px solid #f0c987; font-size: 13px; }
 .aluno-spectator-bar button { border: 1px solid #e0b060; background: #fff; color: #7a4a00; border-radius: 8px; padding: 5px 12px; font-weight: 700; cursor: pointer; }
 .aluno-spectator [data-doc-upload], .aluno-spectator [data-pay-proof], .aluno-spectator #aluno-send-proof, .aluno-spectator .aluno-msg-form { display: none !important; }
+
+/* ---- popup de comprovantes de pagamento (ADM/Financeiro) ---- */
+#cp-backdrop { z-index: 70; }
+.cp-modal { max-width: 560px; }
+.cp-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; font-size: 12.5px; color: var(--text-muted); }
+.cp-who { font-size: 15px; margin-bottom: 8px; }
+.cp-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 10px; }
+.cp-info > div { background: var(--content-bg); border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; display: grid; gap: 2px; }
+.cp-info span { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; font-weight: 700; }
+.cp-info b { font-size: 14px; }
+.cp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cp-check { display: flex !important; flex-direction: row !important; gap: 10px; align-items: flex-start; background: #fff4e0; border: 1px solid #f0c987; border-radius: 12px; padding: 10px 12px; margin: 10px 0; font-size: 13px; color: #7a4a00; }
+.cp-check input { width: 18px; height: 18px; margin-top: 2px; flex: none; }
+.cp-error { color: var(--danger); font-weight: 700; font-size: 13px; margin: 6px 0 0; }
+.cp-pill { position: fixed; right: 18px; bottom: 18px; z-index: 65; border: 0; border-radius: 999px; padding: 11px 16px; background: var(--warn, #fb9d2d); color: #fff; font-weight: 800; font-size: 13.5px; cursor: pointer; box-shadow: 0 10px 24px rgba(20,50,90,.28); }
+.cp-pill[hidden] { display: none; }
+@media (max-width: 560px) { .cp-info { grid-template-columns: 1fr; } .cp-grid { grid-template-columns: 1fr; } }
+.cp-nav, .cp-who, .cp-info, #cp-body > .muted-note, #cp-body > .fx-acts { margin-left: 20px; margin-right: 20px; }
+.cp-check span { color: #7a4a00; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }

@@ -60,6 +60,7 @@ const alunoRpcArgs = () => (alunoSpectator ? { p_enr: alunoSpectator } : {});
   loadAlunoMessages();
   loadAlunoDocs();
   loadAlunoVideos();
+  loadAlunoProofs();
 
   const { data: fin, error } = await supabase.rpc("aluno_financeiro", alunoRpcArgs());
   if (error) console.error("Erro ao carregar pagamentos:", error);
@@ -244,9 +245,79 @@ function renderAlunoPayments() {
           <span class="aluno-receipt-meta">${alunoEsc(meta)}</span>
         </span>
         <span class="aluno-receipt-status${p.pago ? "" : (overdue ? " overdue" : " pending")}">${alunoEsc(status)}</span>
+        ${!p.pago && p.id ? `<button type="button" class="btn btn-ghost btn-sm" data-pay-proof="${alunoEsc(p.id)}">${alunoEsc(t("aluno.proofRow"))}</button>` : ""}
       </div>`;
   }).join("");
+  renderAlunoProofs();
 }
+
+/* ---- comprovantes de pagamento: o aluno envia; só o financeiro confirma (e só então os valores mudam) ---- */
+let alunoProofs = [];
+async function loadAlunoProofs() {
+  const { data, error } = await supabase.rpc("aluno_comprovantes", alunoRpcArgs());
+  if (error) { console.error("Erro ao carregar comprovantes:", error); return; }
+  alunoProofs = data || [];
+  renderAlunoProofs();
+}
+function renderAlunoProofs() {
+  const box = $al("aluno-proof-list");
+  if (!box) return;
+  const list = alunoProofs.filter(p => p.status !== "confirmado" || (Date.now() - new Date(p.created_at).getTime()) < 14 * 86400000).slice(0, 6);
+  box.innerHTML = list.map(p => {
+    const key = p.status === "pendente" ? "aluno.proofPending" : (p.status === "recusado" ? "aluno.proofRefused" : "aluno.proofConfirmed");
+    const reason = p.status === "recusado" && p.review_note ? ` — ${t("aluno.proofReason")}: ${p.review_note}` : "";
+    const cls = p.status === "pendente" ? " pending" : (p.status === "recusado" ? " overdue" : "");
+    return `<div class="aluno-receipt-row"><span class="aluno-receipt-body"><span class="aluno-receipt-meta${cls}">${alunoEsc(alunoFill(t(key), { amount: alunoEuro(p.amount) }) + reason)}</span></span></div>`;
+  }).join("");
+}
+function alunoOpenProofModal(receivableId) {
+  if (alunoSpectator || !alunoEnr) return;
+  const f = alunoFin || { parcelas: [] };
+  const open = (f.parcelas || []).filter(p => !p.pago && p.id);
+  $al("aluno-proof-rec").innerHTML = `<option value="">${alunoEsc(t("aluno.proofAnyInstallment"))}</option>` + open.map(p =>
+    `<option value="${alunoEsc(p.id)}">${alunoEsc(alunoFill(t("aluno.payInstallment"), { n: p.numero, t: p.total }))} · ${alunoEuro(p.valor)} · ${alunoEsc(alunoDate(p.vencimento))}</option>`).join("");
+  $al("aluno-proof-rec").value = receivableId || "";
+  const sel = open.find(p => p.id === receivableId);
+  $al("aluno-proof-amount").value = sel ? sel.valor : "";
+  $al("aluno-proof-date").value = alunoTodayIso();
+  $al("aluno-proof-date").max = alunoTodayIso();
+  $al("aluno-proof-file").value = "";
+  $al("aluno-proof-note").value = "";
+  $al("aluno-proof-backdrop").classList.add("open");
+}
+const alunoCloseProofModal = () => $al("aluno-proof-backdrop").classList.remove("open");
+$al("aluno-send-proof").addEventListener("click", () => alunoOpenProofModal(""));
+$al("aluno-pay-list").addEventListener("click", e => { const b = e.target.closest("[data-pay-proof]"); if (b) alunoOpenProofModal(b.dataset.payProof); });
+["aluno-proof-close", "aluno-proof-cancel"].forEach(i => $al(i).addEventListener("click", alunoCloseProofModal));
+$al("aluno-proof-backdrop").addEventListener("click", e => { if (e.target.id === "aluno-proof-backdrop") alunoCloseProofModal(); });
+$al("aluno-proof-rec").addEventListener("change", () => {
+  const p = ((alunoFin && alunoFin.parcelas) || []).find(x => x.id === $al("aluno-proof-rec").value);
+  if (p) $al("aluno-proof-amount").value = p.valor;
+});
+$al("aluno-proof-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (alunoSpectator || !alunoEnr) return;
+  const file = $al("aluno-proof-file").files[0];
+  const amount = Math.round(parseFloat($al("aluno-proof-amount").value) * 100) / 100;
+  const paidOn = $al("aluno-proof-date").value;
+  if (!file || !(amount > 0) || !paidOn) return;
+  if (file.size > ALUNO_DOC_MAX) { alunoToast(t("aluno.docTooBig")); return; }
+  if (!(file.type.startsWith("image/") || file.type === "application/pdf")) { alunoToast(t("aluno.docBadType")); return; }
+  const btn = $al("aluno-proof-send");
+  btn.disabled = true; btn.textContent = t("aluno.proofSending");
+  const reset = () => { btn.disabled = false; btn.textContent = t("aluno.proofSend"); };
+  const ext = (file.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "pdf";
+  const path = `${alunoEnr.id}/pagamento-${Date.now()}.${ext}`;
+  const up = await supabase.storage.from("student-docs").upload(path, file);
+  if (up.error) { console.error(up.error); reset(); alunoToast(t("aluno.proofError")); return; }
+  const { error } = await supabase.rpc("aluno_enviar_comprovante", {
+    p_receivable: $al("aluno-proof-rec").value || null, p_amount: amount, p_paid_on: paidOn, p_path: path, p_name: file.name, p_note: $al("aluno-proof-note").value.trim() || null });
+  reset();
+  if (error) { console.error(error); alunoToast(/muitos_pendentes/.test(error.message || "") ? t("aluno.proofTooMany") : t("aluno.proofError")); return; }
+  alunoCloseProofModal();
+  alunoToast(t("aluno.proofSent"));
+  loadAlunoProofs();
+});
 
 /* ---- documentos da jornada ---- */
 const ALUNO_DOC_KINDS = ["passaporte", "passagens", "comprovante_financeiro", "matricula_seguros", "visto"];
