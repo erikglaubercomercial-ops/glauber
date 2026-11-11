@@ -3323,3 +3323,21 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 
 .fx-portal-link { color: var(--primary); text-decoration: none; font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 .fx-portal-link:hover { text-decoration: underline; }
+
+/* ---- ficha do cliente: planilha de pagamentos ---- */
+.fx-card.fx-sheet { grid-column: span 2; min-width: 0; align-self: start; }
+.fx-sheet-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+.fx-sheet-t { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.fx-sheet-t th, .fx-sheet-t td { padding: 8px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); white-space: nowrap; text-align: left; }
+.fx-sheet-t th:last-child, .fx-sheet-t td:last-child { border-right: 0; }
+.fx-sheet-t thead th { background: var(--content-bg); color: var(--text-muted); font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
+.fx-sheet-t tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--content-bg) 55%, transparent); }
+.fx-sheet-t tbody tr.is-late td { background: color-mix(in srgb, var(--danger) 7%, transparent); }
+.fx-sheet-t .n { text-align: right; font-weight: 700; }
+.fx-sheet-t .c { text-align: center; }
+.fx-sheet-t tfoot td { background: var(--content-bg); font-weight: 800; border-bottom: 0; }
+.fx-sheet-edit { border: 1px solid var(--border); background: var(--surface); color: var(--primary-deep); border-radius: 8px; width: 28px; height: 26px; cursor: pointer; font-size: 14px; line-height: 1; }
+.fx-sheet-edit:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.fx-sheet-note { margin: 10px 0 0; font-size: 12px; font-weight: 700; color: #c97a0a; }
+.fx-sheet-log { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; display: grid; gap: 3px; }
+@media (max-width: 760px) { .fx-card.fx-sheet { grid-column: 1 / -1; } }

@@ -434,8 +434,120 @@ function fxRenderCards(d) {
       <div class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" id="fx-copy-portal">Copiar link do portal</button>${p.active ? '<button type="button" class="btn btn-ghost btn-sm" id="fx-new-pass">Criar nova senha</button>' : '<button type="button" class="btn btn-ghost btn-sm" id="fx-create-access">Criar acesso do aluno</button>'}<button type="button" class="btn btn-ghost btn-sm" id="fx-copy-link">Copiar link da matrícula</button><button type="button" class="btn btn-ghost btn-sm" id="fx-open-enr">Abrir matrícula</button></div></div>`);
   }
 
+  /* planilha de pagamentos: ocupa o espaço ao lado do portal */
+  const sheet = fxSheetCard(d);
+  if (sheet) cards.push(sheet);
+
   $fx("ficha-cards").innerHTML = cards.join("");
   fxBindCards(d);
+}
+
+/* ---- planilha de pagamentos do cliente ---- */
+/* só ADM e Financeiro corrigem o valor/data de um pagamento já realizado (o banco também confere) */
+const fxCanEditPaid = d => { const r = (d.viewer || {}).role; return r === "ADM" || r === "Financeiro"; };
+
+function fxSheetCard(d) {
+  const recs = d.receivables || [];
+  if (!recs.length) return "";
+  const today = new Date().toISOString().slice(0, 10);
+  const canEdit = fxCanEditPaid(d);
+  let totV = 0, totP = 0, totS = 0;
+  const rows = recs.map(r => {
+    const valor = Number(r.valor || 0);
+    const pago = r.pago ? valor : 0;
+    const saldo = r.pago ? 0 : valor;
+    totV += valor; totP += pago; totS += saldo;
+    const late = !r.pago && String(r.vencimento) < today;
+    const days = late ? Math.round((new Date(`${today}T12:00:00`) - new Date(`${r.vencimento}T12:00:00`)) / 86400000) : 0;
+    const st = r.pago ? '<span class="fx-ok">Pago</span>' : (late ? `<span class="fx-bad">Em atraso · ${days} d</span>` : '<span class="fx-wr">Pendente</span>');
+    const edit = r.pago && canEdit && r.id
+      ? `<button type="button" class="fx-sheet-edit" data-pay-edit="${fxEsc(r.id)}" title="Corrigir valor ou data do pagamento" aria-label="Corrigir pagamento">✎</button>` : "";
+    return `<tr class="${r.pago ? "is-paid" : (late ? "is-late" : "")}">
+      <td class="c">${r.numero}/${r.total}</td>
+      <td>${r.vencimento ? fxFull(r.vencimento + "T12:00:00") : "—"}</td>
+      <td class="n">${currency(valor)}</td>
+      <td class="n ${r.pago ? "fx-ok" : "fx-mu"}">${r.pago ? currency(pago) : "—"}</td>
+      <td>${r.pago && r.pago_em ? fxFull(r.pago_em) : "—"}</td>
+      <td class="n ${saldo > 0 ? (late ? "fx-bad" : "fx-wr") : "fx-mu"}">${saldo > 0 ? currency(saldo) : "—"}</td>
+      <td>${st}</td>
+      <td class="c">${edit}</td></tr>`;
+  }).join("");
+  const contract = d.quote ? Number(d.quote.value) : 0;
+  const note = contract > 0 && Math.abs(contract - totV) > 0.005
+    ? `<p class="fx-sheet-note">Atenção: as parcelas somam ${currency(totV)} e a cotação é de ${currency(contract)} (diferença de ${currency(Math.abs(contract - totV))}).</p>` : "";
+  const edits = ((d.viewer || {}).financeiro ? (d.events || []).filter(x => x.kind === "pagamento_editado").slice(0, 5) : []);
+  const log = edits.length
+    ? `<div class="fx-sheet-log"><b>Correções de valor</b>${edits.map(x => `<div>${fxEsc(x.title)} <span class="fx-mu">· ${fxFull(x.occurred_at)}</span></div>`).join("")}</div>` : "";
+  return `<div class="fx-card fx-sheet"><h3><span class="ic">▦</span>Histórico de pagamentos</h3>
+    <div class="fx-sheet-wrap"><table class="fx-sheet-t">
+      <thead><tr><th class="c">Parcela</th><th>Vencimento</th><th class="n">Valor da parcela</th><th class="n">Valor pago</th><th>Pago em</th><th class="n">Saldo</th><th>Situação</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="2">Total</td><td class="n">${currency(totV)}</td><td class="n fx-ok">${currency(totP)}</td><td></td><td class="n ${totS > 0 ? "fx-wr" : "fx-mu"}">${totS > 0 ? currency(totS) : "—"}</td><td colspan="2"></td></tr></tfoot>
+    </table></div>${note}${log}
+    ${canEdit ? '<p class="fx-mu" style="margin:8px 0 0;font-size:11.5px">Use ✎ para corrigir o valor ou a data de um pagamento já recebido. Só ADM e Financeiro podem; cada correção fica registrada no histórico.</p>' : ""}</div>`;
+}
+
+function fxEnsurePayModal() {
+  if ($fx("fx-pay-backdrop")) return;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `<div class="modal-backdrop" id="fx-pay-backdrop"><div class="modal">
+    <div class="modal-header"><h2>Corrigir pagamento</h2><button class="btn-icon" id="fx-pay-close" type="button">&times;</button></div>
+    <form id="fx-pay-form">
+      <p class="muted-note" id="fx-pay-info"></p>
+      <label><span>Valor pago (€)</span><input type="number" id="fx-pay-amount" min="0.01" step="0.01" required></label>
+      <label><span>Data do pagamento</span><input type="date" id="fx-pay-date" required></label>
+      <p class="muted-note">A correção muda o valor desta parcela (e o total do cliente). Fica registrada no histórico do lead.</p>
+      <div class="modal-actions"><div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" id="fx-pay-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="fx-pay-save">Salvar correção</button></div>
+    </form></div></div>`;
+  document.body.appendChild(wrap.firstChild);
+  const close = () => $fx("fx-pay-backdrop").classList.remove("open");
+  ["fx-pay-close", "fx-pay-cancel"].forEach(i => $fx(i).addEventListener("click", close));
+  $fx("fx-pay-backdrop").addEventListener("click", e => { if (e.target.id === "fx-pay-backdrop") close(); });
+  $fx("fx-pay-form").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const id = $fx("fx-pay-backdrop").dataset.rec;
+    const amount = Math.round(parseFloat($fx("fx-pay-amount").value) * 100) / 100;
+    const when = $fx("fx-pay-date").value;
+    if (!id || !(amount > 0) || !when) return;
+    const btn = $fx("fx-pay-save");
+    btn.disabled = true; btn.textContent = "Salvando...";
+    /* só mexe na data se ela foi mudada (corrigir só o valor mantém a hora original do pagamento) */
+    const dayChanged = when !== $fx("fx-pay-backdrop").dataset.day;
+    const paidAt = new Date(`${when}T12:00:00`).toISOString();
+    const patch = dayChanged ? { amount, paid_at: paidAt } : { amount };
+    const { data, error } = await supabase.from("receivables").update(patch).eq("id", id).eq("paid", true).select("id");
+    btn.disabled = false; btn.textContent = "Salvar correção";
+    if (error || !data || !data.length) {
+      if (error) console.error("Erro ao corrigir pagamento:", error);
+      alert("Não foi possível salvar a correção. Só ADM e Financeiro podem alterar um pagamento já realizado.");
+      return;
+    }
+    /* mantém as telas do Financeiro em sincronia sem recarregar */
+    if (typeof receivables !== "undefined") {
+      const loc = receivables.find(x => x.id === id);
+      if (loc) { loc.amount = amount; if (dayChanged) loc.paidAt = new Date(paidAt).getTime(); }
+      try { if (typeof renderReceivables === "function") renderReceivables(); if (typeof renderFinanceiroOverview === "function") renderFinanceiroOverview(); } catch (err) { console.error(err); }
+    }
+    close();
+    fichaJson = ""; fichaLoad();
+  });
+}
+
+function fxOpenPayModal(d, id) {
+  const r = (d.receivables || []).find(x => x.id === id);
+  if (!r || !fxCanEditPaid(d)) return;
+  fxEnsurePayModal();
+  $fx("fx-pay-backdrop").dataset.rec = id;
+  $fx("fx-pay-info").textContent = `Parcela ${r.numero}/${r.total} · valor atual ${currency(r.valor)}.`;
+  $fx("fx-pay-amount").value = Number(r.valor);
+  const day = r.pago_em ? (() => { const x = new Date(r.pago_em); const p = n => String(n).padStart(2, "0"); return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}`; })() : "";
+  $fx("fx-pay-date").value = day;
+  $fx("fx-pay-backdrop").dataset.day = day;
+  $fx("fx-pay-date").max = new Date().toISOString().slice(0, 10);
+  $fx("fx-pay-backdrop").classList.add("open");
+  $fx("fx-pay-amount").focus();
 }
 
 function fxLocalInput(iso) {
@@ -497,6 +609,7 @@ function fxBindCards(d) {
     const local = enrollments.find(x => x.id === e.id); if (local) local.preEmbarkAt = new Date(v).toISOString();
     fichaJson = ""; fichaLoad();
   });
+  document.querySelectorAll("#ficha-cards [data-pay-edit]").forEach(b => b.addEventListener("click", () => fxOpenPayModal(d, b.dataset.payEdit)));
   const portalBtn = $fx("fx-copy-portal");
   if (portalBtn) portalBtn.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(buildAlunoLoginUrl()); portalBtn.textContent = "Link copiado"; setTimeout(() => { portalBtn.textContent = "Copiar link do portal"; }, 1500); }
