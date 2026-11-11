@@ -24,13 +24,28 @@ const alunoTodayIso = () => { const n = new Date(); return `${n.getFullYear()}-$
 const alunoDaysUntil = iso => Math.round((alunoParse(iso) - alunoParse(alunoTodayIso())) / 86400000);
 const alunoFill = (str, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{${k}}`, v), str);
 
+/* ---- modo espectador (só ADM): ?ver=<id da matrícula> mostra o portal daquele aluno, só para olhar ---- */
+let alunoSpectator = null;   /* id da matrícula vista pelo ADM, ou null no uso normal do aluno */
+const alunoRpcArgs = () => (alunoSpectator ? { p_enr: alunoSpectator } : {});
+
 /* ---- carregamento ---- */
 (async () => {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { window.location.href = "area-aluno-login.html"; return; }
   alunoSession = session;
 
-  const { data: enr, error: enrError } = await supabase.rpc("aluno_matricula");
+  const verParam = new URLSearchParams(window.location.search).get("ver");
+  if (verParam) {
+    const { data: prof } = await supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle();
+    if (!prof || prof.role !== "ADM") {
+      document.body.innerHTML = '<p style="font-family:sans-serif;padding:40px;text-align:center">Só o ADM pode ver o portal de um aluno como espectador.</p>';
+      return;
+    }
+    alunoSpectator = verParam;
+    alunoEnterSpectatorMode();
+  }
+
+  const { data: enr, error: enrError } = await supabase.rpc("aluno_matricula", alunoRpcArgs());
   if (enrError) console.error("Erro ao carregar matrícula:", enrError);
   alunoEnr = enr || null;
 
@@ -46,12 +61,14 @@ const alunoFill = (str, vars) => Object.entries(vars).reduce((s, [k, v]) => s.re
   loadAlunoDocs();
   loadAlunoVideos();
 
-  const { data: fin, error } = await supabase.rpc("aluno_financeiro");
+  const { data: fin, error } = await supabase.rpc("aluno_financeiro", alunoRpcArgs());
   if (error) console.error("Erro ao carregar pagamentos:", error);
   else { alunoFin = fin; renderAlunoAll(); }
 })();
 
 document.getElementById("aluno-btn-signout").addEventListener("click", async () => {
+  /* espectador: nunca encerra a sessão do ADM — só fecha esta aba (ou volta ao CRM) */
+  if (alunoSpectator) { window.close(); setTimeout(() => { window.location.href = "index.html"; }, 200); return; }
   await supabase.auth.signOut();
   window.location.href = "area-aluno-login.html";
 });
@@ -171,6 +188,7 @@ function renderAlunoPlayerPosition() {
 }
 
 function renderAlunoAll() {
+  alunoSpectatorName();
   renderAlunoHero();
   renderAlunoPayments();
   renderAlunoDocs();
@@ -247,7 +265,7 @@ async function alunoOpenFile(bucket, path) {
   window.open(data.signedUrl, "_blank", "noopener");
 }
 async function loadAlunoDocs() {
-  const { data, error } = await supabase.rpc("aluno_documentos");
+  const { data, error } = await supabase.rpc("aluno_documentos", alunoRpcArgs());
   if (error) { console.error("Erro ao carregar documentos:", error); return; }
   alunoDocsData = data;
   renderAlunoDocs();
@@ -304,6 +322,7 @@ function renderAlunoDocsView() {
 
 $al("aluno-docs-list").addEventListener("click", e => {
   const up = e.target.closest("[data-doc-upload]");
+  if (alunoSpectator && up) return;
   if (up) { document.querySelector(`[data-doc-file="${up.dataset.docUpload}"]`).click(); return; }
   const vw = e.target.closest("[data-doc-view]");
   if (vw) {
@@ -317,7 +336,7 @@ $al("aluno-docs-list").addEventListener("change", async e => {
   if (!input) return;
   const kind = input.dataset.docFile, file = input.files[0];
   input.value = "";
-  if (!file || !alunoEnr) return;
+  if (alunoSpectator || !file || !alunoEnr) return;
   if (file.size > ALUNO_DOC_MAX) { alunoToast(t("aluno.docTooBig")); return; }
   if (!(file.type.startsWith("image/") || file.type === "application/pdf")) { alunoToast(t("aluno.docBadType")); return; }
   const btn = document.querySelector(`[data-doc-upload="${kind}"]`);
@@ -447,7 +466,7 @@ document.querySelector(".aluno-msg-form").addEventListener("submit", async e => 
   e.preventDefault();
   const ta = $al("aluno-msg-text");
   const texto = ta.value.trim();
-  if (!texto || !alunoEnr) return;
+  if (alunoSpectator || !texto || !alunoEnr) return;
   const btn = $al("aluno-msg-send");
   btn.disabled = true;
   const { error } = await supabase.from("aluno_mensagens").insert({
@@ -458,5 +477,25 @@ document.querySelector(".aluno-msg-form").addEventListener("submit", async e => 
   ta.value = "";
   loadAlunoMessages();
 });
+
+/* aviso fixo no topo + todos os controles que gravam ficam desligados */
+function alunoEnterSpectatorMode() {
+  document.body.classList.add("aluno-spectator");
+  const bar = document.createElement("div");
+  bar.className = "aluno-spectator-bar";
+  bar.innerHTML = '<span>👁 Modo espectador — você está vendo o portal do aluno <b id="aluno-spectator-name"></b>. Somente leitura: nada pode ser enviado ou alterado.</span><button type="button" id="aluno-spectator-close">Fechar</button>';
+  document.body.prepend(bar);
+  bar.querySelector("#aluno-spectator-close").addEventListener("click", () => document.getElementById("aluno-btn-signout").click());
+  const outLabel = document.querySelector("#aluno-btn-signout span");
+  if (outLabel) { outLabel.removeAttribute("data-i18n"); outLabel.textContent = "Fechar espectador"; }
+  const form = document.querySelector(".aluno-msg-form");
+  if (form) form.querySelectorAll("textarea, button, input").forEach(el => { el.disabled = true; });
+  const ta = document.getElementById("aluno-msg-text");
+  if (ta) ta.placeholder = "Espectador: não é possível enviar mensagens.";
+}
+function alunoSpectatorName() {
+  const el = document.getElementById("aluno-spectator-name");
+  if (el && alunoEnr) el.textContent = alunoEnr.name || "";
+}
 
 document.addEventListener("langchange", renderAlunoAll);

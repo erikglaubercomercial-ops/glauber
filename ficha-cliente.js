@@ -432,7 +432,7 @@ function fxRenderCards(d) {
       ${fxRow("Último acesso", p.last_sign_in_at ? fxDateTime(p.last_sign_in_at) : "—")}
       ${fxRow("Mensagens", `${p.messages_total || 0} trocadas${p.unread_from_student ? ` · <span class="fx-wr">${p.unread_from_student} não lida(s)</span>` : ""}`)}
       ${fxRow("Link do portal", `<a href="${fxEsc(buildAlunoLoginUrl())}" target="_blank" rel="noopener" class="fx-portal-link" title="${fxEsc(buildAlunoLoginUrl())}">${fxEsc(buildAlunoLoginUrl().replace(/^https?:\/\//, ""))}</a>`)}
-      <div class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" id="fx-copy-portal">Copiar link do portal</button>${p.active ? '<button type="button" class="btn btn-ghost btn-sm" id="fx-new-pass">Criar nova senha</button>' : '<button type="button" class="btn btn-ghost btn-sm" id="fx-create-access">Criar acesso do aluno</button>'}<button type="button" class="btn btn-ghost btn-sm" id="fx-copy-link">Copiar link da matrícula</button><button type="button" class="btn btn-ghost btn-sm" id="fx-open-enr">Abrir matrícula</button></div></div>`);
+      <div class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" id="fx-copy-portal">Copiar link do portal</button>${p.active ? '<button type="button" class="btn btn-ghost btn-sm" id="fx-new-pass">Criar nova senha</button>' : '<button type="button" class="btn btn-ghost btn-sm" id="fx-create-access">Criar acesso do aluno</button>'}${(d.viewer || {}).role === "ADM" ? '<button type="button" class="btn btn-ghost btn-sm" id="fx-spectate">👁 Ver portal (espectador)</button>' : ""}<button type="button" class="btn btn-ghost btn-sm" id="fx-copy-link">Copiar link da matrícula</button><button type="button" class="btn btn-ghost btn-sm" id="fx-open-enr">Abrir matrícula</button></div></div>`);
   }
 
   /* planilha de pagamentos: ocupa o espaço ao lado do portal */
@@ -639,6 +639,8 @@ function fxBindCards(d) {
     else if (result && result.alreadyExists) alert("Já existe um login com esse e-mail. Use \"Esqueci minha senha\" na tela de login do aluno.");
     else alert("Não foi possível criar o acesso do aluno.");
   });
+  const spectate = $fx("fx-spectate");
+  if (spectate) spectate.addEventListener("click", () => window.open(`area-aluno-dashboard.html?ver=${encodeURIComponent(e.id)}`, "_blank", "noopener"));
   const link = $fx("fx-copy-link");
   if (link) link.addEventListener("click", async () => {
     const local = enrollments.find(x => x.id === e.id);

@@ -190,7 +190,26 @@ async function renderAreaAlunoAdmin() {
   if (!isAdm) return;
   if (!av.loaded) await avLoad();
   avRender();
+  avSpecRender();
 }
+
+/* portais dos alunos em modo espectador (só ADM) */
+function avSpecRender() {
+  const box = document.getElementById("av-spec-list");
+  if (!box || typeof enrollments === "undefined") return;
+  const q = ((document.getElementById("av-spec-search") || {}).value || "").trim().toLowerCase();
+  const list = enrollments.filter(e => !q || [e.name, e.email, e.school].join(" ").toLowerCase().includes(q))
+    .sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" })).slice(0, 60);
+  box.innerHTML = list.length ? list.map(e => `<div class="fx-r" style="gap:12px">
+      <span><b style="color:var(--text)">${escapeHtml(e.name || "—")}</b> <small class="fx-mu">${escapeHtml([e.email, e.school].filter(Boolean).join(" · "))}</small></span>
+      <span><button type="button" class="btn btn-ghost btn-sm" data-spec-open="${escapeHtml(e.id)}">👁 Ver portal</button></span></div>`).join("")
+    : '<p class="muted-note">Nenhum aluno encontrado.</p>';
+}
+document.addEventListener("input", e => { if (e.target.id === "av-spec-search") avSpecRender(); });
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-spec-open]");
+  if (b && !!session && session.role === "ADM") window.open(`area-aluno-dashboard.html?ver=${encodeURIComponent(b.dataset.specOpen)}`, "_blank", "noopener");
+});
 
 document.addEventListener("click", async e => {
   if (e.target.closest("#av-new")) { avOpen(null); return; }
