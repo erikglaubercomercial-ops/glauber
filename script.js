@@ -6705,6 +6705,7 @@ document.getElementById("fin-commission-pct-save").addEventListener("click", asy
 
 /* ---- comissões de influencer (mesmo padrão das comissões de consultor) ---- */
 const infMoneyInput = v => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const infDayValue = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const infRemaining = c => Math.max(round2(c.amount - c.paidAmount), 0);
 function renderInfluencerCommissions() {
   const list = influencerCommissions.slice().sort((a, b) => b.createdAt - a.createdAt);
@@ -6725,6 +6726,7 @@ function renderInfluencerCommissions() {
         : `<input type="text" inputmode="decimal" autocomplete="off" class="inf-amount" data-id="${c.id}" value="${infMoneyInput(c.amount)}" title="Valor da comissão a ser pago — edite se for diferente" aria-label="Valor a pagar">`}</td>
       <td class="cell-primary"><input type="text" inputmode="decimal" autocomplete="off" class="inf-amount inf-paid" data-id="${c.id}" value="${infMoneyInput(c.paidAmount)}" title="Quanto já foi pago ao influencer" aria-label="Valor pago"></td>
       <td class="cell-primary ${remaining > 0 ? "inf-remaining" : "cell-muted"}">${currency(remaining)}</td>
+      <td class="cell-muted">${c.paidAt ? `<input type="date" class="inf-date" data-id="${c.id}" value="${infDayValue(c.paidAt)}" max="${infDayValue(Date.now())}" title="Data do pagamento — edite se precisar" aria-label="Data do pagamento">` : "—"}</td>
       <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${partial ? escapeHtml(t("fin.influencerPartial")) : escapeHtml(statusLabel(c.status))}</span></td>
       <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? t("fin.markPending") : t("fin.markPaid")}</button></td>
     `;
@@ -6743,6 +6745,14 @@ async function infSave(c, changes) {
 
 /* valor a pagar e valor pago editáveis (o financeiro ajusta e registra pagamento parcial); pago por inteiro vira "Pago" */
 document.getElementById("fin-influencer-commissions-tbody").addEventListener("change", async e => {
+  const dateInp = e.target.closest("input.inf-date");
+  if (dateInp) {
+    const cd = influencerCommissions.find(x => x.id === dateInp.dataset.id);
+    if (!cd) return;
+    if (!dateInp.value || dateInp.value > infDayValue(Date.now())) { renderInfluencerCommissions(); return; }
+    if (await infSave(cd, { paidAt: new Date(`${dateInp.value}T12:00:00`).getTime() }) && typeof agendaToast === "function") agendaToast("Data do pagamento salva");
+    return;
+  }
   const inp = e.target.closest("input.inf-amount");
   if (!inp) return;
   const c = influencerCommissions.find(x => x.id === inp.dataset.id);
