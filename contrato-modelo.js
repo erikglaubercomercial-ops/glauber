@@ -7,9 +7,10 @@
    Sem dependências.
    ============================================================ */
 
-/* campos que o lead preenche na etapa 1 (todos obrigatórios, menos os marcados com optional: passaporte) */
+/* campos que o lead preenche na etapa 1 (todos obrigatórios, menos os marcados com optional: passaporte e complemento).
+   `section` abre um título de grupo antes do campo. O endereço é coletado quadro a quadro, como na matrícula. */
 const CONTRATO_CAMPOS = [
-  { key: "nome", label: "Nome completo", autocomplete: "name", placeholder: "Como está no documento" },
+  { key: "nome", section: "Dados pessoais", label: "Nome completo", autocomplete: "name", placeholder: "Como está no documento" },
   { key: "cpf", label: "CPF", autocomplete: "off", inputmode: "numeric", placeholder: "000.000.000-00" },
   { key: "documento", optional: true, label: "Passaporte / documento", autocomplete: "off", placeholder: "Número do passaporte" },
   { key: "passaporte_expedicao", optional: true, label: "Passaporte — data de expedição", type: "date", autocomplete: "off" },
@@ -17,14 +18,35 @@ const CONTRATO_CAMPOS = [
   { key: "data_nascimento", label: "Data de nascimento", type: "date", autocomplete: "bday" },
   { key: "data_chegada", label: "Data de chegada na Irlanda", type: "date", autocomplete: "off" },
   { key: "nacionalidade", label: "Nacionalidade", autocomplete: "off", placeholder: "Ex.: Brasileira" },
-  { key: "endereco", label: "Endereço", autocomplete: "street-address", placeholder: "Rua, número, complemento, bairro", wide: true },
-  { key: "cidade_estado", label: "Cidade / Estado", autocomplete: "off", placeholder: "Ex.: Curitiba / PR" },
+  { key: "rua", section: "Endereço no Brasil", label: "Rua", autocomplete: "address-line1", placeholder: "Nome da rua" },
+  { key: "numero", label: "Número", autocomplete: "off", placeholder: "Ex.: 100 (ou S/N)" },
+  { key: "complemento", optional: true, label: "Complemento", autocomplete: "address-line2", placeholder: "Apto, bloco, casa..." },
+  { key: "bairro", label: "Bairro", autocomplete: "off" },
+  { key: "cidade", label: "Cidade", autocomplete: "address-level2" },
+  { key: "estado", label: "Estado", autocomplete: "address-level1", placeholder: "Ex: SP", maxlength: 2 },
   { key: "cep", label: "CEP", autocomplete: "postal-code", inputmode: "numeric", placeholder: "00000-000" },
-  { key: "telefone", label: "Telefone / WhatsApp", type: "tel", autocomplete: "tel", placeholder: "+55 41 99999-0000" },
+  { key: "telefone", section: "Contato", label: "Telefone / WhatsApp", type: "tel", autocomplete: "tel", placeholder: "+55 41 99999-0000" },
   { key: "email", label: "E-mail", type: "email", autocomplete: "email", placeholder: "nome@email.com" },
   { key: "contato_emergencia_nome", label: "Contato de emergência — nome", autocomplete: "off", placeholder: "Nome de quem avisar" },
   { key: "contato_emergencia_telefone", label: "Contato de emergência — telefone", type: "tel", autocomplete: "off", placeholder: "+55 41 99999-0000" },
 ];
+
+/* variáveis de modelo montadas a partir dos quadros do endereço (modelos antigos usam {{cliente.endereco}} e {{cliente.cidade_estado}}) */
+const CONTRATO_CAMPOS_DERIVADOS = [
+  { key: "endereco", label: "Endereço" },
+  { key: "cidade_estado", label: "Cidade / Estado" },
+];
+
+/* "Rua X, 100, Apto 12, Centro" e "Curitiba / PR"; contratos antigos, sem os quadros, mantêm o texto que já tinham */
+function contratoEnderecoDerivado(d) {
+  const v = k => String((d && d[k]) || "").trim();
+  const temQuadros = ["rua", "numero", "complemento", "bairro", "cidade", "estado"].some(v);
+  if (!temQuadros) return { endereco: v("endereco"), cidade_estado: v("cidade_estado") };
+  return {
+    endereco: [v("rua"), v("numero"), v("complemento"), v("bairro")].filter(Boolean).join(", "),
+    cidade_estado: [v("cidade"), v("estado").toUpperCase()].filter(Boolean).join(" / "),
+  };
+}
 
 function contratoEsc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -52,6 +74,7 @@ function contratoContexto({ dados, numero, assinadoEm, cotacao }) {
   const d = dados || {};
   const cliente = {};
   CONTRATO_CAMPOS.forEach(c => { cliente[c.key] = String(d[c.key] || "").trim(); });
+  Object.assign(cliente, contratoEnderecoDerivado(d));
   cliente.data_nascimento = contratoDataBr(cliente.data_nascimento);
   cliente.passaporte_expedicao = contratoDataBr(cliente.passaporte_expedicao);
   cliente.passaporte_validade = contratoDataBr(cliente.passaporte_validade);

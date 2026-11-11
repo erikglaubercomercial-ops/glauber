@@ -28,7 +28,6 @@ function proposalPrefill(quote) {
   const en = quote.leadId
     ? enrollments.filter(e => e.leadId === quote.leadId).sort((a, b) => b.createdAt - a.createdAt)[0]
     : null;
-  const endereco = en ? [en.addressStreet, en.addressNumber, en.addressComplement, en.addressNeighborhood].filter(Boolean).join(", ") : "";
   return {
     nome: (en && en.name) || (lead && lead.name) || quote.client || "",
     email: (en && en.email) || (lead && lead.email) || quote.email || "",
@@ -37,8 +36,8 @@ function proposalPrefill(quote) {
     documento: en ? en.passportNumber : "",
     data_nascimento: en ? (en.birthDate || "") : "",
     nacionalidade: en ? (en.nationality || "") : "",
-    endereco,
-    cidade_estado: en ? [en.addressCity, en.addressState].filter(Boolean).join(" / ") : "",
+    rua: en ? en.addressStreet : "", numero: en ? en.addressNumber : "", complemento: en ? en.addressComplement : "",
+    bairro: en ? en.addressNeighborhood : "", cidade: en ? en.addressCity : "", estado: en ? en.addressState : "",
     cep: en ? en.addressZip : "",
     contato_emergencia_nome: en ? (en.emergencyName || "") : "",
     contato_emergencia_telefone: en ? en.emergencyPhone : "",
@@ -53,7 +52,7 @@ function proposalQuoteForDoc(q) {
 }
 
 const proposalFieldLabel = key => {
-  const campo = CONTRATO_CAMPOS.find(c => `cliente.${c.key}` === key);
+  const campo = [...CONTRATO_CAMPOS, ...CONTRATO_CAMPOS_DERIVADOS].find(c => `cliente.${c.key}` === key);
   return campo ? campo.label : key;
 };
 
@@ -260,6 +259,7 @@ document.getElementById("q-contracts-list").addEventListener("click", e => {
 const templatesBackdrop = document.getElementById("templates-modal-backdrop");
 const CONTRATO_VARS_CONHECIDAS = [
   ...CONTRATO_CAMPOS.map(c => `cliente.${c.key}`),
+  ...CONTRATO_CAMPOS_DERIVADOS.map(c => `cliente.${c.key}`),
   "contrato.numero", "contrato.data_assinatura",
   "cotacao.numero", "cotacao.total", "cotacao.consultor", "cotacao.emissao", "cotacao.validade",
 ];
@@ -324,7 +324,7 @@ document.getElementById("template-preview").addEventListener("click", () => {
   if (!html.trim()) return;
   const sample = {
     nome: "Maria Exemplo da Silva", cpf: "000.000.000-00", documento: "AB123456", data_nascimento: "1995-05-20", nacionalidade: "Brasileira",
-    endereco: "Rua das Flores, 100, ap. 12, Centro", cidade_estado: "Curitiba / PR", cep: "80000-000", telefone: "+55 41 99999-0000",
+    rua: "Rua das Flores", numero: "100", complemento: "ap. 12", bairro: "Centro", cidade: "Curitiba", estado: "PR", cep: "80000-000", telefone: "+55 41 99999-0000",
     email: "maria@email.com", contato_emergencia_nome: "João Exemplo", contato_emergencia_telefone: "+55 41 98888-0000",
   };
   const cot = { numero: "2026-0001", client: sample.nome, items_detail: [{ nome: "Curso exemplo", qtd: 25, preco: 100, total: 2500, subs: [{ nome: "Material", valor: 0 }] }], value: 2500, emissao: new Date().toISOString().slice(0, 10), consultor_name: "Consultor" };

@@ -59,10 +59,10 @@ function ppGoto(step) {
 
 /* ---------------- etapa 1 ---------------- */
 function ppRenderFields() {
-  $pp("pp-fields").innerHTML = CONTRATO_CAMPOS.map(c => `
+  $pp("pp-fields").innerHTML = CONTRATO_CAMPOS.map(c => `${c.section ? `<div class="pp-section">${contratoEsc(c.section)}</div>` : ""}
     <label class="pp-field${c.wide ? " wide" : ""}"><span>${contratoEsc(c.label)}${c.optional ? " <small>(opcional)</small>" : " *"}</span>
       <input type="${c.type || "text"}" id="pp-f-${c.key}" name="${c.key}" value="${contratoEsc(ppDados[c.key] || "")}"
-        autocomplete="${c.autocomplete || "off"}"${c.inputmode ? ` inputmode="${c.inputmode}"` : ""}${c.placeholder ? ` placeholder="${contratoEsc(c.placeholder)}"` : ""}>
+        autocomplete="${c.autocomplete || "off"}"${c.inputmode ? ` inputmode="${c.inputmode}"` : ""}${c.maxlength ? ` maxlength="${c.maxlength}"` : ""}${c.placeholder ? ` placeholder="${contratoEsc(c.placeholder)}"` : ""}>
     </label>`).join("");
 }
 
