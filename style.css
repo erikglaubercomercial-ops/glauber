@@ -3341,3 +3341,6 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .fx-sheet-note { margin: 10px 0 0; font-size: 12px; font-weight: 700; color: #c97a0a; }
 .fx-sheet-log { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; display: grid; gap: 3px; }
 @media (max-width: 760px) { .fx-card.fx-sheet { grid-column: 1 / -1; } }
+
+/* modais abertos de dentro da ficha ficam acima dela (a ficha tem z-index 35) */
+#fx-pay-backdrop { z-index: 60; }
