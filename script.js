@@ -2627,6 +2627,63 @@ document.getElementById("stuck-btn-reassign").addEventListener("click", () => {
   openAssignModal(Array.from(selectedStuckLeadIds));
 });
 
+/* mudar a origem de todos os leads selecionados de uma vez (só ADM/Gerente) */
+function stuckEnsureSourceModal() {
+  if (document.getElementById("stuck-source-backdrop")) return;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `<div class="modal-backdrop" id="stuck-source-backdrop"><div class="modal">
+    <div class="modal-header"><h2 id="stuck-source-title">Alterar origem</h2><button class="btn-icon" id="stuck-source-close" type="button">&times;</button></div>
+    <form id="stuck-source-form">
+      <label><span>Nova origem</span><select id="stuck-source-main" required></select></label>
+      <label><span>2ª origem (opcional)</span><select id="stuck-source-second"></select></label>
+      <p class="muted-note" id="stuck-source-note"></p>
+      <div class="modal-actions"><div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" id="stuck-source-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="stuck-source-save">Aplicar a todos</button></div>
+    </form></div></div>`;
+  document.body.appendChild(wrap.firstChild);
+  const close = () => document.getElementById("stuck-source-backdrop").classList.remove("open");
+  ["stuck-source-close", "stuck-source-cancel"].forEach(i => document.getElementById(i).addEventListener("click", close));
+  document.getElementById("stuck-source-backdrop").addEventListener("click", e => { if (e.target.id === "stuck-source-backdrop") close(); });
+  document.getElementById("stuck-source-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!canDirectLeads()) return;
+    const main = document.getElementById("stuck-source-main").value;
+    const second = document.getElementById("stuck-source-second").value;   /* "__keep" mantém, "" limpa */
+    const targets = Array.from(selectedStuckLeadIds).map(id => leads.find(l => l.id === id)).filter(Boolean);
+    if (!main || !targets.length) return;
+    if (!confirm(`Mudar a origem de ${targets.length} lead(s) para "${main}"${second === "__keep" ? "" : (second ? ` + "${second}"` : " (sem 2ª origem)")}?`)) return;
+    const btn = document.getElementById("stuck-source-save");
+    btn.disabled = true; btn.textContent = "Salvando...";
+    const before = targets.map(l => ({ l, source: l.source, source2: l.source2 }));
+    targets.forEach(l => { l.source = main; if (second !== "__keep") l.source2 = second || ""; });
+    let ok = true;
+    for (let i = 0; i < targets.length && ok; i += 200) ok = await saveLeads(targets.slice(i, i + 200));
+    btn.disabled = false; btn.textContent = "Aplicar a todos";
+    if (!ok) {
+      /* desfaz na tela o que não foi gravado: recarrega os valores de antes (o que já foi gravado em lotes anteriores será confirmado na próxima carga) */
+      before.forEach(b => { b.l.source = b.source; b.l.source2 = b.source2; });
+      renderLeads(); renderStuckDetailTable();
+      return;
+    }
+    close();
+    renderLeads();
+    if (document.getElementById("subview-stuck-detalhe").classList.contains("active")) renderStuckDetailTable(); else renderStuckOverview();
+    if (typeof agendaToast === "function") agendaToast(`Origem alterada em ${targets.length} lead(s)`);
+  });
+}
+document.getElementById("stuck-btn-source").addEventListener("click", () => {
+  if (!canDirectLeads() || !selectedStuckLeadIds.size) return;
+  stuckEnsureSourceModal();
+  const n = selectedStuckLeadIds.size;
+  const opts = SOURCES.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
+  document.getElementById("stuck-source-main").innerHTML = `<option value="">Escolha a origem…</option>${opts}`;
+  document.getElementById("stuck-source-second").innerHTML = `<option value="__keep">Manter como está</option><option value="">Nenhuma</option>${opts}`;
+  document.getElementById("stuck-source-title").textContent = `Alterar origem (${n} leads)`;
+  document.getElementById("stuck-source-note").textContent = `A nova origem vale para os ${n} leads selecionados.`;
+  document.getElementById("stuck-source-backdrop").classList.add("open");
+});
+
 /* excluir vários leads parados de uma vez (só ADM/Gerente). Leads que já têm matrícula, contrato, cotação ou venda
    fechada NÃO são excluídos aqui — ficam de fora e o aviso diz quantos. Os cards deles no Pipeline saem junto. */
 document.getElementById("stuck-btn-delete").addEventListener("click", async () => {
