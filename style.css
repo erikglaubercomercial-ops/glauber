@@ -3369,3 +3369,15 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 @media (max-width: 560px) { .cp-info { grid-template-columns: 1fr; } .cp-grid { grid-template-columns: 1fr; } }
 .cp-nav, .cp-who, .cp-info, #cp-body > .muted-note, #cp-body > .fx-acts { margin-left: 20px; margin-right: 20px; }
 .cp-check span { color: #7a4a00; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+/* Aviso de venda fechada (popup no topo, com som de caixa registrador) */
+#vf-host { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; width: min(92vw, 460px); }
+.vf-card { pointer-events: auto; display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; border-radius: 16px; color: #fff; background: linear-gradient(135deg, #1f7a46, #2fa866); box-shadow: 0 16px 40px rgba(15, 60, 35, .38); transform: translateY(-140%); opacity: 0; transition: transform .35s cubic-bezier(.2, 1.2, .4, 1), opacity .25s; }
+.vf-card.vf-in { transform: translateY(0); opacity: 1; }
+.vf-icon { font-size: 34px; line-height: 1; }
+.vf-text { flex: 1; min-width: 0; }
+.vf-title { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 800; opacity: .9; }
+.vf-name { font-size: 20px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vf-sub { font-size: 12.5px; opacity: .9; }
+.vf-close { border: 0; background: rgba(255, 255, 255, .18); color: #fff; width: 28px; height: 28px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .vf-card { transition: opacity .2s; transform: none; } }
