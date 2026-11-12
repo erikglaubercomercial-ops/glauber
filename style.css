@@ -3291,6 +3291,7 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .split-in.split-net-warn { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
 .split-in.split-in-auto { color: var(--text-muted); background: transparent; border-style: dashed; }
 .split-in.split-in-auto:focus { color: var(--text); background: var(--content-bg); border-style: solid; }
+.split-in.split-in-manual { border: 1px solid var(--primary); background: var(--content-bg); color: var(--text); font-weight: 600; }
 .split-in.split-in-dirty { border: 1px solid var(--warn); background: var(--warn-bg); color: var(--text); border-style: solid; }
 
 /* formulário público: uma pergunta por página */

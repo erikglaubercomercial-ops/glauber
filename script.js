@@ -5466,7 +5466,7 @@ function saleSplitFromDb(r) {
     custoCurso: r.custo_curso == null ? null : Number(r.custo_curso), passagemManual: r.passagem_manual == null ? null : Number(r.passagem_manual),
     sobraAmount: Number(r.sobra_amount) || 0, consCurso: Number(r.cons_curso) || 0, consPassagem: Number(r.cons_passagem) || 0, acomConsultor: Number(r.acom_consultor) || 0,
     passagemAmount: Number(r.passagem_amount) || 0, trafficFlag: !!r.traffic_flag, influencerAmount: Number(r.influencer_amount) || 0, reservaAmount: Number(r.reserva_amount) || 0,
-    peregrinosNet: Number(r.peregrinos_net) || 0 };
+    peregrinosNet: Number(r.peregrinos_net) || 0, overrides: r.manual_overrides && typeof r.manual_overrides === "object" ? r.manual_overrides : {} };
 }
 async function loadSaleSplits() {
   const { data, error } = await supabase.from("sale_splits").select("*");
@@ -6534,12 +6534,53 @@ const splitBase = sp => (sp.custoCurso != null ? sp.custoCurso : sp.courseGross)
 const splitPending = new Map();
 const splitKey = (dealId, field) => `${dealId}|${field}`;
 const splitPassValue = sp => (sp.passagemManual != null ? sp.passagemManual : (sp.passagemAmount > 0 ? sp.passagemAmount : null));
+/* células calculadas que aceitam valor digitado (nome = coluna do banco; o valor digitado fica em manual_overrides) */
+const SPLIT_LABELS = { course_gross: "Valor vendido", cac_amount: "CAC fixo", influencer_amount: "Influenciador", cons_curso: "Comissão consultor", manager_amount: "Comissão gerente",
+  reserva_amount: "Caixa reserva", acom_pago: "Acomodação: custo", acom_cobrado: "Acomodação: venda", acom_lucro: "Acomodação: lucro", acom_consultor: "Acomodação: comissão consultor",
+  acom_ganho: "Acomodação: ganhos Peregrinos", kit_amount: "Kit", cons_passagem: "Passagem: comissão consultor", peregrinos_net: "Lucro Peregrino" };
+const SPLIT_OVERRIDE = new Set(Object.keys(SPLIT_LABELS));
+/* sem Net, estes três ainda não têm cálculo: aparecem como "pendente" */
+const SPLIT_NEEDS_NET = new Set(["cons_curso", "manager_amount", "peregrinos_net"]);
+const splitIsManual = (sp, field) => !!sp.overrides && sp.overrides[field] != null;
+function splitEffective(sp, field) {
+  if (splitIsManual(sp, field)) return Number(sp.overrides[field]);
+  switch (field) {
+    case "course_gross": return sp.courseGross;
+    case "cac_amount": return sp.cacAmount;
+    case "influencer_amount": return sp.influencerAmount;
+    case "cons_curso": return sp.consCurso;
+    case "manager_amount": return sp.managerAmount;
+    case "reserva_amount": return sp.reservaAmount;
+    case "acom_pago": return sp.acomPago;
+    case "acom_cobrado": return sp.acomCobrado;
+    case "acom_lucro": return sp.acomLucro;
+    case "acom_consultor": return sp.acomConsultor;
+    case "acom_ganho": return sp.acomLucro - sp.acomConsultor;
+    case "kit_amount": return sp.kitAmount;
+    case "cons_passagem": return sp.consPassagem;
+    case "peregrinos_net": return sp.peregrinosNet;
+  }
+  return 0;
+}
+/* valor digitado: aceita "-" na frente só nas células calculadas (ex.: lucro negativo) */
+function splitParse(field, raw) {
+  const text = String(raw).trim();
+  if (!SPLIT_OVERRIDE.has(field)) return parseEuroInput(text);
+  const neg = /^[-−]/.test(text);
+  const n = parseEuroInput(neg ? text.slice(1) : text);
+  return neg ? -n : n;
+}
 function splitOriginal(field, sp) { return field === "custo" ? sp.custoCurso : field === "net" ? sp.netCourse : splitPassValue(sp); }
 /* o que foi digitado vale o mesmo que já está salvo? (custo em branco vale o valor vendido) */
 function splitSameAsSaved(field, sp, raw) {
   const empty = raw.trim() === "";
-  const typed = empty ? null : parseEuroInput(raw);
+  const typed = empty ? null : splitParse(field, raw);
   if (!empty && !isFinite(typed)) return false;
+  if (SPLIT_OVERRIDE.has(field)) {
+    /* apagar só muda algo se havia valor digitado; digitar sobre o cálculo automático sempre fixa o valor */
+    if (typed === null) return !splitIsManual(sp, field);
+    return splitIsManual(sp, field) && Math.abs(typed - Number(sp.overrides[field])) < 0.005;
+  }
   const orig = splitOriginal(field, sp);
   if (typed === null) return orig == null;
   if (orig == null) return field === "custo" && typed === sp.courseGross;
@@ -6562,31 +6603,37 @@ function renderSaleSplits() {
   const reserva = list.reduce((acc, sp) => acc + (sp.reservaAmount || 0), 0);
   const reservaEl = document.getElementById("fin-reserva-total");
   if (reservaEl) reservaEl.textContent = currency(reserva);
-  const mon = v => `<td class="cell-muted">${currency(v)}</td>`;
   tbody.innerHTML = list.map(sp => {
     const deal = deals.find(d => d.id === sp.dealId);
     const mgr = users.find(u => u.id === sp.managerId);
     const pendente = sp.netCourse == null;
     const wrong = splitNetLooksWrong(sp.netCourse, splitBase(sp));
-    const pend = v => `<td class="cell-muted">${pendente ? "pendente" : v}</td>`;
     const passValue = splitPassValue(sp);
     /* valor mostrado: o digitado e ainda não salvo, ou o que está salvo */
     const val = (field, saved) => splitPending.has(splitKey(sp.dealId, field)) ? splitPending.get(splitKey(sp.dealId, field)) : saved;
     const dirty = field => splitPending.has(splitKey(sp.dealId, field)) ? "split-in-dirty" : "";
+    /* célula calculada que também aceita valor digitado: tracejada = cálculo automático, azul = valor digitado, laranja = alteração ainda não salva */
+    const calc = (field, sep, sub) => {
+      const manual = splitIsManual(sp, field);
+      const hide = pendente && !manual && SPLIT_NEEDS_NET.has(field);
+      const shown = val(field, hide ? "" : splitMoney(splitEffective(sp, field)));
+      const cls = dirty(field) || (manual ? "split-in-manual" : "split-in-auto");
+      const title = manual ? "Valor digitado por você (vale no lugar do cálculo). Apague para voltar ao cálculo automático." : "Calculado automaticamente. Digite um valor para substituir o cálculo.";
+      return `<td class="${sep ? "split-sep" : ""}"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${cls}" data-deal="${sp.dealId}" data-field="${field}" value="${escapeHtml(shown)}" ${hide ? 'placeholder="pendente"' : ""} aria-label="${escapeHtml(SPLIT_LABELS[field])}" title="${title}">${sub || ""}</td>`;
+    };
     return `<tr>
       <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}<span class="split-sub">Venda total ${currency(sp.courseTotal)}</span></td>
       <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null && !splitPending.has(splitKey(sp.dealId, "custo")) ? "split-in-auto" : ""} ${dirty("custo")}" data-deal="${sp.dealId}" data-field="custo" value="${escapeHtml(val("custo", splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)))}" aria-label="Custo do curso (Gross)" title="${sp.custoCurso == null ? "Gross da invoice da escola. Em branco, vale o valor vendido. Se o Gross for menor (promoção que não foi repassada ao cliente), digite-o: a diferença vai para a caixa de reserva." : "Gross da invoice da escola. Apague para voltar a valer o valor vendido."}"></td>
-      ${mon(sp.courseGross)}
+      ${calc("course_gross", false)}
       <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""} ${dirty("net")}" data-deal="${sp.dealId}" data-field="net" value="${escapeHtml(val("net", pendente ? "" : splitMoney(sp.netCourse)))}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
-      ${mon(sp.cacAmount)}${mon(sp.influencerAmount)}
-      ${pend(currency(sp.consCurso))}
-      <td class="cell-muted">${pendente ? "pendente" : currency(sp.managerAmount)}${mgr ? ` <span class="muted-note">(${escapeHtml(mgr.name)})</span>` : ""}</td>
-      <td class="cell-muted">${currency(sp.reservaAmount)}${sp.sobraAmount ? `<span class="split-sub">inclui sobra ${currency(sp.sobraAmount)}</span>` : ""}</td>
-      <td class="split-sep cell-muted">${currency(sp.acomPago)}</td>${mon(sp.acomCobrado)}${mon(sp.acomLucro)}${mon(sp.acomConsultor)}${mon(sp.acomLucro - sp.acomConsultor)}
-      <td class="split-sep cell-muted" title="Kit: custo fixo, sem lucro para a Peregrinos">${currency(sp.kitAmount)}</td>
+      ${calc("cac_amount", false)}${calc("influencer_amount", false)}${calc("cons_curso", false)}
+      ${calc("manager_amount", false, mgr ? `<span class="split-sub">${escapeHtml(mgr.name)}</span>` : "")}
+      ${calc("reserva_amount", false, sp.sobraAmount && !splitIsManual(sp, "reserva_amount") ? `<span class="split-sub">inclui sobra ${currency(sp.sobraAmount)}</span>` : "")}
+      ${calc("acom_pago", true)}${calc("acom_cobrado", false)}${calc("acom_lucro", false)}${calc("acom_consultor", false)}${calc("acom_ganho", false)}
+      ${calc("kit_amount", true)}
       <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${dirty("passagem")}" data-deal="${sp.dealId}" data-field="passagem" value="${escapeHtml(val("passagem", passValue == null ? "" : splitMoney(passValue)))}" placeholder="0,00" aria-label="Passagem"></td>
-      ${mon(sp.consPassagem)}
-      <td class="split-sep cell-primary ${sp.peregrinosNet < 0 ? "neg" : ""}">${pendente ? "pendente" : currency(sp.peregrinosNet)}</td>
+      ${calc("cons_passagem", false)}
+      ${calc("peregrinos_net", true)}
     </tr>`;
   }).join("");
   splitUpdateBar();
@@ -6628,7 +6675,7 @@ document.getElementById("fin-splits-save").addEventListener("click", async () =>
     if (!sp) { splitPending.delete(key); return; }
     const deal = deals.find(d => d.id === dealId), name = deal ? deal.name : "venda";
     const empty = raw.trim() === "";
-    const value = empty ? null : parseEuroInput(raw);
+    const value = empty ? null : splitParse(field, raw);
     if (empty && field === "net") errors.push(`${name}: digite o Net.`);
     else if (value !== null && !isFinite(value)) errors.push(`${name}: valor não reconhecido em "${raw}". Digite assim: 2.352,00`);
     else { if (!byDeal.has(dealId)) byDeal.set(dealId, { sp, name, fields: {} }); byDeal.get(dealId).fields[field] = value; }
@@ -6653,9 +6700,11 @@ document.getElementById("fin-splits-save").addEventListener("click", async () =>
   btn.disabled = discard.disabled = true;
   const failed = [];
   for (const [dealId, { name, fields }] of byDeal) {
-    for (const field of ["custo", "passagem", "net"]) {
+    for (const field of ["custo", "passagem", "net", ...Object.keys(fields).filter(f => SPLIT_OVERRIDE.has(f))]) {
       if (!(field in fields)) continue;
-      const { error } = await supabase.rpc("set_sale_input", { p_deal_id: dealId, p_field: field, p_value: fields[field] });
+      const { error } = SPLIT_OVERRIDE.has(field)
+        ? await supabase.rpc("set_sale_override", { p_deal_id: dealId, p_field: field, p_value: fields[field] })
+        : await supabase.rpc("set_sale_input", { p_deal_id: dealId, p_field: field, p_value: fields[field] });
       if (error) failed.push(`${name}: ${error.message}`); else splitPending.delete(splitKey(dealId, field));
     }
   }
