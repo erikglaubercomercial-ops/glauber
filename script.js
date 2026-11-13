@@ -5934,6 +5934,8 @@ function recGroups() {
     g.received = round2(g.rows.filter(r => r.paid).reduce((x, r) => x + (Number(r.amount) || 0), 0));
     g.pending = round2(g.total - g.received);
     g.paidCount = g.rows.filter(r => r.paid).length;
+    const dealOf = g.dealId ? deals.find(d => d.id === g.dealId) : null;
+    g.quote = dealOf ? round2(Number(dealOf.value) || 0) : 0;   /* valor da cotação aceita (negócio) */
     const open = g.rows.filter(r => !r.paid);
     g.nextDue = open.length ? open.map(r => r.dueDate).sort()[0] : null;
     g.overdueRows = open.filter(r => new Date(`${r.dueDate}T00:00:00`).getTime() < today.getTime());
@@ -5979,7 +5981,7 @@ function renderReceivables() {
       <td>${currency(g.total)}</td>
       <td class="cell-muted">${currency(g.received)}</td>
       <td class="cell-primary">${currency(g.pending)}</td>
-      <td class="cell-muted">${g.paidCount}/${g.rows.length} pagas</td>
+      <td class="cell-muted">${g.paidCount === 0 ? "nenhum" : g.paidCount === 1 ? "1 pagamento" : `${g.paidCount} pagamentos`}</td>
       <td class="cell-muted">${g.nextDue ? formatDate(g.nextDue) : "—"}</td>
       <td>${recSituacao(g)}</td>
       <td class="cell-actions">›</td>
@@ -5989,6 +5991,13 @@ function renderReceivables() {
 function recRenderDetail(g) {
   const leadId = leadIdOfDeal(g.dealId);
   const box = document.getElementById("fin-rec-detail-panel");
+  const today0 = new Date().setHours(0, 0, 0, 0);
+  const paidRows = g.rows.filter(r => r.paid).sort((a, b) => (a.paidAt || 0) - (b.paidAt || 0));
+  const openRows = g.rows.filter(r => !r.paid).sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+  const gap = g.quote > 0 ? round2(g.quote - g.total) : 0;
+  const gapBanner = gap > 0.005
+    ? `<div class="rec-gap">⚠ A cotação do contrato é de <b>${currency(g.quote)}</b>, mas o total desta conta está em <b>${currency(g.total)}</b> (faltam <b>${currency(gap)}</b>). <button type="button" class="btn btn-primary btn-sm" data-act="complete-gap" data-key="${escapeHtml(g.key)}">Completar o saldo para ${currency(g.total + gap)}</button></div>`
+    : gap < -0.005 ? `<div class="rec-gap">⚠ O total desta conta (<b>${currency(g.total)}</b>) passa da cotação do contrato (<b>${currency(g.quote)}</b>) em ${currency(-gap)}.</div>` : "";
   box.innerHTML = `
     <div class="panel-header">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -5996,30 +6005,36 @@ function recRenderDetail(g) {
         <h2 style="margin:0;">${escapeHtml(g.name)}</h2>
         ${leadId ? `<span class="muted-note">${leadLink(leadId, "Abrir ficha do cliente")}</span>` : ""}
       </div>
-      <div>${recSituacao(g)}</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">${recSituacao(g)}${g.pending > 0.004 ? `<button type="button" class="btn btn-primary btn-sm" data-act="pay" data-key="${escapeHtml(g.key)}">+ Registrar pagamento</button>` : ""}</div>
     </div>
+    ${gapBanner}
     <div class="stat-row rec-detail-stats">
       <div class="stat-card"><span class="stat-label">Valor total</span><span class="stat-value">${currency(g.total)}</span></div>
       <div class="stat-card"><span class="stat-label">Já recebido</span><span class="stat-value stat-good">${currency(g.received)}</span></div>
-      <div class="stat-card"><span class="stat-label">A receber</span><span class="stat-value">${currency(g.pending)}</span></div>
-      <div class="stat-card"><span class="stat-label">Parcelas</span><span class="stat-value">${g.paidCount}/${g.rows.length} pagas</span></div>
+      <div class="stat-card"><span class="stat-label">Saldo a receber</span><span class="stat-value">${currency(g.pending)}</span></div>
+      <div class="stat-card"><span class="stat-label">Pagamentos</span><span class="stat-value">${g.paidCount}</span></div>
     </div>
-    <table class="data-table">
-      <thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th><th>Situação</th><th>Recebido em</th><th></th></tr></thead>
-      <tbody>${g.rows.map(r => {
-        const late = !r.paid && new Date(`${r.dueDate}T00:00:00`).getTime() < new Date().setHours(0, 0, 0, 0);
+    <h3 class="rec-sub">Pagamentos recebidos</h3>
+    ${paidRows.length ? `<table class="data-table">
+      <thead><tr><th>Recebido em</th><th>Valor</th><th></th></tr></thead>
+      <tbody>${paidRows.map(r => `<tr>
+        <td class="cell-muted">${r.paidAt ? new Date(r.paidAt).toLocaleDateString("pt-BR") : "—"}</td>
+        <td class="cell-primary">${currency(r.amount)}</td>
+        <td class="cell-actions">${recCanManagePaid() ? `<button type="button" class="btn btn-ghost btn-sm" data-act="edit-paid-date" data-id="${r.id}">Editar data</button> ` : ""}<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>${recCanManagePaid() ? ` <button type="button" class="btn btn-danger btn-sm" data-act="delete-installment" data-id="${r.id}">Excluir</button>` : ""}</td>
+      </tr>`).join("")}</tbody></table>` : `<p class="muted-note">Nenhum pagamento registrado ainda.</p>`}
+    <h3 class="rec-sub">Saldo a receber</h3>
+    ${openRows.length ? `<table class="data-table">
+      <thead><tr><th>Vencimento</th><th>Valor</th><th>Situação</th><th></th></tr></thead>
+      <tbody>${openRows.map(r => {
+        const late = new Date(`${r.dueDate}T00:00:00`).getTime() < today0;
         return `<tr>
-          <td class="cell-muted">${r.installmentNumber}/${r.installmentsTotal}</td>
           <td class="cell-muted">${formatDate(r.dueDate)}</td>
           <td class="cell-primary">${currency(r.amount)}</td>
-          <td><span class="badge ${r.paid ? "badge-good" : (late ? "badge-danger" : "badge-warn")}">${r.paid ? t("status.pago") : (late ? "Em atraso" : t("status.pendente"))}</span></td>
-          <td class="cell-muted">${r.paid && r.paidAt ? new Date(r.paidAt).toLocaleDateString("pt-BR") : "—"}</td>
-          <td class="cell-actions">${r.paid
-            ? `${recCanManagePaid() ? `<button type="button" class="btn btn-ghost btn-sm" data-act="edit-paid-date" data-id="${r.id}">Editar data</button> ` : ""}<button type="button" class="btn btn-ghost btn-sm" data-act="toggle-paid" data-id="${r.id}">${t("fin.markPending")}</button>`
-            : `<button type="button" class="btn btn-primary btn-sm" data-act="receive" data-id="${r.id}">Registrar recebimento</button> <button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Entrada e parcelas</button>`}${recCanManagePaid() ? ` <button type="button" class="btn btn-danger btn-sm" data-act="delete-installment" data-id="${r.id}">Excluir</button>` : ""}</td>
+          <td><span class="badge ${late ? "badge-danger" : "badge-warn"}">${late ? "Em atraso" : t("status.pendente")}</span></td>
+          <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="split" data-id="${r.id}">Parcelar (opcional)</button>${recCanManagePaid() ? ` <button type="button" class="btn btn-danger btn-sm" data-act="delete-installment" data-id="${r.id}">Excluir</button>` : ""}</td>
         </tr>`;
-      }).join("")}</tbody>
-    </table>`;
+      }).join("")}</tbody></table>
+    <p class="muted-note">Não é preciso parcelar: a cada entrada, use "Registrar pagamento" e o valor sai do saldo.</p>` : `<p class="muted-note">Nada a receber: conta quitada.</p>`}`;
 }
 
 /* ---- registrar recebimento e dividir em parcelas (valores e datas livres) ---- */
@@ -6049,6 +6064,17 @@ function recEnsureModals() {
       <div class="modal-actions"><div class="spacer"></div>
         <button type="button" class="btn btn-ghost" id="rec-recv-cancel">Cancelar</button>
         <button type="submit" class="btn btn-primary">Salvar recebimento</button></div>
+    </form></div></div>
+  <div class="modal-backdrop" id="rec-pay-backdrop"><div class="modal">
+    <div class="modal-header"><h2>Registrar pagamento</h2><button class="btn-icon" id="rec-pay-close" type="button">&times;</button></div>
+    <form id="rec-pay-form">
+      <p class="muted-note" id="rec-pay-info"></p>
+      <label><span>Valor recebido (€)</span><input type="number" id="rec-pay-amount" min="0.01" step="0.01" required></label>
+      <label><span>Data do recebimento</span><input type="date" id="rec-pay-date" required></label>
+      <p class="muted-note">O valor sai do saldo a receber. Pode ser qualquer valor, sem parcelas.</p>
+      <div class="modal-actions"><div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" id="rec-pay-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="rec-pay-save">Salvar pagamento</button></div>
     </form></div></div>
   <div class="modal-backdrop" id="rec-date-backdrop"><div class="modal">
     <div class="modal-header"><h2>Editar data do pagamento</h2><button class="btn-icon" id="rec-date-close" type="button">&times;</button></div>
@@ -6083,6 +6109,54 @@ function recEnsureModals() {
   ["rec-split-close", "rec-split-cancel"].forEach(i => $(i).addEventListener("click", closeSplit));
   $("rec-recv-backdrop").addEventListener("click", e => { if (e.target.id === "rec-recv-backdrop") closeRecv(); });
   $("rec-split-backdrop").addEventListener("click", e => { if (e.target.id === "rec-split-backdrop") closeSplit(); });
+
+  /* pagamento do cliente: abate o valor do saldo (vale qualquer valor; sem parcelas) */
+  const closePay = () => $("rec-pay-backdrop").classList.remove("open");
+  ["rec-pay-close", "rec-pay-cancel"].forEach(i => $(i).addEventListener("click", closePay));
+  $("rec-pay-backdrop").addEventListener("click", e => { if (e.target.id === "rec-pay-backdrop") closePay(); });
+  $("rec-pay-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const g = recGroups().find(x => x.key === recPayKey);
+    if (!g) return;
+    const amt = round2(parseFloat($("rec-pay-amount").value));
+    const when = $("rec-pay-date").value;
+    if (!(amt > 0) || !when) return;
+    if (when > localDayStr(Date.now())) { alert("A data do recebimento não pode ser no futuro."); return; }
+    if (amt > g.pending + 0.005) { alert(`O valor (${currency(amt)}) passa do saldo a receber (${currency(g.pending)}).`); return; }
+    const paidAt = new Date(`${when}T12:00:00`).getTime();
+    const open = g.rows.filter(r => !r.paid).sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)) || a.createdAt - b.createdAt);
+    const toSave = [];
+    let left = amt;
+    for (const r of open) {
+      if (left <= 0.004) break;
+      if (left >= r.amount - 0.005) { left = round2(left - r.amount); r.paid = true; r.paidAt = paidAt; toSave.push(r); }
+      else {
+        const rest = { id: uid(), dealId: r.dealId, clientName: r.clientName, installmentNumber: r.installmentNumber, installmentsTotal: r.installmentsTotal,
+          amount: round2(r.amount - left), dueDate: r.dueDate, paid: false, paidAt: null, createdAt: Date.now() };
+        receivables.push(rest);
+        r.amount = left; r.paid = true; r.paidAt = paidAt; left = 0;
+        toSave.push(r, rest);
+      }
+    }
+    if (g.dealId) toSave.push(...recRenumber(g.dealId));
+    closePay();
+    recRefresh();
+    const ok = await saveReceivables([...new Set(toSave)]);
+    if (!ok) alert("Não foi possível salvar o pagamento. Recarregue a página e confira antes de tentar de novo.");
+    else if (typeof agendaToast === "function") agendaToast("Pagamento registrado");
+  });
+  window.recOpenPay = key => {
+    const g = recGroups().find(x => x.key === key);
+    if (!g) return;
+    recPayKey = key;
+    $("rec-pay-info").textContent = `${g.name} — valor total ${currency(g.total)}, já recebido ${currency(g.received)}, saldo ${currency(g.pending)}.`;
+    $("rec-pay-amount").value = "";
+    $("rec-pay-amount").max = g.pending;
+    $("rec-pay-date").value = localDayStr(Date.now());
+    $("rec-pay-date").max = localDayStr(Date.now());
+    $("rec-pay-backdrop").classList.add("open");
+    $("rec-pay-amount").focus();
+  };
 
   /* data de um pagamento já realizado */
   const closeDate = () => $("rec-date-backdrop").classList.remove("open");
@@ -6223,7 +6297,29 @@ function recEnsureModals() {
     $("rec-recv-backdrop").classList.add("open");
   };
 }
-let recRecvId = null, recSplitId = null, recDateId = null;
+let recRecvId = null, recSplitId = null, recDateId = null, recPayKey = null;
+const localDayStr = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
+/* total da conta abaixo da cotação do contrato: soma a diferença ao saldo a receber (ou cria o saldo, se tudo já foi pago) */
+async function recCompleteGap(key) {
+  const g = recGroups().find(x => x.key === key);
+  if (!g || !g.dealId) return;
+  const gap = round2(g.quote - g.total);
+  if (!(gap > 0.005)) return;
+  const open = g.rows.filter(r => !r.paid).sort((a, b) => String(b.dueDate).localeCompare(String(a.dueDate)) || b.createdAt - a.createdAt);
+  if (!confirm(`${g.name}\n\nCotação do contrato: ${currency(g.quote)}\nTotal atual da conta: ${currency(g.total)}\n\nSomar ${currency(gap)} ao saldo a receber? O valor já recebido não muda.`)) return;
+  let target;
+  if (open.length) { target = open[0]; target.amount = round2(target.amount + gap); }
+  else {
+    const last = g.rows.slice().sort((a, b) => String(b.dueDate).localeCompare(String(a.dueDate)))[0];
+    target = { id: uid(), dealId: g.dealId, clientName: g.name, installmentNumber: 1, installmentsTotal: 1, amount: gap, dueDate: last ? last.dueDate : localDayStr(Date.now()), paid: false, paidAt: null, createdAt: Date.now() };
+    receivables.push(target);
+  }
+  const toSave = [target, ...recRenumber(g.dealId)];
+  recRefresh();
+  if (!(await saveReceivables([...new Set(toSave)]))) alert("Não foi possível salvar. Recarregue a página e confira antes de tentar de novo.");
+  else if (typeof agendaToast === "function") agendaToast("Saldo completado");
+}
 
 async function recDeleteInstallment(id) {
   const r = receivables.find(x => x.id === id);
@@ -6258,6 +6354,10 @@ document.getElementById("subview-fin-receivables").addEventListener("click", asy
     open(act.dataset.id);
     return;
   }
+  const payBtn = e.target.closest('button[data-act="pay"]');
+  if (payBtn) { recEnsureModals(); window.recOpenPay(payBtn.dataset.key); return; }
+  const gapBtn = e.target.closest('button[data-act="complete-gap"]');
+  if (gapBtn) { await recCompleteGap(gapBtn.dataset.key); return; }
   const del = e.target.closest('button[data-act="delete-installment"]');
   if (del) { await recDeleteInstallment(del.dataset.id); return; }
   const btn = e.target.closest('button[data-act="toggle-paid"]');

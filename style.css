@@ -3381,3 +3381,8 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .vf-sub { font-size: 12.5px; opacity: .9; }
 .vf-close { border: 0; background: rgba(255, 255, 255, .18); color: #fff; width: 28px; height: 28px; border-radius: 50%; font-size: 18px; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .vf-card { transition: opacity .2s; transform: none; } }
+
+/* Contas a receber: valor total, pagamentos e saldo (sem parcelas obrigatórias) */
+.rec-gap { margin: 12px 0; padding: 10px 14px; border-radius: 10px; background: var(--warn-bg); border: 1px solid var(--warn); font-size: 13.5px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rec-sub { margin: 18px 0 8px; font-size: 14px; }
+#rec-pay-backdrop { z-index: 60; }
