@@ -320,7 +320,7 @@ $al("aluno-proof-form").addEventListener("submit", async e => {
 });
 
 /* ---- documentos da jornada ---- */
-const ALUNO_DOC_KINDS = ["passaporte", "passagens", "comprovante_financeiro", "matricula_seguros", "visto"];
+const ALUNO_DOC_KINDS = ["passaporte", "passagens", "comprovante_financeiro", "matricula_seguros"];
 const ALUNO_DOC_REQUIRED = ["passaporte", "passagens", "comprovante_financeiro", "matricula_seguros"];
 const ALUNO_DOC_MAX = 10 * 1024 * 1024;
 
@@ -344,24 +344,30 @@ async function loadAlunoDocs() {
 }
 
 function renderAlunoDocs() {
-  const sent = alunoDocSent("passaporte");
-  const rec = alunoDocRecord("passaporte");
-  const card = $al("aluno-doc-passport");
-  card.classList.toggle("is-pending", !sent);
-  const st = $al("aluno-doc-passport-status");
-  st.className = "aluno-doc-status " + (sent ? "ok" : "pending");
-  st.textContent = sent ? t("aluno.sent") : t("aluno.pending");
-  $al("aluno-doc-passport-meta").textContent = sent ? (rec && rec.file_name ? rec.file_name : t("aluno.passport")) : t("aluno.noFileSent");
-  $al("aluno-doc-passport-link").style.display = sent ? "" : "none";
+  const grid = $al("aluno-doc-grid");
+  if (grid) {
+    grid.innerHTML = ALUNO_DOC_REQUIRED.map(kind => {
+      const sent = alunoDocSent(kind);
+      const rec = alunoDocRecord(kind);
+      const meta = sent ? (rec && rec.file_name ? rec.file_name : t("aluno.docSentOnSignup")) : t("aluno.noFileSent");
+      return `
+        <div class="aluno-doc-card ${sent ? "" : "is-pending"}">
+          <div class="aluno-doc-card-head">
+            <span class="aluno-doc-card-title">${alunoEsc(t("aluno.docName." + kind))}</span>
+            <span class="aluno-doc-status ${sent ? "ok" : "pending"}">${alunoEsc(sent ? t("aluno.sent") : t("aluno.pending"))}</span>
+          </div>
+          <span class="aluno-doc-meta">${alunoEsc(meta)}</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-self:flex-start;">
+            ${sent ? `<button type="button" class="btn btn-ghost btn-sm" data-doc-view="${kind}">${alunoEsc(t("aluno.docView"))}</button>` : ""}
+            <button type="button" class="btn btn-primary btn-sm" data-doc-upload="${kind}">${alunoEsc(sent ? t("aluno.docReplace") : t("aluno.docUpload"))}</button>
+            <input type="file" accept="image/*,application/pdf" hidden data-doc-file="${kind}">
+          </div>
+        </div>`;
+    }).join("");
+  }
   const got = ALUNO_DOC_REQUIRED.filter(alunoDocSent).length;
   $al("aluno-stat-docs").textContent = `${got} / ${ALUNO_DOC_REQUIRED.length}`;
 }
-$al("aluno-doc-passport-link").addEventListener("click", e => {
-  e.preventDefault();
-  const rec = alunoDocRecord("passaporte");
-  if (rec && rec.file_path) alunoOpenFile("student-docs", rec.file_path);
-  else if (alunoEnr && alunoEnr.passport_photo_path) alunoOpenFile("passport-photos", alunoEnr.passport_photo_path);
-});
 
 /* tela Documentos: o aluno envia cada documento da jornada */
 function renderAlunoDocsView() {
@@ -391,18 +397,18 @@ function renderAlunoDocsView() {
   }).join("");
 }
 
-$al("aluno-docs-list").addEventListener("click", e => {
+function alunoDocsClick(e) {
   const up = e.target.closest("[data-doc-upload]");
   if (alunoSpectator && up) return;
-  if (up) { document.querySelector(`[data-doc-file="${up.dataset.docUpload}"]`).click(); return; }
+  if (up) { up.parentElement.querySelector(`[data-doc-file="${up.dataset.docUpload}"]`).click(); return; }
   const vw = e.target.closest("[data-doc-view]");
   if (vw) {
     const kind = vw.dataset.docView, rec = alunoDocRecord(kind);
     if (rec && rec.file_path) alunoOpenFile("student-docs", rec.file_path);
     else if (kind === "passaporte" && alunoEnr && alunoEnr.passport_photo_path) alunoOpenFile("passport-photos", alunoEnr.passport_photo_path);
   }
-});
-$al("aluno-docs-list").addEventListener("change", async e => {
+}
+async function alunoDocsChange(e) {
   const input = e.target.closest("[data-doc-file]");
   if (!input) return;
   const kind = input.dataset.docFile, file = input.files[0];
@@ -410,7 +416,7 @@ $al("aluno-docs-list").addEventListener("change", async e => {
   if (alunoSpectator || !file || !alunoEnr) return;
   if (file.size > ALUNO_DOC_MAX) { alunoToast(t("aluno.docTooBig")); return; }
   if (!(file.type.startsWith("image/") || file.type === "application/pdf")) { alunoToast(t("aluno.docBadType")); return; }
-  const btn = document.querySelector(`[data-doc-upload="${kind}"]`);
+  const btn = input.parentElement.querySelector(`[data-doc-upload="${kind}"]`);
   if (btn) { btn.disabled = true; btn.textContent = t("aluno.docUploading"); }
   const ext = (file.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "pdf";
   const path = `${alunoEnr.id}/${kind}-${Date.now()}.${ext}`;
@@ -420,7 +426,8 @@ $al("aluno-docs-list").addEventListener("change", async e => {
   if (reg.error) { console.error(reg.error); alunoToast(t("aluno.docError")); renderAlunoDocsView(); return; }
   alunoToast(t("aluno.docSentOk"));
   await loadAlunoDocs();
-});
+}
+["aluno-docs-list", "aluno-doc-grid"].forEach(id => { const el = $al(id); el.addEventListener("click", alunoDocsClick); el.addEventListener("change", alunoDocsChange); });
 
 /* ---- menu lateral: Dashboard e Documentos funcionam; o resto avisa que vem em breve ---- */
 let alunoToastTimer = null;
@@ -449,7 +456,6 @@ document.querySelectorAll(".sidebar-nav [data-nav]").forEach(btn => {
   });
 });
 $al("aluno-docs-back").addEventListener("click", () => showAlunoView("dashboard"));
-$al("aluno-go-docs").addEventListener("click", () => showAlunoView("docs"));
 $al("aluno-ingles-back").addEventListener("click", () => showAlunoView("dashboard"));
 $al("aluno-showcase").addEventListener("click", e => { if (e.target.closest("#aluno-showcase-all")) showAlunoView("ingles"); });
 $al("aluno-english-teaser").addEventListener("click", () => showAlunoView("ingles"));
