@@ -5945,6 +5945,30 @@ function recGroups() {
   });
 }
 
+/* prazo do saldo devedor: 30 dias antes da chegada na Irlanda; sem a data de chegada, 11 meses após a assinatura/venda */
+function recDeadline(g) {
+  const leadId = g.dealId ? leadIdOfDeal(g.dealId) : null;
+  const iso = ms => localDayStr(ms);
+  let arrival = null;
+  if (leadId) {
+    const e = enrollments.filter(x => x.leadId === leadId && x.arrivalDate).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+    if (e) arrival = String(e.arrivalDate).slice(0, 10);
+    if (!arrival) {
+      const c = contracts.filter(x => x.leadId === leadId && x.dadosCliente && x.dadosCliente.data_chegada).sort((a, b) => (b.signedAt || b.createdAt || 0) - (a.signedAt || a.createdAt || 0))[0];
+      if (c) arrival = String(c.dadosCliente.data_chegada).slice(0, 10);
+    }
+  }
+  if (arrival && /^\d{4}-\d{2}-\d{2}$/.test(arrival)) {
+    const d = new Date(`${arrival}T12:00:00`); d.setDate(d.getDate() - 30);
+    return { date: iso(d.getTime()), arrival, byArrival: true };
+  }
+  const dealOf = g.dealId ? deals.find(x => x.id === g.dealId) : null;
+  const signed = leadId ? contracts.filter(x => x.leadId === leadId && x.signedAt).sort((a, b) => b.signedAt - a.signedAt)[0] : null;
+  const base = new Date((signed && signed.signedAt) || (dealOf && dealOf.closedAt) || Date.now());
+  base.setHours(12, 0, 0, 0); base.setMonth(base.getMonth() + 11);
+  return { date: iso(base.getTime()), arrival: null, byArrival: false };
+}
+
 function recSituacao(g) {
   if (g.pending <= 0.004) return `<span class="badge badge-good">Quitado</span>`;
   if (g.overdueRows.length) return `<span class="badge badge-danger">${g.overdueDays} dia(s) em atraso</span>`;
@@ -5998,6 +6022,9 @@ function recRenderDetail(g) {
   const gapBanner = gap > 0.005
     ? `<div class="rec-gap">⚠ A cotação do contrato é de <b>${currency(g.quote)}</b>, mas o total desta conta está em <b>${currency(g.total)}</b> (faltam <b>${currency(gap)}</b>). <button type="button" class="btn btn-primary btn-sm" data-act="complete-gap" data-key="${escapeHtml(g.key)}">Completar o saldo para ${currency(g.total + gap)}</button></div>`
     : gap < -0.005 ? `<div class="rec-gap">⚠ O total desta conta (<b>${currency(g.total)}</b>) passa da cotação do contrato (<b>${currency(g.quote)}</b>) em ${currency(-gap)}.</div>` : "";
+  const dl = recDeadline(g);
+  const dlDiff = openRows.some(r => r.dueDate !== dl.date);
+  const dlBanner = g.pending > 0.004 ? `<div class="rec-gap rec-deadline">Prazo do saldo devedor: <b>${formatDate(dl.date)}</b> — ${dl.byArrival ? `30 dias antes da chegada na Irlanda (${formatDate(dl.arrival)})` : "chegada na Irlanda ainda não informada: prazo padrão de 11 meses"}. ${dlDiff ? `<button type="button" class="btn btn-primary btn-sm" data-act="apply-deadline" data-key="${escapeHtml(g.key)}">Ajustar vencimento do saldo para ${formatDate(dl.date)}</button>` : "O vencimento do saldo já está neste prazo."}</div>` : "";
   box.innerHTML = `
     <div class="panel-header">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -6008,6 +6035,7 @@ function recRenderDetail(g) {
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">${recSituacao(g)}${g.pending > 0.004 ? `<button type="button" class="btn btn-primary btn-sm" data-act="pay" data-key="${escapeHtml(g.key)}">+ Registrar pagamento</button>` : ""}</div>
     </div>
     ${gapBanner}
+    ${dlBanner}
     <div class="stat-row rec-detail-stats">
       <div class="stat-card"><span class="stat-label">Valor total</span><span class="stat-value">${currency(g.total)}</span></div>
       <div class="stat-card"><span class="stat-label">Já recebido</span><span class="stat-value stat-good">${currency(g.received)}</span></div>
@@ -6312,13 +6340,26 @@ async function recCompleteGap(key) {
   if (open.length) { target = open[0]; target.amount = round2(target.amount + gap); }
   else {
     const last = g.rows.slice().sort((a, b) => String(b.dueDate).localeCompare(String(a.dueDate)))[0];
-    target = { id: uid(), dealId: g.dealId, clientName: g.name, installmentNumber: 1, installmentsTotal: 1, amount: gap, dueDate: last ? last.dueDate : localDayStr(Date.now()), paid: false, paidAt: null, createdAt: Date.now() };
+    target = { id: uid(), dealId: g.dealId, clientName: g.name, installmentNumber: 1, installmentsTotal: 1, amount: gap, dueDate: recDeadline(g).date, paid: false, paidAt: null, createdAt: Date.now() };
     receivables.push(target);
   }
   const toSave = [target, ...recRenumber(g.dealId)];
   recRefresh();
   if (!(await saveReceivables([...new Set(toSave)]))) alert("Não foi possível salvar. Recarregue a página e confira antes de tentar de novo.");
   else if (typeof agendaToast === "function") agendaToast("Saldo completado");
+}
+
+async function recApplyDeadline(key) {
+  const g = recGroups().find(x => x.key === key);
+  if (!g) return;
+  const dl = recDeadline(g);
+  const open = g.rows.filter(r => !r.paid && r.dueDate !== dl.date);
+  if (!open.length) return;
+  if (!confirm(`${g.name}\n\nMudar o vencimento do saldo devedor (${currency(g.pending)}) para ${formatDate(dl.date)}${dl.byArrival ? ` (30 dias antes da chegada, ${formatDate(dl.arrival)})` : " (prazo padrão de 11 meses)"}?\n\nIsso vale para ${open.length} lançamento(s) em aberto; o que já foi recebido não muda.`)) return;
+  open.forEach(r => { r.dueDate = dl.date; });
+  recRefresh();
+  if (!(await saveReceivables(open))) alert("Não foi possível salvar. Recarregue a página e confira antes de tentar de novo.");
+  else if (typeof agendaToast === "function") agendaToast("Vencimento do saldo ajustado");
 }
 
 async function recDeleteInstallment(id) {
@@ -6356,6 +6397,8 @@ document.getElementById("subview-fin-receivables").addEventListener("click", asy
   }
   const payBtn = e.target.closest('button[data-act="pay"]');
   if (payBtn) { recEnsureModals(); window.recOpenPay(payBtn.dataset.key); return; }
+  const dlBtn = e.target.closest('button[data-act="apply-deadline"]');
+  if (dlBtn) { await recApplyDeadline(dlBtn.dataset.key); return; }
   const gapBtn = e.target.closest('button[data-act="complete-gap"]');
   if (gapBtn) { await recCompleteGap(gapBtn.dataset.key); return; }
   const del = e.target.closest('button[data-act="delete-installment"]');
