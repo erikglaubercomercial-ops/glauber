@@ -14,7 +14,7 @@ const FICHA_DOCS = [
   { kind: "passaporte", label: "Passaporte válido (mín. 6 meses)" },
   { kind: "passagens", label: "Passagens aéreas" },
   { kind: "comprovante_financeiro", label: "Comprovante financeiro" },
-  { kind: "matricula_seguros", label: "Matrícula da escola com seguros" },
+  { kind: "matricula_seguros", label: "Carta da escola com seguro saúde e estudantil" },
   { kind: "acomodacao", label: "Comprovação da acomodação" },
 ];
 

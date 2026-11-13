@@ -320,8 +320,8 @@ $al("aluno-proof-form").addEventListener("submit", async e => {
 });
 
 /* ---- documentos da jornada ---- */
-const ALUNO_DOC_KINDS = ["passaporte", "passagens", "comprovante_financeiro", "matricula_seguros"];
-const ALUNO_DOC_REQUIRED = ["passaporte", "passagens", "comprovante_financeiro", "matricula_seguros"];
+const ALUNO_DOC_KINDS = ["passaporte", "passagens", "matricula_seguros", "comprovante_financeiro"];
+const ALUNO_DOC_REQUIRED = ["passaporte", "passagens", "matricula_seguros", "comprovante_financeiro"];
 const ALUNO_DOC_MAX = 10 * 1024 * 1024;
 
 function alunoDocRecord(kind) { return alunoDocsData && (alunoDocsData.docs || []).find(d => d.kind === kind) || null; }
