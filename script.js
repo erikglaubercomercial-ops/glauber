@@ -5468,7 +5468,7 @@ function saleSplitFromDb(r) {
     netCourse: r.net_course == null ? null : Number(r.net_course), courseGross: Number(r.course_gross) || 0, ganhoCurso: Number(r.ganho_curso) || 0,
     custoCurso: r.custo_curso == null ? null : Number(r.custo_curso), passagemManual: r.passagem_manual == null ? null : Number(r.passagem_manual),
     sobraAmount: Number(r.sobra_amount) || 0, consCurso: Number(r.cons_curso) || 0, consPassagem: Number(r.cons_passagem) || 0, acomConsultor: Number(r.acom_consultor) || 0,
-    passagemAmount: Number(r.passagem_amount) || 0, trafficFlag: !!r.traffic_flag, influencerAmount: Number(r.influencer_amount) || 0, reservaAmount: Number(r.reserva_amount) || 0,
+    passagemAmount: Number(r.passagem_amount) || 0, trafficFlag: !!r.traffic_flag, influencerAmount: Number(r.influencer_amount) || 0, influencerPendente: !!r.influencer_pendente, reservaAmount: Number(r.reserva_amount) || 0,
     peregrinosNet: Number(r.peregrinos_net) || 0, overrides: r.manual_overrides && typeof r.manual_overrides === "object" ? r.manual_overrides : {} };
 }
 async function loadSaleSplits() {
@@ -7058,7 +7058,7 @@ function renderSaleSplits() {
       <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null && !splitPending.has(splitKey(sp.dealId, "custo")) ? "split-in-auto" : ""} ${dirty("custo")}" data-deal="${sp.dealId}" data-field="custo" value="${escapeHtml(val("custo", splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)))}" aria-label="Custo do curso (Gross)" title="${sp.custoCurso == null ? "Gross da invoice da escola. Em branco, vale o valor vendido. Se o Gross for menor (promoção que não foi repassada ao cliente), digite-o: a diferença vai para a caixa de reserva." : "Gross da invoice da escola. Apague para voltar a valer o valor vendido."}"></td>
       ${calc("course_gross", false)}
       <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""} ${dirty("net")}" data-deal="${sp.dealId}" data-field="net" value="${escapeHtml(val("net", pendente ? "" : splitMoney(sp.netCourse)))}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
-      ${calc("cac_amount", false)}${calc("influencer_amount", false)}${calc("cons_curso", false)}
+      ${calc("cac_amount", false)}${calc("influencer_amount", false, sp.influencerPendente ? '<span class="split-sub split-pendente">influenciador ainda não recebeu</span>' : "")}${calc("cons_curso", false)}
       ${calc("manager_amount", false, mgr ? `<span class="split-sub">${escapeHtml(mgr.name)}</span>` : "")}
       ${calc("reserva_amount", false, sp.sobraAmount && !splitIsManual(sp, "reserva_amount") ? `<span class="split-sub">inclui sobra ${currency(sp.sobraAmount)}</span>` : "")}
       ${calc("acom_pago", true)}${calc("acom_cobrado", false)}${calc("acom_lucro", false)}${calc("acom_consultor", false)}${calc("acom_ganho", false)}
@@ -7185,7 +7185,7 @@ function buildSaleSplitsWorkbook() {
     /* CAC fixo (R$ 100) ou influenciador: a regra põe o valor em um ou outro, então a coluna soma os dois */
     return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, (Number(sp.cacAmount) || 0) + (Number(sp.influencerAmount) || 0), calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount,
       sp.acomPago, sp.acomCobrado, sp.acomLucro, sp.acomConsultor, sp.acomLucro - sp.acomConsultor, sp.kitAmount, sp.passagemAmount, sp.consPassagem,
-      sp.courseTotal, calc(sp.peregrinosNet), calc(socio), calc(lucroApos), pendente ? "Pendente: falta o Net" : "Calculado"];
+      sp.courseTotal, calc(sp.peregrinosNet), calc(socio), calc(lucroApos), pendente ? "Pendente: falta o Net" : (sp.influencerPendente ? "Calculado · ATENÇÃO: influenciador ainda não recebeu" : "Calculado")];
   });
   const textCols = new Set([0, header.length - 1]);
   const totals = header.map((h, col) => textCols.has(col) ? (col === 0 ? "Total" : "") : Math.round(rows.reduce((acc, r) => acc + (Number(r[col]) || 0), 0) * 100) / 100);

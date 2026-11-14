@@ -3498,3 +3498,4 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .mi-pill-aluno { background: var(--warn-bg); color: var(--warn); }
 .mi-add { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 0; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--content-bg); }
 .mi-add[hidden] { display: none; }
+.split-pendente { color: var(--warn); font-weight: 700; }
