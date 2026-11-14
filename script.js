@@ -5985,7 +5985,7 @@ function renderFinanceiroOverview() {
       <td class="fin-split-col">${sp ? currency(sp.influencerAmount) : "—"}</td>
       <td class="fin-split-col">${sp ? currency(sp.consCurso + sp.consPassagem) : "—"}</td>
       <td class="fin-split-col cell-primary">${sp ? currency(sp.peregrinosNet) : "—"}</td>
-      <td class="fin-split-col">${sp ? currency(socioDaVenda(sp, d)) : "—"}</td>
+      ${divTd(sp, d, "caixa")}${divTd(sp, d, "caio")}${divTd(sp, d, "erik")}
       <td>${recs.length ? currency(round2(paidAmt + pendingAmt)) : "—"}</td>
       <td class="cell-muted">${lastPaid ? dt(lastPaid) : "—"}</td>
       <td>${currency(paidAmt)}</td>
@@ -6916,6 +6916,22 @@ function renderCommissions() {
   document.getElementById("fin-commissions-empty").style.display = list.length === 0 ? "block" : "none";
   const canSplit = !!session && (session.role === "ADM" || session.role === "Financeiro" || isSocioSession());
   tbody.closest("table").classList.toggle("fin-no-split", !canSplit);
+  /* resumo: quanto vai para cada um (vendas desde 01/11/2026) */
+  const tot = { caixa: 0, caio: 0, erik: 0, pend: 0 };
+  list.forEach(c => {
+    const sp = saleSplits.find(x => x.dealId === c.dealId);
+    const dl = deals.find(d => d.id === c.dealId);
+    if (!sp) return;
+    const dv = divisaoDoLucro(sp, dl);
+    if (dv.pendente) { tot.pend++; return; }
+    if (dv.aplicavel) { tot.caixa += dv.caixa; tot.caio += dv.caio; tot.erik += dv.erik; }
+  });
+  const resumo = document.getElementById("fin-com-div-resumo");
+  if (resumo) resumo.innerHTML = `
+    <span class="div-chip div-caixa">Caixa Peregrinos 30%: <b>${currency(cents2(tot.caixa))}</b></span>
+    <span class="div-chip div-caio">Caio 30%: <b>${currency(cents2(tot.caio))}</b></span>
+    <span class="div-chip div-erik">Erik 40%: <b>${currency(cents2(tot.erik))}</b></span>
+    ${tot.pend ? `<span class="div-chip div-pend-chip">${tot.pend} pendente(s) sem Net</span>` : ""}`;
   list.forEach(c => {
     const consultant = users.find(u => u.id === c.consultorId);
     const rel = commissionRelease(c.dealId);
@@ -6928,7 +6944,7 @@ function renderCommissions() {
       <td class="cell-muted">${currency(c.dealValue)}</td>
       <td class="cell-muted">${c.percentage}%</td>
       <td class="cell-primary">${currency(c.amount)}</td>
-      <td class="fin-split-col">${spSocio ? currency(socioDaVenda(spSocio, dealSocio)) : "—"}</td>
+      ${divTd(spSocio, dealSocio, "caixa")}${divTd(spSocio, dealSocio, "caio")}${divTd(spSocio, dealSocio, "erik")}
       <td class="cell-muted">${c.status === "Pago" ? "—" : (rel.released ? `<span class="badge badge-good">${escapeHtml(t("fin.releasedYes"))}</span>` : `<span class="badge badge-warn" title="${escapeHtml(t("fin.releasedWait"))}">${escapeHtml(t("fin.releasedWaitShort"))}</span>`)}</td>
       <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${escapeHtml(statusLabel(c.status))}</span></td>
       <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? t("fin.markPending") : t("fin.markPaid")}</button></td>
@@ -7166,28 +7182,44 @@ function loadSheetJs() {
     document.head.appendChild(el);
   });
 }
-/* regra do sócio: 30% do Lucro Peregrino (total) de cada venda fechada a partir de 01/11/2026 (prejuízo não gera sócio) */
-const SOCIO_PCT = 0.30;
-const SOCIO_DESDE = new Date(2026, 10, 1, 0, 0, 0, 0).getTime();
-function socioDaVenda(sp, deal) {
-  if (!deal || !deal.closedAt || deal.closedAt < SOCIO_DESDE) return 0;
-  return Math.round(Math.max(Number(sp.peregrinosNet) || 0, 0) * SOCIO_PCT * 100) / 100;
+/* divisão do lucro (Lucro Peregrino total, base mínima 0) das vendas fechadas a partir de 01/11/2026:
+   30% caixa da Peregrinos · 30% Caio (sócio) · 40% Erik (sócio). Vendas do Caio entram.
+   Venda sem Net ainda não tem lucro: aparece como pendente. */
+const DIVISAO_LUCRO = { caixa: 0.30, caio: 0.30, erik: 0.40 };
+const DIVISAO_DESDE = new Date(2026, 10, 1, 0, 0, 0, 0).getTime();
+const cents2 = v => Math.round(v * 100) / 100;
+function divisaoDoLucro(sp, deal) {
+  const base = Math.max(Number(sp.peregrinosNet) || 0, 0);
+  const aplicavel = !!deal && !!deal.closedAt && deal.closedAt >= DIVISAO_DESDE;
+  if (!aplicavel) return { aplicavel: false, pendente: false, base, caixa: 0, caio: 0, erik: 0 };
+  if (sp.netCourse == null) return { aplicavel: true, pendente: true, base, caixa: 0, caio: 0, erik: 0 };
+  return { aplicavel: true, pendente: false, base,
+    caixa: cents2(base * DIVISAO_LUCRO.caixa), caio: cents2(base * DIVISAO_LUCRO.caio), erik: cents2(base * DIVISAO_LUCRO.erik) };
+}
+/* célula da divisão nas tabelas (key: caixa | caio | erik) */
+function divTd(sp, deal, key) {
+  if (!sp) return `<td class="fin-split-col">—</td>`;
+  const dv = divisaoDoLucro(sp, deal);
+  if (dv.pendente) return `<td class="fin-split-col"><span class="div-pend">pendente</span></td>`;
+  if (!dv.aplicavel) return `<td class="fin-split-col">—</td>`;
+  return `<td class="fin-split-col div-${key}">${currency(dv[key])}</td>`;
 }
 function buildSaleSplitsWorkbook() {
-  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 7], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["SÓCIO (30%)", 2], ["", 1]];
+  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 7], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["DIVISÃO DO LUCRO", 3], ["", 1]];
   const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "CAC / Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Caixa reserva",
     "Acom. custo", "Acom. venda", "Acom. lucro", "Acom. comissão consultor", "Acom. ganhos Peregrinos", "Kit (custo fixo, sem lucro)", "Passagem", "Passagem: comissão consultor",
-    "Venda total", "Lucro Peregrino (total)", "Sócio (30% do lucro)", "Lucro Peregrino após sócio", "Situação"];
+    "Venda total", "Lucro Peregrino (total)", "Caixa Peregrinos (30%)", "Caio (30%)", "Erik (40%)", "Situação"];
   const rows = saleSplitsSorted().map(sp => {
     const deal = deals.find(d => d.id === sp.dealId);
     const pendente = sp.netCourse == null;
     const calc = v => (pendente ? null : v);
-    const socio = socioDaVenda(sp, deal);
-    const lucroApos = Math.round(((Number(sp.peregrinosNet) || 0) - socio) * 100) / 100;
+    const dv = divisaoDoLucro(sp, deal);
+    const dvCalc = k => (dv.aplicavel && !dv.pendente ? dv[k] : null);
     /* CAC fixo (R$ 100) ou influenciador: a regra põe o valor em um ou outro, então a coluna soma os dois */
     return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, (Number(sp.cacAmount) || 0) + (Number(sp.influencerAmount) || 0), calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount,
       sp.acomPago, sp.acomCobrado, sp.acomLucro, sp.acomConsultor, sp.acomLucro - sp.acomConsultor, sp.kitAmount, sp.passagemAmount, sp.consPassagem,
-      sp.courseTotal, calc(sp.peregrinosNet), calc(socio), calc(lucroApos), pendente ? "Pendente: falta o Net" : (sp.influencerPendente ? "Calculado · ATENÇÃO: influenciador ainda não recebeu" : "Calculado")];
+      sp.courseTotal, calc(sp.peregrinosNet), dvCalc("caixa"), dvCalc("caio"), dvCalc("erik"),
+      pendente ? "Pendente: falta o Net" : (sp.influencerPendente ? "Calculado · ATENÇÃO: influenciador ainda não recebeu" : "Calculado")];
   });
   const textCols = new Set([0, header.length - 1]);
   const totals = header.map((h, col) => textCols.has(col) ? (col === 0 ? "Total" : "") : Math.round(rows.reduce((acc, r) => acc + (Number(r[col]) || 0), 0) * 100) / 100);
@@ -7208,15 +7240,16 @@ function buildSaleSplitsWorkbook() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Partilha por venda");
   const regra = XLSX.utils.aoa_to_sheet([
-    ["Regra do sócio"],
-    ["Base: Lucro Peregrino (total) de cada venda."],
-    ["Percentual: 30% para o sócio Caio."],
-    ["Vendas: fechadas (Ganho) a partir de 01/11/2026. Vendas anteriores não têm sócio (0)."],
-    ["Prejuízo na venda não gera sócio (base mínima 0)."],
-    ["Lucro Peregrino após sócio = Lucro Peregrino (total) − Sócio."],
+    ["Divisão do lucro"],
+    ["Base: Lucro Peregrino (total) de cada venda. Prejuízo não gera divisão (base mínima 0)."],
+    ["30% caixa da Peregrinos"],
+    ["30% Caio (sócio)"],
+    ["40% Erik (sócio)"],
+    ["Vendas: fechadas (Ganho) a partir de 01/11/2026. Vendas anteriores não entram."],
+    ["Venda sem o Net ainda aparece como pendente."],
   ]);
   regra["!cols"] = [{ wch: 90 }];
-  XLSX.utils.book_append_sheet(wb, regra, "Regra do sócio");
+  XLSX.utils.book_append_sheet(wb, regra, "Divisão do lucro");
   return wb;
 }
 document.getElementById("fin-splits-download").addEventListener("click", async e => {

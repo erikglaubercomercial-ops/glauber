@@ -3499,3 +3499,14 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .mi-add { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 0; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--content-bg); }
 .mi-add[hidden] { display: none; }
 .split-pendente { color: var(--warn); font-weight: 700; }
+
+/* divisão do lucro: cores fixas por destinatário */
+.div-caixa { color: var(--primary); }
+.div-caio { color: var(--good); }
+.div-erik { color: #b45309; }
+td.div-caixa, td.div-caio, td.div-erik { font-weight: 700; }
+.div-pend { font-size: 11.5px; font-weight: 700; color: var(--warn); background: var(--warn-bg); padding: 2px 8px; border-radius: 999px; }
+.div-resumo { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px 20px 4px; }
+.div-chip { font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px solid currentColor; background: var(--surface); }
+.div-chip b { font-weight: 800; }
+.div-pend-chip { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
