@@ -5,6 +5,8 @@ let session = null;
 
 function canAccessView(view) {
   if (!session) return false;
+  /* Sócio vê todas as telas (exceto Usuários); a edição continua só com as permissões da função principal */
+  if (isSocioSession() && view !== "usuarios") return true;
   if (view === "dashboard") return true;
   /* telas novas ainda em construção — liberadas pra todo mundo por
      enquanto, sem nenhum conteúdo real por trás; quando ganharem
@@ -5950,7 +5952,7 @@ function renderFinanceiroOverview() {
     <span>A receber: <b>${currency(sumOf(facts.map(f => f.pendingAmt)))}</b></span>`;
   const tbody = document.getElementById("fin-overview-tbody");
   /* colunas de partilha (escola, kit, reserva, comissões, lucro) só para ADM e Financeiro */
-  const canSplit = !!session && (session.role === "ADM" || session.role === "Financeiro");
+  const canSplit = !!session && (session.role === "ADM" || session.role === "Financeiro" || isSocioSession());
   tbody.closest("table").classList.toggle("fin-no-split", !canSplit);
   tbody.innerHTML = "";
   document.getElementById("fin-overview-empty").style.display = list.length === 0 ? "block" : "none";
@@ -6912,7 +6914,7 @@ function renderCommissions() {
   const tbody = document.getElementById("fin-commissions-tbody");
   tbody.innerHTML = "";
   document.getElementById("fin-commissions-empty").style.display = list.length === 0 ? "block" : "none";
-  const canSplit = !!session && (session.role === "ADM" || session.role === "Financeiro");
+  const canSplit = !!session && (session.role === "ADM" || session.role === "Financeiro" || isSocioSession());
   tbody.closest("table").classList.toggle("fin-no-split", !canSplit);
   list.forEach(c => {
     const consultant = users.find(u => u.id === c.consultorId);
@@ -10635,7 +10637,7 @@ const usersEmpty = document.getElementById("users-empty");
 /* segunda função (opcional) para qualquer função principal, exceto ADM */
 function fillSecondaryRoleSelect(primary, current) {
   const sel = document.getElementById("user-field-secondary");
-  const opts = CONFIGURABLE_ROLES.filter(r => r !== primary);
+  const opts = [...CONFIGURABLE_ROLES, "Sócio"].filter(r => r !== primary);
   sel.innerHTML = `<option value="">Nenhuma</option>` + opts.map(r => `<option value="${r}">${r}</option>`).join("");
   sel.value = opts.includes(current) ? current : "";
 }

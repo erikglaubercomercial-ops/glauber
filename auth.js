@@ -69,6 +69,11 @@ async function setModuleAccess(role, moduleId, allowed) {
   if (error) console.error("Erro ao salvar permissão:", error);
 }
 
+/* Sócio (segunda função): só vê as telas e os dados; nunca ganha permissão de edição */
+function isSocioSession() {
+  return typeof session !== "undefined" && !!session && session.secondaryRole === "Sócio";
+}
+
 function hasModuleAccess(role, moduleId) {
   if (role === "ADM") return true;
   if (rolePermissions[role] && rolePermissions[role][moduleId]) return true;
