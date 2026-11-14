@@ -6617,6 +6617,7 @@ function getFilteredExpenses() {
   });
 }
 
+function expenseIsLate(e) { return !e.paid && !!e.dueDate && e.dueDate < localDayStr(Date.now()); }
 function renderExpenses() {
   refreshFinExpYears();
   updateFinExpTabs();
@@ -6626,7 +6627,8 @@ function renderExpenses() {
     <span><b>${filtered.length}</b> despesa(s)</span>
     <span>Total: <b>${currency(sumOf(filtered))}</b></span>
     <span>Pago: <b>${currency(sumOf(filtered.filter(e => e.paid)))}</b></span>
-    <span>Pendente: <b>${currency(sumOf(filtered.filter(e => !e.paid)))}</b></span>`;
+    <span>Pendente: <b>${currency(sumOf(filtered.filter(e => !e.paid)))}</b></span>
+    ${filtered.some(expenseIsLate) ? `<span style="color:var(--danger);">Em atraso: <b>${filtered.filter(expenseIsLate).length} · ${currency(sumOf(filtered.filter(expenseIsLate)))}</b></span>` : ""}`;
   const tbody = document.getElementById("fin-expenses-tbody");
   tbody.innerHTML = "";
   document.getElementById("fin-expenses-empty").style.display = filtered.length === 0 ? "block" : "none";
@@ -6637,7 +6639,7 @@ function renderExpenses() {
       <td class="cell-muted">${escapeHtml(e.category)}</td>
       <td>${currency(e.amount)}</td>
       <td class="cell-muted">${formatDate(e.dueDate)}</td>
-      <td><span class="badge ${e.paid ? "badge-good" : "badge-warn"}">${e.paid ? t("status.pago") : t("status.pendente")}</span></td>
+      <td><span class="badge ${e.paid ? "badge-good" : expenseIsLate(e) ? "badge-danger" : "badge-warn"}">${e.paid ? t("status.pago") : expenseIsLate(e) ? "Em atraso" : t("status.pendente")}</span></td>
       <td class="cell-actions">›</td>
     `;
     tr.addEventListener("click", () => openExpenseModal(e.id));
@@ -6693,6 +6695,50 @@ document.getElementById("expense-modal-close").addEventListener("click", closeEx
 document.getElementById("expense-btn-cancel").addEventListener("click", closeExpenseModal);
 expenseModalBackdrop.addEventListener("click", e => { if (e.target === expenseModalBackdrop) closeExpenseModal(); });
 
+/* ---- despesa recorrente: replica até dezembro do ano do vencimento; cada mês é uma despesa própria ---- */
+function expenseSeries(desc, cat, exceptId) {
+  return expenses.filter(x => x.id !== exceptId && x.recurring && x.description === desc && x.category === cat);
+}
+/* cria as parcelas que faltam (meses após o vencimento até dezembro, sem repetir mês já existente) */
+function addMissingRecurringCopies(base, existingSeries) {
+  const [y, m, d] = String(base.dueDate).split("-").map(Number);
+  const have = new Set(existingSeries.map(x => String(x.dueDate).slice(0, 7)));
+  const created = [];
+  for (let mm = m + 1; mm <= 12; mm++) {
+    const key = `${y}-${finOvPad(mm)}`;
+    if (have.has(key)) continue;
+    const day = Math.min(d, new Date(y, mm, 0).getDate());
+    created.push({ id: uid(), description: base.description, category: base.category, amount: base.amount,
+      dueDate: `${key}-${finOvPad(day)}`, paid: false, paidAt: null, recurring: true, notes: base.notes || "", createdAt: Date.now() });
+  }
+  expenses.push(...created);
+  return created;
+}
+/* pergunta o alcance de uma ação em despesa recorrente: retorna o valor escolhido, ou null se cancelar */
+function askRecurringScope({ title, text, buttons }) {
+  return new Promise(resolve => {
+    const back = document.createElement("div");
+    back.className = "modal-backdrop open";
+    back.innerHTML = `<div class="modal" style="max-width:440px;">
+      <div class="modal-header"><h2>${escapeHtml(title)}</h2><button type="button" class="btn-icon" data-x="1">&times;</button></div>
+      <form>
+        <p style="margin:0;">${escapeHtml(text)}</p>
+        <div class="modal-actions" style="flex-wrap:wrap;">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" data-v="">Cancelar</button>
+          ${buttons.map(b => `<button type="button" class="btn ${b.danger ? "btn-danger" : "btn-primary"}" data-v="${b.value}">${escapeHtml(b.label)}</button>`).join("")}
+        </div>
+      </form></div>`;
+    document.body.appendChild(back);
+    const done = v => { back.remove(); resolve(v || null); };
+    back.addEventListener("click", e => {
+      const b = e.target.closest("[data-v]");
+      if (b) done(b.dataset.v);
+      else if (e.target === back || e.target.closest("[data-x]")) done(null);
+    });
+  });
+}
+
 expenseForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("expense-id").value;
@@ -6708,12 +6754,35 @@ expenseForm.addEventListener("submit", async e => {
   };
   if (id) {
     const existing = expenses.find(x => x.id === id);
+    const wasRecurring = existing.recurring;
     const wasPaid = existing.paid;
+    const series = wasRecurring ? expenseSeries(existing.description, existing.category, id) : [];
+    const futureOpen = series.filter(x => !x.paid && x.dueDate > existing.dueDate);
+    const seriesChanged = wasRecurring && (data.description !== existing.description || data.category !== existing.category
+      || data.amount !== existing.amount || data.notes !== existing.notes);
+    let scope = null;
+    if (seriesChanged && futureOpen.length) {
+      scope = await askRecurringScope({
+        title: "Editar despesa recorrente",
+        text: `"${existing.description}" se repete nos próximos meses. Aplicar as mudanças (descrição, categoria, valor ou notas) a quais parcelas?`,
+        buttons: [
+          { value: "one", label: "Só esta parcela" },
+          { value: "future", label: `Esta e as próximas não pagas (${futureOpen.length})` },
+        ],
+      });
+      if (!scope) return;
+    }
     Object.assign(existing, data);
     if (paid && !wasPaid) existing.paidAt = Date.now();
     if (!paid) existing.paidAt = null;
+    if (scope === "future") futureOpen.forEach(x => Object.assign(x, { description: data.description, category: data.category, amount: data.amount, notes: data.notes }));
+    if (data.recurring && !wasRecurring) {
+      addMissingRecurringCopies(existing, expenseSeries(existing.description, existing.category, id));
+    }
   } else {
-    expenses.push({ id: uid(), ...data, paidAt: paid ? Date.now() : null, createdAt: Date.now() });
+    const row = { id: uid(), ...data, paidAt: paid ? Date.now() : null, createdAt: Date.now() };
+    expenses.push(row);
+    if (data.recurring) addMissingRecurringCopies(row, expenseSeries(row.description, row.category, row.id));
   }
   renderExpenses();
   renderFinanceiroOverview();
@@ -6724,12 +6793,28 @@ expenseForm.addEventListener("submit", async e => {
 expenseBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("expense-id").value;
   if (!id) return;
-  if (!confirm(t("fin.confirmDeleteExpense"))) return;
-  expenses = expenses.filter(x => x.id !== id);
+  const ex = expenses.find(x => x.id === id);
+  let ids = [id];
+  if (ex && ex.recurring) {
+    const futureOpen = expenseSeries(ex.description, ex.category, id).filter(x => !x.paid && x.dueDate > ex.dueDate);
+    const scope = await askRecurringScope({
+      title: "Excluir despesa recorrente",
+      text: `"${ex.description}" se repete nos próximos meses. O que deseja excluir? As parcelas já pagas não são apagadas.`,
+      buttons: [
+        { value: "one", label: "Só esta parcela", danger: true },
+        { value: "future", label: `Esta e as próximas não pagas (${futureOpen.length})`, danger: true },
+      ],
+    });
+    if (!scope) return;
+    if (scope === "future") ids = [id, ...futureOpen.map(x => x.id)];
+  } else {
+    if (!confirm(t("fin.confirmDeleteExpense"))) return;
+  }
+  expenses = expenses.filter(x => !ids.includes(x.id));
   renderExpenses();
   renderFinanceiroOverview();
   closeExpenseModal();
-  await deleteExpenseRemote(id);
+  await Promise.all(ids.map(deleteExpenseRemote));
 });
 
 /* ---- gerenciar categorias de despesa ---- */
