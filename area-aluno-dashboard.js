@@ -58,6 +58,7 @@ const alunoRpcArgs = () => (alunoSpectator ? { p_enr: alunoSpectator } : {});
 
   renderAlunoAll();
   loadAlunoMessages();
+  loadAlunoChamados();
   loadAlunoDocs();
   loadAlunoVideos();
   loadAlunoProofs();
@@ -576,3 +577,110 @@ function alunoSpectatorName() {
 }
 
 document.addEventListener("langchange", renderAlunoAll);
+
+/* ---- chamados: o aluno abre um assunto e acompanha a resposta da equipe ---- */
+let alunoChamados = [];
+let alunoChamadoSel = null;
+const alunoStatusPill = c => c.status === "closed"
+  ? `<span class="aluno-chamado-pill closed">Concluído</span>`
+  : `<span class="aluno-chamado-pill open">Em andamento</span>`;
+async function loadAlunoChamados() {
+  if (!alunoEnr) return;
+  const { data, error } = await supabase.rpc("aluno_chamados_listar", alunoRpcArgs());
+  if (error) { console.error("Erro ao carregar chamados:", error); return; }
+  alunoChamados = data || [];
+  if (alunoChamadoSel) alunoChamadoSel = alunoChamados.find(c => c.id === alunoChamadoSel.id) || null;
+  renderAlunoChamados();
+}
+function renderAlunoChamados() {
+  const list = $al("aluno-chamados-list");
+  const det = $al("aluno-chamado-detail");
+  if (!list || !det) return;
+  if (alunoChamadoSel) {
+    list.hidden = true;
+    det.hidden = false;
+    det.innerHTML = `
+      <div class="aluno-chamado-head">
+        <button type="button" class="btn btn-ghost btn-sm" id="aluno-chamado-back">← Voltar aos chamados</button>
+        <div class="aluno-chamado-title"><h3>${alunoEsc(alunoChamadoSel.subject || "Chamado")}</h3>${alunoStatusPill(alunoChamadoSel)}</div>
+      </div>
+      <div class="aluno-chamado-thread">
+        ${(alunoChamadoSel.messages || []).map(m => `
+          <div class="aluno-msg-bubble${m.autor_aluno ? " mine" : ""}">
+            <span class="aluno-msg-author">${alunoEsc(m.autor_aluno ? "Você" : (m.autor_nome || "Equipe Peregrinos"))}</span>
+            <span class="aluno-msg-text">${alunoEsc(m.body)}</span>
+            <span class="aluno-msg-time">${alunoEsc(new Date(m.created_at).toLocaleString(alunoLocale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }))}</span>
+          </div>`).join("")}
+      </div>
+      <form class="aluno-msg-form" id="aluno-chamado-reply-form">
+        ${alunoChamadoSel.status === "closed" ? `<p class="aluno-chamado-note">A equipe concluiu este assunto. Se responder, ele volta a ficar em andamento.</p>` : ""}
+        <label><span>Sua resposta</span>
+          <textarea rows="3" id="aluno-chamado-reply" maxlength="4000" required></textarea>
+        </label>
+        <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+          <button type="submit" class="btn btn-primary btn-sm" id="aluno-chamado-reply-send">Enviar resposta</button>
+        </div>
+      </form>`;
+    det.scrollTop = 0;
+    return;
+  }
+  det.hidden = true;
+  list.hidden = false;
+  list.innerHTML = alunoChamados.length
+    ? alunoChamados.map(c => {
+        const last = (c.messages || [])[c.messages.length - 1];
+        return `<button type="button" class="aluno-chamado-item" data-chamado="${alunoEsc(c.id)}">
+          <span class="aluno-chamado-item-top"><b>${alunoEsc(c.subject || "Chamado")}</b>${alunoStatusPill(c)}</span>
+          <span class="aluno-chamado-item-snippet">${alunoEsc(last ? (last.body || "").slice(0, 100) : "")}</span>
+          <span class="aluno-chamado-item-date">${alunoEsc(new Date(c.updated_at).toLocaleDateString(alunoLocale(), { day: "2-digit", month: "short", year: "numeric" }))}</span>
+        </button>`;
+      }).join("")
+    : `<p class="aluno-empty">Você ainda não abriu nenhum chamado.</p>`;
+}
+$al("aluno-chamado-new").addEventListener("click", () => {
+  if (alunoSpectator) return;
+  $al("aluno-chamado-form").hidden = false;
+  $al("aluno-chamado-subject").focus();
+});
+$al("aluno-chamado-cancel").addEventListener("click", () => {
+  $al("aluno-chamado-form").hidden = true;
+  $al("aluno-chamado-form").reset();
+});
+$al("aluno-chamado-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (alunoSpectator || !alunoEnr) return;
+  const subject = $al("aluno-chamado-subject").value.trim();
+  const body = $al("aluno-chamado-body").value.trim();
+  if (!subject || !body) return;
+  const btn = $al("aluno-chamado-send");
+  btn.disabled = true;
+  const { error } = await supabase.rpc("aluno_chamado_abrir", { p_assunto: subject, p_mensagem: body, ...alunoRpcArgs() });
+  btn.disabled = false;
+  if (error) { console.error("Erro ao abrir chamado:", error); alunoToast(t("aluno.msgError")); return; }
+  $al("aluno-chamado-form").reset();
+  $al("aluno-chamado-form").hidden = true;
+  alunoToast("Chamado aberto. A equipe vai responder por aqui.");
+  await loadAlunoChamados();
+});
+$al("aluno-chamados-list").addEventListener("click", e => {
+  const b = e.target.closest("[data-chamado]");
+  if (!b) return;
+  alunoChamadoSel = alunoChamados.find(c => c.id === b.dataset.chamado) || null;
+  renderAlunoChamados();
+});
+$al("aluno-chamado-detail").addEventListener("click", e => {
+  if (e.target.closest("#aluno-chamado-back")) { alunoChamadoSel = null; renderAlunoChamados(); }
+});
+$al("aluno-chamado-detail").addEventListener("submit", async e => {
+  if (e.target.id !== "aluno-chamado-reply-form") return;
+  e.preventDefault();
+  if (alunoSpectator || !alunoChamadoSel) return;
+  const texto = $al("aluno-chamado-reply").value.trim();
+  if (!texto) return;
+  const btn = $al("aluno-chamado-reply-send");
+  btn.disabled = true;
+  const { error } = await supabase.rpc("aluno_chamado_responder", { p_thread: alunoChamadoSel.id, p_mensagem: texto, ...alunoRpcArgs() });
+  btn.disabled = false;
+  if (error) { console.error("Erro ao responder chamado:", error); alunoToast(t("aluno.msgError")); return; }
+  await loadAlunoChamados();
+});

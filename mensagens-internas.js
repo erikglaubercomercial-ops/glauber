@@ -21,19 +21,21 @@ const miEl = id => document.getElementById(id);
 const miName = id => { const u = users.find(x => x.id === id); return u ? (u.name || u.email || "—") : "—"; };
 const miDate = ms => ms ? new Date(ms).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 const miMember = t => t.members.find(m => m.userId === session.id) || null;
+const miAuthor = m => m.autorAluno ? (m.autorNome || "Aluno") : (m.authorId ? miName(m.authorId) : "Equipe");
+const miLastLabel = t => !t.lastAuthorId ? "aluno" : (t.lastAuthorId === session.id ? "você" : miName(t.lastAuthorId));
 const miIsUnread = t => {
   const m = miMember(t);
-  return !!m && !!t.lastAuthorId && t.lastAuthorId !== session.id && (!m.readAt || m.readAt < t.updatedAt);
+  return !!m && t.lastAuthorId !== session.id && (!m.readAt || m.readAt < t.updatedAt);
 };
 
 /* ---- leitura ---- */
 async function miLoadThreads() {
   const { data, error } = await supabase.from("internal_threads")
-    .select("id, subject, status, created_by, created_at, updated_at, last_author_id, closed_at, closed_by, members:internal_thread_members(user_id, last_read_at)")
+    .select("id, subject, status, origin, created_by, created_at, updated_at, last_author_id, closed_at, closed_by, members:internal_thread_members(user_id, last_read_at)")
     .order("updated_at", { ascending: false }).limit(300);
   if (error) { console.error("Erro ao carregar conversas:", error); return null; }
   return (data || []).map(t => ({
-    id: t.id, subject: t.subject || "", status: t.status, createdBy: t.created_by,
+    id: t.id, subject: t.subject || "", status: t.status, origin: t.origin || "interno", createdBy: t.created_by,
     createdAt: new Date(t.created_at).getTime(), updatedAt: new Date(t.updated_at).getTime(),
     lastAuthorId: t.last_author_id, closedAt: t.closed_at ? new Date(t.closed_at).getTime() : null, closedBy: t.closed_by,
     members: (t.members || []).map(m => ({ userId: m.user_id, readAt: m.last_read_at ? new Date(m.last_read_at).getTime() : null })),
@@ -41,12 +43,12 @@ async function miLoadThreads() {
 }
 async function miLoadThreadDetail(threadId) {
   const [msgs, atts] = await Promise.all([
-    supabase.from("internal_thread_messages").select("id, author_id, body, created_at").eq("thread_id", threadId).order("created_at"),
+    supabase.from("internal_thread_messages").select("id, author_id, body, created_at, autor_nome, autor_aluno").eq("thread_id", threadId).order("created_at"),
     supabase.from("internal_thread_attachments").select("message_id, file_path, file_name").eq("thread_id", threadId),
   ]);
   if (msgs.error) console.error("Erro ao carregar mensagens:", msgs.error);
   if (atts.error) console.error("Erro ao carregar anexos:", atts.error);
-  miState.messages = (msgs.data || []).map(m => ({ id: m.id, authorId: m.author_id, body: m.body || "", createdAt: new Date(m.created_at).getTime() }));
+  miState.messages = (msgs.data || []).map(m => ({ id: m.id, authorId: m.author_id, autorNome: m.autor_nome || "", autorAluno: !!m.autor_aluno, body: m.body || "", createdAt: new Date(m.created_at).getTime() }));
   miState.attachments = {};
   (atts.data || []).forEach(a => { (miState.attachments[a.message_id] = miState.attachments[a.message_id] || []).push({ path: a.file_path, name: a.file_name }); });
 }
@@ -86,11 +88,20 @@ function miPaint() {
     const who = names.length ? names.slice(0, 2).join(", ") + (names.length > 2 ? ` +${names.length - 2}` : "") : "—";
     return `<button type="button" class="mi-item${miIsUnread(t) ? " is-unread" : ""}${miState.selectedId === t.id ? " is-selected" : ""}" data-mi-id="${t.id}">
       <span class="mi-item-top"><span class="mi-item-subject">${escapeHtml(t.subject || "(sem assunto)")}</span>${miStatusPill(t)}</span>
+      ${t.origin === "aluno" ? `<span class="mi-pill mi-pill-aluno">Chamado de aluno</span>` : ""}
       <span class="mi-item-snippet">Com: ${escapeHtml(who)}</span>
-      <span class="mi-item-foot">${escapeHtml(miDate(t.updatedAt))}${t.lastAuthorId ? ` · última: ${escapeHtml(t.lastAuthorId === session.id ? "você" : miName(t.lastAuthorId))}` : ""}</span>
+      <span class="mi-item-foot">${escapeHtml(miDate(t.updatedAt))} · última: ${escapeHtml(miLastLabel(t))}</span>
     </button>`;
   }).join("") : `<p class="mi-empty">Nenhuma conversa ${miState.filter === "open" ? "aberta" : miState.filter === "closed" ? "concluída" : ""} aqui.</p>`;
   miPaintDetail();
+}
+function miAddOptions(t) {
+  const already = new Set(t.members.map(m => m.userId));
+  const opts = users.filter(u => u.active !== false && u.id !== session.id && !already.has(u.id))
+    .sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"));
+  return opts.length
+    ? opts.map(u => `<label class="mi-to-item"><input type="checkbox" class="mi-add-check" value="${escapeHtml(u.id)}"> ${escapeHtml(u.name || u.email || "—")} <small>${escapeHtml(u.role || "")}</small></label>`).join("")
+    : `<span class="mi-note">Todas as pessoas já participam desta conversa.</span>`;
 }
 function miPaintDetail() {
   const box = miEl("mi-detail");
@@ -102,7 +113,7 @@ function miPaintDetail() {
     const mine = m.authorId === session.id;
     const files = miState.attachments[m.id] || [];
     return `<div class="mi-bubble${mine ? " is-mine" : ""}">
-      <div class="mi-bubble-head"><b>${escapeHtml(mine ? "Você" : miName(m.authorId))}</b><span>${escapeHtml(miDate(m.createdAt))}</span></div>
+      <div class="mi-bubble-head"><b>${escapeHtml(mine ? "Você" : miAuthor(m))}</b><span>${escapeHtml(miDate(m.createdAt))}</span></div>
       ${m.body ? `<div class="mi-bubble-body">${escapeHtml(m.body)}</div>` : ""}
       ${files.length ? `<div class="mi-files">${files.map(f => `<button type="button" class="btn btn-ghost btn-sm" data-mi-file="${escapeHtml(f.path)}">📎 ${escapeHtml(f.name || "anexo")}</button>`).join("")}</div>` : ""}
     </div>`;
@@ -115,7 +126,15 @@ function miPaintDetail() {
         ${t.status === "open"
           ? `<button type="button" class="btn btn-ghost btn-sm" data-mi-status="closed">Concluir assunto</button>`
           : `<button type="button" class="btn btn-ghost btn-sm" data-mi-status="open">Reabrir assunto</button>`}
-      </div>` : ""}
+        <button type="button" class="btn btn-ghost btn-sm" data-mi-addtoggle="1">+ Adicionar pessoas</button>
+      </div>
+      <form class="mi-add" id="mi-add-form" hidden>
+        <div class="mi-to-list">${miAddOptions(t)}</div>
+        <div class="mi-reply-row">
+          <span class="mi-note">Quem for adicionado vê todo o histórico desta conversa.</span>
+          <button type="submit" class="btn btn-primary btn-sm">Adicionar</button>
+        </div>
+      </form>` : ""}
     </div>
     <div class="mi-thread">${bubbles || `<p class="mi-empty">Sem mensagens.</p>`}</div>
     ${canAct ? `<form class="mi-reply" id="mi-reply-form">
@@ -201,7 +220,7 @@ function miShowNext() {
   card.innerHTML = `
     <div class="mi-toast-icon">✉</div>
     <div class="mi-toast-text">
-      <div class="mi-toast-title">Nova mensagem de ${escapeHtml(t.lastAuthorId ? miName(t.lastAuthorId) : "equipe")}</div>
+      <div class="mi-toast-title">Nova mensagem de ${escapeHtml(t.lastAuthorId ? miName(t.lastAuthorId) : "aluno (chamado)")}</div>
       <div class="mi-toast-sub">${escapeHtml(t.subject || "(sem assunto)")}</div>
     </div>
     <button type="button" class="mi-toast-close" aria-label="Fechar">&times;</button>`;
@@ -263,6 +282,8 @@ miEl("mi-detail").addEventListener("click", async e => {
     window.open(data.signedUrl, "_blank", "noopener");
     return;
   }
+  const add = e.target.closest("[data-mi-addtoggle]");
+  if (add) { const f = miEl("mi-add-form"); if (f) f.hidden = !f.hidden; return; }
   const s = e.target.closest("[data-mi-status]");
   if (s && miState.selectedId) {
     if (!miActive()) { alert("No modo \"Ver como\" não é possível alterar o status."); return; }
@@ -272,6 +293,16 @@ miEl("mi-detail").addEventListener("click", async e => {
   }
 });
 miEl("mi-detail").addEventListener("submit", async e => {
+  if (e.target.id === "mi-add-form") {
+    e.preventDefault();
+    if (!miActive()) { alert("No modo \"Ver como\" não é possível alterar a conversa."); return; }
+    const ids = [...document.querySelectorAll(".mi-add-check:checked")].map(c => c.value);
+    if (!ids.length) { alert("Escolha pelo menos uma pessoa."); return; }
+    const { error } = await supabase.rpc("atendimento_adicionar", { p_thread: miState.selectedId, p_users: ids });
+    if (error) { console.error(error); alert("Não foi possível adicionar as pessoas. Tente de novo."); return; }
+    await renderMensagens();
+    return;
+  }
   if (e.target.id !== "mi-reply-form") return;
   e.preventDefault();
   if (!miActive()) { alert("No modo \"Ver como\" não é possível responder."); return; }
