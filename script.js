@@ -7122,7 +7122,7 @@ function renderSaleSplits() {
       <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""} ${dirty("net")}" data-deal="${sp.dealId}" data-field="net" value="${escapeHtml(val("net", pendente ? "" : splitMoney(sp.netCourse)))}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
       ${calc("cac_amount", false)}${calc("influencer_amount", false, sp.influencerPendente ? '<span class="split-sub split-pendente">influenciador ainda não recebeu</span>' : "")}${calc("cons_curso", false)}
       ${calc("manager_amount", false, mgr ? `<span class="split-sub">${escapeHtml(mgr.name)}</span>` : "")}
-      ${calc("reserva_amount", false, sp.sobraAmount ? `<span class="split-sub">sobra do curso ${currency(sp.sobraAmount)} (fora do Budget MKT)</span>` : "")}
+      ${calc("reserva_amount", false, sp.sobraAmount ? `<span class="split-sub">sobra do curso ${currency(sp.sobraAmount)} (entra na divisão do lucro)</span>` : "")}
       ${calc("acom_pago", true)}${calc("acom_cobrado", false)}${calc("acom_lucro", false)}${calc("acom_consultor", false)}${calc("acom_ganho", false)}
       ${calc("kit_amount", true)}
       <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${dirty("passagem")}" data-deal="${sp.dealId}" data-field="passagem" value="${escapeHtml(val("passagem", passValue == null ? "" : splitMoney(passValue)))}" placeholder="0,00" aria-label="Passagem"></td>
@@ -7226,14 +7226,14 @@ function loadSheetJs() {
     document.head.appendChild(el);
   });
 }
-/* divisão do lucro (Lucro Peregrino total, base mínima 0) das vendas fechadas a partir de 01/11/2026:
+/* divisão do lucro (Lucro Peregrino total + sobra do curso, base mínima 0) das vendas fechadas a partir de 01/11/2026:
    30% caixa da Peregrinos · 30% Caio (sócio) · 40% Erik (sócio). Vendas do Caio entram.
    Venda sem Net ainda não tem lucro: aparece como pendente. */
 const DIVISAO_LUCRO = { caixa: 0.30, caio: 0.30, erik: 0.40 };
 const DIVISAO_DESDE = new Date(2026, 10, 1, 0, 0, 0, 0).getTime();
 const cents2 = v => Math.round(v * 100) / 100;
 function divisaoDoLucro(sp, deal) {
-  const base = Math.max(Number(sp.peregrinosNet) || 0, 0);
+  const base = Math.max((Number(sp.peregrinosNet) || 0) + (Number(sp.sobraAmount) || 0), 0);
   const aplicavel = !!deal && !!deal.closedAt && deal.closedAt >= DIVISAO_DESDE;
   if (!aplicavel) return { aplicavel: false, pendente: false, base, caixa: 0, caio: 0, erik: 0 };
   if (sp.netCourse == null) return { aplicavel: true, pendente: true, base, caixa: 0, caio: 0, erik: 0 };
@@ -7249,10 +7249,10 @@ function divTd(sp, deal, key) {
   return `<td class="fin-split-col div-${key}">${currency(dv[key])}</td>`;
 }
 function buildSaleSplitsWorkbook() {
-  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 8], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["DIVISÃO DO LUCRO", 3], ["", 1]];
+  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 8], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["DIVISÃO DO LUCRO", 4], ["", 1]];
   const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "CAC / Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Budget MKT", "Sobra do curso",
     "Acom. custo", "Acom. venda", "Acom. lucro", "Acom. comissão consultor", "Acom. ganhos Peregrinos", "Kit (custo fixo, sem lucro)", "Passagem", "Passagem: comissão consultor",
-    "Venda total", "Lucro Peregrino (total)", "Caixa reserva (30%)", "Caio (30%)", "Erik (40%)", "Situação"];
+    "Venda total", "Lucro Peregrino (total)", "Base da divisão (lucro + sobra)", "Caixa reserva (30%)", "Caio (30%)", "Erik (40%)", "Situação"];
   const rows = saleSplitsSorted().map(sp => {
     const deal = deals.find(d => d.id === sp.dealId);
     const pendente = sp.netCourse == null;
@@ -7262,7 +7262,7 @@ function buildSaleSplitsWorkbook() {
     /* CAC fixo (R$ 100) ou influenciador: a regra põe o valor em um ou outro, então a coluna soma os dois */
     return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, (Number(sp.cacAmount) || 0) + (Number(sp.influencerAmount) || 0), calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount, sp.sobraAmount,
       sp.acomPago, sp.acomCobrado, sp.acomLucro, sp.acomConsultor, sp.acomLucro - sp.acomConsultor, sp.kitAmount, sp.passagemAmount, sp.consPassagem,
-      sp.courseTotal, calc(sp.peregrinosNet), dvCalc("caixa"), dvCalc("caio"), dvCalc("erik"),
+      sp.courseTotal, calc(sp.peregrinosNet), (dv.aplicavel && !dv.pendente ? dv.base : null), dvCalc("caixa"), dvCalc("caio"), dvCalc("erik"),
       pendente ? "Pendente: falta o Net" : (sp.influencerPendente ? "Calculado · ATENÇÃO: influenciador ainda não recebeu" : "Calculado")];
   });
   const textCols = new Set([0, header.length - 1]);
@@ -7285,7 +7285,7 @@ function buildSaleSplitsWorkbook() {
   XLSX.utils.book_append_sheet(wb, ws, "Partilha por venda");
   const regra = XLSX.utils.aoa_to_sheet([
     ["Divisão do lucro"],
-    ["Base: Lucro Peregrino (total) de cada venda. Prejuízo não gera divisão (base mínima 0)."],
+    ["Base: Lucro Peregrino (total) + sobra do curso de cada venda. Prejuízo não gera divisão (base mínima 0)."],
     ["30% caixa reserva da Peregrinos"],
     ["30% Caio (sócio)"],
     ["40% Erik (sócio)"],
