@@ -5836,23 +5836,50 @@ function renderFinanceiroOverview() {
 
   const list = getFilteredOverviewDeals();
   const tbody = document.getElementById("fin-overview-tbody");
+  /* colunas de partilha (escola, kit, reserva, comissões, lucro) só para ADM e Financeiro */
+  const canSplit = !!session && (session.role === "ADM" || session.role === "Financeiro");
+  tbody.closest("table").classList.toggle("fin-no-split", !canSplit);
   tbody.innerHTML = "";
   document.getElementById("fin-overview-empty").style.display = list.length === 0 ? "block" : "none";
+  const dt = ms => ms ? new Date(ms).toLocaleDateString("pt-BR") : "—";
   list.forEach(d => {
     const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
-    const won = isWonStage(d.stage);
-    const lost = isLostStage(d.stage);
-    const badgeClass = won ? "badge-good" : lost ? "badge-danger" : "badge-neutral";
+    const consultant = lead && lead.consultorId ? users.find(u => u.id === lead.consultorId) : null;
+    const enr = lead ? enrollments.filter(e => e.leadId === lead.id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] : null;
+    const sp = saleSplits.find(x => x.dealId === d.id) || null;
+    const recs = receivables.filter(r => r.dealId === d.id);
+    const paidRecs = recs.filter(r => r.paid);
+    const paidAmt = round2(paidRecs.reduce((x, r) => x + (Number(r.amount) || 0), 0));
+    const pendingAmt = round2(recs.filter(r => !r.paid).reduce((x, r) => x + (Number(r.amount) || 0), 0));
+    const lastPaid = paidRecs.reduce((m, r) => Math.max(m, r.paidAt || 0), 0);
+    const situacao = !recs.length ? `<span class="badge badge-neutral">Sem conta</span>`
+      : pendingAmt <= 0.004 ? `<span class="badge badge-good">Quitado</span>`
+      : `<span class="badge badge-warn">A receber</span>`;
+    /* partilha zerada: destaca a linha, igual ao aviso de partilha pendente */
+    const splitZero = !!sp && (sp.consCurso + sp.consPassagem) === 0 && sp.peregrinosNet === 0;
     const dateVal = d.closedAt || d.createdAt;
     const tr = document.createElement("tr");
+    if (splitZero) tr.classList.add("fin-row-warn");
     tr.innerHTML = `
       <td class="cell-check"><input type="checkbox" class="fin-overview-checkbox" data-id="${d.id}" ${finOverviewSelectedIds.has(d.id) ? "checked" : ""}></td>
-      <td class="cell-primary">${leadLink(d.leadId, d.name)}</td>
+      <td class="cell-muted">${dt(dateVal)}</td>
       <td class="cell-muted">${lead ? escapeHtml(originText(lead) || "—") : "—"}</td>
+      <td>${consultant ? escapeHtml(consultant.name || "—") : "—"}</td>
+      <td class="cell-primary">${leadLink(d.leadId, d.name)}</td>
       <td class="cell-muted">${lead ? escapeHtml(lead.email || "—") : "—"}</td>
-      <td><span class="badge ${badgeClass}">${escapeHtml(dealStatusLabel(d))}</span></td>
+      <td>${enr && enr.school ? escapeHtml(enr.school) : "—"}</td>
       <td>${currency(d.value)}</td>
-      <td class="cell-muted">${dateVal ? new Date(dateVal).toLocaleDateString("pt-BR") : "—"}</td>
+      <td class="fin-split-col">${sp ? currency(sp.courseGross) : "—"}</td>
+      <td class="fin-split-col">${sp ? currency(sp.kitAmount) : "—"}</td>
+      <td class="fin-split-col">${sp ? currency(sp.reservaAmount) : "—"}</td>
+      <td class="fin-split-col">${sp ? currency(sp.influencerAmount) : "—"}</td>
+      <td class="fin-split-col">${sp ? currency(sp.consCurso + sp.consPassagem) : "—"}</td>
+      <td class="fin-split-col cell-primary">${sp ? currency(sp.peregrinosNet) : "—"}</td>
+      <td>${recs.length ? currency(round2(paidAmt + pendingAmt)) : "—"}</td>
+      <td class="cell-muted">${lastPaid ? dt(lastPaid) : "—"}</td>
+      <td>${currency(paidAmt)}</td>
+      <td class="cell-primary">${currency(pendingAmt)}</td>
+      <td>${situacao}</td>
     `;
     const checkbox = tr.querySelector(".fin-overview-checkbox");
     checkbox.addEventListener("click", e => e.stopPropagation());

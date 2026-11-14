@@ -3386,3 +3386,7 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 .rec-gap { margin: 12px 0; padding: 10px 14px; border-radius: 10px; background: var(--warn-bg); border: 1px solid var(--warn); font-size: 13.5px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rec-sub { margin: 18px 0 8px; font-size: 14px; }
 #rec-pay-backdrop { z-index: 60; }
+
+/* Visão geral (Financeiro): colunas de partilha só para ADM e Financeiro; linha com partilha zerada em aviso */
+.fin-overview-table.fin-no-split .fin-split-col { display: none; }
+.fin-overview-table tr.fin-row-warn td { background: var(--warn-bg); }

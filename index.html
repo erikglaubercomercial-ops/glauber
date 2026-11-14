@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1794592935">
+<link rel="stylesheet" href="style.css?v=1794642541">
 <link rel="stylesheet" href="bio.css?v=1794442137">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -894,15 +894,27 @@
               <button type="button" class="btn btn-danger btn-sm" id="fin-overview-bulk-delete" data-i18n="fin.deleteSelected">Excluir selecionados</button>
               <button type="button" class="btn-icon" id="fin-overview-bulk-clear" title="Limpar seleção" data-i18n-title="common.clearSelection">&times;</button>
             </div>
-            <table class="data-table">
+            <table class="data-table fin-overview-table">
               <thead><tr>
                 <th class="cell-check"><input type="checkbox" id="fin-overview-select-all"></th>
-                <th data-i18n="fin.deal">Negócio</th>
+                <th>Data da venda</th>
                 <th data-i18n="common.source">Origem</th>
+                <th>Consultor</th>
+                <th>Nome do cliente</th>
                 <th data-i18n="common.email">E-mail</th>
-                <th data-i18n="common.status">Status</th>
-                <th data-i18n="common.value">Valor</th>
-                <th data-i18n="common.date">Data</th>
+                <th>Escola</th>
+                <th>Valor do contrato</th>
+                <th class="fin-split-col">Curso</th>
+                <th class="fin-split-col">Kit</th>
+                <th class="fin-split-col">Reserva</th>
+                <th class="fin-split-col">Influencer</th>
+                <th class="fin-split-col">Comissão consultor</th>
+                <th class="fin-split-col">Lucro Peregrinos</th>
+                <th>Total na conta</th>
+                <th>Data do pagamento</th>
+                <th>Valor pago</th>
+                <th>Restante</th>
+                <th>Situação</th>
               </tr></thead>
               <tbody id="fin-overview-tbody"></tbody>
             </table>
@@ -3189,7 +3201,7 @@
   <script src="i18n.js?v=1794610121"></script>
   <script src="comparativo.js?v=1794442137"></script>
   <script src="contrato-modelo.js?v=1794442137"></script>
-  <script src="script.js?v=1794609199"></script>
+  <script src="script.js?v=1794642541"></script>
   <script src="contratos-proposta.js?v=1794442137"></script>
   <script src="ficha-cliente.js?v=1794610121"></script>
   <script src="agenda-reunioes.js?v=1794442137"></script>
