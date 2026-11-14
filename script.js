@@ -5865,13 +5865,55 @@ function refreshFinOverviewFilterOptions() {
   fill("fin-ov-escola", "Todas as escolas", uniqSorted(facts.map(f => f.escola)).map(v => ({ value: v, label: v })));
 }
 
+/* ---- Visão geral: "Todas" + um botão por mês do ano escolhido (preenche o período De/até) ---- */
+const FIN_OV_MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const finOvPad = n => String(n).padStart(2, "0");
+function finOvMonthRange(year, month) {
+  const last = new Date(year, month, 0).getDate();
+  return { from: `${year}-${finOvPad(month)}-01`, to: `${year}-${finOvPad(month)}-${finOvPad(last)}` };
+}
+/* "all" (sem período), o número do mês se o período for exatamente um mês, ou null (período personalizado) */
+function finOvActivePeriod() {
+  const from = document.getElementById("fin-ov-date-from").value;
+  const to = document.getElementById("fin-ov-date-to").value;
+  if (!from && !to) return "all";
+  if (!from || !to) return null;
+  const [y, m] = from.split("-").map(Number);
+  if (!y || !m) return null;
+  const r = finOvMonthRange(y, m);
+  return r.from === from && r.to === to ? String(m) : null;
+}
+function refreshFinOverviewYears() {
+  const sel = document.getElementById("fin-ov-year");
+  const nowYear = new Date().getFullYear();
+  const years = deals.filter(d => isWonStage(d.stage)).map(d => new Date(d.closedAt || d.createdAt || Date.now()).getFullYear());
+  const minYear = Math.min(nowYear, ...years);
+  const prev = sel.value;
+  let html = "";
+  for (let y = minYear; y <= nowYear + 1; y++) html += `<option value="${y}">${y}</option>`;
+  sel.innerHTML = html;
+  sel.value = prev && Number(prev) >= minYear && Number(prev) <= nowYear + 1 ? prev : String(nowYear);
+}
+function updateFinOverviewPeriodTabs() {
+  const active = finOvActivePeriod();
+  document.querySelectorAll("#subview-fin-overview .fin-ov-tab").forEach(b => b.classList.toggle("active", b.dataset.ovMonth === active));
+  const from = document.getElementById("fin-ov-date-from").value;
+  if (from) {
+    const yearSel = document.getElementById("fin-ov-year");
+    const y = from.slice(0, 4);
+    if ([...yearSel.options].some(o => o.value === y)) yearSel.value = y;
+  }
+}
+
 /* soma do que foi recebido (contas a receber pagas) entre dois instantes (ms) */
 function receivedInRange(startMs, endMs) {
   return receivables.filter(r => r.paid && r.paidAt && r.paidAt >= startMs && r.paidAt < endMs).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 }
 
 function renderFinanceiroOverview() {
+  refreshFinOverviewYears();
   refreshFinOverviewFilterOptions();
+  updateFinOverviewPeriodTabs();
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
@@ -5895,6 +5937,14 @@ function renderFinanceiroOverview() {
   document.getElementById("fin-stat-receivable").textContent = currency(pendingReceivable);
 
   const list = getFilteredOverviewDeals();
+  /* resumo do período mostrado (o que está filtrado) */
+  const facts = list.map(finOverviewFacts);
+  const sumOf = arr => round2(arr.reduce((x, y) => x + y, 0));
+  document.getElementById("fin-ov-summary").innerHTML = `
+    <span><b>${list.length}</b> venda(s)</span>
+    <span>Contratos: <b>${currency(sumOf(list.map(d => Number(d.value) || 0)))}</b></span>
+    <span>Recebido: <b>${currency(sumOf(facts.map(f => f.paidAmt)))}</b></span>
+    <span>A receber: <b>${currency(sumOf(facts.map(f => f.pendingAmt)))}</b></span>`;
   const tbody = document.getElementById("fin-overview-tbody");
   /* colunas de partilha (escola, kit, reserva, comissões, lucro) só para ADM e Financeiro */
   const canSplit = !!session && (session.role === "ADM" || session.role === "Financeiro");
@@ -5967,6 +6017,28 @@ document.getElementById("fin-overview-search-input").addEventListener("input", r
 ["fin-ov-date-from", "fin-ov-date-to", "fin-ov-origem", "fin-ov-consultor", "fin-ov-escola", "fin-ov-situacao"].forEach(id => {
   document.getElementById(id).addEventListener("change", renderFinanceiroOverview);
 });
+document.getElementById("fin-ov-year").addEventListener("change", () => {
+  /* trocar o ano mantém o mês escolhido */
+  const active = finOvActivePeriod();
+  if (active && active !== "all") {
+    const y = Number(document.getElementById("fin-ov-year").value) || new Date().getFullYear();
+    const r = finOvMonthRange(y, Number(active));
+    document.getElementById("fin-ov-date-from").value = r.from;
+    document.getElementById("fin-ov-date-to").value = r.to;
+  }
+  renderFinanceiroOverview();
+});
+document.querySelectorAll("#subview-fin-overview .fin-ov-tab").forEach(btn => btn.addEventListener("click", () => {
+  const m = btn.dataset.ovMonth;
+  const fromEl = document.getElementById("fin-ov-date-from"), toEl = document.getElementById("fin-ov-date-to");
+  if (m === "all") { fromEl.value = ""; toEl.value = ""; }
+  else {
+    const y = Number(document.getElementById("fin-ov-year").value) || new Date().getFullYear();
+    const r = finOvMonthRange(y, Number(m));
+    fromEl.value = r.from; toEl.value = r.to;
+  }
+  renderFinanceiroOverview();
+}));
 document.getElementById("fin-overview-search-clear").addEventListener("click", () => {
   document.getElementById("fin-overview-search-input").value = "";
   ["fin-ov-date-from", "fin-ov-date-to", "fin-ov-origem", "fin-ov-consultor", "fin-ov-escola", "fin-ov-situacao"].forEach(id => { document.getElementById(id).value = ""; });

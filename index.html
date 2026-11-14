@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1794642925">
+<link rel="stylesheet" href="style.css?v=1794643096">
 <link rel="stylesheet" href="bio.css?v=1794442137">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -881,6 +881,14 @@
         <div class="subview" id="subview-fin-overview">
           <div class="panel">
             <div class="panel-header"><h2 data-i18n="fin.recentDeals">Negócios fechados recentemente</h2></div>
+            <div class="fin-ov-periods">
+              <label class="filter-inline">Ano <select id="fin-ov-year"></select></label>
+              <div class="fin-ov-month-tabs">
+                <button type="button" class="fin-ov-tab active" data-ov-month="all">Todas as vendas</button>
+                <button type="button" class="fin-ov-tab" data-ov-month="1">Jan</button><button type="button" class="fin-ov-tab" data-ov-month="2">Fev</button><button type="button" class="fin-ov-tab" data-ov-month="3">Mar</button><button type="button" class="fin-ov-tab" data-ov-month="4">Abr</button><button type="button" class="fin-ov-tab" data-ov-month="5">Mai</button><button type="button" class="fin-ov-tab" data-ov-month="6">Jun</button><button type="button" class="fin-ov-tab" data-ov-month="7">Jul</button><button type="button" class="fin-ov-tab" data-ov-month="8">Ago</button><button type="button" class="fin-ov-tab" data-ov-month="9">Set</button><button type="button" class="fin-ov-tab" data-ov-month="10">Out</button><button type="button" class="fin-ov-tab" data-ov-month="11">Nov</button><button type="button" class="fin-ov-tab" data-ov-month="12">Dez</button>
+              </div>
+            </div>
+            <div class="fin-ov-summary" id="fin-ov-summary"></div>
             <div class="filter-bar">
               <div class="enr-lead-search-wrap filter-lead-search" id="fin-overview-search-wrap">
                 <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -3207,7 +3215,7 @@
   <script src="i18n.js?v=1794610121"></script>
   <script src="comparativo.js?v=1794442137"></script>
   <script src="contrato-modelo.js?v=1794442137"></script>
-  <script src="script.js?v=1794642925"></script>
+  <script src="script.js?v=1794643096"></script>
   <script src="contratos-proposta.js?v=1794442137"></script>
   <script src="ficha-cliente.js?v=1794610121"></script>
   <script src="agenda-reunioes.js?v=1794442137"></script>
