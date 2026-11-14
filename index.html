@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1794649787">
+<link rel="stylesheet" href="style.css?v=1794650223">
 <link rel="stylesheet" href="bio.css?v=1794442137">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -845,17 +845,22 @@
         <div class="panel mi-panel">
           <div class="panel-header">
             <h2>Mensagens internas</h2>
-            <button type="button" class="btn btn-primary btn-sm" id="mi-new">+ Nova mensagem</button>
+            <button type="button" class="btn btn-primary btn-sm" id="mi-new">+ Novo assunto</button>
           </div>
           <div class="mi-layout">
             <aside class="mi-side">
               <div class="mi-tabs">
-                <button type="button" class="mi-tab active" data-mi-tab="in">Recebidas<span id="mi-tab-in-count"></span></button>
-                <button type="button" class="mi-tab" data-mi-tab="out">Enviadas</button>
+                <button type="button" class="mi-tab active" data-mi-tab="mine">Minhas<span id="mi-tab-mine-count"></span></button>
+                <button type="button" class="mi-tab" data-mi-tab="all" id="mi-tab-all" hidden>Todas (ADM)</button>
+              </div>
+              <div class="mi-filters">
+                <button type="button" class="mi-chip active" data-mi-filter="open">Abertas</button>
+                <button type="button" class="mi-chip" data-mi-filter="closed">Concluídas</button>
+                <button type="button" class="mi-chip" data-mi-filter="all">Todas</button>
               </div>
               <div class="mi-list" id="mi-list"></div>
             </aside>
-            <section class="mi-detail" id="mi-detail"><p class="mi-empty">Escolha uma mensagem na lista.</p></section>
+            <section class="mi-detail" id="mi-detail"><p class="mi-empty">Escolha uma conversa na lista, ou abra um novo assunto.</p></section>
           </div>
         </div>
       </section>
@@ -3244,10 +3249,10 @@
   <script src="config.js?v=1794442137"></script>
   <script src="ver-como.js?v=1794442137"></script>
   <script src="auth.js?v=1794442137"></script>
-  <script src="i18n.js?v=1794649787"></script>
+  <script src="i18n.js?v=1794650223"></script>
   <script src="comparativo.js?v=1794442137"></script>
   <script src="contrato-modelo.js?v=1794442137"></script>
-  <script src="script.js?v=1794649787"></script>
+  <script src="script.js?v=1794650223"></script>
   <script src="contratos-proposta.js?v=1794442137"></script>
   <script src="ficha-cliente.js?v=1794610121"></script>
   <script src="agenda-reunioes.js?v=1794442137"></script>
@@ -3268,18 +3273,18 @@
   <script src="acomodacao-financeiro.js?v=1794442137"></script>
   <script src="comprovantes-pagamento.js?v=1794442137"></script>
   <div class="modal-backdrop" id="mi-compose-backdrop"><div class="modal" style="max-width:640px;">
-    <div class="modal-header"><h2>Nova mensagem</h2><button type="button" class="btn-icon" id="mi-compose-close">&times;</button></div>
+    <div class="modal-header"><h2>Novo assunto</h2><button type="button" class="btn-icon" id="mi-compose-close">&times;</button></div>
     <form id="mi-compose-form">
       <div class="mi-to-wrap"><span class="mi-label">Para</span><div class="mi-to-list" id="mi-to-list"></div></div>
-      <label><span>Assunto</span><input type="text" id="mi-subject" maxlength="150"></label>
-      <label><span>Mensagem</span><textarea id="mi-body" rows="7" maxlength="4000"></textarea></label>
+      <label><span>Assunto (cada assunto vira uma conversa)</span><input type="text" id="mi-subject" maxlength="150"></label>
+      <label><span>Mensagem inicial</span><textarea id="mi-body" rows="6" maxlength="4000"></textarea></label>
       <label><span>Anexos (PDF ou foto, até 10 MB cada)</span><input type="file" id="mi-files" multiple accept="image/*,application/pdf"></label>
       <div class="modal-actions"><div class="spacer"></div>
         <button type="button" class="btn btn-ghost" id="mi-compose-cancel">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="mi-send">Enviar</button></div>
     </form></div></div>
   <script src="venda-fechada.js?v=1794526520"></script>
-  <script src="mensagens-internas.js?v=1794649787"></script>
+  <script src="mensagens-internas.js?v=1794650223"></script>
   <script src="app-acompanhamento.js?v=1794442137"></script>
 </body>
 </html>

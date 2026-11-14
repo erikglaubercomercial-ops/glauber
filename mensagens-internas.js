@@ -1,105 +1,146 @@
 /* ============================================================
-   MENSAGENS INTERNAS — caixa de entrada entre usuários do CRM
-   • Qualquer usuário ativo envia para uma ou mais pessoas (ou para todos).
+   MENSAGENS INTERNAS — conversas por assunto (atendimentos)
+   • Cada assunto é uma conversa com participantes e status: aberta ou concluída.
+   • Qualquer usuário ativo abre um novo assunto ou responde um existente.
+   • Responder a uma conversa concluída a reabre. Quem conclui ou reabre pode ser participante ou ADM.
+   • Participantes veem a conversa; ADM vê todas (aba "Todas").
    • Anexos: PDF ou foto, até 10 MB, no bucket privado "mensagens-internas".
-   • Envio pela função mensagem_interna_enviar (migração 126).
-   • Aviso: contador no menu e popup no topo quando chega mensagem nova (checa a cada 20 s).
-     No primeiro carregamento, as mensagens já não lidas não geram popup.
+   • Aviso: contador no menu e popup no topo (sem som) quando há resposta nova em conversa sua.
+     Checa a cada 20 s. No primeiro carregamento, o que já estava não lido não gera popup.
    • Em "Ver como…" a tela abre, mas não envia nem marca como lida.
-   Depende de script.js: session, supabase, users, escapeHtml, switchView, currentView.
+   Migração 127. Depende de script.js: session, supabase, users, escapeHtml, switchView, currentView.
    ============================================================ */
-const miState = { tab: "in", inbox: [], sent: [], selectedId: null, attachments: {}, seen: new Set(), seeded: false, timer: null, queue: [], showing: false };
+const miState = {
+  tab: "mine", filter: "open", threads: [], selectedId: null, messages: [], attachments: {},
+  seen: new Set(), seeded: false, timer: null, queue: [], showing: false,
+};
 const MI_MAX_BYTES = 10 * 1024 * 1024;
 const miActive = () => typeof session !== "undefined" && !!session && !(typeof viewAs !== "undefined" && viewAs.active);
+const miIsAdm = () => typeof session !== "undefined" && !!session && session.role === "ADM";
 const miEl = id => document.getElementById(id);
 const miName = id => { const u = users.find(x => x.id === id); return u ? (u.name || u.email || "—") : "—"; };
 const miDate = ms => ms ? new Date(ms).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+const miMember = t => t.members.find(m => m.userId === session.id) || null;
+const miIsUnread = t => {
+  const m = miMember(t);
+  return !!m && !!t.lastAuthorId && t.lastAuthorId !== session.id && (!m.readAt || m.readAt < t.updatedAt);
+};
 
 /* ---- leitura ---- */
-async function miLoadInbox() {
-  const { data, error } = await supabase.from("internal_message_recipients")
-    .select("read_at, message:internal_messages(id, sender_id, subject, body, created_at)")
-    .eq("user_id", session.id).limit(300);
-  if (error) { console.error("Erro ao carregar mensagens recebidas:", error); return null; }
-  return (data || []).filter(r => r.message).map(r => ({
-    id: r.message.id, senderId: r.message.sender_id, subject: r.message.subject || "", body: r.message.body || "",
-    createdAt: new Date(r.message.created_at).getTime(), readAt: r.read_at ? new Date(r.read_at).getTime() : null,
-  })).sort((a, b) => b.createdAt - a.createdAt);
+async function miLoadThreads() {
+  const { data, error } = await supabase.from("internal_threads")
+    .select("id, subject, status, created_by, created_at, updated_at, last_author_id, closed_at, closed_by, members:internal_thread_members(user_id, last_read_at)")
+    .order("updated_at", { ascending: false }).limit(300);
+  if (error) { console.error("Erro ao carregar conversas:", error); return null; }
+  return (data || []).map(t => ({
+    id: t.id, subject: t.subject || "", status: t.status, createdBy: t.created_by,
+    createdAt: new Date(t.created_at).getTime(), updatedAt: new Date(t.updated_at).getTime(),
+    lastAuthorId: t.last_author_id, closedAt: t.closed_at ? new Date(t.closed_at).getTime() : null, closedBy: t.closed_by,
+    members: (t.members || []).map(m => ({ userId: m.user_id, readAt: m.last_read_at ? new Date(m.last_read_at).getTime() : null })),
+  })).sort((a, b) => b.updatedAt - a.updatedAt);
 }
-async function miLoadSent() {
-  const { data, error } = await supabase.from("internal_messages")
-    .select("id, sender_id, subject, body, created_at, recipients:internal_message_recipients(user_id, read_at)")
-    .eq("sender_id", session.id).order("created_at", { ascending: false }).limit(300);
-  if (error) { console.error("Erro ao carregar mensagens enviadas:", error); return null; }
-  return (data || []).map(m => ({
-    id: m.id, senderId: m.sender_id, subject: m.subject || "", body: m.body || "",
-    createdAt: new Date(m.created_at).getTime(),
-    recipients: (m.recipients || []).map(r => ({ userId: r.user_id, readAt: r.read_at })),
-  }));
-}
-async function miFetchAttachments(ids) {
-  const out = {};
-  if (!ids.length) return out;
-  const { data, error } = await supabase.from("internal_message_attachments").select("message_id, file_path, file_name").in("message_id", ids);
-  if (error) { console.error("Erro ao carregar anexos:", error); return out; }
-  (data || []).forEach(a => { (out[a.message_id] = out[a.message_id] || []).push({ path: a.file_path, name: a.file_name }); });
-  return out;
+async function miLoadThreadDetail(threadId) {
+  const [msgs, atts] = await Promise.all([
+    supabase.from("internal_thread_messages").select("id, author_id, body, created_at").eq("thread_id", threadId).order("created_at"),
+    supabase.from("internal_thread_attachments").select("message_id, file_path, file_name").eq("thread_id", threadId),
+  ]);
+  if (msgs.error) console.error("Erro ao carregar mensagens:", msgs.error);
+  if (atts.error) console.error("Erro ao carregar anexos:", atts.error);
+  miState.messages = (msgs.data || []).map(m => ({ id: m.id, authorId: m.author_id, body: m.body || "", createdAt: new Date(m.created_at).getTime() }));
+  miState.attachments = {};
+  (atts.data || []).forEach(a => { (miState.attachments[a.message_id] = miState.attachments[a.message_id] || []).push({ path: a.file_path, name: a.file_name }); });
 }
 async function renderMensagens() {
   if (!session) return;
-  const [inbox, sent] = await Promise.all([miLoadInbox(), miLoadSent()]);
-  if (inbox) miState.inbox = inbox;
-  if (sent) miState.sent = sent;
-  miState.attachments = await miFetchAttachments([...miState.inbox, ...miState.sent].map(m => m.id));
+  const list = await miLoadThreads();
+  if (list) miState.threads = list;
+  const allTab = miEl("mi-tab-all");
+  if (allTab) allTab.hidden = !miIsAdm();
+  if (!miIsAdm() && miState.tab === "all") miState.tab = "mine";
+  if (miState.selectedId) await miLoadThreadDetail(miState.selectedId);
   miPaint();
 }
 
 /* ---- tela ---- */
+function miVisibleThreads() {
+  return miState.threads.filter(t => {
+    if (miState.tab === "mine" && !miMember(t)) return false;
+    if (miState.filter === "open" && t.status !== "open") return false;
+    if (miState.filter === "closed" && t.status !== "closed") return false;
+    return true;
+  });
+}
+function miStatusPill(t) {
+  return t.status === "closed" ? `<span class="mi-pill mi-pill-closed">Concluída</span>` : `<span class="mi-pill mi-pill-open">Aberta</span>`;
+}
 function miPaint() {
-  const unread = miState.inbox.filter(m => !m.readAt).length;
+  const unread = miState.threads.filter(t => miIsUnread(t)).length;
   miSetBadge(unread);
   document.querySelectorAll("#view-mensagens [data-mi-tab]").forEach(b => b.classList.toggle("active", b.dataset.miTab === miState.tab));
-  const cnt = miEl("mi-tab-in-count");
+  document.querySelectorAll("#view-mensagens [data-mi-filter]").forEach(b => b.classList.toggle("active", b.dataset.miFilter === miState.filter));
+  const cnt = miEl("mi-tab-mine-count");
   if (cnt) cnt.textContent = unread ? ` (${unread})` : "";
-  const isIn = miState.tab === "in";
-  const list = isIn ? miState.inbox : miState.sent;
-  miEl("mi-list").innerHTML = list.length ? list.map(m => {
-    const who = isIn ? `De: ${miName(m.senderId)}` : `Para: ${m.recipients.map(r => miName(r.userId)).join(", ")}`;
-    const readInfo = isIn ? "" : `<span class="mi-item-read">${m.recipients.filter(r => r.readAt).length}/${m.recipients.length} leram</span>`;
-    return `<button type="button" class="mi-item${isIn && !m.readAt ? " is-unread" : ""}${miState.selectedId === m.id ? " is-selected" : ""}" data-mi-id="${m.id}">
-      <span class="mi-item-top"><b>${escapeHtml(who)}</b><span>${escapeHtml(miDate(m.createdAt))}</span></span>
-      <span class="mi-item-subject">${escapeHtml(m.subject || "(sem assunto)")}</span>
-      <span class="mi-item-snippet">${escapeHtml(m.body.slice(0, 90))}</span>
-      ${readInfo}
+  const items = miVisibleThreads();
+  miEl("mi-list").innerHTML = items.length ? items.map(t => {
+    const names = t.members.filter(m => m.userId !== session.id).map(m => miName(m.userId));
+    const who = names.length ? names.slice(0, 2).join(", ") + (names.length > 2 ? ` +${names.length - 2}` : "") : "—";
+    return `<button type="button" class="mi-item${miIsUnread(t) ? " is-unread" : ""}${miState.selectedId === t.id ? " is-selected" : ""}" data-mi-id="${t.id}">
+      <span class="mi-item-top"><span class="mi-item-subject">${escapeHtml(t.subject || "(sem assunto)")}</span>${miStatusPill(t)}</span>
+      <span class="mi-item-snippet">Com: ${escapeHtml(who)}</span>
+      <span class="mi-item-foot">${escapeHtml(miDate(t.updatedAt))}${t.lastAuthorId ? ` · última: ${escapeHtml(t.lastAuthorId === session.id ? "você" : miName(t.lastAuthorId))}` : ""}</span>
     </button>`;
-  }).join("") : `<p class="mi-empty">${isIn ? "Nenhuma mensagem recebida." : "Nenhuma mensagem enviada."}</p>`;
+  }).join("") : `<p class="mi-empty">Nenhuma conversa ${miState.filter === "open" ? "aberta" : miState.filter === "closed" ? "concluída" : ""} aqui.</p>`;
   miPaintDetail();
 }
 function miPaintDetail() {
   const box = miEl("mi-detail");
-  const m = [...miState.inbox, ...miState.sent].find(x => x.id === miState.selectedId);
-  if (!m) { box.innerHTML = `<p class="mi-empty">Escolha uma mensagem na lista.</p>`; return; }
-  const isIn = miState.inbox.some(x => x.id === m.id);
-  const to = isIn ? "você" : m.recipients.map(r => miName(r.userId)).join(", ");
-  const files = miState.attachments[m.id] || [];
+  const t = miState.threads.find(x => x.id === miState.selectedId);
+  if (!t) { box.innerHTML = `<p class="mi-empty">Escolha uma conversa na lista, ou abra um novo assunto.</p>`; return; }
+  const canAct = !!miMember(t) || miIsAdm();
+  const parts = t.members.map(m => m.userId === session.id ? "você" : miName(m.userId)).join(", ");
+  const bubbles = miState.messages.map(m => {
+    const mine = m.authorId === session.id;
+    const files = miState.attachments[m.id] || [];
+    return `<div class="mi-bubble${mine ? " is-mine" : ""}">
+      <div class="mi-bubble-head"><b>${escapeHtml(mine ? "Você" : miName(m.authorId))}</b><span>${escapeHtml(miDate(m.createdAt))}</span></div>
+      ${m.body ? `<div class="mi-bubble-body">${escapeHtml(m.body)}</div>` : ""}
+      ${files.length ? `<div class="mi-files">${files.map(f => `<button type="button" class="btn btn-ghost btn-sm" data-mi-file="${escapeHtml(f.path)}">📎 ${escapeHtml(f.name || "anexo")}</button>`).join("")}</div>` : ""}
+    </div>`;
+  }).join("");
   box.innerHTML = `
     <div class="mi-detail-head">
-      <h3>${escapeHtml(m.subject || "(sem assunto)")}</h3>
-      <div class="mi-detail-meta">De: ${escapeHtml(isIn ? miName(m.senderId) : "você")} · Para: ${escapeHtml(to)} · ${escapeHtml(miDate(m.createdAt))}</div>
+      <div class="mi-detail-title"><h3>${escapeHtml(t.subject || "(sem assunto)")}</h3>${miStatusPill(t)}</div>
+      <div class="mi-detail-meta">Participantes: ${escapeHtml(parts)}</div>
+      ${canAct ? `<div class="mi-detail-actions">
+        ${t.status === "open"
+          ? `<button type="button" class="btn btn-ghost btn-sm" data-mi-status="closed">Concluir assunto</button>`
+          : `<button type="button" class="btn btn-ghost btn-sm" data-mi-status="open">Reabrir assunto</button>`}
+      </div>` : ""}
     </div>
-    <div class="mi-body">${escapeHtml(m.body)}</div>
-    ${files.length ? `<div class="mi-files">${files.map(f => `<button type="button" class="btn btn-ghost btn-sm" data-mi-file="${escapeHtml(f.path)}">📎 ${escapeHtml(f.name || "anexo")}</button>`).join("")}</div>` : ""}
-    ${isIn ? `<div class="mi-detail-actions"><button type="button" class="btn btn-primary btn-sm" data-mi-reply="${m.id}">Responder</button></div>` : ""}`;
+    <div class="mi-thread">${bubbles || `<p class="mi-empty">Sem mensagens.</p>`}</div>
+    ${canAct ? `<form class="mi-reply" id="mi-reply-form">
+      ${t.status === "closed" ? `<p class="mi-note">Este assunto está concluído. Ao responder, ele é reaberto.</p>` : ""}
+      <textarea id="mi-reply-body" rows="3" maxlength="4000" placeholder="Escreva a resposta…"></textarea>
+      <div class="mi-reply-row">
+        <input type="file" id="mi-reply-files" multiple accept="image/*,application/pdf">
+        <button type="submit" class="btn btn-primary btn-sm" id="mi-reply-send">Enviar resposta</button>
+      </div>
+    </form>` : `<p class="mi-note">Você não participa deste assunto.</p>`}`;
 }
 async function miSelect(id) {
   miState.selectedId = id;
-  const m = miState.inbox.find(x => x.id === id);
-  if (m && !m.readAt && miActive()) {
-    const { error } = await supabase.from("internal_message_recipients").update({ read_at: new Date().toISOString() })
-      .eq("message_id", id).eq("user_id", session.id).is("read_at", null);
+  await miLoadThreadDetail(id);
+  const t = miState.threads.find(x => x.id === id);
+  const m = t && miMember(t);
+  if (m && miIsUnread(t) && miActive()) {
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("internal_thread_members").update({ last_read_at: now })
+      .eq("thread_id", id).eq("user_id", session.id);
     if (!error) m.readAt = Date.now();
   }
   miPaint();
+  const body = miEl("mi-detail");
+  if (body) body.scrollTop = body.scrollHeight;
 }
 function miSetBadge(n) {
   const b = miEl("mi-nav-badge");
@@ -108,23 +149,39 @@ function miSetBadge(n) {
   b.hidden = !n;
 }
 
-/* ---- escrever ---- */
-function miOpenCompose(replyToId) {
+/* ---- anexos ---- */
+async function miUploadFiles(files) {
+  const ok = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (f.size > MI_MAX_BYTES || !(f.type.startsWith("image/") || f.type === "application/pdf")) {
+      alert(`"${f.name}" não pode ser enviado. Use PDF ou foto de até 10 MB.`);
+      return null;
+    }
+    const ext = (f.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "pdf";
+    const path = `${session.id}/${Date.now()}-${i}.${ext}`;
+    const up = await supabase.storage.from("mensagens-internas").upload(path, f);
+    if (up.error) { console.error(up.error); alert("Não foi possível enviar um dos anexos. Tente de novo."); return null; }
+    ok.push({ path, name: f.name });
+  }
+  return ok;
+}
+
+/* ---- novo assunto ---- */
+function miOpenCompose() {
   if (!miActive()) { alert("No modo \"Ver como\" não é possível enviar mensagens."); return; }
   const others = users.filter(u => u.active !== false && u.id !== session.id)
     .sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"));
-  const replyTo = replyToId ? miState.inbox.find(x => x.id === replyToId) : null;
   miEl("mi-to-list").innerHTML = `<label class="mi-to-item mi-to-all"><input type="checkbox" id="mi-to-everyone"> <b>Todos</b></label>` +
-    others.map(u => `<label class="mi-to-item"><input type="checkbox" class="mi-to-check" value="${escapeHtml(u.id)}"
-      ${replyTo && replyTo.senderId === u.id ? "checked" : ""}> ${escapeHtml(u.name || u.email || "—")} <small>${escapeHtml(u.role || "")}</small></label>`).join("");
-  miEl("mi-subject").value = replyTo ? (replyTo.subject.startsWith("Re: ") ? replyTo.subject : `Re: ${replyTo.subject}`) : "";
+    others.map(u => `<label class="mi-to-item"><input type="checkbox" class="mi-to-check" value="${escapeHtml(u.id)}"> ${escapeHtml(u.name || u.email || "—")} <small>${escapeHtml(u.role || "")}</small></label>`).join("");
+  miEl("mi-subject").value = "";
   miEl("mi-body").value = "";
   miEl("mi-files").value = "";
   miEl("mi-compose-backdrop").classList.add("open");
 }
 function miCloseCompose() { miEl("mi-compose-backdrop").classList.remove("open"); }
 
-/* ---- popup de mensagem nova (mesmo padrão do aviso de venda fechada) ---- */
+/* ---- popup de resposta nova (sem som) ---- */
 function miEnsureToastHost() {
   let host = miEl("mi-toast-host");
   if (host) return host;
@@ -136,7 +193,7 @@ function miEnsureToastHost() {
 }
 function miShowNext() {
   if (miState.showing || !miState.queue.length) return;
-  const m = miState.queue.shift();
+  const t = miState.queue.shift();
   miState.showing = true;
   const host = miEnsureToastHost();
   const card = document.createElement("div");
@@ -144,8 +201,8 @@ function miShowNext() {
   card.innerHTML = `
     <div class="mi-toast-icon">✉</div>
     <div class="mi-toast-text">
-      <div class="mi-toast-title">Nova mensagem de ${escapeHtml(miName(m.sender_id))}</div>
-      <div class="mi-toast-sub">${escapeHtml(m.subject || "(sem assunto)")}</div>
+      <div class="mi-toast-title">Nova mensagem de ${escapeHtml(t.lastAuthorId ? miName(t.lastAuthorId) : "equipe")}</div>
+      <div class="mi-toast-sub">${escapeHtml(t.subject || "(sem assunto)")}</div>
     </div>
     <button type="button" class="mi-toast-close" aria-label="Fechar">&times;</button>`;
   host.appendChild(card);
@@ -155,24 +212,29 @@ function miShowNext() {
     setTimeout(() => { card.remove(); miState.showing = false; miShowNext(); }, 300);
   };
   card.querySelector(".mi-toast-close").addEventListener("click", e => { e.stopPropagation(); close(); });
-  card.addEventListener("click", () => { close(); if (typeof switchView === "function") switchView("mensagens"); });
+  card.addEventListener("click", () => {
+    close();
+    miState.tab = "mine";
+    miState.selectedId = t.id;
+    if (typeof switchView === "function") switchView("mensagens");
+  });
   setTimeout(close, 9000);
 }
 
 async function miPoll() {
   if (!miActive()) return;
-  const { data, error } = await supabase.from("internal_message_recipients")
-    .select("message_id, message:internal_messages(id, sender_id, subject)")
-    .eq("user_id", session.id).is("read_at", null).limit(50);
-  if (error || !data) return;
-  const unread = data.filter(r => r.message);
+  const list = await miLoadThreads();
+  if (!list) return;
+  miState.threads = list;
+  const unread = list.filter(t => miIsUnread(t));
   miSetBadge(unread.length);
-  if (!miState.seeded) { unread.forEach(r => miState.seen.add(r.message_id)); miState.seeded = true; return; }
+  if (!miState.seeded) { list.forEach(t => miState.seen.add(`${t.id}|${t.updatedAt}`)); miState.seeded = true; return; }
   let novo = false;
-  unread.forEach(r => {
-    if (miState.seen.has(r.message_id)) return;
-    miState.seen.add(r.message_id);
-    miState.queue.push(r.message);
+  unread.forEach(t => {
+    const key = `${t.id}|${t.updatedAt}`;
+    if (miState.seen.has(key)) return;
+    miState.seen.add(key);
+    miState.queue.push(t);
     novo = true;
   });
   miShowNext();
@@ -183,6 +245,10 @@ async function miPoll() {
 document.querySelectorAll("#view-mensagens [data-mi-tab]").forEach(btn => btn.addEventListener("click", () => {
   miState.tab = btn.dataset.miTab;
   miState.selectedId = null;
+  renderMensagens();
+}));
+document.querySelectorAll("#view-mensagens [data-mi-filter]").forEach(btn => btn.addEventListener("click", () => {
+  miState.filter = btn.dataset.miFilter;
   miPaint();
 }));
 miEl("mi-list").addEventListener("click", e => {
@@ -197,10 +263,30 @@ miEl("mi-detail").addEventListener("click", async e => {
     window.open(data.signedUrl, "_blank", "noopener");
     return;
   }
-  const r = e.target.closest("[data-mi-reply]");
-  if (r) miOpenCompose(r.dataset.miReply);
+  const s = e.target.closest("[data-mi-status]");
+  if (s && miState.selectedId) {
+    if (!miActive()) { alert("No modo \"Ver como\" não é possível alterar o status."); return; }
+    const { error } = await supabase.rpc("atendimento_status", { p_thread: miState.selectedId, p_status: s.dataset.miStatus });
+    if (error) { console.error(error); alert("Não foi possível alterar o status. Tente de novo."); return; }
+    await renderMensagens();
+  }
 });
-miEl("mi-new").addEventListener("click", () => miOpenCompose(null));
+miEl("mi-detail").addEventListener("submit", async e => {
+  if (e.target.id !== "mi-reply-form") return;
+  e.preventDefault();
+  if (!miActive()) { alert("No modo \"Ver como\" não é possível responder."); return; }
+  const body = miEl("mi-reply-body").value.trim();
+  const files = [...miEl("mi-reply-files").files];
+  if (!body && !files.length) { alert("Escreva a resposta ou anexe um arquivo."); return; }
+  const btn = miEl("mi-reply-send");
+  btn.disabled = true; btn.textContent = "Enviando…";
+  const uploaded = await miUploadFiles(files);
+  if (!uploaded) { btn.disabled = false; btn.textContent = "Enviar resposta"; return; }
+  const { error } = await supabase.rpc("atendimento_responder", { p_thread: miState.selectedId, p_mensagem: body, p_arquivos: uploaded });
+  if (error) { console.error(error); alert("Não foi possível enviar a resposta. Tente de novo."); btn.disabled = false; btn.textContent = "Enviar resposta"; return; }
+  await renderMensagens();
+});
+miEl("mi-new").addEventListener("click", miOpenCompose);
 miEl("mi-compose-close").addEventListener("click", miCloseCompose);
 miEl("mi-compose-cancel").addEventListener("click", miCloseCompose);
 miEl("mi-compose-backdrop").addEventListener("click", e => { if (e.target.id === "mi-compose-backdrop") miCloseCompose(); });
@@ -214,31 +300,25 @@ miEl("mi-compose-form").addEventListener("submit", async e => {
   if (!to.length) { alert("Escolha pelo menos um destinatário."); return; }
   const subject = miEl("mi-subject").value.trim();
   const body = miEl("mi-body").value.trim();
-  if (!subject && !body) { alert("Escreva um assunto ou uma mensagem."); return; }
-  const files = [...miEl("mi-files").files];
-  const bad = files.find(f => f.size > MI_MAX_BYTES || !(f.type.startsWith("image/") || f.type === "application/pdf"));
-  if (bad) { alert(`"${bad.name}" não pode ser enviado. Use PDF ou foto de até 10 MB.`); return; }
+  if (!subject) { alert("Escreva o assunto."); return; }
+  if (!body) { alert("Escreva a mensagem."); return; }
   const btn = miEl("mi-send");
   btn.disabled = true; btn.textContent = "Enviando…";
   const reset = () => { btn.disabled = false; btn.textContent = "Enviar"; };
-  const uploaded = [];
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i];
-    const ext = (f.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "pdf";
-    const path = `${session.id}/${Date.now()}-${i}.${ext}`;
-    const up = await supabase.storage.from("mensagens-internas").upload(path, f);
-    if (up.error) { console.error(up.error); alert("Não foi possível enviar um dos anexos. Tente de novo."); reset(); return; }
-    uploaded.push({ path, name: f.name });
-  }
-  const { error } = await supabase.rpc("mensagem_interna_enviar", { p_subject: subject, p_body: body, p_to: to, p_files: uploaded });
+  const uploaded = await miUploadFiles([...miEl("mi-files").files]);
+  if (!uploaded) { reset(); return; }
+  const { data, error } = await supabase.rpc("atendimento_abrir", { p_assunto: subject, p_mensagem: body, p_para: to, p_arquivos: uploaded });
   reset();
-  if (error) { console.error(error); alert("Não foi possível enviar a mensagem. Tente de novo."); return; }
+  if (error) { console.error(error); alert("Não foi possível abrir o assunto. Tente de novo."); return; }
   miCloseCompose();
-  miState.tab = "out";
+  miState.tab = "mine";
+  miState.filter = "open";
+  miState.selectedId = data;
   await renderMensagens();
+  await miSelect(data);
 });
 
-/* arranque: começa a checar mensagens novas assim que a sessão existir */
+/* arranque: começa a checar respostas novas assim que a sessão existir */
 (function miBoot() {
   let tries = 0;
   const iv = setInterval(() => {
