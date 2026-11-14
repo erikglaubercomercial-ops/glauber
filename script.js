@@ -6695,7 +6695,7 @@ document.getElementById("expense-modal-close").addEventListener("click", closeEx
 document.getElementById("expense-btn-cancel").addEventListener("click", closeExpenseModal);
 expenseModalBackdrop.addEventListener("click", e => { if (e.target === expenseModalBackdrop) closeExpenseModal(); });
 
-/* ---- despesa recorrente: replica até dezembro do ano do vencimento; cada mês é uma despesa própria ---- */
+/* ---- despesa recorrente: replica até dezembro do ano seguinte ao vencimento; cada mês é uma despesa própria ---- */
 function expenseSeries(desc, cat, exceptId) {
   return expenses.filter(x => x.id !== exceptId && x.recurring && x.description === desc && x.category === cat);
 }
@@ -6704,10 +6704,14 @@ function addMissingRecurringCopies(base, existingSeries) {
   const [y, m, d] = String(base.dueDate).split("-").map(Number);
   const have = new Set(existingSeries.map(x => String(x.dueDate).slice(0, 7)));
   const created = [];
-  for (let mm = m + 1; mm <= 12; mm++) {
-    const key = `${y}-${finOvPad(mm)}`;
+  /* até dezembro do ano seguinte ao vencimento */
+  const last = (y + 1) * 12 + 11;
+  const baseIdx = y * 12 + (m - 1);
+  for (let k = baseIdx + 1; k <= last; k++) {
+    const yy = Math.floor(k / 12), mm = (k % 12) + 1;
+    const key = `${yy}-${finOvPad(mm)}`;
     if (have.has(key)) continue;
-    const day = Math.min(d, new Date(y, mm, 0).getDate());
+    const day = Math.min(d, new Date(yy, mm, 0).getDate());
     created.push({ id: uid(), description: base.description, category: base.category, amount: base.amount,
       dueDate: `${key}-${finOvPad(day)}`, paid: false, paidAt: null, recurring: true, notes: base.notes || "", createdAt: Date.now() });
   }
