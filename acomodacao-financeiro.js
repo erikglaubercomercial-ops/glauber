@@ -5,9 +5,9 @@
      • Lucro    = vendido − custo
      • Comissão = % do consultor (padrão 40) sobre o lucro
      • A comissão só pode ser paga quando o total enviado cobrir o custo
-       (o banco também bloqueia — migração 078).
+       E o cliente tiver quitado o valor total do curso (o banco também bloqueia — migrações 078 e 134).
    Depende de script.js: enrollments, users, supabase, currency, escapeHtml,
-   formatDate, leadLink, round2, t.
+   formatDate, leadLink, round2, t, clientePagouTudo.
    ============================================================ */
 
 let accSales = [];
@@ -45,7 +45,10 @@ function accCalc(s) {
   const sent = accTransfers.filter(x => x.accId === s.id).reduce((a, x) => a + x.amount, 0);
   const profit = round2(s.sold - s.cost);
   const commission = round2(Math.max(0, profit) * (s.pct / 100));
-  return { sent: round2(sent), toSend: round2(Math.max(0, s.cost - sent)), profit, commission, released: sent + 0.001 >= s.cost };
+  const q = clientePagouTudo(s.enrollmentId);
+  const sentOk = sent + 0.001 >= s.cost;
+  /* a comissão só é liberada com o custo enviado E o cliente com o curso quitado */
+  return { sent: round2(sent), toSend: round2(Math.max(0, s.cost - sent)), profit, commission, sentOk, quitado: q.quitado, faltaCliente: q.falta, released: sentOk && q.quitado };
 }
 
 const accEnr = id => enrollments.find(e => e.id === id) || {};
@@ -73,7 +76,8 @@ function accRender() {
     const state = s.status === "Pago" ? '<span class="badge badge-good">Paga</span>'
       : (needCost ? '<span class="badge badge-warn" title="Abra a venda e informe o custo da acomodação para calcular o lucro e a comissão">Informe o custo</span>'
         : (c.released ? '<span class="badge badge-good">Liberada</span>'
-          : `<span class="badge badge-warn" title="Libera quando o total enviado à acomodação cobrir o custo">Falta enviar ${currency(c.toSend)}</span>`));
+          : (!c.quitado ? `<span class="badge badge-warn" title="Comissão retida até o cliente quitar o valor total do curso. Falta receber ${currency(c.faltaCliente)}.">Retida: cliente não quitou</span>`
+            : `<span class="badge badge-warn" title="Libera quando o total enviado à acomodação cobrir o custo">Falta enviar ${currency(c.toSend)}</span>`)));
     const payBtn = s.status === "Pago"
       ? `<button type="button" class="btn btn-ghost btn-sm" data-acc-act="unpay" data-id="${s.id}">Desfazer</button>`
       : (c.released && !needCost ? `<button type="button" class="btn btn-primary btn-sm" data-acc-act="pay" data-id="${s.id}">Marcar paga</button>` : "");
@@ -149,7 +153,8 @@ async function accAction(act, id) {
   const { error } = await supabase.from("accommodation_sales").update({ commission_status: s.status, commission_paid_at: s.paidAt }).eq("id", id);
   if (error) {
     s.status = wasStatus; s.paidAt = wasPaid;
-    alert(/nao_liberada/.test(error.message || "") ? "Comissão ainda não liberada: o total enviado à acomodação precisa cobrir o custo." : "Não foi possível atualizar a comissão.");
+    alert(/cliente_nao_quitou/.test(error.message || "") ? "Comissão retida: o cliente ainda não quitou o valor total do curso."
+      : /nao_liberada/.test(error.message || "") ? "Comissão ainda não liberada: o total enviado à acomodação precisa cobrir o custo." : "Não foi possível atualizar a comissão.");
   }
   accRender();
 }

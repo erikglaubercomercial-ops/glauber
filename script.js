@@ -6913,7 +6913,8 @@ function renderCommissions() {
   const list = commissions.slice().sort((a, b) => b.createdAt - a.createdAt);
   const tbody = document.getElementById("fin-commissions-tbody");
   tbody.innerHTML = "";
-  document.getElementById("fin-commissions-empty").style.display = list.length === 0 ? "block" : "none";
+  const accList = accRowsForCommissions();
+  document.getElementById("fin-commissions-empty").style.display = list.length === 0 && accList.length === 0 ? "block" : "none";
   const canSplit = !!session && (session.role === "ADM" || session.role === "Financeiro" || isSocioSession());
   tbody.closest("table").classList.toggle("fin-no-split", !canSplit);
   /* resumo: quanto vai para cada um (vendas desde 01/11/2026) */
@@ -6928,7 +6929,7 @@ function renderCommissions() {
   });
   const resumo = document.getElementById("fin-com-div-resumo");
   if (resumo) resumo.innerHTML = `
-    <span class="div-chip div-caixa">Caixa Peregrinos 30%: <b>${currency(cents2(tot.caixa))}</b></span>
+    <span class="div-chip div-caixa">Caixa reserva 30%: <b>${currency(cents2(tot.caixa))}</b></span>
     <span class="div-chip div-caio">Caio 30%: <b>${currency(cents2(tot.caio))}</b></span>
     <span class="div-chip div-erik">Erik 40%: <b>${currency(cents2(tot.erik))}</b></span>
     ${tot.pend ? `<span class="div-chip div-pend-chip">${tot.pend} pendente(s) sem Net</span>` : ""}`;
@@ -6951,6 +6952,7 @@ function renderCommissions() {
     `;
     tbody.appendChild(tr);
   });
+  accList.forEach(a => tbody.insertAdjacentHTML("beforeend", accCommissionRowHtml(a, canSplit)));
 
   document.getElementById("fin-commission-setting-wrap").style.display = session && session.role === "ADM" ? "flex" : "none";
   document.getElementById("fin-commission-pct").value = commissionSettings.defaultPercentage;
@@ -6969,7 +6971,49 @@ function commissionRelease(dealId) {
   return { released: sent > 0, sent };
 }
 
-/* partilha por venda: Ganho = Gross − Net; CAC de € 100 sai só quando há tráfego ou influenciador, senão vai para a caixa de reserva.
+/* cliente quitou o valor total do curso? (soma das parcelas pagas >= valor do negócio). A comissão do consultor sobre a acomodação fica retida até isso. */
+function clientePagouTudo(enrollmentId) {
+  const dl = deals.find(d => d.leadId && d.leadId === leadIdOfEnrollment(enrollmentId));
+  if (!dl) return { quitado: false, falta: 0, total: 0 };
+  const total = Number(dl.value) || 0;
+  const recebido = receivables.filter(r => r.dealId === dl.id && r.paid).reduce((a, r) => a + (Number(r.amount) || 0), 0);
+  return { quitado: total > 0 && recebido + 0.005 >= total, falta: Math.max(0, round2(total - recebido)), total };
+}
+
+/* comissões de acomodação aparecem na mesma tela das comissões de venda; os dados vêm do módulo Acomodação e são carregados uma vez */
+let accCommissionsRequested = false;
+function accRowsForCommissions() {
+  if (typeof accSales === "undefined" || typeof accLoad !== "function") return [];
+  if (!accLoaded && !accCommissionsRequested) { accCommissionsRequested = true; accLoad().then(() => renderCommissions()); }
+  return accLoaded ? accSales.filter(a => a.sold > 0) : [];
+}
+function accCommissionRowHtml(a, canSplit) {
+  const e = enrollments.find(x => x.id === a.enrollmentId) || {};
+  const consultant = users.find(u => u.id === e.consultorId);
+  const c = accCalc(a);
+  const needCost = a.status !== "Pago" && a.cost === 0;
+  let lib = "—";
+  if (a.status !== "Pago") {
+    if (needCost) lib = '<span class="badge badge-warn" title="Informe o custo da acomodação na aba Acomodação">Informe o custo</span>';
+    else if (!c.quitado) lib = `<span class="badge badge-warn" title="Retida até o cliente quitar o valor total do curso. Falta receber ${escapeHtml(currency(c.faltaCliente))}.">Retida: cliente não quitou</span>`;
+    else if (!c.sentOk) lib = `<span class="badge badge-warn" title="Libera quando o total enviado à acomodação cobrir o custo">Falta enviar ${escapeHtml(currency(c.toSend))}</span>`;
+    else lib = `<span class="badge badge-good">${escapeHtml(t("fin.releasedYes"))}</span>`;
+  }
+  const st = a.status === "Pago" ? "Pago" : "Pendente";
+  return `<tr class="com-acom-row">
+      <td class="cell-primary">${escapeHtml(consultant ? consultant.name : "—")}</td>
+      <td class="cell-muted">${leadLink(e.leadId, e.name || "—")} <span class="muted-note">· Acomodação${a.description ? ": " + escapeHtml(a.description) : ""}</span></td>
+      <td class="cell-muted">${currency(a.sold)}</td>
+      <td class="cell-muted">${a.pct}%</td>
+      <td class="cell-primary">${currency(c.commission)}</td>
+      <td class="fin-split-col">—</td><td class="fin-split-col">—</td><td class="fin-split-col">—</td>
+      <td class="cell-muted">${lib}</td>
+      <td><span class="badge ${st === "Pago" ? "badge-good" : "badge-warn"}">${escapeHtml(statusLabel(st))}</span></td>
+      <td class="cell-actions cell-muted" title="O pagamento desta comissão é marcado na aba Acomodação">Aba Acomodação</td>
+    </tr>`;
+}
+
+/* partilha por venda: Ganho = Gross − Net; todo cliente tem CAC de € 100: vai para tráfego, influenciador ou, se não houver custo, para o Budget MKT.
    O Net é digitado por venda; sem Net a venda fica pendente. A tela só abre para quem tem acesso ao módulo Financeiro. */
 function saleSplitsSorted() {
   return saleSplits.slice().sort((a, b) => (commissions.find(c => c.dealId === b.dealId) || {}).createdAt - (commissions.find(c => c.dealId === a.dealId) || {}).createdAt);
@@ -6986,7 +7030,7 @@ const splitKey = (dealId, field) => `${dealId}|${field}`;
 const splitPassValue = sp => (sp.passagemManual != null ? sp.passagemManual : (sp.passagemAmount > 0 ? sp.passagemAmount : null));
 /* células calculadas que aceitam valor digitado (nome = coluna do banco; o valor digitado fica em manual_overrides) */
 const SPLIT_LABELS = { course_gross: "Valor vendido", cac_amount: "CAC fixo", influencer_amount: "Influenciador", cons_curso: "Comissão consultor", manager_amount: "Comissão gerente",
-  reserva_amount: "Caixa reserva", acom_pago: "Acomodação: custo", acom_cobrado: "Acomodação: venda", acom_lucro: "Acomodação: lucro", acom_consultor: "Acomodação: comissão consultor",
+  reserva_amount: "Budget MKT", acom_pago: "Acomodação: custo", acom_cobrado: "Acomodação: venda", acom_lucro: "Acomodação: lucro", acom_consultor: "Acomodação: comissão consultor",
   acom_ganho: "Acomodação: ganhos Peregrinos", kit_amount: "Kit", cons_passagem: "Passagem: comissão consultor", peregrinos_net: "Lucro Peregrino" };
 const SPLIT_OVERRIDE = new Set(Object.keys(SPLIT_LABELS));
 /* sem Net, estes três ainda não têm cálculo: aparecem como "pendente" */
@@ -7073,12 +7117,12 @@ function renderSaleSplits() {
     };
     return `<tr>
       <td class="cell-primary">${leadLink(deal && deal.leadId, deal ? deal.name : "—")}<span class="split-sub">Venda total ${currency(sp.courseTotal)}</span></td>
-      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null && !splitPending.has(splitKey(sp.dealId, "custo")) ? "split-in-auto" : ""} ${dirty("custo")}" data-deal="${sp.dealId}" data-field="custo" value="${escapeHtml(val("custo", splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)))}" aria-label="Custo do curso (Gross)" title="${sp.custoCurso == null ? "Gross da invoice da escola. Em branco, vale o valor vendido. Se o Gross for menor (promoção que não foi repassada ao cliente), digite-o: a diferença vai para a caixa de reserva." : "Gross da invoice da escola. Apague para voltar a valer o valor vendido."}"></td>
+      <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null && !splitPending.has(splitKey(sp.dealId, "custo")) ? "split-in-auto" : ""} ${dirty("custo")}" data-deal="${sp.dealId}" data-field="custo" value="${escapeHtml(val("custo", splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)))}" aria-label="Custo do curso (Gross)" title="${sp.custoCurso == null ? "Gross da invoice da escola. Em branco, vale o valor vendido. Se o Gross for menor (promoção que não foi repassada ao cliente), digite-o: a diferença aparece como sobra do curso." : "Gross da invoice da escola. Apague para voltar a valer o valor vendido."}"></td>
       ${calc("course_gross", false)}
       <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""} ${dirty("net")}" data-deal="${sp.dealId}" data-field="net" value="${escapeHtml(val("net", pendente ? "" : splitMoney(sp.netCourse)))}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
       ${calc("cac_amount", false)}${calc("influencer_amount", false, sp.influencerPendente ? '<span class="split-sub split-pendente">influenciador ainda não recebeu</span>' : "")}${calc("cons_curso", false)}
       ${calc("manager_amount", false, mgr ? `<span class="split-sub">${escapeHtml(mgr.name)}</span>` : "")}
-      ${calc("reserva_amount", false, sp.sobraAmount && !splitIsManual(sp, "reserva_amount") ? `<span class="split-sub">inclui sobra ${currency(sp.sobraAmount)}</span>` : "")}
+      ${calc("reserva_amount", false, sp.sobraAmount ? `<span class="split-sub">sobra do curso ${currency(sp.sobraAmount)} (fora do Budget MKT)</span>` : "")}
       ${calc("acom_pago", true)}${calc("acom_cobrado", false)}${calc("acom_lucro", false)}${calc("acom_consultor", false)}${calc("acom_ganho", false)}
       ${calc("kit_amount", true)}
       <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${dirty("passagem")}" data-deal="${sp.dealId}" data-field="passagem" value="${escapeHtml(val("passagem", passValue == null ? "" : splitMoney(passValue)))}" placeholder="0,00" aria-label="Passagem"></td>
@@ -7138,7 +7182,7 @@ document.getElementById("fin-splits-save").addEventListener("click", async () =>
     const net = "net" in fields ? fields.net : sp.netCourse;
     const asks = [];
     if ("net" in fields && splitNetLooksWrong(net, custo)) asks.push(`${name}: o Net ficou em ${currency(net)} para um custo de curso de ${currency(custo)}. Está certo?`);
-    if ("custo" in fields && fields.custo != null && fields.custo > sp.courseGross + 0.005) asks.push(`${name}: o custo do curso (${currency(fields.custo)}) é maior que o valor vendido (${currency(sp.courseGross)}); a diferença sai da caixa de reserva. Está certo?`);
+    if ("custo" in fields && fields.custo != null && fields.custo > sp.courseGross + 0.005) asks.push(`${name}: o custo do curso (${currency(fields.custo)}) é maior que o valor vendido (${currency(sp.courseGross)}); a diferença fica negativa na sobra do curso. Está certo?`);
     if ("custo" in fields && !("net" in fields) && net != null && splitNetLooksWrong(net, custo)) asks.push(`${name}: com custo do curso de ${currency(custo)}, o Net de ${currency(net)} fica fora do normal. Está certo?`);
     if (asks.some(q => !confirm(q))) {
       Object.keys(fields).forEach(f => splitPending.delete(splitKey(dealId, f)));
@@ -7205,10 +7249,10 @@ function divTd(sp, deal, key) {
   return `<td class="fin-split-col div-${key}">${currency(dv[key])}</td>`;
 }
 function buildSaleSplitsWorkbook() {
-  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 7], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["DIVISÃO DO LUCRO", 3], ["", 1]];
-  const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "CAC / Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Caixa reserva",
+  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 8], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["DIVISÃO DO LUCRO", 3], ["", 1]];
+  const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "CAC / Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Budget MKT", "Sobra do curso",
     "Acom. custo", "Acom. venda", "Acom. lucro", "Acom. comissão consultor", "Acom. ganhos Peregrinos", "Kit (custo fixo, sem lucro)", "Passagem", "Passagem: comissão consultor",
-    "Venda total", "Lucro Peregrino (total)", "Caixa Peregrinos (30%)", "Caio (30%)", "Erik (40%)", "Situação"];
+    "Venda total", "Lucro Peregrino (total)", "Caixa reserva (30%)", "Caio (30%)", "Erik (40%)", "Situação"];
   const rows = saleSplitsSorted().map(sp => {
     const deal = deals.find(d => d.id === sp.dealId);
     const pendente = sp.netCourse == null;
@@ -7216,7 +7260,7 @@ function buildSaleSplitsWorkbook() {
     const dv = divisaoDoLucro(sp, deal);
     const dvCalc = k => (dv.aplicavel && !dv.pendente ? dv[k] : null);
     /* CAC fixo (R$ 100) ou influenciador: a regra põe o valor em um ou outro, então a coluna soma os dois */
-    return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, (Number(sp.cacAmount) || 0) + (Number(sp.influencerAmount) || 0), calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount,
+    return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, (Number(sp.cacAmount) || 0) + (Number(sp.influencerAmount) || 0), calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount, sp.sobraAmount,
       sp.acomPago, sp.acomCobrado, sp.acomLucro, sp.acomConsultor, sp.acomLucro - sp.acomConsultor, sp.kitAmount, sp.passagemAmount, sp.consPassagem,
       sp.courseTotal, calc(sp.peregrinosNet), dvCalc("caixa"), dvCalc("caio"), dvCalc("erik"),
       pendente ? "Pendente: falta o Net" : (sp.influencerPendente ? "Calculado · ATENÇÃO: influenciador ainda não recebeu" : "Calculado")];
@@ -7242,7 +7286,7 @@ function buildSaleSplitsWorkbook() {
   const regra = XLSX.utils.aoa_to_sheet([
     ["Divisão do lucro"],
     ["Base: Lucro Peregrino (total) de cada venda. Prejuízo não gera divisão (base mínima 0)."],
-    ["30% caixa da Peregrinos"],
+    ["30% caixa reserva da Peregrinos"],
     ["30% Caio (sócio)"],
     ["40% Erik (sócio)"],
     ["Vendas: fechadas (Ganho) a partir de 01/11/2026. Vendas anteriores não entram."],
