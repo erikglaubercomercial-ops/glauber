@@ -13,6 +13,8 @@ function canAccessView(view) {
   if (view === "formularios" || view === "templates" || view === "areaaluno") return true;
   /* Meus links: cada usuário tem a própria página de links da bio */
   if (view === "linkbio") return true;
+  /* Mensagens internas: qualquer usuário ativo envia e recebe */
+  if (view === "mensagens") return true;
   /* WhatsApp: caixa de entrada do número da empresa — ADM e Gerente veem tudo, Consultor só as conversas dos próprios leads */
   if (view === "whatsapp") return ["ADM", "Gerente", "Consultor"].includes(session.role);
   if (view === "usuarios") return session.role === "ADM";
@@ -229,6 +231,7 @@ function switchView(view) {
   if (view === "templates" && typeof renderEmailTemplates === "function") renderEmailTemplates();
   if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();
   if (view === "financeiro" && typeof showFinanceiroDashboard === "function") showFinanceiroDashboard();
+  if (view === "mensagens" && typeof renderMensagens === "function") renderMensagens();
   if (view === "colaboradores" && typeof showTimeTab === "function") {
     const doc = document.getElementById("time-tab-cadastro");
     if (doc) doc.style.display = hasModuleAccess(session.role, "colaboradores") ? "" : "none";
