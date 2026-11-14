@@ -5963,6 +5963,8 @@ function renderFinanceiroOverview() {
     const dateVal = x.dateVal;
     const tr = document.createElement("tr");
     if (splitZero) tr.classList.add("fin-row-warn");
+    /* nenhum pagamento recebido: linha avermelhada (tem prioridade sobre o aviso de partilha) */
+    if (x.paidAmt <= 0.004) tr.classList.add("fin-row-danger");
     tr.innerHTML = `
       <td class="cell-check"><input type="checkbox" class="fin-overview-checkbox" data-id="${d.id}" ${finOverviewSelectedIds.has(d.id) ? "checked" : ""}></td>
       <td class="cell-muted">${dt(dateVal)}</td>
