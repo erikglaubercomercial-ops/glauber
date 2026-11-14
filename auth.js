@@ -15,7 +15,7 @@ const MODULES = [
   { id: "contratos", label: "Contratos" },
 ];
 
-const ROLES = ["ADM", "Gerente", "Consultor", "Influencer", "MKT", "Financeiro"];
+const ROLES = ["ADM", "Gerente", "Consultor", "Influencer", "MKT", "Financeiro", "Suporte"];
 const CONFIGURABLE_ROLES = ROLES.filter(r => r !== "ADM");
 
 let rolePermissions = {};
