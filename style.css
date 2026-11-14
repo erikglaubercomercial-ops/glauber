@@ -3390,3 +3390,4 @@ body > .cmp-public-wrap { width: 100%; min-width: 0; }
 /* Visão geral (Financeiro): colunas de partilha só para ADM e Financeiro; linha com partilha zerada em aviso */
 .fin-overview-table.fin-no-split .fin-split-col { display: none; }
 .fin-overview-table tr.fin-row-warn td { background: var(--warn-bg); }
+.filter-inline { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-muted); }

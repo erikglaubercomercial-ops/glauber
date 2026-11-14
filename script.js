@@ -5793,8 +5793,40 @@ function dealStatusLabel(d) {
   return stage ? stageLabel(stage.label) : d.stage;
 }
 
+/* dados de uma venda da Visão geral: usados pela tabela e pelos filtros */
+function finOverviewFacts(d) {
+  const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
+  const consultant = lead && lead.consultorId ? users.find(u => u.id === lead.consultorId) : null;
+  const enr = lead ? enrollments.filter(e => e.leadId === lead.id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] : null;
+  const sp = saleSplits.find(x => x.dealId === d.id) || null;
+  const recs = receivables.filter(r => r.dealId === d.id);
+  const paidRecs = recs.filter(r => r.paid);
+  const paidAmt = round2(paidRecs.reduce((x, r) => x + (Number(r.amount) || 0), 0));
+  const pendingAmt = round2(recs.filter(r => !r.paid).reduce((x, r) => x + (Number(r.amount) || 0), 0));
+  const lastPaid = paidRecs.reduce((m, r) => Math.max(m, r.paidAt || 0), 0);
+  const situacaoKey = !recs.length ? "sem-conta" : pendingAmt <= 0.004 ? "quitado" : "a-receber";
+  return {
+    lead, consultant, enr, sp, recs, paidAmt, pendingAmt, lastPaid, situacaoKey,
+    dateVal: d.closedAt || d.createdAt || 0,
+    origem: lead ? (originText(lead) || "") : "",
+    consultorId: consultant ? consultant.id : "",
+    consultor: consultant ? (consultant.name || "") : "",
+    escola: enr && enr.school ? enr.school : "",
+  };
+}
+
 function getFilteredOverviewDeals() {
   const q = (document.getElementById("fin-overview-search-input").value || "").trim().toLowerCase();
+  const f = {
+    from: document.getElementById("fin-ov-date-from").value,
+    to: document.getElementById("fin-ov-date-to").value,
+    origem: document.getElementById("fin-ov-origem").value,
+    consultor: document.getElementById("fin-ov-consultor").value,
+    escola: document.getElementById("fin-ov-escola").value,
+    situacao: document.getElementById("fin-ov-situacao").value,
+  };
+  const fromMs = f.from ? new Date(`${f.from}T00:00:00`).getTime() : null;
+  const toMs = f.to ? new Date(`${f.to}T23:59:59.999`).getTime() : null;
   let list = deals.filter(d => isWonStage(d.stage));
   if (q) {
     list = list.filter(d => {
@@ -5803,7 +5835,34 @@ function getFilteredOverviewDeals() {
       return haystack.includes(q);
     });
   }
+  list = list.filter(d => {
+    const x = finOverviewFacts(d);
+    if (fromMs !== null && x.dateVal < fromMs) return false;
+    if (toMs !== null && x.dateVal > toMs) return false;
+    if (f.origem && x.origem !== f.origem) return false;
+    if (f.consultor && x.consultorId !== f.consultor) return false;
+    if (f.escola && x.escola !== f.escola) return false;
+    if (f.situacao && x.situacaoKey !== f.situacao) return false;
+    return true;
+  });
   return list.slice().sort((a, b) => (b.closedAt || b.createdAt || 0) - (a.closedAt || a.createdAt || 0));
+}
+
+/* preenche as listas de origem, consultor e escola com o que existe nas vendas ganhas (mantém a escolha atual) */
+function refreshFinOverviewFilterOptions() {
+  const facts = deals.filter(d => isWonStage(d.stage)).map(finOverviewFacts);
+  const fill = (id, placeholder, options) => {
+    const sel = document.getElementById(id);
+    const prev = sel.value;
+    sel.innerHTML = `<option value="">${placeholder}</option>` + options.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
+    if (options.some(o => o.value === prev)) sel.value = prev;
+  };
+  const uniqSorted = arr => [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  fill("fin-ov-origem", "Todas as origens", uniqSorted(facts.map(f => f.origem)).map(v => ({ value: v, label: v })));
+  const cons = new Map();
+  facts.forEach(f => { if (f.consultorId) cons.set(f.consultorId, f.consultor); });
+  fill("fin-ov-consultor", "Todos os consultores", [...cons.entries()].sort((a, b) => a[1].localeCompare(b[1], "pt-BR")).map(([v, label]) => ({ value: v, label })));
+  fill("fin-ov-escola", "Todas as escolas", uniqSorted(facts.map(f => f.escola)).map(v => ({ value: v, label: v })));
 }
 
 /* soma do que foi recebido (contas a receber pagas) entre dois instantes (ms) */
@@ -5812,6 +5871,7 @@ function receivedInRange(startMs, endMs) {
 }
 
 function renderFinanceiroOverview() {
+  refreshFinOverviewFilterOptions();
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
@@ -5843,28 +5903,21 @@ function renderFinanceiroOverview() {
   document.getElementById("fin-overview-empty").style.display = list.length === 0 ? "block" : "none";
   const dt = ms => ms ? new Date(ms).toLocaleDateString("pt-BR") : "—";
   list.forEach(d => {
-    const lead = d.leadId ? leads.find(l => l.id === d.leadId) : null;
-    const consultant = lead && lead.consultorId ? users.find(u => u.id === lead.consultorId) : null;
-    const enr = lead ? enrollments.filter(e => e.leadId === lead.id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] : null;
-    const sp = saleSplits.find(x => x.dealId === d.id) || null;
-    const recs = receivables.filter(r => r.dealId === d.id);
-    const paidRecs = recs.filter(r => r.paid);
-    const paidAmt = round2(paidRecs.reduce((x, r) => x + (Number(r.amount) || 0), 0));
-    const pendingAmt = round2(recs.filter(r => !r.paid).reduce((x, r) => x + (Number(r.amount) || 0), 0));
-    const lastPaid = paidRecs.reduce((m, r) => Math.max(m, r.paidAt || 0), 0);
-    const situacao = !recs.length ? `<span class="badge badge-neutral">Sem conta</span>`
-      : pendingAmt <= 0.004 ? `<span class="badge badge-good">Quitado</span>`
+    const x = finOverviewFacts(d);
+    const { lead, enr, sp, recs, paidAmt, pendingAmt, lastPaid } = x;
+    const situacao = x.situacaoKey === "sem-conta" ? `<span class="badge badge-neutral">Sem conta</span>`
+      : x.situacaoKey === "quitado" ? `<span class="badge badge-good">Quitado</span>`
       : `<span class="badge badge-warn">A receber</span>`;
     /* partilha zerada: destaca a linha, igual ao aviso de partilha pendente */
     const splitZero = !!sp && (sp.consCurso + sp.consPassagem) === 0 && sp.peregrinosNet === 0;
-    const dateVal = d.closedAt || d.createdAt;
+    const dateVal = x.dateVal;
     const tr = document.createElement("tr");
     if (splitZero) tr.classList.add("fin-row-warn");
     tr.innerHTML = `
       <td class="cell-check"><input type="checkbox" class="fin-overview-checkbox" data-id="${d.id}" ${finOverviewSelectedIds.has(d.id) ? "checked" : ""}></td>
       <td class="cell-muted">${dt(dateVal)}</td>
       <td class="cell-muted">${lead ? escapeHtml(originText(lead) || "—") : "—"}</td>
-      <td>${consultant ? escapeHtml(consultant.name || "—") : "—"}</td>
+      <td>${x.consultor ? escapeHtml(x.consultor) : "—"}</td>
       <td class="cell-primary">${leadLink(d.leadId, d.name)}</td>
       <td class="cell-muted">${lead ? escapeHtml(lead.email || "—") : "—"}</td>
       <td>${enr && enr.school ? escapeHtml(enr.school) : "—"}</td>
@@ -5911,8 +5964,12 @@ function updateFinOverviewBulkBar() {
 }
 
 document.getElementById("fin-overview-search-input").addEventListener("input", renderFinanceiroOverview);
+["fin-ov-date-from", "fin-ov-date-to", "fin-ov-origem", "fin-ov-consultor", "fin-ov-escola", "fin-ov-situacao"].forEach(id => {
+  document.getElementById(id).addEventListener("change", renderFinanceiroOverview);
+});
 document.getElementById("fin-overview-search-clear").addEventListener("click", () => {
   document.getElementById("fin-overview-search-input").value = "";
+  ["fin-ov-date-from", "fin-ov-date-to", "fin-ov-origem", "fin-ov-consultor", "fin-ov-escola", "fin-ov-situacao"].forEach(id => { document.getElementById(id).value = ""; });
   renderFinanceiroOverview();
 });
 document.getElementById("fin-overview-select-all").addEventListener("change", e => {

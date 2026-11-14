@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1794642541">
+<link rel="stylesheet" href="style.css?v=1794642925">
 <link rel="stylesheet" href="bio.css?v=1794442137">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -886,6 +886,12 @@
                 <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="text" id="fin-overview-search-input" placeholder="Buscar por nome, origem, e-mail ou status" data-i18n-placeholder="fin.searchDealsPlaceholder" autocomplete="off">
               </div>
+              <label class="filter-inline">Data de <input type="date" id="fin-ov-date-from" title="Data da venda, a partir de"></label>
+              <label class="filter-inline">até <input type="date" id="fin-ov-date-to" title="Data da venda, até"></label>
+              <select id="fin-ov-origem" title="Origem"><option value="">Todas as origens</option></select>
+              <select id="fin-ov-consultor" title="Consultor"><option value="">Todos os consultores</option></select>
+              <select id="fin-ov-escola" title="Escola"><option value="">Todas as escolas</option></select>
+              <select id="fin-ov-situacao" title="Situação"><option value="">Todas as situações</option><option value="quitado">Quitado</option><option value="a-receber">A receber</option><option value="sem-conta">Sem conta</option></select>
               <button type="button" class="btn btn-ghost btn-sm" id="fin-overview-search-clear" data-i18n="common.clearFilters">Limpar filtros</button>
             </div>
             <div class="bulk-bar" id="fin-overview-bulk-bar" style="display:none;">
@@ -3201,7 +3207,7 @@
   <script src="i18n.js?v=1794610121"></script>
   <script src="comparativo.js?v=1794442137"></script>
   <script src="contrato-modelo.js?v=1794442137"></script>
-  <script src="script.js?v=1794642541"></script>
+  <script src="script.js?v=1794642925"></script>
   <script src="contratos-proposta.js?v=1794442137"></script>
   <script src="ficha-cliente.js?v=1794610121"></script>
   <script src="agenda-reunioes.js?v=1794442137"></script>
