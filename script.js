@@ -7158,18 +7158,27 @@ function loadSheetJs() {
     document.head.appendChild(el);
   });
 }
+/* regra do sócio: 30% do Lucro Peregrino (total) de cada venda fechada a partir de 01/11/2026 (prejuízo não gera sócio) */
+const SOCIO_PCT = 0.30;
+const SOCIO_DESDE = new Date(2026, 10, 1, 0, 0, 0, 0).getTime();
+function socioDaVenda(sp, deal) {
+  if (!deal || !deal.closedAt || deal.closedAt < SOCIO_DESDE) return 0;
+  return Math.round(Math.max(Number(sp.peregrinosNet) || 0, 0) * SOCIO_PCT * 100) / 100;
+}
 function buildSaleSplitsWorkbook() {
-  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 8], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 3]];
+  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 8], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["SÓCIO (30%)", 2], ["", 1]];
   const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "CAC fixo", "Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Caixa reserva",
     "Acom. custo", "Acom. venda", "Acom. lucro", "Acom. comissão consultor", "Acom. ganhos Peregrinos", "Kit (custo fixo, sem lucro)", "Passagem", "Passagem: comissão consultor",
-    "Venda total", "Lucro Peregrino (total)", "Situação"];
+    "Venda total", "Lucro Peregrino (total)", "Sócio (30% do lucro)", "Lucro Peregrino após sócio", "Situação"];
   const rows = saleSplitsSorted().map(sp => {
     const deal = deals.find(d => d.id === sp.dealId);
     const pendente = sp.netCourse == null;
     const calc = v => (pendente ? null : v);
+    const socio = socioDaVenda(sp, deal);
+    const lucroApos = Math.round(((Number(sp.peregrinosNet) || 0) - socio) * 100) / 100;
     return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, sp.cacAmount, sp.influencerAmount, calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount,
       sp.acomPago, sp.acomCobrado, sp.acomLucro, sp.acomConsultor, sp.acomLucro - sp.acomConsultor, sp.kitAmount, sp.passagemAmount, sp.consPassagem,
-      sp.courseTotal, calc(sp.peregrinosNet), pendente ? "Pendente: falta o Net" : "Calculado"];
+      sp.courseTotal, calc(sp.peregrinosNet), calc(socio), calc(lucroApos), pendente ? "Pendente: falta o Net" : "Calculado"];
   });
   const textCols = new Set([0, header.length - 1]);
   const totals = header.map((h, col) => textCols.has(col) ? (col === 0 ? "Total" : "") : Math.round(rows.reduce((acc, r) => acc + (Number(r[col]) || 0), 0) * 100) / 100);
@@ -7189,6 +7198,16 @@ function buildSaleSplitsWorkbook() {
   ws["!cols"] = header.map((h, i) => ({ wch: i === 0 ? 36 : h === "Situação" ? 22 : Math.max(h.length + 2, 13) }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Partilha por venda");
+  const regra = XLSX.utils.aoa_to_sheet([
+    ["Regra do sócio"],
+    ["Base: Lucro Peregrino (total) de cada venda."],
+    ["Percentual: 30% para o sócio Caio."],
+    ["Vendas: fechadas (Ganho) a partir de 01/11/2026. Vendas anteriores não têm sócio (0)."],
+    ["Prejuízo na venda não gera sócio (base mínima 0)."],
+    ["Lucro Peregrino após sócio = Lucro Peregrino (total) − Sócio."],
+  ]);
+  regra["!cols"] = [{ wch: 90 }];
+  XLSX.utils.book_append_sheet(wb, regra, "Regra do sócio");
   return wb;
 }
 document.getElementById("fin-splits-download").addEventListener("click", async e => {
