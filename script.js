@@ -5983,6 +5983,7 @@ function renderFinanceiroOverview() {
       <td class="fin-split-col">${sp ? currency(sp.influencerAmount) : "—"}</td>
       <td class="fin-split-col">${sp ? currency(sp.consCurso + sp.consPassagem) : "—"}</td>
       <td class="fin-split-col cell-primary">${sp ? currency(sp.peregrinosNet) : "—"}</td>
+      <td class="fin-split-col">${sp ? currency(socioDaVenda(sp, d)) : "—"}</td>
       <td>${recs.length ? currency(round2(paidAmt + pendingAmt)) : "—"}</td>
       <td class="cell-muted">${lastPaid ? dt(lastPaid) : "—"}</td>
       <td>${currency(paidAmt)}</td>
@@ -6911,9 +6912,13 @@ function renderCommissions() {
   const tbody = document.getElementById("fin-commissions-tbody");
   tbody.innerHTML = "";
   document.getElementById("fin-commissions-empty").style.display = list.length === 0 ? "block" : "none";
+  const canSplit = !!session && (session.role === "ADM" || session.role === "Financeiro");
+  tbody.closest("table").classList.toggle("fin-no-split", !canSplit);
   list.forEach(c => {
     const consultant = users.find(u => u.id === c.consultorId);
     const rel = commissionRelease(c.dealId);
+    const dealSocio = deals.find(d => d.id === c.dealId) || null;
+    const spSocio = saleSplits.find(x => x.dealId === c.dealId) || null;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-primary">${escapeHtml(consultant ? consultant.name : "—")}</td>
@@ -6921,6 +6926,7 @@ function renderCommissions() {
       <td class="cell-muted">${currency(c.dealValue)}</td>
       <td class="cell-muted">${c.percentage}%</td>
       <td class="cell-primary">${currency(c.amount)}</td>
+      <td class="fin-split-col">${spSocio ? currency(socioDaVenda(spSocio, dealSocio)) : "—"}</td>
       <td class="cell-muted">${c.status === "Pago" ? "—" : (rel.released ? `<span class="badge badge-good">${escapeHtml(t("fin.releasedYes"))}</span>` : `<span class="badge badge-warn" title="${escapeHtml(t("fin.releasedWait"))}">${escapeHtml(t("fin.releasedWaitShort"))}</span>`)}</td>
       <td><span class="badge ${c.status === "Pago" ? "badge-good" : "badge-warn"}">${escapeHtml(statusLabel(c.status))}</span></td>
       <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="toggle-status" data-id="${c.id}">${c.status === "Pago" ? t("fin.markPending") : t("fin.markPaid")}</button></td>
