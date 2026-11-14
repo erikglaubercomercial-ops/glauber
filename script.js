@@ -6587,19 +6587,46 @@ function renderExpenseFilterOptions() {
     `<option value="">${t("leads.categoryAll")}</option>` + EXPENSE_CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
 }
 
+/* ---- Despesas: "Todas" + um botão por mês do ano escolhido (pelo vencimento) ---- */
+let finExpPeriod = "all";   /* "all" ou o número do mês (1 a 12) */
+let finExpYear = new Date().getFullYear();
+function refreshFinExpYears() {
+  const sel = document.getElementById("fin-exp-year");
+  const nowYear = new Date().getFullYear();
+  const years = expenses.map(e => Number(String(e.dueDate || "").slice(0, 4))).filter(Boolean);
+  const minYear = Math.min(nowYear, finExpYear, ...years);
+  const maxYear = Math.max(nowYear + 1, finExpYear, ...years);
+  let html = "";
+  for (let y = minYear; y <= maxYear; y++) html += `<option value="${y}">${y}</option>`;
+  sel.innerHTML = html;
+  sel.value = String(finExpYear);
+}
+function updateFinExpTabs() {
+  document.querySelectorAll("#subview-fin-expenses .fin-ov-tab").forEach(b => b.classList.toggle("active", b.dataset.expMonth === finExpPeriod));
+}
 function getFilteredExpenses() {
   const category = document.getElementById("fin-exp-filter-category").value;
   const status = document.getElementById("fin-exp-filter-status").value;
+  const monthKey = `${finExpYear}-${finOvPad(Number(finExpPeriod) || 0)}`;
   return expenses.filter(e => {
     if (category && e.category !== category) return false;
     if (status === "pendente" && e.paid) return false;
     if (status === "pago" && !e.paid) return false;
+    if (finExpPeriod !== "all" && String(e.dueDate || "").slice(0, 7) !== monthKey) return false;
     return true;
   });
 }
 
 function renderExpenses() {
+  refreshFinExpYears();
+  updateFinExpTabs();
   const filtered = getFilteredExpenses().slice().sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  const sumOf = arr => round2(arr.reduce((x, e) => x + (Number(e.amount) || 0), 0));
+  document.getElementById("fin-exp-summary").innerHTML = `
+    <span><b>${filtered.length}</b> despesa(s)</span>
+    <span>Total: <b>${currency(sumOf(filtered))}</b></span>
+    <span>Pago: <b>${currency(sumOf(filtered.filter(e => e.paid)))}</b></span>
+    <span>Pendente: <b>${currency(sumOf(filtered.filter(e => !e.paid)))}</b></span>`;
   const tbody = document.getElementById("fin-expenses-tbody");
   tbody.innerHTML = "";
   document.getElementById("fin-expenses-empty").style.display = filtered.length === 0 ? "block" : "none";
@@ -6622,8 +6649,14 @@ document.getElementById("fin-exp-filter-status").addEventListener("change", rend
 document.getElementById("fin-exp-filter-clear").addEventListener("click", () => {
   document.getElementById("fin-exp-filter-category").value = "";
   document.getElementById("fin-exp-filter-status").value = "";
+  finExpPeriod = "all";
   renderExpenses();
 });
+document.getElementById("fin-exp-year").addEventListener("change", e => { finExpYear = Number(e.target.value) || new Date().getFullYear(); renderExpenses(); });
+document.querySelectorAll("#subview-fin-expenses .fin-ov-tab").forEach(btn => btn.addEventListener("click", () => {
+  finExpPeriod = btn.dataset.expMonth;
+  renderExpenses();
+}));
 
 const expenseModalBackdrop = document.getElementById("expense-modal-backdrop");
 const expenseForm = document.getElementById("expense-form");
