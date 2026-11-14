@@ -7172,8 +7172,8 @@ function socioDaVenda(sp, deal) {
   return Math.round(Math.max(Number(sp.peregrinosNet) || 0, 0) * SOCIO_PCT * 100) / 100;
 }
 function buildSaleSplitsWorkbook() {
-  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 8], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["SÓCIO (30%)", 2], ["", 1]];
-  const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "CAC fixo", "Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Caixa reserva",
+  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 7], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["SÓCIO (30%)", 2], ["", 1]];
+  const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "CAC / Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Caixa reserva",
     "Acom. custo", "Acom. venda", "Acom. lucro", "Acom. comissão consultor", "Acom. ganhos Peregrinos", "Kit (custo fixo, sem lucro)", "Passagem", "Passagem: comissão consultor",
     "Venda total", "Lucro Peregrino (total)", "Sócio (30% do lucro)", "Lucro Peregrino após sócio", "Situação"];
   const rows = saleSplitsSorted().map(sp => {
@@ -7182,7 +7182,8 @@ function buildSaleSplitsWorkbook() {
     const calc = v => (pendente ? null : v);
     const socio = socioDaVenda(sp, deal);
     const lucroApos = Math.round(((Number(sp.peregrinosNet) || 0) - socio) * 100) / 100;
-    return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, sp.cacAmount, sp.influencerAmount, calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount,
+    /* CAC fixo (R$ 100) ou influenciador: a regra põe o valor em um ou outro, então a coluna soma os dois */
+    return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, (Number(sp.cacAmount) || 0) + (Number(sp.influencerAmount) || 0), calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount,
       sp.acomPago, sp.acomCobrado, sp.acomLucro, sp.acomConsultor, sp.acomLucro - sp.acomConsultor, sp.kitAmount, sp.passagemAmount, sp.consPassagem,
       sp.courseTotal, calc(sp.peregrinosNet), calc(socio), calc(lucroApos), pendente ? "Pendente: falta o Net" : "Calculado"];
   });
