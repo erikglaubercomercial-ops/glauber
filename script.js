@@ -10606,6 +10606,13 @@ const userForm = document.getElementById("user-form");
 const userBtnDelete = document.getElementById("user-btn-delete");
 const usersTbody = document.getElementById("users-tbody");
 const usersEmpty = document.getElementById("users-empty");
+/* segunda função (opcional) para qualquer função principal, exceto ADM */
+function fillSecondaryRoleSelect(primary, current) {
+  const sel = document.getElementById("user-field-secondary");
+  const opts = CONFIGURABLE_ROLES.filter(r => r !== primary);
+  sel.innerHTML = `<option value="">Nenhuma</option>` + opts.map(r => `<option value="${r}">${r}</option>`).join("");
+  sel.value = opts.includes(current) ? current : "";
+}
 const userFieldRole = document.getElementById("user-field-role");
 const permissionsTbody = document.getElementById("permissions-tbody");
 
@@ -10622,7 +10629,7 @@ function renderUsers() {
     tr.innerHTML = `
       <td class="cell-primary">${escapeHtml(u.name)}</td>
       <td class="cell-muted">${escapeHtml(u.email)}</td>
-      <td><span class="badge ${u.role === "ADM" ? "badge-role-adm" : "badge-neutral"}">${escapeHtml(u.role)}</span>${u.also_influencer ? ` <span class="badge badge-neutral">+ Influencer</span>` : ""}</td>
+      <td><span class="badge ${u.role === "ADM" ? "badge-role-adm" : "badge-neutral"}">${escapeHtml(u.role)}</span>${u.secondary_role ? ` <span class="badge badge-neutral">+ ${escapeHtml(u.secondary_role)}</span>` : ""}</td>
       <td class="cell-muted">${escapeHtml((teams.find(tm => tm.id === u.team_id) || {}).name || "—")}</td>
       <td><span class="badge ${u.active ? "badge-good" : "badge-danger"}">${u.active ? t("users.statusActive") : t("users.statusInactive")}</span></td>
       <td class="cell-actions">›</td>
@@ -10712,9 +10719,7 @@ function openUserModal(id) {
   document.getElementById("user-field-email").value = u.email;
   document.getElementById("user-field-role").value = u.role;
   document.getElementById("user-field-active").checked = !!u.active;
-  document.getElementById("user-field-also-influencer").checked = !!u.also_influencer;
-  const showAlsoInf = r => r === "Consultor" || r === "Gerente";
-  document.getElementById("user-also-inf-wrap").style.display = showAlsoInf(u.role) ? "" : "none";
+  fillSecondaryRoleSelect(u.role, u.secondary_role || "");
   const teamSel = document.getElementById("user-field-team");
   teamSel.innerHTML = `<option value="">${escapeHtml(t("users.noTeam"))}</option>` + teams.map(tm => `<option value="${tm.id}">${escapeHtml(tm.name)}</option>`).join("");
   teamSel.value = u.team_id || "";
@@ -10722,7 +10727,7 @@ function openUserModal(id) {
   document.getElementById("user-team-wrap").style.display = showTeam(u.role) ? "" : "none";
   document.getElementById("user-field-role").onchange = ev => {
     document.getElementById("user-team-wrap").style.display = showTeam(ev.target.value) ? "" : "none";
-    document.getElementById("user-also-inf-wrap").style.display = showAlsoInf(ev.target.value) ? "" : "none";
+    fillSecondaryRoleSelect(ev.target.value, document.getElementById("user-field-secondary").value);
   };
   document.getElementById("user-field-role").disabled = isLastAdmin;
   document.getElementById("user-field-active").disabled = isLastAdmin;
@@ -10785,11 +10790,12 @@ userForm.addEventListener("submit", async e => {
   u.role = role;
   u.active = active;
   u.team_id = (role === "Consultor" || role === "Gerente") ? (document.getElementById("user-field-team").value || null) : null;
-  u.also_influencer = (role === "Consultor" || role === "Gerente") && document.getElementById("user-field-also-influencer").checked;
+  const secondary = document.getElementById("user-field-secondary").value || null;
+  u.secondary_role = secondary && secondary !== role ? secondary : null;
 
   renderUsers();
   closeUserModal();
-  await updateUserProfile(u.id, { name: u.name, role: u.role, active: u.active, teamId: u.team_id, alsoInfluencer: u.also_influencer });
+  await updateUserProfile(u.id, { name: u.name, role: u.role, active: u.active, teamId: u.team_id, secondaryRole: u.secondary_role });
   renderTeams();
 });
 

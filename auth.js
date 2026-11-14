@@ -27,7 +27,7 @@ async function getSession() {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, name, email, role, active, also_influencer")
+    .select("id, name, email, role, active, secondary_role")
     .eq("id", authSession.user.id)
     .single();
 
@@ -36,7 +36,7 @@ async function getSession() {
     await supabase.auth.signOut();
     return null;
   }
-  return { ...profile, alsoInfluencer: !!profile.also_influencer };
+  return { ...profile, secondaryRole: profile.secondary_role || null };
 }
 
 async function signOut() {
@@ -72,9 +72,9 @@ async function setModuleAccess(role, moduleId, allowed) {
 function hasModuleAccess(role, moduleId) {
   if (role === "ADM") return true;
   if (rolePermissions[role] && rolePermissions[role][moduleId]) return true;
-  /* dupla função (ex.: Consultor que também é Influencer): soma as permissões da segunda função */
-  if (typeof session !== "undefined" && session && session.role === role && session.alsoInfluencer) {
-    return !!(rolePermissions.Influencer && rolePermissions.Influencer[moduleId]);
+  /* dupla função: a segunda função (qualquer uma) soma as suas permissões às da função principal */
+  if (typeof session !== "undefined" && session && session.role === role && session.secondaryRole) {
+    return !!(rolePermissions[session.secondaryRole] && rolePermissions[session.secondaryRole][moduleId]);
   }
   return false;
 }
@@ -83,15 +83,15 @@ function hasModuleAccess(role, moduleId) {
 async function loadUsers() {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, email, role, active, created_at, team_id, also_influencer")
+    .select("id, name, email, role, active, created_at, team_id, secondary_role")
     .order("name");
   if (error) { console.error("Erro ao carregar usuários:", error); return []; }
   return (data || []).map(u => ({ ...u, createdAt: u.created_at ? new Date(u.created_at).getTime() : Date.now() }));
 }
 
-async function updateUserProfile(id, { name, role, active, teamId, alsoInfluencer }) {
+async function updateUserProfile(id, { name, role, active, teamId, secondaryRole }) {
   const patch = { name, role, active };
-  if (alsoInfluencer !== undefined) patch.also_influencer = !!alsoInfluencer;
+  if (secondaryRole !== undefined) patch.secondary_role = secondaryRole || null;
   if (teamId !== undefined) patch.team_id = teamId || null;
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   return !error;
