@@ -385,8 +385,8 @@ function fxRenderCards(d) {
     h += fxRow("Escola", fxEsc(e.school || "—"));
     h += fxRow("Turno", fxEsc(e.turno || "—"));
     const canEditArr = !(typeof isSocioSession === "function" && isSocioSession());
-    h += fxRow("Chegada na Irlanda", `${e.arrival_date ? fxFull(e.arrival_date + "T12:00:00") : '<span class="fx-wr">a informar</span>'}${canEditArr ? ' <button type="button" class="btn btn-ghost btn-sm" id="fx-arr-edit" title="Editar data de chegada" aria-label="Editar data de chegada">✎</button>' : ""}`);
-    if (canEditArr) h += `<div class="fx-meet" id="fx-arr-form" style="display:none"><input type="date" id="fx-arr-input" value="${e.arrival_date ? String(e.arrival_date).slice(0, 10) : ""}"><button type="button" class="btn btn-primary btn-sm" id="fx-arr-save">Salvar</button><button type="button" class="btn btn-ghost btn-sm" id="fx-arr-cancel">Cancelar</button></div>`;
+    h += fxRow("Chegada na Irlanda", `${e.arrival_date ? fxFull(e.arrival_date + "T12:00:00") + (e.arrival_time ? " · " + String(e.arrival_time).slice(0, 5) : "") : '<span class="fx-wr">a informar</span>'}${canEditArr ? ' <button type="button" class="btn btn-ghost btn-sm" id="fx-arr-edit" title="Editar data de chegada" aria-label="Editar data de chegada">✎</button>' : ""}`);
+    if (canEditArr) h += `<div class="fx-meet" id="fx-arr-form" style="display:none"><input type="date" id="fx-arr-input" value="${e.arrival_date ? String(e.arrival_date).slice(0, 10) : ""}" aria-label="Data de chegada"><input type="time" id="fx-arr-time" value="${e.arrival_time ? String(e.arrival_time).slice(0, 5) : ""}" aria-label="Hora de chegada do voo" title="Hora de chegada do voo (horário da Irlanda)"><button type="button" class="btn btn-primary btn-sm" id="fx-arr-save">Salvar</button><button type="button" class="btn btn-ghost btn-sm" id="fx-arr-cancel">Cancelar</button></div>`;
     h += fxRow("Início das aulas", e.class_start_date ? fxFull(e.class_start_date + "T12:00:00") : "—");
     const meet = (d.settings && d.settings.meeting_days) || 15;
     const warnDate = e.arrival_date ? (() => { const x = fxDateObj(e.arrival_date); x.setDate(x.getDate() - meet); return x.toLocaleDateString("pt-BR"); })() : "";
@@ -610,8 +610,9 @@ function fxBindCards(d) {
     $fx("fx-arr-cancel").addEventListener("click", () => { arrForm.style.display = "none"; });
     $fx("fx-arr-save").addEventListener("click", async () => {
       const v = $fx("fx-arr-input").value || null;
+      const tm = v ? ($fx("fx-arr-time").value || null) : null;
       const btn = $fx("fx-arr-save"); btn.disabled = true;
-      const { data: upd, error } = await supabase.from("enrollments").update({ arrival_date: v }).eq("id", e.id).select("id");
+      const { data: upd, error } = await supabase.from("enrollments").update({ arrival_date: v, arrival_time: tm }).eq("id", e.id).select("id");
       btn.disabled = false;
       if (error || !upd || !upd.length) { console.error(error); alert("Não foi possível salvar a data de chegada."); return; }
       const local = enrollments.find(x => x.id === e.id); if (local) local.arrivalDate = v;
