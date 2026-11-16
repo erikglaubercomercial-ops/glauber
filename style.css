@@ -2125,6 +2125,18 @@ body > .lang-switcher { position: fixed; top: 18px; right: 18px; z-index: 40; }
 /* aviso "Matrícula ainda não realizada" (contrato assinado) */
 .enr-pending-banner { display: flex; align-items: center; gap: 14px; padding: 14px 18px; margin-bottom: 16px; border-radius: 12px; border: 2px solid var(--danger); background: var(--danger-bg); color: var(--danger); }
 .enr-pending-banner.modal-banner { margin: 0 0 14px; }
+.enr-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 14px; }
+.enr-step { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 2px solid var(--danger); background: var(--danger-bg); color: var(--danger); }
+.enr-step.done { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+.enr-step.blocked { border-style: dashed; opacity: .75; }
+.enr-step-num { flex: 0 0 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; border: 2px solid currentColor; }
+.enr-step.done .enr-step-num { background: currentColor; }
+.enr-step.done .enr-step-num::before { content: "✓"; color: #fff; }
+.enr-step.done .enr-step-num { font-size: 0; }
+.enr-step.done .enr-step-num::before { font-size: 15px; }
+.enr-step-text { display: flex; flex-direction: column; gap: 2px; margin-right: auto; font-size: 12.5px; min-width: 0; }
+.enr-step-text strong { font-size: 14px; font-weight: 800; }
+@media (max-width: 640px) { .enr-steps { grid-template-columns: 1fr; } }
 .enr-pending-icon { font-size: 26px; line-height: 1; }
 .enr-pending-text { display: flex; flex-direction: column; gap: 2px; margin-right: auto; font-size: 13px; }
 .enr-pending-text strong { font-size: 15px; font-weight: 800; }

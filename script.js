@@ -8036,7 +8036,7 @@ function renderEnrollments() {
     const tr = document.createElement("tr");
     if (e.matriculaPendente) tr.classList.add("enr-row-pending");
     tr.innerHTML = `
-      <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}${e.matriculaPendente ? `<div><span class="badge badge-danger enr-pending-badge">⚠ ${escapeHtml(t("enr.pendingTitle"))}</span></div>` : ""}${enrUnread[e.id] ? `<div><span class="badge badge-warn enr-pending-badge">${escapeHtml(t("enr.msgNew").replace("{n}", enrUnread[e.id]))}</span></div>` : ""}</td>
+      <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}${e.matriculaPendente ? `<div><span class="badge badge-danger enr-pending-badge">⚠ ${escapeHtml(t(enrFormFilled(e) ? "enr.badgeWaitEnroll" : "enr.badgeWaitForm"))}</span></div>` : ""}${enrUnread[e.id] ? `<div><span class="badge badge-warn enr-pending-badge">${escapeHtml(t("enr.msgNew").replace("{n}", enrUnread[e.id]))}</span></div>` : ""}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.turno || "—")}</td>
       <td><span class="badge ${ENROLLMENT_STATUS_BADGE[e.status] || "badge-neutral"}">${escapeHtml(statusLabel(e.status))}</span></td>
@@ -8181,6 +8181,22 @@ function renderEnrollmentDatalists() {
   document.getElementById("enr-turnos-list").innerHTML = turnos.map(t => `<option value="${escapeHtml(t)}">`).join("");
 }
 
+/* duas etapas da matrícula: 1) formulário preenchido pelo aluno, 2) matrícula realizada na escola */
+function enrFormFilled(enr) { return !!enr && enr.status !== "Aguardando aluno"; }
+function renderEnrollmentSteps(enr) {
+  const formDone = enrFormFilled(enr);
+  const enrolledDone = !enr.matriculaPendente;
+  const f = document.getElementById("enr-step-form"), m = document.getElementById("enr-step-enrolled");
+  f.classList.toggle("done", formDone);
+  m.classList.toggle("done", enrolledDone);
+  m.classList.toggle("blocked", !formDone && !enrolledDone);
+  document.getElementById("enr-step-form-sub").textContent = t(formDone ? "enr.stepFormDone" : "enr.stepFormWait");
+  document.getElementById("enr-step-enrolled-sub").textContent = t(enrolledDone ? "enr.stepEnrolledDone" : (formDone ? "enr.stepEnrolledWait" : "enr.stepEnrolledBlocked"));
+  const btn = document.getElementById("enr-pending-done");
+  btn.style.display = enrolledDone ? "none" : "";
+  btn.disabled = !formDone;
+}
+
 async function openEnrollmentModal(id) {
   enrollmentForm.reset();
   renderEnrollmentDatalists();
@@ -8188,7 +8204,7 @@ async function openEnrollmentModal(id) {
   if (!enr) return;
 
   document.getElementById("enrollment-modal-title").textContent = enr.name || t("enr.newTitle");
-  document.getElementById("enr-pending-modal").style.display = enr.matriculaPendente ? "flex" : "none";
+  renderEnrollmentSteps(enr);
   openEnrollmentMessages(enr);
   document.getElementById("enr-id").value = enr.id;
   document.getElementById("enr-field-name").value = enr.name || "";
@@ -8350,11 +8366,12 @@ enrollmentForm.addEventListener("submit", async e => {
 document.getElementById("enr-pending-done").addEventListener("click", async () => {
   const enr = enrollments.find(x => x.id === document.getElementById("enr-id").value);
   if (!enr) return;
+  if (!enrFormFilled(enr)) return;
   enr.matriculaPendente = false;
-  document.getElementById("enr-pending-modal").style.display = "none";
+  renderEnrollmentSteps(enr);
   renderEnrollments();
   const saved = await saveEnrollmentRemote(enr);
-  if (!saved) { enr.matriculaPendente = true; renderEnrollments(); alert(t("enr.createError")); }
+  if (!saved) { enr.matriculaPendente = true; renderEnrollmentSteps(enr); renderEnrollments(); alert(t("enr.createError")); }
 });
 
 enrBtnDelete.addEventListener("click", async () => {

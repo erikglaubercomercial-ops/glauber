@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1794854254">
+<link rel="stylesheet" href="style.css?v=1794862926">
 <link rel="stylesheet" href="bio.css?v=1794442137">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -2830,13 +2830,16 @@
       <form id="enrollment-form">
         <input type="hidden" id="enr-id">
 
-        <div class="enr-pending-banner modal-banner" id="enr-pending-modal" style="display:none;">
-          <span class="enr-pending-icon">⚠</span>
-          <div class="enr-pending-text">
-            <strong data-i18n="enr.pendingTitle">Matrícula ainda não realizada</strong>
-            <span data-i18n="enr.pendingModalSub">O cliente já assinou o contrato. Depois de concluir a matrícula na escola, marque abaixo.</span>
+        <div class="enr-steps" id="enr-steps">
+          <div class="enr-step" id="enr-step-form">
+            <span class="enr-step-num">1</span>
+            <div class="enr-step-text"><strong data-i18n="enr.step1">Formulário preenchido</strong><span id="enr-step-form-sub"></span></div>
           </div>
-          <button type="button" class="btn btn-primary btn-sm" id="enr-pending-done" data-i18n="enr.pendingDone">Marcar matrícula como realizada</button>
+          <div class="enr-step" id="enr-step-enrolled">
+            <span class="enr-step-num">2</span>
+            <div class="enr-step-text"><strong data-i18n="enr.step2">Matrícula realizada</strong><span id="enr-step-enrolled-sub"></span></div>
+            <button type="button" class="btn btn-primary btn-sm" id="enr-pending-done" data-i18n="enr.pendingDone">Marcar matrícula como realizada</button>
+          </div>
         </div>
 
         <div class="enr-link-row" id="enr-link-row" style="display:none;">
@@ -3254,10 +3257,10 @@
   <script src="config.js?v=1794442137"></script>
   <script src="ver-como.js?v=1794651066"></script>
   <script src="auth.js?v=1794653347"></script>
-  <script src="i18n.js?v=1794854254"></script>
+  <script src="i18n.js?v=1794862926"></script>
   <script src="comparativo.js?v=1794442137"></script>
   <script src="contrato-modelo.js?v=1794442137"></script>
-  <script src="script.js?v=1794854254"></script>
+  <script src="script.js?v=1794862926"></script>
   <script src="contratos-proposta.js?v=1794442137"></script>
   <script src="ficha-cliente.js?v=1794859597"></script>
   <script src="agenda-reunioes.js?v=1794442137"></script>
