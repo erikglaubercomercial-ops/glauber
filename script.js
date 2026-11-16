@@ -7813,7 +7813,7 @@ function enrollmentFromDb(r) {
     birthDate: r.birth_date || "", nationality: r.nationality || "", emergencyName: r.emergency_name || "",
     passportNumber: r.passport_number || "", passportPhotoPath: r.passport_photo_path || null,
     passportIssueDate: r.passport_issue_date || "", passportExpiryDate: r.passport_expiry_date || "",
-    matriculaPendente: !!r.matricula_pendente, preEmbarkAt: r.pre_embark_at || null,
+    matriculaPendente: !!r.matricula_pendente, schoolFormFilledAt: r.school_form_filled_at || null, preEmbarkAt: r.pre_embark_at || null,
     cpf: r.cpf || "",
     addressStreet: r.address_street || "", addressNumber: r.address_number || "",
     addressComplement: r.address_complement || "", addressNeighborhood: r.address_neighborhood || "",
@@ -7833,6 +7833,7 @@ function enrollmentToDb(e) {
     passport_number: e.passportNumber, passport_photo_path: e.passportPhotoPath,
     passport_issue_date: e.passportIssueDate || null, passport_expiry_date: e.passportExpiryDate || null,
     matricula_pendente: !!e.matriculaPendente,
+    school_form_filled_at: e.schoolFormFilledAt || null,
     cpf: e.cpf,
     address_street: e.addressStreet, address_number: e.addressNumber,
     address_complement: e.addressComplement, address_neighborhood: e.addressNeighborhood,
@@ -8181,8 +8182,8 @@ function renderEnrollmentDatalists() {
   document.getElementById("enr-turnos-list").innerHTML = turnos.map(t => `<option value="${escapeHtml(t)}">`).join("");
 }
 
-/* duas etapas da matrícula: 1) formulário preenchido pelo aluno, 2) matrícula realizada na escola */
-function enrFormFilled(enr) { return !!enr && enr.status !== "Aguardando aluno"; }
+/* duas etapas da matrícula: 1) formulário de matrícula da escola preenchido, 2) matrícula realizada */
+function enrFormFilled(enr) { return !!enr && (!!enr.schoolFormFilledAt || !enr.matriculaPendente); }
 function renderEnrollmentSteps(enr) {
   const formDone = enrFormFilled(enr);
   const enrolledDone = !enr.matriculaPendente;
@@ -8192,6 +8193,8 @@ function renderEnrollmentSteps(enr) {
   m.classList.toggle("blocked", !formDone && !enrolledDone);
   document.getElementById("enr-step-form-sub").textContent = t(formDone ? "enr.stepFormDone" : "enr.stepFormWait");
   document.getElementById("enr-step-enrolled-sub").textContent = t(enrolledDone ? "enr.stepEnrolledDone" : (formDone ? "enr.stepEnrolledWait" : "enr.stepEnrolledBlocked"));
+  const formBtn = document.getElementById("enr-form-done");
+  formBtn.style.display = formDone ? "none" : "";
   const btn = document.getElementById("enr-pending-done");
   btn.style.display = enrolledDone ? "none" : "";
   btn.disabled = !formDone;
@@ -8361,6 +8364,16 @@ enrollmentForm.addEventListener("submit", async e => {
       openStudentAccessModal(enr, result.password);
     }
   }
+});
+
+document.getElementById("enr-form-done").addEventListener("click", async () => {
+  const enr = enrollments.find(x => x.id === document.getElementById("enr-id").value);
+  if (!enr || enrFormFilled(enr)) return;
+  enr.schoolFormFilledAt = new Date().toISOString();
+  renderEnrollmentSteps(enr);
+  renderEnrollments();
+  const saved = await saveEnrollmentRemote(enr);
+  if (!saved) { enr.schoolFormFilledAt = null; renderEnrollmentSteps(enr); renderEnrollments(); alert(t("enr.createError")); }
 });
 
 document.getElementById("enr-pending-done").addEventListener("click", async () => {
