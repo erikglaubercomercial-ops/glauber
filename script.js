@@ -732,7 +732,7 @@ function unstickLeadIfNew(leadId) {
   lead.status = "Em contato";
   lead.rotationActive = false;
   renderLeads();
-  saveLeads();
+  saveLeads([lead]);
   refreshStuckLeadsAfterReassign([leadId]);
 }
 
@@ -1131,7 +1131,7 @@ function moveDeal(id, newStage) {
     const lead = leads.find(l => l.id === deal.leadId);
     if (lead && lead.status === "Novo") {
       lead.status = "Em contato";
-      saveLeads();
+      saveLeads([lead]);
     }
   }
   const saving = saveDeals([deal]);
@@ -1632,6 +1632,7 @@ async function loadLeads() {
 /* `only`: salva só esses leads (o lead que acabou de ser criado/editado), assim um lead antigo com problema
    não derruba a gravação do novo. Sem argumento, grava a lista toda como antes. Devolve true se gravou. */
 async function saveLeads(only) {
+  if (only && !only.length) return true;   /* nada alterado: não regrava a lista inteira */
   const { error } = await supabase.from("leads").upsert((only || leads).map(leadToDb));
   if (error) {
     console.error("Erro ao salvar leads:", error);
@@ -2192,10 +2193,11 @@ function toggleBulkMenu(triggerEl) {
   });
   menu.querySelector('[data-action="deactivate"]').addEventListener("click", async () => {
     closeBulkMenu();
-    leads.forEach(l => { if (selectedLeadIds.has(l.id)) l.active = false; });
+    const toDeactivate = leads.filter(l => selectedLeadIds.has(l.id));
+    toDeactivate.forEach(l => { l.active = false; });
     selectedLeadIds.clear();
     renderLeads();
-    await saveLeads();
+    await saveLeads(toDeactivate);
   });
   menu.querySelector('[data-action="delete"]').addEventListener("click", async () => {
     closeBulkMenu();
@@ -2254,19 +2256,20 @@ quickFieldForm.addEventListener("submit", async e => {
   e.preventDefault();
   const value = quickFieldSelect.value;
   const { ids, field } = quickFieldTarget;
+  const touched = [];
   ids.forEach(id => {
     const lead = leads.find(l => l.id === id);
-    if (lead) lead[field] = value;
+    if (lead) { lead[field] = value; touched.push(lead); }
   });
   renderLeads();
   closeQuickFieldModal();
-  await saveLeads();
+  await saveLeads(touched);
 });
 
 async function toggleLeadActive(lead) {
   lead.active = lead.active === false ? true : false;
   renderLeads();
-  await saveLeads();
+  await saveLeads([lead]);
 }
 
 async function removeLead(id) {
@@ -2478,14 +2481,15 @@ assignForm.addEventListener("submit", async e => {
     return;
   }
   const consultorId = assignFieldConsultor.value || null;
+  const reassigned = [];
   assigningLeadIds.forEach(id => {
     const lead = leads.find(l => l.id === id);
-    if (lead) lead.consultorId = consultorId;
+    if (lead) { lead.consultorId = consultorId; reassigned.push(lead); }
   });
   renderLeads();
   closeAssignModal();
   refreshStuckLeadsAfterReassign(assigningLeadIds);
-  await saveLeads();
+  await saveLeads(reassigned);
 });
 
 /* ============================================================
@@ -3194,7 +3198,7 @@ document.getElementById("import-btn-confirm").addEventListener("click", async ()
   alert(`${t("import.completed1")} ${imported} ${t("import.completed2")}`
     + `${skipped ? `, ${skipped} ${t("import.skippedNoName")}` : ""}`
     + `${skippedDuplicates ? `, ${skippedDuplicates} ${t("import.skippedDuplicates")}` : ""}.`);
-  await saveLeads();
+  await saveLeads(importedLeads);
 
   if (importedLeads.length) {
     const newDeals = importedLeads.map(l => createDealForLead(l)).filter(Boolean);
@@ -3273,6 +3277,7 @@ sourcesListEl.addEventListener("change", async e => {
   if (newName === oldName) return;
 
   SOURCES[index] = newName;
+  const renamedLeads = leads.filter(l => l.source === oldName || l.source2 === oldName);
   leads.forEach(l => { if (l.source === oldName) l.source = newName; if (l.source2 === oldName) l.source2 = newName; });
   if (sourceInfluencerConfig[oldName]) {
     sourceInfluencerConfig[newName] = sourceInfluencerConfig[oldName];
@@ -3282,7 +3287,7 @@ sourcesListEl.addEventListener("change", async e => {
   renderLeadFilterOptions();
   renderLeads();
   await renameSourceRemote(oldName, newName);
-  await saveLeads();
+  await saveLeads(renamedLeads);
 });
 
 sourcesListEl.addEventListener("click", async e => {
