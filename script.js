@@ -6956,7 +6956,6 @@ function renderCommissions() {
 
   document.getElementById("fin-commission-setting-wrap").style.display = session && session.role === "ADM" ? "flex" : "none";
   document.getElementById("fin-commission-pct").value = commissionSettings.defaultPercentage;
-  document.getElementById("fin-rule-fee").value = commissionSettings.platformFee;
   document.getElementById("fin-rule-platform-pct").value = commissionSettings.platformPct;
   document.getElementById("fin-rule-manager").value = commissionSettings.managerFixed;
   document.getElementById("fin-rule-cac").value = commissionSettings.cacFixed;
@@ -7328,7 +7327,7 @@ document.getElementById("fin-commission-pct-save").addEventListener("click", asy
   const num = (id, d) => { const v = parseFloat(document.getElementById(id).value); return Number.isFinite(v) && v >= 0 ? v : d; };
   const cfg = {
     defaultPercentage: Math.min(100, num("fin-commission-pct", commissionSettings.defaultPercentage)),
-    platformFee: num("fin-rule-fee", commissionSettings.platformFee),
+    platformFee: commissionSettings.platformFee,
     platformPct: Math.min(100, num("fin-rule-platform-pct", commissionSettings.platformPct)),
     managerFixed: num("fin-rule-manager", commissionSettings.managerFixed),
     cacFixed: num("fin-rule-cac", commissionSettings.cacFixed),
