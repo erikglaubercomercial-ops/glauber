@@ -8035,9 +8035,9 @@ function renderEnrollments() {
   document.getElementById("enrollments-empty").style.display = filtered.length === 0 ? "block" : "none";
   filtered.forEach(e => {
     const tr = document.createElement("tr");
-    if (e.matriculaPendente) tr.classList.add("enr-row-pending");
+    if (e.matriculaPendente) tr.classList.add(enrFormFilled(e) ? "enr-row-form-ok" : "enr-row-pending");
     tr.innerHTML = `
-      <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}${e.matriculaPendente ? `<div><span class="badge badge-danger enr-pending-badge">⚠ ${escapeHtml(t(enrFormFilled(e) ? "enr.badgeWaitEnroll" : "enr.badgeWaitForm"))}</span></div>` : ""}${enrUnread[e.id] ? `<div><span class="badge badge-warn enr-pending-badge">${escapeHtml(t("enr.msgNew").replace("{n}", enrUnread[e.id]))}</span></div>` : ""}</td>
+      <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}${e.matriculaPendente ? `<div>${enrFormFilled(e) ? `<span class="badge badge-good enr-pending-badge">✓ ${escapeHtml(t("enr.badgeWaitEnroll"))}</span>` : `<span class="badge badge-danger enr-pending-badge">⚠ ${escapeHtml(t("enr.badgeWaitForm"))}</span>`}</div>` : ""}${enrUnread[e.id] ? `<div><span class="badge badge-warn enr-pending-badge">${escapeHtml(t("enr.msgNew").replace("{n}", enrUnread[e.id]))}</span></div>` : ""}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.turno || "—")}</td>
       <td><span class="badge ${ENROLLMENT_STATUS_BADGE[e.status] || "badge-neutral"}">${escapeHtml(statusLabel(e.status))}</span></td>

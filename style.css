@@ -2141,6 +2141,7 @@ body > .lang-switcher { position: fixed; top: 18px; right: 18px; z-index: 40; }
 .enr-pending-icon { font-size: 26px; line-height: 1; }
 .enr-pending-text { display: flex; flex-direction: column; gap: 2px; margin-right: auto; font-size: 13px; }
 .enr-pending-text strong { font-size: 15px; font-weight: 800; }
+.enr-row-form-ok { box-shadow: inset 4px 0 0 var(--good); background: var(--good-bg); }
 .enr-row-pending { box-shadow: inset 4px 0 0 var(--danger); background: var(--danger-bg); }
 .enr-pending-badge { margin-top: 4px; font-weight: 800; }
 .stat-value.stat-bad { color: var(--danger); }
