@@ -7099,6 +7099,7 @@ function renderSaleSplits() {
   tbody.innerHTML = list.map(sp => {
     const deal = deals.find(d => d.id === sp.dealId);
     const mgr = users.find(u => u.id === sp.managerId);
+    const cons = deal ? users.find(u => u.id === dealConsultorId(deal)) : null;
     const pendente = sp.netCourse == null;
     const wrong = splitNetLooksWrong(sp.netCourse, splitBase(sp));
     const passValue = splitPassValue(sp);
@@ -7119,7 +7120,7 @@ function renderSaleSplits() {
       <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null && !splitPending.has(splitKey(sp.dealId, "custo")) ? "split-in-auto" : ""} ${dirty("custo")}" data-deal="${sp.dealId}" data-field="custo" value="${escapeHtml(val("custo", splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)))}" aria-label="Custo do curso (Gross)" title="${sp.custoCurso == null ? "Gross da invoice da escola. Em branco, vale o valor vendido. Se o Gross for menor (promoção que não foi repassada ao cliente), digite-o: a diferença aparece como sobra do curso." : "Gross da invoice da escola. Apague para voltar a valer o valor vendido."}"></td>
       ${calc("course_gross", false)}
       <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""} ${dirty("net")}" data-deal="${sp.dealId}" data-field="net" value="${escapeHtml(val("net", pendente ? "" : splitMoney(sp.netCourse)))}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
-      ${calc("cac_amount", false)}${calc("influencer_amount", false, sp.influencerPendente ? '<span class="split-sub split-pendente">influenciador ainda não recebeu</span>' : "")}${calc("cons_curso", false)}
+      ${calc("cac_amount", false)}${calc("influencer_amount", false, sp.influencerPendente ? '<span class="split-sub split-pendente">influenciador ainda não recebeu</span>' : "")}${calc("cons_curso", false, cons ? `<span class="split-sub">${escapeHtml(cons.name)}</span>` : "")}
       ${calc("manager_amount", false, mgr ? `<span class="split-sub">${escapeHtml(mgr.name)}</span>` : "")}
       ${calc("reserva_amount", false, sp.sobraAmount ? `<span class="split-sub">sobra do curso ${currency(sp.sobraAmount)} (entra na divisão do lucro)</span>` : "")}
       ${calc("acom_pago", true)}${calc("acom_cobrado", false)}${calc("acom_lucro", false)}${calc("acom_consultor", false)}${calc("acom_ganho", false)}
