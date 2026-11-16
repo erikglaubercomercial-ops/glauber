@@ -290,6 +290,10 @@ body {
   cursor: pointer;
 }
 .icon-btn:hover { color: var(--text); }
+.icon-btn { position: relative; }
+.icon-btn-badge { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--surface); }
+.icon-btn-badge[hidden] { display: none; }
+.icon-btn.has-unread { color: var(--primary); }
 
 /* seletor de idioma (bandeiras) */
 .lang-switcher {

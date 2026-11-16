@@ -166,6 +166,13 @@ function miSetBadge(n) {
   if (!b) return;
   b.textContent = n > 99 ? "99+" : String(n);
   b.hidden = !n;
+  /* o mesmo aviso no ícone de mensagens do topo da tela */
+  const tb = miEl("topbar-msg-badge"), btn = miEl("topbar-msg-btn");
+  if (tb) { tb.textContent = n > 99 ? "99+" : String(n); tb.hidden = !n; }
+  if (btn) {
+    btn.classList.toggle("has-unread", !!n);
+    btn.title = n ? `Mensagens: ${n} não lida${n > 1 ? "s" : ""}` : "Mensagens";
+  }
 }
 
 /* ---- anexos ---- */
@@ -348,6 +355,18 @@ miEl("mi-compose-form").addEventListener("submit", async e => {
   await renderMensagens();
   await miSelect(data);
 });
+
+/* ícone de mensagens no topo: abre a tela de Mensagens (na primeira conversa não lida, se houver) */
+(function miTopbarButton() {
+  const btn = miEl("topbar-msg-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const first = (miState.threads || []).find(t => miIsUnread(t));
+    miState.tab = "mine";
+    if (first) miState.selectedId = first.id;
+    if (typeof switchView === "function") switchView("mensagens");
+  });
+})();
 
 /* arranque: começa a checar respostas novas assim que a sessão existir */
 (function miBoot() {
