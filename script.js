@@ -9553,7 +9553,15 @@ function destroyDashChart(key) {
   if (dashCharts[key]) { dashCharts[key].destroy(); delete dashCharts[key]; }
 }
 
+function renderDashboardHello() {
+  const el = document.getElementById("dash-hello-title");
+  if (!el) return;
+  const first = String(session.name || "").trim().split(/\s+/)[0] || "";
+  el.textContent = first ? t("dash.hello").replace("{name}", first) : "Olá!";
+}
+
 function renderDashboardView() {
+  renderDashboardHello();
   renderDashboardStatCards();
   renderDashboardFunnel();
   renderDashboardLeadsMonth();

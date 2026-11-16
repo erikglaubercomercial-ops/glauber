@@ -1194,6 +1194,9 @@ body > .lang-switcher { position: fixed; top: 18px; right: 18px; z-index: 40; }
 }
 
 /* ===== DASHBOARD ===== */
+.dash-hello { margin: 0 0 16px; }
+.dash-hello h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
+.dash-hello p { margin: 4px 0 0; color: var(--text-muted); font-size: 14px; }
 .dashboard-layout { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
 .dashboard-main { min-width: 0; }
 .dashboard-sidebar { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 18px; }
