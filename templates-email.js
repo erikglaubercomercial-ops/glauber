@@ -1,7 +1,9 @@
 /* ============================================================
    TEMPLATES DE E-MAIL (menu Templates)
    Modelos padrão para todos os consultores: escolher, copiar e colar no e-mail.
-   Variáveis: {{nome}}, {{primeiro_nome}}, {{consultor}}, {{email_consultor}} — o consultor
+   Variáveis: {{nome}}, {{primeiro_nome}}, {{consultor}}, {{email_consultor}} e, da matrícula do lead,
+   {{escola}}, {{data_nascimento}}, {{nacionalidade}}, {{cpf}}, {{email_cliente}}, {{telefone_cliente}},
+   {{endereco}}, {{contato_emergencia}} — o consultor
    vem do usuário logado; o cliente vem do lead escolhido no topo (sem lead, fica o marcador
    [nome do cliente] para preencher). Só o ADM cria, edita, duplica e exclui.
    Depende de script.js: session, leads, users, uid, escapeHtml, agendaToast, visibleLeadsBase.
@@ -16,6 +18,14 @@ const ET_VARS = [
   ["{{nome}}", "Nome completo do cliente"],
   ["{{consultor}}", "Seu nome"],
   ["{{email_consultor}}", "Seu e-mail"],
+  ["{{escola}}", "Escola da matrícula"],
+  ["{{data_nascimento}}", "Data de nascimento (dd/mm/aaaa)"],
+  ["{{nacionalidade}}", "Nacionalidade"],
+  ["{{cpf}}", "CPF do cliente"],
+  ["{{email_cliente}}", "E-mail do cliente"],
+  ["{{telefone_cliente}}", "Telefone do cliente"],
+  ["{{endereco}}", "Endereço completo do cliente"],
+  ["{{contato_emergencia}}", "Contato de emergência (nome – telefone)"],
 ];
 const etIsAdmin = () => !!(session && session.role === "ADM") && !(typeof viewAs !== "undefined" && viewAs.active);
 
@@ -30,16 +40,48 @@ async function etSave(row) {
   return !error;
 }
 
-/* troca as variáveis pelos dados do consultor logado e do lead escolhido */
+/* matrícula mais recente do lead escolhido (dados do formulário de matrícula) */
+function etEnrollment(lead) {
+  if (!lead || typeof enrollments === "undefined") return null;
+  return enrollments.filter(e => e.leadId === lead.id).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0))[0] || null;
+}
+function etDateBR(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+function etAddress(e) {
+  if (!e || !(e.addressStreet || e.addressCity)) return "";
+  const street = [e.addressStreet, e.addressNumber].filter(Boolean).join(", ");
+  const line1 = [street, e.addressComplement, e.addressNeighborhood].filter(Boolean).join(", ");
+  const city = [e.addressCity, e.addressState].filter(Boolean).join("-");
+  return [line1, city ? `${city}, Brazil` : "Brazil", e.addressZip ? `ZIP Code: ${e.addressZip}` : ""].filter(Boolean).join(" – ");
+}
+
+/* troca as variáveis pelos dados do consultor logado, do lead escolhido e da matrícula dele;
+   o que ainda não existe fica entre [colchetes] para o consultor preencher */
 function etFill(text) {
   const lead = et.lead ? leads.find(l => l.id === et.lead) : null;
+  const enr = etEnrollment(lead);
   const nome = lead ? lead.name : "[nome do cliente]";
   const primeiro = lead ? String(lead.name || "").trim().split(/\s+/)[0] : "[primeiro nome]";
-  return String(text || "")
-    .replace(/\{\{\s*primeiro_nome\s*\}\}/gi, primeiro)
-    .replace(/\{\{\s*nome\s*\}\}/gi, nome)
-    .replace(/\{\{\s*consultor\s*\}\}/gi, (session && session.name) || "")
-    .replace(/\{\{\s*email_consultor\s*\}\}/gi, (session && session.email) || "");
+  const nat = enr && enr.nationality ? (/^brasileir/i.test(enr.nationality) ? "Brazilian" : enr.nationality) : "";
+  const emerg = enr && (enr.emergencyName || enr.emergencyPhone) ? [enr.emergencyName, enr.emergencyPhone].filter(Boolean).join(" – ") : "";
+  const phone = (enr && enr.phone) || (lead && typeof leadPhoneText === "function" ? leadPhoneText(lead) : "") || "";
+  const v = {
+    primeiro_nome: primeiro,
+    nome,
+    consultor: (session && session.name) || "",
+    email_consultor: (session && session.email) || "",
+    escola: (enr && enr.school) || "[escola]",
+    data_nascimento: (enr && etDateBR(enr.birthDate)) || "[data de nascimento]",
+    nacionalidade: nat || "[nacionalidade]",
+    cpf: (enr && enr.cpf) || "[CPF]",
+    email_cliente: (enr && enr.email) || (lead && lead.email) || "[e-mail do cliente]",
+    telefone_cliente: phone || "[telefone do cliente]",
+    endereco: etAddress(enr) || "[endereço]",
+    contato_emergencia: emerg || "[contato de emergência]",
+  };
+  return String(text || "").replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (m, k) => (Object.prototype.hasOwnProperty.call(v, k.toLowerCase()) ? v[k.toLowerCase()] : m));
 }
 
 async function etCopy(text, btn) {
