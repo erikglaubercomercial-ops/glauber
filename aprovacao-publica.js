@@ -52,7 +52,7 @@ function qaSheetDocument(q) {
     </div>
   </div>
   <table><thead><tr><th>Serviço</th><th class="c">Qtd.</th><th class="r">Unitário</th><th class="t">Total</th></tr></thead><tbody>${rows}</tbody></table>
-  <div class="totals"><div class="line"><span>Subtotal</span><span>${money(Number(q.value) + desconto + entrada)}</span></div>${desconto > 0 ? `<div class="line"><span>Desconto</span><span>− ${money(desconto)}</span></div>` : ""}${entrada > 0 ? `<div class="line"><span>Entrada já paga</span><span>− ${money(entrada)}</span></div>` : ""}<div class="line grand"><span>Total</span><span>${money(q.value)}</span></div></div>
+  <div class="totals"><div class="line"><span>Subtotal</span><span>${money(Number(q.value) + desconto + entrada)}</span></div>${desconto > 0 ? `<div class="line"><span>Desconto</span><span>− ${money(desconto)}</span></div>` : ""}${entrada > 0 ? `<div class="line"><span>Valor total</span><span>${money(Number(q.value) + entrada)}</span></div><div class="line"><span>Entrada já paga</span><span>− ${money(entrada)}</span></div><div class="line grand"><span>Valor devido após a entrada</span><span>${money(q.value)}</span></div>` : `<div class="line grand"><span>Total</span><span>${money(q.value)}</span></div>`}</div>
   ${q.observacoes ? `<div class="obs"><div class="lbl">Observações</div><span>${esc(q.observacoes)}</span></div>` : ""}
   <div class="doc-foot"><div class="slogan">O caminho transforma.</div><div class="rule"></div></div>
 </div></div></body></html>`;

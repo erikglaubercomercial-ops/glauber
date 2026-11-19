@@ -5049,7 +5049,8 @@ function quoteRenderSheet() {
         <div class="cq-desc-row cq-desc-line" id="quote-sheet-desc-line" ${desc ? "" : "hidden"}><span>Desconto aplicado</span><b id="quote-sheet-desc">− ${currency(desc)}</b></div>
         <div class="cq-desc-row cq-desc-line" id="quote-sheet-ent-line" ${ent ? "" : "hidden"}><span>Entrada já paga</span><b id="quote-sheet-ent">− ${currency(ent)}</b></div>
       </div>
-      <div class="cq-total"><span>Total</span><b id="quote-sheet-total">${currency(total)}</b></div>
+      <div class="cq-desc-row cq-desc-line" id="quote-sheet-vt-line" ${ent ? "" : "hidden"}><span>Valor total</span><b id="quote-sheet-vt">${currency(sub - desc)}</b></div>
+      <div class="cq-total"><span id="quote-sheet-total-label">${ent ? "Valor devido após a entrada" : "Total"}</span><b id="quote-sheet-total">${currency(total)}</b></div>
       <div class="cq-opts"><label><input type="checkbox" data-qs="subs" ${quoteShowSubs ? "checked" : ""}> mostrar subitens (o que está incluso)</label><button type="button" class="cq-clear" data-qs="clear">Limpar serviços</button></div>
       <div class="cq-valid">Os subitens não somam no total: o total é preço × quantidade.</div>`;
   }
@@ -5078,6 +5079,10 @@ function quoteAtualizaTotaisSemRedesenhar() {
   const entLine = document.getElementById("quote-sheet-ent-line");
   if (entLine) entLine.hidden = !ent;
   set("quote-sheet-total", currency(total));
+  set("quote-sheet-vt", currency(sub - desc));
+  const vtLine = document.getElementById("quote-sheet-vt-line");
+  if (vtLine) vtLine.hidden = !ent;
+  set("quote-sheet-total-label", ent ? "Valor devido após a entrada" : "Total");
   document.getElementById("quote-preview-total").textContent = currency(total);
 }
 quoteSheetEl.addEventListener("input", e => {
@@ -5388,6 +5393,9 @@ async function quoteGerar() {
   const entDoc = quoteEntradaAplicado();
   document.getElementById("d-entrada-line").hidden = !entDoc;
   document.getElementById("d-entrada").textContent = `− ${currency(entDoc)}`;
+  document.getElementById("d-vt-line").hidden = !entDoc;
+  document.getElementById("d-vt").textContent = currency(quoteSubtotal() - descDoc);
+  document.getElementById("d-total-label").textContent = entDoc ? "Valor devido após a entrada" : "Total";
   document.getElementById("d-total").textContent = currency(total);
 
   document.getElementById("d-obs").hidden = !obs;

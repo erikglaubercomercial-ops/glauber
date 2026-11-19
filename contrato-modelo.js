@@ -190,7 +190,7 @@ function contratoCotacaoHtml(cotacao) {
       <tbody>${linhas}</tbody>
     </table>
     ${desconto > 0 || entrada > 0 ? `<div class="sub" style="text-align:right;margin-top:3mm">Subtotal ${contratoMoney(Number(cotacao.value) + desconto + entrada)}${desconto > 0 ? ` · <b>Desconto − ${contratoMoney(desconto)}</b>` : ""}${entrada > 0 ? ` · <b>Entrada já paga − ${contratoMoney(entrada)}</b>` : ""}</div>` : ""}
-    <div class="total">Total ${contratoMoney(cotacao.value)}</div>
+    ${entrada > 0 ? `<div class="sub" style="text-align:right">Valor total ${contratoMoney(Number(cotacao.value) + entrada)}</div><div class="total">Valor devido após a entrada ${contratoMoney(cotacao.value)}</div>` : `<div class="total">Total ${contratoMoney(cotacao.value)}</div>`}
     ${cotacao.observacoes ? `<div class="sub" style="margin-top:4mm"><b>Observações:</b> ${contratoEsc(cotacao.observacoes)}</div>` : ""}`;
 }
 
