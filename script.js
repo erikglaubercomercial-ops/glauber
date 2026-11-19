@@ -20,6 +20,8 @@ function canAccessView(view) {
   /* WhatsApp: caixa de entrada do número da empresa — ADM e Gerente veem tudo, Consultor só as conversas dos próprios leads */
   if (view === "whatsapp") return ["ADM", "Gerente", "Consultor"].includes(session.role);
   if (view === "usuarios") return session.role === "ADM";
+  /* pipeline de pós-venda: ADM, Gerente e Suporte veem e alteram; Sócio só vê (a regra fica no banco também) */
+  if (view === "posvenda") return typeof pvCanView === "function" && pvCanView();
   if (view === "agenda") return session.role !== "Influencer";
   /* MKT e Mapa Mental: ADM, Gerente e MKT editam; o Consultor só visualiza (o banco também só deixa ele ler) */
   if (view === "mkt" || view === "mapamental") return ["ADM", "Gerente", "MKT", "Consultor"].includes(session.role);
@@ -234,6 +236,7 @@ function switchView(view) {
   if (view === "agenda" && typeof renderAgendaScreen === "function") renderAgendaScreen();
   if (view === "financeiro" && typeof showFinanceiroDashboard === "function") showFinanceiroDashboard();
   if (view === "mensagens" && typeof renderMensagens === "function") renderMensagens();
+  if (view === "posvenda" && typeof renderPosVenda === "function") renderPosVenda();
   if (view === "colaboradores" && typeof showTimeTab === "function") {
     const doc = document.getElementById("time-tab-cadastro");
     if (doc) doc.style.display = hasModuleAccess(session.role, "colaboradores") ? "" : "none";

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1794863455">
+<link rel="stylesheet" href="style.css?v=1795097936">
 <link rel="stylesheet" href="bio.css?v=1794442137">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -85,6 +85,11 @@
         </button>
 
         <div class="nav-label" data-nav-section="posvenda" data-i18n="nav.secPosvenda">PÓS-VENDA</div>
+
+        <button class="nav-item" data-view="posvenda" id="nav-posvenda" style="display:none;">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/></svg>
+          <span data-i18n="nav.posvenda">Pipeline pós-venda</span>
+        </button>
 
         <button class="nav-item" data-view="matriculas">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 8h7M9 12h5"/></svg>
@@ -1202,6 +1207,32 @@
       </section>
 
       <!-- MATRÍCULAS VIEW -->
+      <section class="view" id="view-posvenda">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Pipeline pós-venda</h2>
+            <div class="pv-head-acts">
+              <span class="pv-count" id="pv-count"></span>
+              <button type="button" class="btn btn-primary btn-sm" id="pv-new" style="display:none;">+ Nova etapa</button>
+            </div>
+          </div>
+          <p class="q-card-sub" id="pv-note"></p>
+          <div class="pv-board" id="pv-board"></div>
+        </div>
+        <div class="panel pv-det" id="pv-det"></div>
+        <div class="panel pv-edit" id="pv-edit" hidden></div>
+        <datalist id="pv-resp-list">
+          <option value="Financeiro"></option>
+          <option value="ADM"></option>
+          <option value="Gerente"></option>
+          <option value="Suporte"></option>
+          <option value="Gerente e Suporte"></option>
+          <option value="Suporte e ADM"></option>
+          <option value="Financeiro e ADM liberam"></option>
+          <option value="a definir"></option>
+        </datalist>
+      </section>
+
       <section class="view" id="view-matriculas">
         <div class="enr-pending-banner" id="enr-pending-banner" style="display:none;">
           <span class="enr-pending-icon">⚠</span>
@@ -3258,10 +3289,10 @@
   <script src="config.js?v=1794442137"></script>
   <script src="ver-como.js?v=1794651066"></script>
   <script src="auth.js?v=1794653347"></script>
-  <script src="i18n.js?v=1794863318"></script>
+  <script src="i18n.js?v=1795097936"></script>
   <script src="comparativo.js?v=1794442137"></script>
   <script src="contrato-modelo.js?v=1794442137"></script>
-  <script src="script.js?v=1794873440"></script>
+  <script src="script.js?v=1795097936"></script>
   <script src="contratos-proposta.js?v=1794442137"></script>
   <script src="ficha-cliente.js?v=1794859597"></script>
   <script src="agenda-reunioes.js?v=1794442137"></script>
@@ -3276,7 +3307,8 @@
   <script src="time24.js?v=1794442137"></script>
   <script src="whatsapp.js?v=1794442137"></script>
   <script src="links-bio.js?v=1794442137"></script>
-  <script src="templates-email.js?v=1794932796"></script>
+  <script src="templates-email.js?v=1795000000"></script>
+  <script src="posvenda.js?v=1795097936"></script>
   <script src="catalogo-explorer.js?v=1794442137"></script>
   <script src="financeiro-dashboard.js?v=1794442137"></script>
   <script src="acomodacao-financeiro.js?v=1794662038"></script>
