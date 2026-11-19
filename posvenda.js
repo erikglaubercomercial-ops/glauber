@@ -10,9 +10,18 @@ let pvData = null;          /* { etapas: [...], alunos: [...] } vindo de pv_list
 let pvSel = null;           /* enrollment_id do aluno selecionado */
 let pvEdit = null;          /* null | { id: etapa id ou null } */
 let pvBusy = false;
+let pvQuery = "";           /* busca por nome do aluno (mesma ideia da busca do Pipeline de vendas) */
 
 const pvCanView = () => !!session && (["ADM", "Gerente", "Suporte"].includes(session.role) || isSocioSession());
 const pvCanEdit = () => !!session && ["ADM", "Gerente", "Suporte"].includes(session.role);
+
+/* cor da etapa: mesma escala do Pipeline de vendas (azul no início → vermelho no fim),
+   usando STAGE_COLOR_START / STAGE_COLOR_END definidos em script.js */
+function pvStageColor(i, n) {
+  const t = n <= 1 ? 0 : i / (n - 1);
+  const mix = (a, b) => Math.round(a + (b - a) * t);
+  return `rgb(${mix(STAGE_COLOR_START.r, STAGE_COLOR_END.r)}, ${mix(STAGE_COLOR_START.g, STAGE_COLOR_END.g)}, ${mix(STAGE_COLOR_START.b, STAGE_COLOR_END.b)})`;
+}
 
 function pvYmd(s) {
   const m = String(s || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -91,24 +100,30 @@ function pvRender() {
   const { etapas, alunos } = pvData;
   const canEdit = pvCanEdit();
   document.getElementById("pv-count").textContent = `${alunos.length} aluno(s) em pós-venda`;
+  const q = pvQuery.toLowerCase();
+  const visiveis = q ? alunos.filter(a => String(a.name || "").toLowerCase().includes(q)) : alunos;
 
   if (!etapas.length) {
     document.getElementById("pv-board").innerHTML = `<p class="muted-note">Nenhuma etapa cadastrada.</p>`;
   } else {
     document.getElementById("pv-board").innerHTML = etapas.map((e, i) => {
-      const cards = alunos.filter(a => a.etapa_id === e.id).sort((x, y) => String(x.name).localeCompare(String(y.name)));
+      const cards = visiveis.filter(a => a.etapa_id === e.id).sort((x, y) => String(x.name).localeCompare(String(y.name)));
       return `
-        <div class="pv-col">
-          <div class="pv-head">
+        <div class="column" style="--stage-color:${pvStageColor(i, etapas.length)}">
+          <div class="column-header">
             <div class="pv-head-t">
               <div class="pv-num">Etapa ${i + 1}</div>
               <div class="pv-name">${escapeHtml(e.nome)}</div>
-              <div class="pv-own">${escapeHtml(e.responsavel)}</div>
             </div>
-            ${canEdit ? `<button type="button" class="btn btn-ghost btn-sm pv-edit-btn" data-pv-act="edit-step" data-id="${e.id}">Editar</button>` : ""}
+            <div class="pv-head-r">
+              <span class="column-count">${cards.length}</span>
+              ${canEdit ? `<button type="button" class="btn btn-ghost btn-sm pv-edit-btn" data-pv-act="edit-step" data-id="${e.id}">Editar</button>` : ""}
+            </div>
           </div>
-          <div class="pv-count-step">${cards.length} aluno(s)</div>
-          ${cards.map(a => pvCardHtml(a, e)).join("") || `<div class="pv-empty">Nenhum aluno</div>`}
+          <div class="column-value">${escapeHtml(e.responsavel)}</div>
+          <div class="column-cards">
+            ${cards.map(a => pvCardHtml(a, e)).join("") || `<div class="empty-hint">${q ? "Nenhum aluno encontrado" : "Nenhum aluno nesta etapa"}</div>`}
+          </div>
         </div>`;
     }).join("");
   }
@@ -125,13 +140,13 @@ function pvCardHtml(a, e) {
   const sub = [a.school, a.turno].filter(Boolean).join(" · ");
   const chegada = a.arrival_date ? `Chegada ${pvDateBR(a.arrival_date)}${a.arrival_time ? " · " + String(a.arrival_time).slice(0, 5) : ""}` : "Chegada a informar";
   return `
-    <div class="pv-card${pvSel === a.enrollment_id ? " sel" : ""}" data-pv-card="${a.enrollment_id}">
-      <b>${escapeHtml(a.name || "—")}</b>
-      <span>${escapeHtml(sub || "—")}</span>
-      <span>${escapeHtml(chegada)}</span>
+    <div class="card pv-card${pvSel === a.enrollment_id ? " sel" : ""}" data-pv-card="${a.enrollment_id}">
+      <div class="card-name">${escapeHtml(a.name || "—")}</div>
+      <div class="card-meta">${escapeHtml(sub || "—")}</div>
+      <div class="card-contact-row"><span>${escapeHtml(chegada)}</span></div>
+      ${alerts.length ? `<div class="card-tags">${alerts.map(([k, txt]) => `<span class="badge ${k === "d" ? "badge-danger" : "badge-warn"}">${escapeHtml(txt)}</span>`).join("")}</div>` : ""}
       <div class="pv-bar"><i style="width:${pct}%"></i></div>
-      <span>${feitos} de ${total} itens</span>
-      ${alerts.map(([k, txt]) => `<span class="pv-chip ${k}">${escapeHtml(txt)}</span>`).join("")}
+      <div class="card-footer"><span class="card-value">${feitos} de ${total} itens</span></div>
     </div>`;
 }
 
@@ -282,6 +297,7 @@ function pvBind() {
   const root = document.getElementById("view-posvenda");
   if (!root) return;
   document.getElementById("pv-new").addEventListener("click", () => { if (pvCanEdit()) pvOpenEdit(null); });
+  document.getElementById("pv-search-input").addEventListener("input", e => { pvQuery = e.target.value.trim(); pvRender(); });
 
   root.addEventListener("click", e => {
     const card = e.target.closest("[data-pv-card]");

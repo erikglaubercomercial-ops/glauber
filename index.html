@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1795097936">
+<link rel="stylesheet" href="style.css?v=1795270001">
 <link rel="stylesheet" href="bio.css?v=1794442137">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -1208,17 +1208,23 @@
 
       <!-- MATRÍCULAS VIEW -->
       <section class="view" id="view-posvenda">
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Pipeline pós-venda</h2>
-            <div class="pv-head-acts">
-              <span class="pv-count" id="pv-count"></span>
-              <button type="button" class="btn btn-primary btn-sm" id="pv-new" style="display:none;">+ Nova etapa</button>
-            </div>
+        <div class="panel-header board-header">
+          <h2>Pipeline pós-venda</h2>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="pv-count" id="pv-count"></span>
+            <button type="button" class="btn btn-primary" id="pv-new" style="display:none;">+ Nova etapa</button>
           </div>
-          <p class="q-card-sub" id="pv-note"></p>
-          <div class="pv-board" id="pv-board"></div>
         </div>
+        <div class="panel" style="margin-bottom:16px;">
+          <div class="filter-bar" style="border-bottom:none; padding:14px 20px;">
+            <div class="enr-lead-search-wrap filter-lead-search">
+              <svg class="enr-lead-search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="pv-search-input" placeholder="Buscar aluno por nome" autocomplete="off">
+            </div>
+            <span class="muted-note" id="pv-note" style="margin:0;"></span>
+          </div>
+        </div>
+        <div class="board" id="pv-board"></div>
         <div class="panel pv-det" id="pv-det"></div>
         <div class="panel pv-edit" id="pv-edit" hidden></div>
         <datalist id="pv-resp-list">
@@ -3310,7 +3316,7 @@
   <script src="whatsapp.js?v=1794442137"></script>
   <script src="links-bio.js?v=1794442137"></script>
   <script src="templates-email.js?v=1795000000"></script>
-  <script src="posvenda.js?v=1795097936"></script>
+  <script src="posvenda.js?v=1795270001"></script>
   <script src="catalogo-explorer.js?v=1794442137"></script>
   <script src="financeiro-dashboard.js?v=1794442137"></script>
   <script src="acomodacao-financeiro.js?v=1794662038"></script>
