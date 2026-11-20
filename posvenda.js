@@ -121,7 +121,7 @@ function pvRender() {
             </div>
           </div>
           <div class="column-value">${escapeHtml(e.responsavel)}</div>
-          <div class="column-cards">
+          <div class="column-cards" data-pv-etapa="${e.id}">
             ${cards.map(a => pvCardHtml(a, e)).join("") || `<div class="empty-hint">${q ? "Nenhum aluno encontrado" : "Nenhum aluno nesta etapa"}</div>`}
           </div>
         </div>`;
@@ -140,7 +140,7 @@ function pvCardHtml(a, e) {
   const sub = [a.school, a.turno].filter(Boolean).join(" · ");
   const chegada = a.arrival_date ? `Chegada ${pvDateBR(a.arrival_date)}${a.arrival_time ? " · " + String(a.arrival_time).slice(0, 5) : ""}` : "Chegada a informar";
   return `
-    <div class="card pv-card${pvSel === a.enrollment_id ? " sel" : ""}" data-pv-card="${a.enrollment_id}">
+    <div class="card pv-card${pvSel === a.enrollment_id ? " sel" : ""}" data-pv-card="${a.enrollment_id}" draggable="${pvCanEdit() ? "true" : "false"}">
       <div class="card-name">${escapeHtml(a.name || "—")}</div>
       <div class="card-meta">${escapeHtml(sub || "—")}</div>
       <div class="card-contact-row"><span>${escapeHtml(chegada)}</span></div>
@@ -293,9 +293,51 @@ async function pvMoveAluno() {
   await pvReload();
 }
 
+/* ---- arrastar aluno para outra etapa (mesmo gesto do Pipeline de vendas) ---- */
+async function pvMoveTo(enrollmentId, etapaId) {
+  if (pvBusy || !pvCanEdit() || !enrollmentId || !etapaId) return;
+  const a = pvData.alunos.find(x => x.enrollment_id === enrollmentId);
+  if (!a || a.etapa_id === etapaId) return;
+  pvBusy = true;
+  const { error } = await supabase.rpc("pv_mover_aluno", { p_enrollment: enrollmentId, p_etapa: etapaId });
+  pvBusy = false;
+  if (error) { console.error(error); alert(pvErrorText(error)); }
+  await pvReload();
+}
+
 function pvBind() {
   const root = document.getElementById("view-posvenda");
   if (!root) return;
+
+  root.addEventListener("dragstart", e => {
+    const card = e.target.closest("[data-pv-card]");
+    if (!card || !pvCanEdit()) return;
+    e.dataTransfer.setData("text/plain", card.dataset.pvCard);
+    e.dataTransfer.effectAllowed = "move";
+    requestAnimationFrame(() => card.classList.add("dragging"));
+  });
+  root.addEventListener("dragend", () => {
+    root.querySelectorAll(".dragging").forEach(el => el.classList.remove("dragging"));
+    root.querySelectorAll(".column-cards.drag-over").forEach(el => el.classList.remove("drag-over"));
+  });
+  root.addEventListener("dragover", e => {
+    const zone = e.target.closest("[data-pv-etapa]");
+    if (!zone || !pvCanEdit()) return;
+    e.preventDefault();
+    zone.classList.add("drag-over");
+  });
+  root.addEventListener("dragleave", e => {
+    const zone = e.target.closest("[data-pv-etapa]");
+    if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove("drag-over");
+  });
+  root.addEventListener("drop", e => {
+    const zone = e.target.closest("[data-pv-etapa]");
+    if (!zone || !pvCanEdit()) return;
+    e.preventDefault();
+    zone.classList.remove("drag-over");
+    pvMoveTo(e.dataTransfer.getData("text/plain"), zone.dataset.pvEtapa);
+  });
+
   document.getElementById("pv-new").addEventListener("click", () => { if (pvCanEdit()) pvOpenEdit(null); });
   document.getElementById("pv-search-input").addEventListener("input", e => { pvQuery = e.target.value.trim(); pvRender(); });
 
