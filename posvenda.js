@@ -146,6 +146,10 @@ function pvCardHtml(a, e) {
       <div class="card-contact-row"><span>${escapeHtml(chegada)}</span></div>
       ${alerts.length ? `<div class="card-tags">${alerts.map(([k, txt]) => `<span class="badge ${k === "d" ? "badge-danger" : "badge-warn"}">${escapeHtml(txt)}</span>`).join("")}</div>` : ""}
       <div class="pv-bar"><i style="width:${pct}%"></i></div>
+      ${total ? `<div class="pv-checks">${e.itens.map(it => {
+        const done = a.feitos.includes(it.id);
+        return `<label class="pv-check${done ? " done" : ""}"><input type="checkbox" data-pv-item="${it.id}" ${done ? "checked" : ""} ${pvCanEdit() ? "" : "disabled"}><span>${escapeHtml(it.texto)}</span></label>`;
+      }).join("")}</div>` : ""}
       <div class="card-footer"><span class="card-value">${feitos} de ${total} itens</span></div>
     </div>`;
 }
@@ -162,13 +166,14 @@ function pvRenderDetail() {
   const canEdit = pvCanEdit();
   const chegada = a.arrival_date ? `Chegada ${pvDateBR(a.arrival_date)}${a.arrival_time ? " às " + String(a.arrival_time).slice(0, 5) : ""}` : "Chegada a informar";
   const outras = pvData.etapas.filter(x => x.id !== a.etapa_id);
+  const cor = idx >= 0 ? pvStageColor(idx, pvData.etapas.length) : "var(--border)";
   box.innerHTML = `
     <div class="pv-det-head">
       <div>
         <h3>${escapeHtml(a.name || "—")}</h3>
         <p>${escapeHtml([a.school, a.turno].filter(Boolean).join(" · ") || "—")} · ${escapeHtml(chegada)}</p>
       </div>
-      <span class="pv-chip-step">Etapa ${idx + 1}: ${escapeHtml(e ? e.nome : "—")}</span>
+      <span class="pv-chip-step" style="color:${cor}; border-color:${cor};">Etapa ${idx + 1}: ${escapeHtml(e ? e.nome : "—")}</span>
     </div>
     ${e && e.itens.length ? e.itens.map(it => {
       const done = a.feitos.includes(it.id);
@@ -181,7 +186,7 @@ function pvRenderDetail() {
       <div class="pv-move">
         <span>Mover para outra etapa</span>
         <select id="pv-move-sel">${outras.map(x => `<option value="${x.id}">${escapeHtml(x.nome)}</option>`).join("")}</select>
-        <button type="button" class="btn btn-ghost btn-sm" data-pv-act="move">Mover</button>
+        <button type="button" class="btn btn-primary btn-sm" data-pv-act="move">Mover aluno</button>
       </div>` : ""}`;
 }
 
@@ -342,6 +347,7 @@ function pvBind() {
   document.getElementById("pv-search-input").addEventListener("input", e => { pvQuery = e.target.value.trim(); pvRender(); });
 
   root.addEventListener("click", e => {
+    if (e.target.closest(".pv-check")) return;  /* marcar item no card não seleciona o aluno */
     const card = e.target.closest("[data-pv-card]");
     if (card) { pvSel = card.dataset.pvCard; pvRender(); return; }
     const b = e.target.closest("[data-pv-act]");

@@ -3546,13 +3546,21 @@ td.div-caixa, td.div-caio, td.div-erik { font-weight: 700; }
 .pv-card.sel { box-shadow: 0 0 0 2px var(--stage-color, var(--primary)); }
 .pv-bar { height: 5px; background: color-mix(in srgb, var(--stage-color, var(--border)) 18%, var(--surface)); border-radius: 3px; margin: 8px 0 0; overflow: hidden; }
 .pv-bar i { display: block; height: 100%; background: var(--stage-color, var(--good)); border-radius: 3px; }
+/* checklist visível no próprio card do quadro */
+.pv-checks { display: grid; gap: 5px; margin-top: 10px; padding-top: 9px; border-top: 1px solid color-mix(in srgb, var(--stage-color, var(--border)) 25%, var(--border)); }
+.pv-check { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; line-height: 1.35; color: var(--text); cursor: pointer; }
+.pv-check input { width: 14px; height: 14px; margin: 1px 0 0; flex: 0 0 auto; accent-color: var(--stage-color, var(--primary)); cursor: pointer; }
+.pv-check input:disabled { cursor: default; }
+.pv-check span { min-width: 0; }
+.pv-check.done span { color: var(--text-muted); text-decoration: line-through; }
 .pv-chip-step { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--content-bg); border: 1px solid var(--border); white-space: nowrap; }
-.pv-det { margin-top: 14px; }
+.pv-det { margin-top: 14px; padding: 18px 20px 20px; }
 .pv-det-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .pv-det-head h3 { margin: 0; font-size: 16px; font-weight: 700; }
 .pv-det-head p { margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted); }
 .pv-it { display: flex; align-items: center; gap: 10px; font-size: 13.5px; padding: 8px 0; border-top: 1px solid var(--border); cursor: pointer; }
-.pv-it input { width: 16px; height: 16px; margin: 0; }
+.pv-it input { width: 16px; height: 16px; margin: 0; accent-color: var(--primary); }
+.pv-it:hover { background: color-mix(in srgb, var(--primary) 4%, transparent); }
 .pv-it input:disabled { cursor: default; }
 .pv-done { color: var(--good); text-decoration: line-through; }
 .pv-move { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted); }
