@@ -5600,9 +5600,13 @@ async function saveInfluencerCommission(c) {
 }
 
 /* ---- tráfego pago ---- */
+/* amount = valor em EURO (é o que os painéis somam); amountOrig = valor digitado na moeda `currency`;
+   fxRate = R$ por 1 € usado na conversão */
 function adSpendFromDb(r) {
   return {
     id: r.id, channel: r.channel || "Outro", amount: Number(r.amount) || 0,
+    currency: r.currency || "EUR", amountOrig: Number(r.amount_orig ?? r.amount) || 0,
+    fxRate: r.fx_rate == null ? null : Number(r.fx_rate),
     spendDate: r.spend_date, notes: r.notes || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
   };
@@ -5610,6 +5614,7 @@ function adSpendFromDb(r) {
 function adSpendToDb(a) {
   return {
     id: a.id, channel: a.channel, amount: a.amount,
+    currency: a.currency || "EUR", amount_orig: a.amountOrig ?? a.amount, fx_rate: a.fxRate ?? null,
     spend_date: a.spendDate, notes: a.notes,
     created_at: new Date(a.createdAt).toISOString(),
   };
@@ -7857,16 +7862,41 @@ transferBtnDelete.addEventListener("click", async () => {
 });
 
 /* ---- tráfego pago ---- */
+const brlFormat = v => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+/* valor em real de um lançamento: o digitado (se foi em R$) ou o euro convertido pelo câmbio dele */
+function adSpendBRL(a) {
+  if (a.currency === "BRL") return round2(a.amountOrig ?? a.amount);
+  return a.fxRate ? round2(a.amount * a.fxRate) : null;
+}
+/* o gasto como foi digitado, e o valor convertido ao lado (na outra moeda) */
+function adSpendRealizado(a) { return a.currency === "BRL" ? brlFormat(a.amountOrig) : currency(a.amountOrig ?? a.amount); }
+function adSpendConvertido(a) {
+  if (a.currency === "BRL") return a.fxRate ? currency(a.amount) : "câmbio não informado";
+  const brl = adSpendBRL(a);
+  return brl == null ? "câmbio não informado" : brlFormat(brl);
+}
+function renderAdSpendTotals(list) {
+  const eur = round2(list.reduce((s, a) => s + (Number(a.amount) || 0), 0));
+  const brlValues = list.map(adSpendBRL);
+  const brl = round2(brlValues.filter(v => v != null).reduce((s, v) => s + v, 0));
+  const missing = brlValues.filter(v => v == null).length;
+  document.getElementById("fin-adspend-totals").innerHTML = list.length ? `
+    <span><b>${list.length}</b> lançamento(s)</span>
+    <span>Total em euro: <b>${currency(eur)}</b></span>
+    <span>Total em real: <b>${brlFormat(brl)}</b>${missing ? ` <small>(${missing} sem câmbio)</small>` : ""}</span>` : "";
+}
 function renderAdSpend() {
   const list = adSpend.slice().sort((a, b) => new Date(b.spendDate) - new Date(a.spendDate));
   const tbody = document.getElementById("fin-adspend-tbody");
   tbody.innerHTML = "";
   document.getElementById("fin-adspend-empty").style.display = list.length === 0 ? "block" : "none";
+  renderAdSpendTotals(list);
   list.forEach(a => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-primary">${escapeHtml(a.channel)}</td>
-      <td class="cell-primary">${currency(a.amount)}</td>
+      <td class="cell-primary">${adSpendRealizado(a)}</td>
+      <td class="cell-muted">${adSpendConvertido(a)}</td>
       <td class="cell-muted">${formatDate(a.spendDate)}</td>
       <td class="cell-muted">${escapeHtml(a.notes || "—")}</td>
       <td class="cell-actions">›</td>
@@ -7880,6 +7910,23 @@ const adSpendModalBackdrop = document.getElementById("adspend-modal-backdrop");
 const adSpendForm = document.getElementById("adspend-form");
 const adSpendBtnDelete = document.getElementById("adspend-btn-delete");
 
+/* câmbio padrão = o do último lançamento que tem câmbio */
+function adSpendLastRate() {
+  const last = adSpend.filter(a => a.fxRate).sort((p, q) => String(q.spendDate).localeCompare(String(p.spendDate)))[0];
+  return last ? last.fxRate : "";
+}
+function adSpendUpdateModalUi() {
+  const isBRL = document.getElementById("adspend-field-currency").value === "BRL";
+  document.getElementById("adspend-amount-label").textContent = isBRL ? "Valor (R$)" : "Valor (€)";
+  const v = parseFloat(document.getElementById("adspend-field-amount").value) || 0;
+  const rate = parseFloat(document.getElementById("adspend-field-rate").value) || 0;
+  const prev = document.getElementById("adspend-conv-preview");
+  if (!v || !rate) { prev.textContent = "Informe o valor e o câmbio para ver a conversão."; return; }
+  prev.textContent = isBRL ? `Convertido: ${currency(round2(v / rate))} (em euro)` : `Convertido: ${brlFormat(round2(v * rate))} (em real)`;
+}
+["adspend-field-currency", "adspend-field-amount", "adspend-field-rate"].forEach(id =>
+  document.getElementById(id).addEventListener("input", adSpendUpdateModalUi));
+
 function openAdSpendModal(id) {
   adSpendForm.reset();
   if (id) {
@@ -7888,16 +7935,21 @@ function openAdSpendModal(id) {
     document.getElementById("adspend-modal-title").textContent = a.channel;
     document.getElementById("adspend-id").value = a.id;
     document.getElementById("adspend-field-channel").value = a.channel;
-    document.getElementById("adspend-field-amount").value = a.amount;
+    document.getElementById("adspend-field-currency").value = a.currency || "EUR";
+    document.getElementById("adspend-field-amount").value = a.amountOrig ?? a.amount;
+    document.getElementById("adspend-field-rate").value = a.fxRate ?? adSpendLastRate();
     document.getElementById("adspend-field-date").value = a.spendDate;
     document.getElementById("adspend-field-notes").value = a.notes || "";
     adSpendBtnDelete.style.display = "inline-block";
   } else {
     document.getElementById("adspend-modal-title").textContent = t("fin.newAdSpendTitle");
     document.getElementById("adspend-id").value = "";
+    document.getElementById("adspend-field-currency").value = "EUR";
+    document.getElementById("adspend-field-rate").value = adSpendLastRate();
     document.getElementById("adspend-field-date").value = new Date().toISOString().slice(0, 10);
     adSpendBtnDelete.style.display = "none";
   }
+  adSpendUpdateModalUi();
   adSpendModalBackdrop.classList.add("open");
 }
 function closeAdSpendModal() { adSpendModalBackdrop.classList.remove("open"); }
@@ -7910,10 +7962,17 @@ adSpendModalBackdrop.addEventListener("click", e => { if (e.target === adSpendMo
 adSpendForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("adspend-id").value;
+  const currencyChosen = document.getElementById("adspend-field-currency").value === "BRL" ? "BRL" : "EUR";
+  const typed = round2(parseFloat(document.getElementById("adspend-field-amount").value) || 0);
+  const rate = parseFloat(document.getElementById("adspend-field-rate").value) || 0;
+  if (!(typed > 0) || !(rate > 0)) { alert("Informe o valor e o câmbio (R$ por 1 €)."); return; }
   const data = {
     id: id || uid(),
     channel: document.getElementById("adspend-field-channel").value,
-    amount: parseFloat(document.getElementById("adspend-field-amount").value) || 0,
+    currency: currencyChosen,
+    amountOrig: typed,
+    fxRate: rate,
+    amount: currencyChosen === "BRL" ? round2(typed / rate) : typed,
     spendDate: document.getElementById("adspend-field-date").value,
     notes: document.getElementById("adspend-field-notes").value.trim(),
     createdAt: id ? (adSpend.find(x => x.id === id) || {}).createdAt || Date.now() : Date.now(),
