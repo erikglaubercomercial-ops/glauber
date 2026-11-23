@@ -3640,4 +3640,84 @@ td.div-caixa, td.div-caio, td.div-erik { font-weight: 700; }
   /* páginas públicas (login, cadastro, contrato, aprovação) */
   .public-page { padding-left: 12px; padding-right: 12px; }
   .public-card { margin: 12px 0; padding: 24px 18px; }
+
+  /* modal de acesso do aluno: campos em uma coluna no celular */
+  .acesso-row { grid-template-columns: 1fr; }
+  .acesso-actions .btn { flex: 1 1 auto; }
+}
+
+/* ---- modal "Acesso do aluno criado" (padrão Peregrinos) ---- */
+.modal.modal-acesso { max-width: 480px; }
+.acesso-body { padding: 18px 20px 4px; display: flex; flex-direction: column; gap: 14px; }
+.acesso-intro { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text); }
+.acesso-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.acesso-label { font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.acesso-field input {
+  width: 100%; box-sizing: border-box;
+  font-family: inherit; font-size: 14px; color: var(--text);
+  background: var(--content-bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px;
+}
+.acesso-field input:focus { outline: 2px solid color-mix(in srgb, var(--primary) 40%, transparent); outline-offset: 1px; }
+.acesso-senha {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-size: 15px !important; font-weight: 700; letter-spacing: 0.04em;
+}
+.acesso-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.acesso-aviso {
+  padding: 12px 14px; border-radius: 12px;
+  background: var(--warn-bg); border-left: 3px solid var(--warn);
+  font-size: 13px; line-height: 1.5; color: #8a4b08;
+}
+.acesso-actions {
+  justify-content: flex-end; flex-wrap: wrap;
+  margin-top: 14px; padding: 14px 20px 20px; border-top: 1px solid var(--border);
+}
+
+/* nome do cliente no painel "Próximos recebimentos e atrasos": parece link, abre Contas a Receber */
+.fd-client-btn {
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--primary); text-align: left;
+}
+.fd-client-btn:hover, .fd-client-btn:focus-visible { text-decoration: underline; outline: none; }
+
+/* ---- Despesas: progressão do ano (padrão) e cabeçalho do mês ---- */
+.fin-exp-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 16px 20px 0; }
+.fin-exp-kpi {
+  display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 14px;
+  background: var(--primary); color: #fff; min-width: 0;
+}
+.fin-exp-kpi span { font-size: 12px; opacity: .85; }
+.fin-exp-kpi strong { font-size: 20px; font-weight: 700; }
+.fin-exp-kpi small { font-size: 12px; opacity: .85; }
+.fin-exp-kpi.is-paid { background: #3167a1; }
+.fin-exp-kpi.is-pend { background: #1f4670; }
+.fin-exp-kpi.is-late { background: #e5484d; }
+.fin-exp-chart-wrap { position: relative; height: 300px; padding: 12px 20px 0; }
+.fin-exp-months { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 16px 20px 20px; }
+.fin-exp-month {
+  display: flex; flex-direction: column; gap: 8px; text-align: left; cursor: pointer;
+  padding: 14px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface);
+  font-family: inherit; color: var(--text); transition: box-shadow .15s, border-color .15s;
+}
+.fin-exp-month:hover, .fin-exp-month:focus-visible { box-shadow: var(--shadow-modal); border-color: var(--primary); outline: none; }
+.fin-exp-month.is-empty { opacity: .55; }
+.fin-exp-month-name { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.fin-exp-month-total { font-size: 18px; }
+.fin-exp-month-split { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-style: normal; color: var(--text-muted); }
+.fin-exp-month-split i { font-style: normal; }
+.fin-exp-month-split .pg { color: #3167a1; }
+.fin-exp-month-split .pe { color: #c26a12; }
+.fin-exp-month-foot { font-size: 12px; color: var(--text-muted); }
+.fin-exp-month-foot .is-late { color: #e5484d; }
+.fin-exp-detail-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 20px 0; }
+.fin-exp-detail-title { font-size: 16px; font-weight: 700; color: var(--text); }
+@media (max-width: 900px) {
+  .fin-exp-kpis, .fin-exp-months { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .fin-exp-kpis, .fin-exp-months { padding-left: 0; padding-right: 0; }
+  .fin-exp-kpis { padding-top: 12px; }
+  .fin-exp-chart-wrap { padding-left: 0; padding-right: 0; height: 240px; }
+  .fin-exp-kpi strong { font-size: 17px; }
 }

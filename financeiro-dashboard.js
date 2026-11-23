@@ -63,7 +63,8 @@ const fdSum = (list, pick) => list.reduce((s, x) => s + (Number(pick(x)) || 0), 
 function fdWonDeals(a, b) { return deals.filter(d => isWonStage(d.stage) && d.closedAt && fdIn(d.closedAt, a, b)); }
 /* faturamento: o que foi efetivamente recebido dos clientes (contas a receber pagas no período) */
 function fdReceived(a, b) { return fdSum(receivables.filter(r => r.paid && fdIn(r.paidAt, a, b)), r => r.amount); }
-function fdExpenses(a, b) { return expenses.filter(e => fdIn(fdDay(e.dueDate), a, b)); }
+/* despesas do período = despesas cadastradas + comissões já pagas (consultores e influencers), pela data do pagamento */
+function fdExpenses(a, b) { return allExpenseItems().filter(e => fdIn(fdDay(e.dueDate), a, b)); }
 
 /* entradas e saídas de caixa (o que efetivamente entrou/saiu no período) */
 function fdCashIn(a, b) {
@@ -136,6 +137,9 @@ function renderFinDashboard() {
   const gross = fdSum(spNow, s => s.peregrinosGross);
   const ticket = wonNow.length ? sales / wonNow.length : 0;
   const receivedCount = receivables.filter(x => x.paid && fdIn(x.paidAt, r.start, r.end)).length;
+  /* envios às escolas do período (mesmo critério da linha "Envios às escolas" do fluxo de caixa) */
+  const transfersNow = schoolTransfers.filter(x => fdIn(fdDay(x.sentAt), r.start, r.end)).sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt)));
+  const transfersTotal = fdSum(transfersNow, x => x.amount);
 
   /* categorias de despesa (período e período anterior) */
   const catNow = {}, catPrev = {};
@@ -210,13 +214,28 @@ function renderFinDashboard() {
         ${upcoming.map(x => {
           const late = fdDay(x.dueDate) < today.getTime();
           const days = Math.round((today.getTime() - fdDay(x.dueDate)) / 86400000);
-          return `<tr><td class="cell-primary">${leadLink(leadIdOfDeal(x.dealId), x.clientName)}</td>
+          return `<tr><td class="cell-primary"><button type="button" class="fd-client-btn" data-fd-client="${escapeHtml(x.clientName || "")}" title="Ver as contas a receber deste cliente">${escapeHtml(x.clientName || "—")}</button></td>
             <td class="cell-muted">${x.installmentNumber || 1}/${x.installmentsTotal || 1}</td>
             <td>${new Date(`${x.dueDate}T00:00:00`).toLocaleDateString("pt-BR")}</td>
             <td>${currency(x.amount)}</td>
             <td>${late ? `<span class="badge badge-danger">${days} dia(s) em atraso</span>` : `<span class="badge badge-neutral">a vencer</span>`}</td></tr>`;
         }).join("")}
       </tbody></table>` : `<p class="muted-note fd-empty">Nada vencido nem a vencer nos próximos 30 dias.</p>`}
+    </div>
+
+    <div class="panel fd-panel">
+      <div class="panel-header"><h2>Envios às escolas</h2><span class="fd-note">${transfersNow.length} envio(s) · ${currency(transfersTotal)} · ${fdFmtRange(r)}</span></div>
+      ${transfersNow.length ? `<table class="data-table fd-table"><thead><tr><th>Data</th><th>Cliente</th><th>Escola</th><th>Valor</th><th>Notas</th><th>Comprovante</th></tr></thead><tbody>
+        ${transfersNow.map(x => {
+          const en = enrollments.find(v => v.id === x.enrollmentId) || {};
+          return `<tr><td class="cell-muted">${x.sentAt ? formatDate(x.sentAt) : "—"}</td>
+            <td class="cell-primary">${escapeHtml(en.name || "—")}</td>
+            <td class="cell-muted">${escapeHtml(en.school || "—")}</td>
+            <td>${currency(x.amount)}</td>
+            <td class="cell-muted">${escapeHtml(x.notes || "—")}</td>
+            <td>${x.filePath ? `<button type="button" class="fd-client-btn" data-fd-proof="${escapeHtml(x.filePath)}">Ver comprovante</button>` : `<span class="cell-muted">sem comprovante</span>`}</td></tr>`;
+        }).join("")}
+      </tbody></table>` : `<p class="muted-note fd-empty">Nenhum envio para escola neste período.</p>`}
     </div>`;
 
   /* gráficos */
@@ -269,7 +288,24 @@ function fdFmtRange(r) {
   return `${f(r.start)} – ${f(last)}`;
 }
 
+/* clique no cliente do painel de recebimentos: abre Contas a Receber já filtrado por ele */
+function fdOpenReceivablesFor(name) {
+  const tab = document.querySelector('#financeiro-subtabs [data-fin-subtab="receivables"]');
+  if (tab) tab.click();
+  const status = document.getElementById("fin-rec-filter-status");
+  if (status) status.value = "";
+  const search = document.getElementById("fin-rec-search");
+  if (search) search.value = name;
+  if (typeof renderReceivables === "function") renderReceivables();
+  const panel = document.getElementById("fin-rec-list-panel");
+  if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 document.getElementById("fd-root").addEventListener("click", e => {
+  const c = e.target.closest("[data-fd-client]");
+  if (c) { fdOpenReceivablesFor(c.dataset.fdClient); return; }
+  const p = e.target.closest("[data-fd-proof]");
+  if (p) { openTransferProof(p.dataset.fdProof); return; }
   const b = e.target.closest("[data-fd-period]");
   if (!b) return;
   fdState.period = b.dataset.fdPeriod;

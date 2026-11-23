@@ -1011,7 +1011,7 @@ function renderCard(deal) {
       <span></span>
       <div class="card-actions">
         ${phoneText ? (waDigits
-          ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="${t("common.openWhatsapp")}">${WPP_ICON_SVG}</a>`
+          ? `<a class="wpp-btn" ${lead ? `data-wa-lead="${lead.id}"` : ""} href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="${t("common.openWhatsapp")}">${WPP_ICON_SVG}</a>`
           : `<span class="wpp-btn disabled" title="${t("lead.noWhatsappConfigured")}">${WPP_ICON_SVG}</span>`) : ""}
         <button type="button" class="card-action-btn ${followUpClass}" data-act="followup" title="${followUpTitle}">
           ${CARD_CALENDAR_ICON_SVG}${deal.followUpAt ? `<span>${formatDate(deal.followUpAt)}</span>` : ""}
@@ -1649,6 +1649,16 @@ async function saveLeads(only) {
   }
   return true;
 }
+/* primeiro contato: clicar no WhatsApp do lead tira ele da fila do rodízio
+   (o link abre normalmente; a marcação é só um aviso ao banco) */
+document.addEventListener("click", e => {
+  const a = e.target.closest("a.wpp-btn[data-wa-lead]");
+  if (!a) return;
+  supabase.rpc("rodizio_marcar_contato", { p_lead_id: a.dataset.waLead }).then(r => {
+    if (r.error) console.error("Erro ao marcar primeiro contato no rodízio:", r.error);
+  });
+});
+
 /* ---- rodízio automático de leads (fila de consultores + prazo pro
    primeiro contato) — a atribuição/reatribuição em si acontece no banco
    (funções abaixo), pra funcionar mesmo com o CRM fechado */
@@ -2030,7 +2040,7 @@ function renderLeads() {
           <span class="badge ${LEAD_STATUS_BADGE[lead.status] || "badge-neutral"}">${escapeHtml(statusLabel(lead.status))}</span>
           <span class="badge ${TEMPERATURE_BADGE[lead.temperature] || "badge-neutral"}">${escapeHtml(statusLabel(lead.temperature) || "—")}</span>
           ${waDigits
-            ? `<a class="wpp-btn" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="${t("common.openWhatsapp")}">${WPP_ICON_SVG}</a>`
+            ? `<a class="wpp-btn" data-wa-lead="${lead.id}" href="${buildWhatsAppLink(waDigits)}" target="_blank" rel="noopener" title="${t("common.openWhatsapp")}">${WPP_ICON_SVG}</a>`
             : `<span class="wpp-btn disabled" title="${t("lead.fillPhoneForWhatsapp")}">${WPP_ICON_SVG}</span>`}
         </div>
       </td>
@@ -5621,10 +5631,12 @@ async function deleteAdSpendRemote(id) {
 /* ---- envios de dinheiro para a escola de cada aluno ---- */
 function schoolTransferFromDb(r) {
   return { id: r.id, enrollmentId: r.enrollment_id, amount: Number(r.amount) || 0, sentAt: r.sent_at, notes: r.notes || "",
+    filePath: r.file_path || null, fileName: r.file_name || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now() };
 }
 function schoolTransferToDb(x) {
-  return { id: x.id, enrollment_id: x.enrollmentId, amount: x.amount, sent_at: x.sentAt, notes: x.notes };
+  return { id: x.id, enrollment_id: x.enrollmentId, amount: x.amount, sent_at: x.sentAt, notes: x.notes,
+    file_path: x.filePath || null, file_name: x.fileName || null };
 }
 async function loadSchoolTransfers() {
   const { data, error } = await supabase.from("school_transfers").select("*").order("sent_at", { ascending: false });
@@ -6640,17 +6652,45 @@ document.getElementById("fin-rec-filter-clear").addEventListener("click", () => 
 
 /* ---- Despesas ---- */
 function renderExpenseFilterOptions() {
+  const cats = [...EXPENSE_CATEGORIES, ...COMMISSION_EXPENSE_CATEGORIES];
   document.getElementById("fin-exp-filter-category").innerHTML =
-    `<option value="">${t("leads.categoryAll")}</option>` + EXPENSE_CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+    `<option value="">${t("leads.categoryAll")}</option>` + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
 }
 
-/* ---- Despesas: "Todas" + um botão por mês do ano escolhido (pelo vencimento) ---- */
-let finExpPeriod = "all";   /* "all" ou o número do mês (1 a 12) */
+/* comissões já pagas (consultores e influencers) são saídas de despesa do mês do pagamento.
+   Não são cadastradas como despesa: vêm das próprias comissões, então não há duplicidade. */
+const COMMISSION_EXPENSE_CATEGORIES = ["Comissão de consultor", "Comissão de influencer"];
+function commissionExpenseItems() {
+  const items = [];
+  commissions.filter(c => c.status === "Pago" && c.paidAt).forEach(c => {
+    const consultant = users.find(u => u.id === c.consultorId);
+    items.push({
+      id: `comm-${c.id}`, source: "comissao", category: "Comissão de consultor",
+      description: `Comissão — ${consultant ? consultant.name : "consultor"}${c.dealName ? " · " + c.dealName : ""}`,
+      amount: Number(c.amount) || 0, dueDate: localDayStr(c.paidAt), paid: true, paidAt: c.paidAt,
+    });
+  });
+  influencerCommissions.filter(c => c.paidAmount > 0 && c.paidAt).forEach(c => {
+    items.push({
+      id: `inf-${c.id}`, source: "influencer", category: "Comissão de influencer",
+      description: `Comissão influencer — ${c.source || "origem"}${c.dealName ? " · " + c.dealName : ""}`,
+      amount: Number(c.paidAmount) || 0, dueDate: localDayStr(c.paidAt), paid: true, paidAt: c.paidAt,
+    });
+  });
+  return items;
+}
+/* despesas cadastradas + comissões pagas: é o que aparece como despesa do mês */
+function allExpenseItems() { return expenses.concat(commissionExpenseItems()); }
+
+/* ---- Despesas: tela de progressão do ano (padrão) → clique em um mês mostra só as despesas dele ---- */
+let finExpPeriod = "overview";   /* "overview" (progressão do ano) ou o número do mês (1 a 12) */
+const FIN_EXP_MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+let finExpChart = null;
 let finExpYear = new Date().getFullYear();
 function refreshFinExpYears() {
   const sel = document.getElementById("fin-exp-year");
   const nowYear = new Date().getFullYear();
-  const years = expenses.map(e => Number(String(e.dueDate || "").slice(0, 4))).filter(Boolean);
+  const years = allExpenseItems().map(e => Number(String(e.dueDate || "").slice(0, 4))).filter(Boolean);
   const minYear = Math.min(nowYear, finExpYear, ...years);
   const maxYear = Math.max(nowYear + 1, finExpYear, ...years);
   let html = "";
@@ -6665,19 +6705,68 @@ function getFilteredExpenses() {
   const category = document.getElementById("fin-exp-filter-category").value;
   const status = document.getElementById("fin-exp-filter-status").value;
   const monthKey = `${finExpYear}-${finOvPad(Number(finExpPeriod) || 0)}`;
-  return expenses.filter(e => {
+  return allExpenseItems().filter(e => {
     if (category && e.category !== category) return false;
     if (status === "pendente" && e.paid) return false;
     if (status === "pago" && !e.paid) return false;
-    if (finExpPeriod !== "all" && String(e.dueDate || "").slice(0, 7) !== monthKey) return false;
+    if (finExpPeriod !== "overview" && String(e.dueDate || "").slice(0, 7) !== monthKey) return false;
     return true;
   });
 }
 
 function expenseIsLate(e) { return !e.paid && !!e.dueDate && e.dueDate < localDayStr(Date.now()); }
+/* progressão do ano: KPIs, gráfico (pago + pendente por mês e acumulado) e um cartão por mês */
+function renderExpenseOverview() {
+  const sumOf = arr => round2(arr.reduce((x, e) => x + (Number(e.amount) || 0), 0));
+  const yearItems = allExpenseItems().filter(e => String(e.dueDate || "").slice(0, 4) === String(finExpYear));
+  const yearLate = yearItems.filter(expenseIsLate);
+  const months = [];
+  let acc = 0;
+  for (let m = 1; m <= 12; m++) {
+    const key = `${finExpYear}-${finOvPad(m)}`;
+    const items = yearItems.filter(e => String(e.dueDate || "").slice(0, 7) === key);
+    const paid = sumOf(items.filter(e => e.paid)), pend = sumOf(items.filter(e => !e.paid));
+    acc = round2(acc + paid + pend);
+    months.push({ m, count: items.length, paid, pend, total: round2(paid + pend), late: items.filter(expenseIsLate).length, acc });
+  }
+  document.getElementById("fin-exp-kpis").innerHTML = `
+    <div class="fin-exp-kpi"><span>Total do ano ${finExpYear}</span><strong>${currency(sumOf(yearItems))}</strong><small>${yearItems.length} despesa(s)</small></div>
+    <div class="fin-exp-kpi is-paid"><span>Já pago</span><strong>${currency(sumOf(yearItems.filter(e => e.paid)))}</strong></div>
+    <div class="fin-exp-kpi is-pend"><span>A pagar</span><strong>${currency(sumOf(yearItems.filter(e => !e.paid)))}</strong></div>
+    <div class="fin-exp-kpi is-late"><span>Em atraso</span><strong>${currency(sumOf(yearLate))}</strong><small>${yearLate.length} despesa(s)</small></div>`;
+  document.getElementById("fin-exp-months").innerHTML = months.map(x => `
+    <button type="button" class="fin-exp-month${x.count ? "" : " is-empty"}" data-exp-open="${x.m}">
+      <span class="fin-exp-month-name">${FIN_EXP_MONTHS[x.m - 1]}</span>
+      <strong class="fin-exp-month-total">${currency(x.total)}</strong>
+      <span class="fin-exp-month-split"><i class="pg">Pago ${currency(x.paid)}</i><i class="pe">Pendente ${currency(x.pend)}</i></span>
+      <span class="fin-exp-month-foot">${x.count} despesa(s)${x.late ? ` · <b class="is-late">${x.late} em atraso</b>` : ""}</span>
+    </button>`).join("");
+  if (finExpChart) finExpChart.destroy();
+  finExpChart = new Chart(document.getElementById("fin-exp-chart"), {
+    data: {
+      labels: months.map(x => FIN_EXP_MONTHS[x.m - 1].slice(0, 3)),
+      datasets: [
+        { type: "bar", label: "Pago", data: months.map(x => x.paid), backgroundColor: "#3167a1", borderRadius: 5, maxBarThickness: 28, stack: "mes" },
+        { type: "bar", label: "Pendente", data: months.map(x => x.pend), backgroundColor: "#fb9d2d", borderRadius: 5, maxBarThickness: 28, stack: "mes" },
+        { type: "line", label: "Acumulado", data: months.map(x => x.acc), borderColor: "#1f4670", borderDash: [6, 4], backgroundColor: "#1f4670", pointRadius: 3, tension: 0.3, stack: "acumulado" },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${currency(c.parsed.y)}` } } },
+      scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => currency(v) } } },
+    },
+  });
+}
+
 function renderExpenses() {
   refreshFinExpYears();
   updateFinExpTabs();
+  const overview = finExpPeriod === "overview";
+  document.getElementById("fin-exp-overview").style.display = overview ? "" : "none";
+  document.getElementById("fin-exp-detail").style.display = overview ? "none" : "";
+  if (overview) { renderExpenseOverview(); return; }
+  document.getElementById("fin-exp-month-title").textContent = `${FIN_EXP_MONTHS[Number(finExpPeriod) - 1]} de ${finExpYear}`;
   const filtered = getFilteredExpenses().slice().sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
   const sumOf = arr => round2(arr.reduce((x, e) => x + (Number(e.amount) || 0), 0));
   document.getElementById("fin-exp-summary").innerHTML = `
@@ -6699,16 +6788,26 @@ function renderExpenses() {
       <td><span class="badge ${e.paid ? "badge-good" : expenseIsLate(e) ? "badge-danger" : "badge-warn"}">${e.paid ? t("status.pago") : expenseIsLate(e) ? "Em atraso" : t("status.pendente")}</span></td>
       <td class="cell-actions">›</td>
     `;
-    tr.addEventListener("click", () => openExpenseModal(e.id));
+    /* comissão paga abre a aba Comissões (não é despesa cadastrada) */
+    tr.addEventListener("click", () => {
+      if (e.source) { document.querySelector('#financeiro-subtabs [data-fin-subtab="commissions"]')?.click(); return; }
+      openExpenseModal(e.id);
+    });
     tbody.appendChild(tr);
   });
 }
+document.getElementById("fin-exp-months").addEventListener("click", e => {
+  const b = e.target.closest("[data-exp-open]");
+  if (!b) return;
+  finExpPeriod = b.dataset.expOpen;
+  renderExpenses();
+});
+document.getElementById("fin-exp-back").addEventListener("click", () => { finExpPeriod = "overview"; renderExpenses(); });
 document.getElementById("fin-exp-filter-category").addEventListener("change", renderExpenses);
 document.getElementById("fin-exp-filter-status").addEventListener("change", renderExpenses);
 document.getElementById("fin-exp-filter-clear").addEventListener("click", () => {
   document.getElementById("fin-exp-filter-category").value = "";
   document.getElementById("fin-exp-filter-status").value = "";
-  finExpPeriod = "all";
   renderExpenses();
 });
 document.getElementById("fin-exp-year").addEventListener("change", e => { finExpYear = Number(e.target.value) || new Date().getFullYear(); renderExpenses(); });
@@ -7637,7 +7736,7 @@ function renderSchoolTransfers() {
       <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}</td>
       <td class="cell-muted">${escapeHtml(e.school || "—")}</td>
       <td class="cell-primary">${currency(x.amount)}</td>
-      <td class="cell-muted">${escapeHtml(x.notes || "—")}</td>
+      <td class="cell-muted">${escapeHtml(x.notes || "—")}${x.filePath ? ` <span class="badge badge-good">Comprovante</span>` : ""}</td>
       <td class="cell-actions">›</td>`;
     tr.addEventListener("click", () => openTransferModal(x.id));
     tbody.appendChild(tr);
@@ -7648,8 +7747,37 @@ const transferModalBackdrop = document.getElementById("transfer-modal-backdrop")
 const transferForm = document.getElementById("transfer-form");
 const transferBtnDelete = document.getElementById("transfer-btn-delete");
 
+/* comprovante do envio para a escola: arquivo privado no bucket school-transfer-proofs (só Financeiro) */
+const TRANSFER_PROOF_BUCKET = "school-transfer-proofs";
+let transferProofFile = null;
+function transferProofShow(name, path) {
+  document.getElementById("transfer-proof-status").textContent = name || "Nenhum arquivo enviado.";
+  const view = document.getElementById("transfer-proof-view");
+  view.dataset.path = path || "";
+  view.style.display = path ? "" : "none";
+}
+async function uploadTransferProof(file, transferId) {
+  const ext = ((file.name.split(".").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "")) || "pdf";
+  const path = `${transferId}/comprovante-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from(TRANSFER_PROOF_BUCKET).upload(path, file, { contentType: file.type || undefined });
+  if (error) { console.error("Erro ao enviar comprovante do envio:", error); return null; }
+  return path;
+}
+async function removeTransferProof(path) {
+  if (!path) return;
+  const { error } = await supabase.storage.from(TRANSFER_PROOF_BUCKET).remove([path]);
+  if (error) console.error("Erro ao apagar comprovante do envio:", error);
+}
+async function openTransferProof(path) {
+  const win = window.open("", "_blank");
+  const { data, error } = await supabase.storage.from(TRANSFER_PROOF_BUCKET).createSignedUrl(path, 300);
+  if (error || !data) { if (win) win.close(); alert("Não consegui abrir o comprovante."); return; }
+  if (win) win.location.href = data.signedUrl; else window.open(data.signedUrl, "_blank", "noopener");
+}
+
 function openTransferModal(id, enrollmentId) {
   transferForm.reset();
+  transferProofFile = null;
   const sel = document.getElementById("transfer-field-enrollment");
   sel.innerHTML = enrollments.slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""))
     .map(e => `<option value="${e.id}">${escapeHtml(e.name || "—")}${e.school ? " — " + escapeHtml(e.school) : ""}</option>`).join("");
@@ -7661,6 +7789,7 @@ function openTransferModal(id, enrollmentId) {
   document.getElementById("transfer-field-amount").value = x ? x.amount : "";
   document.getElementById("transfer-field-date").value = x ? x.sentAt : new Date().toISOString().slice(0, 10);
   document.getElementById("transfer-field-notes").value = x ? (x.notes || "") : "";
+  transferProofShow(x && x.filePath ? (x.fileName || "Comprovante anexado") : null, x ? x.filePath : null);
   transferBtnDelete.style.display = x ? "inline-block" : "none";
   transferModalBackdrop.classList.add("open");
 }
@@ -7670,20 +7799,46 @@ document.getElementById("transfer-modal-close").addEventListener("click", closeT
 document.getElementById("transfer-btn-cancel").addEventListener("click", closeTransferModal);
 transferModalBackdrop.addEventListener("click", e => { if (e.target === transferModalBackdrop) closeTransferModal(); });
 
+document.getElementById("transfer-proof-pick").addEventListener("click", () => document.getElementById("transfer-field-proof").click());
+document.getElementById("transfer-field-proof").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (f.size > 10 * 1024 * 1024) { alert("Arquivo muito grande (máximo 10 MB)."); e.target.value = ""; return; }
+  transferProofFile = f;
+  transferProofShow(`${f.name} (será enviado ao salvar)`, null);
+});
+document.getElementById("transfer-proof-view").addEventListener("click", () => {
+  const path = document.getElementById("transfer-proof-view").dataset.path;
+  if (path) openTransferProof(path);
+});
+
 transferForm.addEventListener("submit", async e => {
   e.preventDefault();
   const id = document.getElementById("transfer-id").value;
+  const prev = id ? schoolTransfers.find(v => v.id === id) : null;
   const data = {
     id: id || uid(),
     enrollmentId: document.getElementById("transfer-field-enrollment").value,
     amount: round2(parseFloat(document.getElementById("transfer-field-amount").value) || 0),
     sentAt: document.getElementById("transfer-field-date").value,
     notes: document.getElementById("transfer-field-notes").value.trim(),
-    createdAt: id ? (schoolTransfers.find(v => v.id === id) || {}).createdAt || Date.now() : Date.now(),
+    filePath: prev ? prev.filePath || null : null,
+    fileName: prev ? prev.fileName || "" : "",
+    createdAt: prev ? prev.createdAt || Date.now() : Date.now(),
   };
   if (!data.enrollmentId || !(data.amount > 0)) return;
+  let newPath = null;
+  if (transferProofFile) {
+    newPath = await uploadTransferProof(transferProofFile, data.id);
+    if (!newPath) { alert("Não consegui enviar o comprovante. Tente de novo."); return; }
+    data.filePath = newPath;
+    data.fileName = transferProofFile.name;
+  }
   const ok = await saveSchoolTransferRemote(data);
-  if (!ok) { alert(t("fin.transferError")); return; }
+  if (!ok) { if (newPath) await removeTransferProof(newPath); alert(t("fin.transferError")); return; }
+  /* trocou o comprovante: apaga o arquivo antigo depois de salvar */
+  if (newPath && prev && prev.filePath && prev.filePath !== newPath) await removeTransferProof(prev.filePath);
+  transferProofFile = null;
   if (id) Object.assign(schoolTransfers.find(v => v.id === id), data); else schoolTransfers.push(data);
   renderSchoolTransfers();
   renderCommissions();
@@ -7692,11 +7847,13 @@ transferForm.addEventListener("submit", async e => {
 transferBtnDelete.addEventListener("click", async () => {
   const id = document.getElementById("transfer-id").value;
   if (!id || !confirm(t("fin.confirmDeleteTransfer"))) return;
+  const gone = schoolTransfers.find(v => v.id === id);
   schoolTransfers = schoolTransfers.filter(v => v.id !== id);
   renderSchoolTransfers();
   renderCommissions();
   closeTransferModal();
   await deleteSchoolTransferRemote(id);
+  if (gone && gone.filePath) await removeTransferProof(gone.filePath);
 });
 
 /* ---- tráfego pago ---- */
@@ -7881,6 +8038,7 @@ function enrollmentToDb(e) {
     id: e.id, lead_id: e.leadId || null, consultor_id: e.consultorId || null,
     name: e.name, email: e.email, phone: e.phone,
     emergency_phone: e.emergencyPhone,
+    birth_date: e.birthDate || null,
     passport_number: e.passportNumber, passport_photo_path: e.passportPhotoPath,
     passport_issue_date: e.passportIssueDate || null, passport_expiry_date: e.passportExpiryDate || null,
     matricula_pendente: !!e.matriculaPendente,
@@ -8267,6 +8425,7 @@ async function openEnrollmentModal(id) {
   document.getElementById("enr-field-email").value = enr.email || "";
   document.getElementById("enr-field-emergency").value = enr.emergencyPhone || "";
   document.getElementById("enr-field-cpf").value = enr.cpf || "";
+  document.getElementById("enr-field-birth-date").value = enr.birthDate || "";
   document.getElementById("enr-field-passport-number").value = enr.passportNumber || "";
   document.getElementById("enr-field-passport-issue").value = enr.passportIssueDate || "";
   document.getElementById("enr-field-passport-expiry").value = enr.passportExpiryDate || "";
@@ -8385,6 +8544,7 @@ enrollmentForm.addEventListener("submit", async e => {
     email: document.getElementById("enr-field-email").value.trim(),
     emergencyPhone: document.getElementById("enr-field-emergency").value.trim(),
     cpf: document.getElementById("enr-field-cpf").value.trim(),
+    birthDate: document.getElementById("enr-field-birth-date").value,
     passportNumber: document.getElementById("enr-field-passport-number").value.trim(),
     passportIssueDate: document.getElementById("enr-field-passport-issue").value,
     passportExpiryDate: document.getElementById("enr-field-passport-expiry").value,
