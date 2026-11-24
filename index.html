@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEREGRINOS</title>
-<link rel="stylesheet" href="style.css?v=1795910001">
+<link rel="stylesheet" href="style.css?v=1795940001">
 <link rel="stylesheet" href="bio.css?v=1794442137">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -1155,6 +1155,17 @@
               <button type="button" class="btn btn-primary btn-sm" id="btn-new-transfer" data-i18n="fin.newTransfer">+ Registrar envio</button>
             </div>
             <div class="transfers-total" id="fin-transfers-total"></div>
+            <div class="transfers-filter-bar">
+              <button type="button" class="btn btn-ghost btn-sm" id="fin-transfers-filter-toggle">Filtros</button>
+              <span class="muted-note" id="fin-transfers-filter-count"></span>
+            </div>
+            <div class="filter-bar" id="fin-transfers-filters" style="display:none;">
+              <input type="search" id="fin-transfers-search" placeholder="Buscar por nome ou e-mail" autocomplete="off">
+              <select id="fin-transfers-school"><option value="">Escola (todas)</option></select>
+              <label class="filter-inline">De <input type="date" id="fin-transfers-from"></label>
+              <label class="filter-inline">Até <input type="date" id="fin-transfers-to"></label>
+              <button type="button" class="btn btn-ghost btn-sm" id="fin-transfers-clear">Limpar filtros</button>
+            </div>
             <table class="data-table">
               <thead><tr><th data-i18n="common.client">Cliente</th><th data-i18n="enr.school">Escola</th><th data-i18n="fin.transfersSent">Enviado à escola</th><th data-i18n="fin.transfersCount">Envios</th><th data-i18n="fin.transfersLast">Último envio</th></tr></thead>
               <tbody id="fin-transfers-by-student"></tbody>
@@ -3337,7 +3348,7 @@
   <script src="i18n.js?v=1795097936"></script>
   <script src="comparativo.js?v=1794442137"></script>
   <script src="contrato-modelo.js?v=1795099897"></script>
-  <script src="script.js?v=1795930001"></script>
+  <script src="script.js?v=1795940001"></script>
   <script src="contratos-proposta.js?v=1794442137"></script>
   <script src="ficha-cliente.js?v=1794859597"></script>
   <script src="agenda-reunioes.js?v=1794442137"></script>

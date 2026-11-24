@@ -3721,3 +3721,12 @@ td.div-caixa, td.div-caio, td.div-erik { font-weight: 700; }
   .fin-exp-chart-wrap { padding-left: 0; padding-right: 0; height: 240px; }
   .fin-exp-kpi strong { font-size: 17px; }
 }
+
+/* ---- Envios às Escolas: botão de filtros e contagem ---- */
+.transfers-filter-bar { display: flex; align-items: center; gap: 10px; padding: 8px 20px 0; }
+.transfers-filter-bar .btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+#fin-transfers-filters input[type="search"], #fin-transfers-filters select, #fin-transfers-filters input[type="date"] {
+  font-family: inherit; font-size: 13px; color: var(--text); background: var(--content-bg);
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-width: 0;
+}
+#fin-transfers-filters input[type="search"] { flex: 1 1 260px; }

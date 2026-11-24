@@ -7709,10 +7709,37 @@ scommBtnDelete.addEventListener("click", async () => {
 });
 
 /* ---- envios às escolas ---- */
+/* filtros da tela de envios: nome/e-mail/telefone, escola e período do envio */
+const transfersFilter = { q: "", school: "", from: "", to: "" };
+function transferMatchesFilter(x, e) {
+  if (transfersFilter.school && e.school !== transfersFilter.school) return false;
+  if (transfersFilter.from && String(x.sentAt) < transfersFilter.from) return false;
+  if (transfersFilter.to && String(x.sentAt) > transfersFilter.to) return false;
+  const q = normalizeImportStr(transfersFilter.q);
+  if (q && !normalizeImportStr(`${e.name || ""} ${e.email || ""} ${e.phone || ""}`).includes(q)) return false;
+  return true;
+}
+function populateTransferSchoolOptions() {
+  const sel = document.getElementById("fin-transfers-school");
+  const current = sel.value;
+  const schools = [...new Set(schoolTransfers.map(x => (enrollments.find(e => e.id === x.enrollmentId) || {}).school).filter(Boolean))].sort();
+  sel.innerHTML = `<option value="">Escola (todas)</option>` + schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+  sel.value = schools.includes(current) ? current : "";
+}
 function renderSchoolTransfers() {
   const enrById = id => enrollments.find(e => e.id === id);
-  const sorted = schoolTransfers.slice().sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt)) || b.createdAt - a.createdAt);
-  document.getElementById("fin-transfers-empty").style.display = sorted.length === 0 ? "block" : "none";
+  populateTransferSchoolOptions();
+  const all = schoolTransfers.slice().sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt)) || b.createdAt - a.createdAt);
+  const sorted = all.filter(x => transferMatchesFilter(x, enrById(x.enrollmentId) || {}));
+  const filtering = Object.values(transfersFilter).some(Boolean);
+
+  const toggle = document.getElementById("fin-transfers-filter-toggle");
+  toggle.classList.toggle("active", filtering);
+  document.getElementById("fin-transfers-filter-count").textContent = filtering ? `${sorted.length} de ${all.length} envio(s)` : "";
+
+  const empty = document.getElementById("fin-transfers-empty");
+  empty.style.display = sorted.length === 0 ? "block" : "none";
+  empty.textContent = all.length === 0 ? t("fin.noTransfers") : "Nenhum envio encontrado com esses filtros.";
 
   const byStudent = new Map();
   sorted.forEach(x => {
@@ -7724,10 +7751,11 @@ function renderSchoolTransfers() {
   document.getElementById("fin-transfers-total").textContent = sorted.length
     ? `${t("fin.transfersTotal")}: ${currency(grand)} · ${byStudent.size} ${t("fin.transfersStudents")}` : "";
 
+  /* resumo por aluno: o último envio primeiro */
   document.getElementById("fin-transfers-by-student").innerHTML = [...byStudent.entries()]
-    .sort((a, b) => b[1].total - a[1].total).map(([id, r]) => {
+    .sort((a, b) => String(b[1].last).localeCompare(String(a[1].last)) || b[1].total - a[1].total).map(([id, r]) => {
       const e = enrById(id) || {};
-      return `<tr><td class="cell-primary">${leadLink(e.leadId, e.name || "—")}</td><td class="cell-muted">${escapeHtml(e.school || "—")}</td>
+      return `<tr><td class="cell-primary">${leadLink(e.leadId, e.name || "—")}${e.email ? `<div class="cell-muted">${escapeHtml(e.email)}</div>` : ""}</td><td class="cell-muted">${escapeHtml(e.school || "—")}</td>
         <td class="cell-primary">${currency(r.total)}</td><td class="cell-muted">${r.count}</td><td class="cell-muted">${r.last ? formatDate(r.last) : "—"}</td></tr>`;
     }).join("");
 
@@ -7747,6 +7775,20 @@ function renderSchoolTransfers() {
     tbody.appendChild(tr);
   });
 }
+
+document.getElementById("fin-transfers-filter-toggle").addEventListener("click", () => {
+  const box = document.getElementById("fin-transfers-filters");
+  box.style.display = box.style.display === "none" ? "" : "none";
+});
+document.getElementById("fin-transfers-search").addEventListener("input", e => { transfersFilter.q = e.target.value; renderSchoolTransfers(); });
+document.getElementById("fin-transfers-school").addEventListener("change", e => { transfersFilter.school = e.target.value; renderSchoolTransfers(); });
+document.getElementById("fin-transfers-from").addEventListener("input", e => { transfersFilter.from = e.target.value; renderSchoolTransfers(); });
+document.getElementById("fin-transfers-to").addEventListener("input", e => { transfersFilter.to = e.target.value; renderSchoolTransfers(); });
+document.getElementById("fin-transfers-clear").addEventListener("click", () => {
+  Object.assign(transfersFilter, { q: "", school: "", from: "", to: "" });
+  ["fin-transfers-search", "fin-transfers-school", "fin-transfers-from", "fin-transfers-to"].forEach(id => { document.getElementById(id).value = ""; });
+  renderSchoolTransfers();
+});
 
 const transferModalBackdrop = document.getElementById("transfer-modal-backdrop");
 const transferForm = document.getElementById("transfer-form");
