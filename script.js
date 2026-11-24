@@ -7275,6 +7275,7 @@ function renderSaleSplits() {
       <td class="split-sep"><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${sp.custoCurso == null && !splitPending.has(splitKey(sp.dealId, "custo")) ? "split-in-auto" : ""} ${dirty("custo")}" data-deal="${sp.dealId}" data-field="custo" value="${escapeHtml(val("custo", splitMoney(sp.custoCurso == null ? sp.courseGross : sp.custoCurso)))}" aria-label="Custo do curso (Gross)" title="${sp.custoCurso == null ? "Gross da invoice da escola. Em branco, vale o valor vendido. Se o Gross for menor (promoção que não foi repassada ao cliente), digite-o: a diferença aparece como sobra do curso." : "Gross da invoice da escola. Apague para voltar a valer o valor vendido."}"></td>
       ${calc("course_gross", false)}
       <td><input type="text" inputmode="decimal" autocomplete="off" class="split-in ${wrong ? "split-net-warn" : ""} ${dirty("net")}" data-deal="${sp.dealId}" data-field="net" value="${escapeHtml(val("net", pendente ? "" : splitMoney(sp.netCourse)))}" placeholder="digite" aria-label="Net da escola" ${wrong ? `title="Confira: o custo do curso é ${currency(splitBase(sp))}"` : ""}></td>
+      <td class="split-comissao-escola" title="Valor vendido menos o Net da escola">${pendente ? "—" : currency(cents2(sp.courseGross - sp.netCourse))}</td>
       ${calc("cac_amount", false)}${calc("influencer_amount", false, sp.influencerPendente ? '<span class="split-sub split-pendente">influenciador ainda não recebeu</span>' : "")}${calc("cons_curso", false, cons ? `<span class="split-sub">${escapeHtml(cons.name)}</span>` : "")}
       ${calc("manager_amount", false, mgr ? `<span class="split-sub">${escapeHtml(mgr.name)}</span>` : "")}
       ${calc("reserva_amount", false, sp.sobraAmount ? `<span class="split-sub">sobra do curso ${currency(sp.sobraAmount)} (entra na divisão do lucro)</span>` : "")}
@@ -7404,8 +7405,8 @@ function divTd(sp, deal, key) {
   return `<td class="fin-split-col div-${key}">${currency(dv[key])}</td>`;
 }
 function buildSaleSplitsWorkbook() {
-  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 8], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["DIVISÃO DO LUCRO", 4], ["", 1]];
-  const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "CAC / Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Budget MKT", "Sobra do curso",
+  const groups = [["", 1], ["CÁLCULO VENDA ESCOLA", 9], ["CÁLCULOS ACOMODAÇÃO", 5], ["KIT", 1], ["PASSAGEM PEREGRINOS", 2], ["", 2], ["DIVISÃO DO LUCRO", 4], ["", 1]];
+  const header = ["Negócio", "Custo do curso (Gross)", "Valor vendido", "Net escola", "Comissão escola (valor vendido − Net)", "CAC / Influenciador", "Comissão consultor (escola)", "Comissão gerente", "Budget MKT", "Sobra do curso",
     "Acom. custo", "Acom. venda", "Acom. lucro", "Acom. comissão consultor", "Acom. ganhos Peregrinos", "Kit (custo fixo, sem lucro)", "Passagem", "Passagem: comissão consultor",
     "Venda total", "Lucro Peregrino (total)", "Base da divisão (lucro + sobra)", "Caixa reserva (30%)", "Caio (30%)", "Erik (40%)", "Situação"];
   const rows = saleSplitsSorted().map(sp => {
@@ -7415,7 +7416,7 @@ function buildSaleSplitsWorkbook() {
     const dv = divisaoDoLucro(sp, deal);
     const dvCalc = k => (dv.aplicavel && !dv.pendente ? dv[k] : null);
     /* CAC fixo (R$ 100) ou influenciador: a regra põe o valor em um ou outro, então a coluna soma os dois */
-    return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, (Number(sp.cacAmount) || 0) + (Number(sp.influencerAmount) || 0), calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount, sp.sobraAmount,
+    return [deal ? deal.name : "", sp.custoCurso == null ? sp.courseGross : sp.custoCurso, sp.courseGross, sp.netCourse, calc(cents2(sp.courseGross - sp.netCourse)), (Number(sp.cacAmount) || 0) + (Number(sp.influencerAmount) || 0), calc(sp.consCurso), calc(sp.managerAmount), sp.reservaAmount, sp.sobraAmount,
       sp.acomPago, sp.acomCobrado, sp.acomLucro, sp.acomConsultor, sp.acomLucro - sp.acomConsultor, sp.kitAmount, sp.passagemAmount, sp.consPassagem,
       sp.courseTotal, calc(sp.peregrinosNet), (dv.aplicavel && !dv.pendente ? dv.base : null), dvCalc("caixa"), dvCalc("caio"), dvCalc("erik"),
       pendente ? "Pendente: falta o Net" : (sp.influencerPendente ? "Calculado · ATENÇÃO: influenciador ainda não recebeu" : "Calculado")];
