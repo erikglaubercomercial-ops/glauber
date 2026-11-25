@@ -64,6 +64,8 @@ function pvErrorText(error) {
   if (msg.includes("sem_permissao")) return "Você não tem permissão para alterar a pipeline de pós-venda.";
   if (msg.includes("etapa_com_alunos")) return "Esta etapa tem alunos. Escolha para qual etapa eles vão antes de excluir.";
   if (msg.includes("nome_obrigatorio")) return "Informe o nome da etapa.";
+  if (msg.includes("aluno_ja_no_quadro")) return "Este aluno já tem card no quadro. Atualize a tela.";
+  if (msg.includes("matricula_nao_encontrada")) return "Matrícula não encontrada.";
   if (msg.includes("item_de_outra_etapa")) return "Este item não pertence à etapa atual do aluno. Atualize a tela.";
   return "Não foi possível salvar. Tente de novo.";
 }
@@ -82,6 +84,7 @@ async function renderPosVenda() {
     ? "Marque os itens de cada aluno. Ao concluir todos os itens de uma etapa, o aluno avança para a próxima."
     : "Você pode acompanhar os alunos. Só ADM, Gerente e Suporte alteram.";
   document.getElementById("pv-new").style.display = pvCanEdit() ? "" : "none";
+  document.getElementById("pv-add-card").style.display = pvCanEdit() ? "" : "none";
   if (!pvData) document.getElementById("pv-board").innerHTML = `<p class="muted-note">Carregando…</p>`;
   if (!(await pvLoad()) && !pvData) {
     document.getElementById("pv-board").innerHTML = `<p class="muted-note">Não foi possível carregar a pipeline agora.</p>`;
@@ -132,9 +135,20 @@ function pvRender() {
   pvRenderEditPanel();
 }
 
+/* checklist acumulado: itens da etapa atual e de todas as anteriores (as marcações ficam no card quando ele avança) */
+function pvChecklist(a) {
+  const idx = pvEtapaIndex(a.etapa_id);
+  const grupos = idx < 0 ? [] : pvData.etapas.slice(0, idx + 1).map(e => ({ e })).filter(g => g.e.itens.length);
+  const itens = grupos.flatMap(g => g.e.itens);
+  return { grupos, total: itens.length, feitos: itens.filter(it => a.feitos.includes(it.id)).length };
+}
+function pvGrupoRotulo(g, grupos) {
+  return grupos.length > 1 ? `<div class="pv-grp">${escapeHtml(g.e.nome)}</div>` : "";
+}
+
 function pvCardHtml(a, e) {
-  const total = e.itens.length;
-  const feitos = a.feitos.filter(id => e.itens.some(i => i.id === id)).length;
+  const cl = pvChecklist(a);
+  const total = cl.total, feitos = cl.feitos;
   const pct = total ? Math.round(feitos / total * 100) : 0;
   const alerts = pvAlerts(a);
   const sub = [a.school, a.turno].filter(Boolean).join(" · ");
@@ -146,10 +160,10 @@ function pvCardHtml(a, e) {
       <div class="card-contact-row"><span>${escapeHtml(chegada)}</span></div>
       ${alerts.length ? `<div class="card-tags">${alerts.map(([k, txt]) => `<span class="badge ${k === "d" ? "badge-danger" : "badge-warn"}">${escapeHtml(txt)}</span>`).join("")}</div>` : ""}
       <div class="pv-bar"><i style="width:${pct}%"></i></div>
-      ${total ? `<div class="pv-checks">${e.itens.map(it => {
+      ${total ? `<div class="pv-checks">${cl.grupos.map(g => pvGrupoRotulo(g, cl.grupos) + g.e.itens.map(it => {
         const done = a.feitos.includes(it.id);
-        return `<label class="pv-check${done ? " done" : ""}"><input type="checkbox" data-pv-item="${it.id}" ${done ? "checked" : ""} ${pvCanEdit() ? "" : "disabled"}><span>${escapeHtml(it.texto)}</span></label>`;
-      }).join("")}</div>` : ""}
+        return `<div class="pv-check${done ? " done" : ""}"><input type="checkbox" data-pv-item="${it.id}" ${done ? "checked" : ""} ${pvCanEdit() ? "" : "disabled"}><span data-pv-rename="${it.id}"${pvCanEdit() ? ' title="Clique duas vezes para renomear"' : ""}>${escapeHtml(it.texto)}</span></div>`;
+      }).join("")).join("")}</div>` : ""}
       <div class="card-footer"><span class="card-value">${feitos} de ${total} itens</span></div>
     </div>`;
 }
@@ -175,13 +189,17 @@ function pvRenderDetail() {
       </div>
       <span class="pv-chip-step" style="color:${cor}; border-color:${cor};">Etapa ${idx + 1}: ${escapeHtml(e ? e.nome : "—")}</span>
     </div>
-    ${e && e.itens.length ? e.itens.map(it => {
-      const done = a.feitos.includes(it.id);
-      return `<label class="pv-it">
-        <input type="checkbox" data-pv-item="${it.id}" ${done ? "checked" : ""} ${canEdit && !pvBusy ? "" : "disabled"}>
-        <span class="${done ? "pv-done" : ""}">${escapeHtml(it.texto)}</span>
-      </label>`;
-    }).join("") : `<p class="muted-note" style="margin:0">Esta etapa ainda não tem itens. Edite a etapa para incluir.</p>`}
+    ${(() => {
+      const cl = pvChecklist(a);
+      if (!cl.total) return `<p class="muted-note" style="margin:0">Esta etapa ainda não tem itens. Edite a etapa para incluir.</p>`;
+      return cl.grupos.map(g => pvGrupoRotulo(g, cl.grupos) + g.e.itens.map(it => {
+        const done = a.feitos.includes(it.id);
+        return `<div class="pv-it">
+          <input type="checkbox" data-pv-item="${it.id}" ${done ? "checked" : ""} ${canEdit && !pvBusy ? "" : "disabled"}>
+          <span class="${done ? "pv-done" : ""}" data-pv-rename="${it.id}"${canEdit ? ' title="Clique duas vezes para renomear"' : ""}>${escapeHtml(it.texto)}</span>
+        </div>`;
+      }).join("")).join("");
+    })()}
     ${canEdit && outras.length ? `
       <div class="pv-move">
         <span>Mover para outra etapa</span>
@@ -213,6 +231,48 @@ function pvOpenEdit(id) {
       <button type="button" class="btn btn-primary btn-sm" data-pv-act="save-step">Salvar</button>
     </div>`;
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ---- novo card: coloca no quadro uma matrícula que ainda não está nele ---- */
+async function pvOpenAdd() {
+  if (!pvData || !pvData.etapas.length) { alert("Cadastre uma etapa antes de criar cards."); return; }
+  const { data, error } = await supabase.rpc("pv_alunos_disponiveis");
+  if (error) { console.error(error); alert(pvErrorText(error)); return; }
+  const lista = data || [];
+  pvEdit = { add: true };
+  const panel = document.getElementById("pv-edit");
+  panel.hidden = false;
+  const opt = a => {
+    const sub = [a.school, a.turno].filter(Boolean).join(" · ");
+    return `<option value="${a.enrollment_id}">${escapeHtml(a.name || "—")}${sub ? " — " + escapeHtml(sub) : ""}</option>`;
+  };
+  panel.innerHTML = `
+    <h3>Novo card</h3>
+    <p class="q-card-sub">Escolha uma matrícula que ainda não está no quadro. O card entra na etapa escolhida.</p>
+    ${lista.length ? `
+    <div class="pv-form">
+      <label>Aluno (matrícula)<select id="pv-add-aluno">${lista.map(opt).join("")}</select></label>
+      <label>Etapa<select id="pv-add-etapa">${pvData.etapas.map((e, i) => `<option value="${e.id}">Etapa ${i + 1}: ${escapeHtml(e.nome)}</option>`).join("")}</select></label>
+    </div>` : `<p class="muted-note">Todas as matrículas já têm card no quadro. Para um aluno novo, crie primeiro a matrícula no menu Matrículas.</p>`}
+    <div class="pv-acts">
+      <button type="button" class="btn btn-ghost btn-sm" data-pv-act="cancel-edit">Cancelar</button>
+      ${lista.length ? `<button type="button" class="btn btn-primary btn-sm" data-pv-act="add-card-save">Criar card</button>` : ""}
+    </div>`;
+  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function pvSaveAdd() {
+  if (pvBusy) return;
+  const enr = document.getElementById("pv-add-aluno").value;
+  const etapa = document.getElementById("pv-add-etapa").value;
+  if (!enr || !etapa) return;
+  pvBusy = true;
+  const { error } = await supabase.rpc("pv_adicionar_aluno", { p_enrollment: enr, p_etapa: etapa });
+  pvBusy = false;
+  if (error) { console.error(error); alert(pvErrorText(error)); return; }
+  pvSel = enr;
+  pvCloseEdit();
+  await pvReload();
 }
 
 function pvRenderEditPanel() {
@@ -279,10 +339,38 @@ async function pvDeleteStep(id, alunos) {
 }
 
 /* ---- ações sobre o aluno ---- */
-async function pvToggleItem(itemId, feito) {
-  if (pvBusy || !pvSel) return;
+/* renomear item com duplo clique: vale para todos os alunos (o item é da etapa); as marcações já feitas continuam */
+function pvStartRename(sp) {
+  const id = sp.dataset.pvRename;
+  const old = sp.textContent;
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.className = "pv-rename-in"; inp.value = old; inp.maxLength = 300;
+  sp.replaceWith(inp);
+  inp.focus(); inp.select();
+  let fim = false;
+  const salvar = async () => {
+    if (fim) return;
+    fim = true;
+    const novo = inp.value.trim();
+    if (!novo || novo === old) { pvRender(); return; }
+    pvBusy = true;
+    const { error } = await supabase.rpc("pv_item_renomear", { p_item: id, p_texto: novo });
+    pvBusy = false;
+    if (error) { console.error(error); alert(pvErrorText(error)); }
+    await pvReload();
+  };
+  inp.addEventListener("keydown", ev => {
+    if (ev.key === "Enter") { ev.preventDefault(); salvar(); }
+    else if (ev.key === "Escape") { fim = true; pvRender(); }
+  });
+  inp.addEventListener("blur", salvar);
+}
+
+async function pvToggleItem(itemId, feito, enrollmentId) {
+  const enr = enrollmentId || pvSel;
+  if (pvBusy || !enr) return;
   pvBusy = true;
-  const { error } = await supabase.rpc("pv_marcar_item", { p_enrollment: pvSel, p_item: itemId, p_feito: feito });
+  const { error } = await supabase.rpc("pv_marcar_item", { p_enrollment: enr, p_item: itemId, p_feito: feito });
   pvBusy = false;
   if (error) { console.error(error); alert(pvErrorText(error)); }
   await pvReload();
@@ -344,6 +432,7 @@ function pvBind() {
   });
 
   document.getElementById("pv-new").addEventListener("click", () => { if (pvCanEdit()) pvOpenEdit(null); });
+  document.getElementById("pv-add-card").addEventListener("click", () => { if (pvCanEdit()) pvOpenAdd(); });
   document.getElementById("pv-search-input").addEventListener("input", e => { pvQuery = e.target.value.trim(); pvRender(); });
 
   root.addEventListener("click", e => {
@@ -355,6 +444,7 @@ function pvBind() {
     const act = b.dataset.pvAct;
     if (act === "edit-step") pvOpenEdit(b.dataset.id);
     else if (act === "save-step") pvSaveEdit();
+    else if (act === "add-card-save") pvSaveAdd();
     else if (act === "cancel-edit") pvCloseEdit();
     else if (act === "del-step") pvDeleteStep(b.dataset.id, Number(b.dataset.alunos) || 0);
     else if (act === "move") pvMoveAluno();
@@ -362,7 +452,15 @@ function pvBind() {
 
   root.addEventListener("change", e => {
     const cb = e.target.closest("[data-pv-item]");
-    if (cb && pvCanEdit()) pvToggleItem(cb.dataset.pvItem, cb.checked);
+    if (cb && pvCanEdit()) {
+      /* marcou dentro de um card: vale para o aluno daquele card (não o selecionado embaixo) */
+      const card = cb.closest("[data-pv-card]");
+      pvToggleItem(cb.dataset.pvItem, cb.checked, card ? card.dataset.pvCard : null);
+    }
+  });
+  root.addEventListener("dblclick", e => {
+    const sp = e.target.closest("[data-pv-rename]");
+    if (sp && pvCanEdit() && !pvBusy) pvStartRename(sp);
   });
 }
 

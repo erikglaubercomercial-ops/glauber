@@ -3730,3 +3730,10 @@ td.div-caixa, td.div-caio, td.div-erik { font-weight: 700; }
   border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-width: 0;
 }
 #fin-transfers-filters input[type="search"] { flex: 1 1 260px; }
+
+/* pós-venda: checklist acumulado e renomear item */
+.pv-grp { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); margin-top: 4px; }
+.pv-grp:first-child { margin-top: 0; }
+.pv-check span[data-pv-rename], .pv-it span[data-pv-rename] { cursor: text; }
+.pv-rename-in { flex: 1 1 auto; min-width: 0; font: inherit; font-size: 12px; padding: 2px 6px; border: 1px solid var(--primary); border-radius: 6px; background: var(--surface); color: var(--text); }
+.pv-it .pv-rename-in { font-size: 13.5px; }

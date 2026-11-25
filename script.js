@@ -5246,6 +5246,14 @@ function quoteValida() {
     campos.find(c => !c.el.value.trim()).el.focus();
     return false;
   }
+  const emailRuim = [document.getElementById("q-email"), document.getElementById("q-consultor-email")]
+    .find(el => el && window.emailValido && !window.emailValido(el.value));
+  if (emailRuim) {
+    emailRuim.classList.add("err");
+    alert(t("quotes.invalidEmail"));
+    emailRuim.focus();
+    return false;
+  }
   if (quoteLinhas().length === 0) {
     alert(t("quotes.selectAtLeastOneService"));
     return false;

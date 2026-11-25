@@ -110,7 +110,7 @@ $pp("pp-form").addEventListener("submit", async e => {
     $pp(`pp-f-${faltando[0].key}`).focus();
     return;
   }
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dados.email)) {
+  if (!(window.emailValido ? window.emailValido(dados.email) : /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dados.email))) {
     err.textContent = "Informe um e-mail válido: o código de confirmação será enviado para ele.";
     err.style.display = "block";
     $pp("pp-f-email").classList.add("err");

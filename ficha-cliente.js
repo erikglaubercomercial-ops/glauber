@@ -392,7 +392,7 @@ function fxRenderCards(d) {
     const warnDate = e.arrival_date ? (() => { const x = fxDateObj(e.arrival_date); x.setDate(x.getDate() - meet); return x.toLocaleDateString("pt-BR"); })() : "";
     h += fxRow("Reunião de pré-embarque", e.pre_embark_at ? `<span class="fx-ok">${fxDateTime(e.pre_embark_at)}</span>` : `<span class="fx-wr">a agendar</span>${warnDate ? `<br><small class="fx-mu" style="font-weight:600">aviso em ${warnDate}</small>` : ""}`);
     h += `<div class="fx-meet"><input type="datetime-local" id="fx-meet-input" value="${e.pre_embark_at ? fxLocalInput(e.pre_embark_at) : ""}"><button type="button" class="btn btn-primary btn-sm" id="fx-meet-save">${e.pre_embark_at ? "Reagendar" : "Agendar reunião"}</button></div>`;
-    h += `<div class="fx-acts">${d.quote ? `<span class="prod-chip">Cotação ${fxEsc(d.quote.numero || "")} · ${fxEsc(d.quote.status || "")}</span>` : ""}${d.contract ? `<button type="button" class="btn btn-ghost btn-sm" id="fx-open-contract">Contrato ${fxEsc(d.contract.numero || "")}</button>` : ""}</div></div>`;
+    h += `<div class="fx-acts">${d.quote ? `<span class="prod-chip">Cotação ${fxEsc(d.quote.numero || "")} · ${fxEsc(d.quote.status || "")}</span>` : ""}${d.contract ? `<button type="button" class="btn btn-ghost btn-sm" id="fx-open-contract">Contrato ${fxEsc(d.contract.numero || "")}</button>` : ""}${d.contract && d.contract.status === "Assinado" && d.quote ? `<button type="button" class="btn btn-primary btn-sm" id="fx-open-quote-pdf" title="Abre a cotação exatamente como o cliente aceitou ao assinar o contrato">PDF da cotação aceita</button>` : ""}</div></div>`;
     cards.push(h);
   } else if (d.quote || d.contract) {
     cards.push(`<div class="fx-card"><h3><span class="ic">📄</span>Cotação e contrato</h3>
@@ -670,6 +670,31 @@ function fxBindCards(d) {
   if (openEnr) openEnr.addEventListener("click", () => { closeFicha(); openEnrollmentModal(e.id); });
   const ct = $fx("fx-open-contract");
   if (ct) ct.addEventListener("click", () => { closeFicha(); switchView("contratos"); openContractModal(d.contract.id); });
+  const qpdf = $fx("fx-open-quote-pdf");
+  if (qpdf) qpdf.addEventListener("click", () => fxOpenAcceptedQuote(d.contract.id));
+}
+
+/* cotação aceita pelo cliente: vem da cópia gravada no contrato no momento da assinatura (não muda se a cotação for editada depois) */
+async function fxOpenAcceptedQuote(contractId) {
+  const w = window.open("", "_blank");   /* abre já no clique para o navegador não bloquear */
+  if (!w) { alert("O navegador bloqueou a nova aba. Libere pop-ups para este site e tente de novo."); return; }
+  w.document.write("<p style=\"font-family:sans-serif;padding:24px\">Abrindo a cotação…</p>");
+  try {
+    let snap = (typeof contracts !== "undefined" ? contracts : []).find(x => x.id === contractId)?.snapshot || null;
+    if (!snap) {
+      const { data, error } = await supabase.from("contracts").select("dados_snapshot").eq("id", contractId).maybeSingle();
+      if (error) throw error;
+      snap = data && data.dados_snapshot;
+    }
+    const cot = snap && snap.cotacao;
+    if (!cot) { w.close(); alert("Não encontrei a cópia da cotação neste contrato."); return; }
+    const bar = `<style>@media print{.fx-pdf-bar{display:none!important}}</style><div class="fx-pdf-bar" style="position:fixed;top:12px;right:12px;z-index:9"><button onclick="window.print()" style="padding:8px 14px;border-radius:8px;border:0;background:#1d4f91;color:#fff;font:600 13px sans-serif;cursor:pointer">Imprimir / salvar PDF</button></div>`;
+    const html = contratoCotacaoDocumento(cot).replace(/<\/body>/i, `${bar}</body>`);
+    w.document.open(); w.document.write(html); w.document.close();
+  } catch (err) {
+    w.close();
+    alert("Não consegui abrir a cotação: " + (err && err.message ? err.message : err));
+  }
 }
 
 /* ---------------- follow-ups, anotações, linha do tempo ---------------- */
