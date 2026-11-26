@@ -4412,6 +4412,7 @@ function openQuoteBuilder(id) {
       document.getElementById("q-consultor-email").value = q.consultorEmail || "";
       document.getElementById("q-emissao").value = q.emissao || "";
       document.getElementById("q-validade").value = q.validade || "";
+      quoteAplicaLimiteValidade();
       document.getElementById("q-obs").value = q.observacoes || "";
       (q.itemsDetail || []).forEach(l => { if (l.id) quoteSelecionados[l.id] = l.qtd || 1; });
       /* desconto = linha(s) de total negativo guardadas junto dos itens */
@@ -5284,7 +5285,7 @@ async function buildAndSaveQuoteRecord() {
   const consultorNome = document.getElementById("q-consultor").value.trim();
   const consultorEmail = document.getElementById("q-consultor-email").value.trim();
   const emissao = document.getElementById("q-emissao").value;
-  const validade = document.getElementById("q-validade").value;
+  const validade = quoteLimitaValidade(document.getElementById("q-emissao").value, document.getElementById("q-validade").value);
   const obs = document.getElementById("q-obs").value.trim();
   const leadId = document.getElementById("q-lead-id").value || null;
   const linhas = quoteLinhas();
@@ -5377,7 +5378,7 @@ async function quoteGerar() {
   const consultorNome = document.getElementById("q-consultor").value.trim();
   const consultorEmail = document.getElementById("q-consultor-email").value.trim();
   const emissao = document.getElementById("q-emissao").value;
-  const validade = document.getElementById("q-validade").value;
+  const validade = quoteLimitaValidade(document.getElementById("q-emissao").value, document.getElementById("q-validade").value);
   const obs = document.getElementById("q-obs").value.trim();
   const linhas = quoteLinhas();
   const total = quoteTotal();
@@ -5428,12 +5429,34 @@ document.getElementById("quote-doc-back").addEventListener("click", () => {
 });
 document.getElementById("quote-doc-print").addEventListener("click", () => window.print());
 
+/* REGRA: a validade da cotação vai no máximo até o último dia do mês da emissão (o banco também garante). */
+function quoteFimDoMes(iso) {
+  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(iso || "");
+  if (!m) return "";
+  const ultimo = new Date(Number(m[1]), Number(m[2]), 0).getDate();
+  return `${m[1]}-${m[2]}-${String(ultimo).padStart(2, "0")}`;
+}
+function quoteLimitaValidade(emissao, validade) {
+  const fim = quoteFimDoMes(emissao);
+  return fim && validade && validade > fim ? fim : validade;
+}
+function quoteAplicaLimiteValidade() {
+  const emissaoEl = document.getElementById("q-emissao");
+  const validadeEl = document.getElementById("q-validade");
+  const fim = quoteFimDoMes(emissaoEl.value);
+  validadeEl.max = fim;
+  const ajustada = quoteLimitaValidade(emissaoEl.value, validadeEl.value);
+  if (ajustada !== validadeEl.value) validadeEl.value = ajustada;
+}
+["q-emissao", "q-validade"].forEach(id => document.getElementById(id).addEventListener("change", quoteAplicaLimiteValidade));
+
 function initQuoteBuilderDefaults() {
   const hoje = new Date();
   const emissao = document.getElementById("q-emissao");
   const validade = document.getElementById("q-validade");
   if (!emissao.value) emissao.value = hoje.toISOString().slice(0, 10);
   if (!validade.value) validade.value = new Date(hoje.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  quoteAplicaLimiteValidade();
   if (session) {
     if (!document.getElementById("q-consultor").value) document.getElementById("q-consultor").value = session.name;
     if (!document.getElementById("q-consultor-email").value) document.getElementById("q-consultor-email").value = session.email;

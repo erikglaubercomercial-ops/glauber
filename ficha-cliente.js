@@ -58,6 +58,7 @@ async function openFicha(leadId) {
   $fx("ficha-fu-form").style.display = "none";
   $fx("ficha-note-text").value = "";
   $fx("ficha-backdrop").classList.add("open");
+  document.documentElement.classList.add("ficha-aberta");
   $fx("ficha-backdrop").scrollTop = 0;
   await fichaLoad();
   clearInterval(fichaTimer);
@@ -69,6 +70,7 @@ function closeFicha() {
   fichaTimer = null;
   fichaLeadId = null;
   $fx("ficha-backdrop").classList.remove("open");
+  document.documentElement.classList.remove("ficha-aberta");
 }
 
 async function fichaLoad() {

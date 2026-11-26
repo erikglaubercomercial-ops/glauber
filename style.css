@@ -3737,3 +3737,21 @@ td.div-caixa, td.div-caio, td.div-erik { font-weight: 700; }
 .pv-check span[data-pv-rename], .pv-it span[data-pv-rename] { cursor: text; }
 .pv-rename-in { flex: 1 1 auto; min-width: 0; font: inherit; font-size: 12px; padding: 2px 6px; border: 1px solid var(--primary); border-radius: 6px; background: var(--surface); color: var(--text); }
 .pv-it .pv-rename-in { font-size: 13.5px; }
+
+/* ---- Ficha do cliente / lead no celular ----
+   Causa do bug: a regra de modais do celular (.modal-backdrop { align-items: flex-end }) vencia o
+   align-items: flex-start da ficha. Com a ficha mais alta que a tela, o topo ficava cortado e impossível de
+   rolar até lá. Aqui a ficha ocupa a tela toda, começa no topo e rola por dentro. */
+.ficha-backdrop { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+html.ficha-aberta, html.ficha-aberta body { overflow: hidden; }
+@media (max-width: 640px) {
+  .ficha-backdrop { align-items: flex-start; justify-content: flex-start; padding: 0; overflow-y: auto; overflow-x: hidden; height: 100vh; height: 100dvh; }
+  .ficha-sheet { border-radius: 0; padding: 12px 12px calc(28px + env(safe-area-inset-bottom)); min-height: 100%; max-width: 100%; box-sizing: border-box; }
+  .fx-close { position: sticky; float: right; top: 8px; right: 4px; margin: 0 0 -34px; }
+  .fx-head h2 { font-size: 21px; }
+  .fx-grid { grid-template-columns: minmax(0, 1fr); }
+  .fx-pad { padding: 14px; }
+  .fx-card { padding: 14px; }
+  .fx-hero .prod-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fx-acts .btn { flex: 1 1 auto; }
+}
