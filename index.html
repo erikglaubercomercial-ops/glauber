@@ -984,6 +984,7 @@
             <div class="panel-header">
               <h2 data-i18n="fin.tabReceivables">Contas a Receber</h2>
             </div>
+            <div data-fin-per="receivables"></div>
             <div class="filter-bar">
               <input type="text" id="fin-rec-search" placeholder="Buscar cliente" autocomplete="off">
               <select id="fin-rec-filter-status">
@@ -1075,6 +1076,7 @@
                 <button type="button" class="btn btn-ghost btn-sm" id="fin-commission-pct-save" data-i18n="common.save">Salvar</button>
               </div>
             </div>
+            <div data-fin-per="commissions"></div>
             <div class="div-resumo" id="fin-com-div-resumo"></div>
             <table class="data-table">
               <thead><tr><th data-i18n="common.consultant">Consultor</th><th data-i18n="fin.deal">Negócio</th><th data-i18n="fin.dealValue">Valor do negócio</th><th>%</th><th data-i18n="fin.commission">Comissão</th><th class="fin-split-col">Caixa reserva (30%)</th><th class="fin-split-col">Caio (30%)</th><th class="fin-split-col">Erik (40%)</th><th data-i18n="fin.release">Liberação</th><th data-i18n="common.status">Status</th><th></th></tr></thead>
@@ -1130,6 +1132,7 @@
               <h2 data-i18n="fin.tabSchoolCommissions">Comissão de Escolas</h2>
               <button type="button" class="btn btn-primary btn-sm" id="btn-new-scomm" data-i18n="fin.schoolCommNew">+ Registrar comissão</button>
             </div>
+            <div data-fin-per="schoolcomm"></div>
             <div class="filter-bar">
               <select id="fin-schoolcomm-filter-status">
                 <option value="" data-i18n="common.statusAll">Status (todos)</option>
@@ -1156,6 +1159,7 @@
               <h2 data-i18n="fin.tabSchoolTransfers">Envios às Escolas</h2>
               <button type="button" class="btn btn-primary btn-sm" id="btn-new-transfer" data-i18n="fin.newTransfer">+ Registrar envio</button>
             </div>
+            <div data-fin-per="transfers"></div>
             <div class="transfers-total" id="fin-transfers-total"></div>
             <div class="transfers-filter-bar">
               <button type="button" class="btn btn-ghost btn-sm" id="fin-transfers-filter-toggle">Filtros</button>
@@ -1188,6 +1192,7 @@
               <h2 data-i18n="fin.tabAdSpend">Tráfego Pago</h2>
               <button type="button" class="btn btn-primary btn-sm" id="btn-new-adspend" data-i18n="fin.newAdSpend">+ Novo investimento</button>
             </div>
+            <div data-fin-per="adspend"></div>
             <div class="fin-ov-summary" id="fin-adspend-totals"></div>
             <table class="data-table">
               <thead><tr><th data-i18n="fin.channel">Canal</th><th>Gasto realizado</th><th>Convertido</th><th data-i18n="common.date">Data</th><th data-i18n="common.notes">Notas</th><th></th></tr></thead>
@@ -1203,6 +1208,7 @@
             <div class="panel-header">
               <h2 data-i18n="fin.tabMetrics">Métricas</h2>
             </div>
+            <div data-fin-per="metrics"></div>
             <div class="filter-bar">
               <label><span data-i18n="common.dateFrom">Data inicial</span> <input type="date" id="metrics-filter-from"></label>
               <label><span data-i18n="common.dateTo">Data final</span> <input type="date" id="metrics-filter-to"></label>
@@ -3351,7 +3357,8 @@
   <script src="i18n.js?v=1795950007"></script>
   <script src="comparativo.js?v=1794442137"></script>
   <script src="contrato-modelo.js?v=1795099897"></script>
-  <script src="script.js?v=1795950007"></script>
+  <script src="filtro-mes.js?v=1795950008"></script>
+  <script src="script.js?v=1795950008"></script>
   <script src="contratos-proposta.js?v=1794442137"></script>
   <script src="ficha-cliente.js?v=1795950006"></script>
   <script src="agenda-reunioes.js?v=1794442137"></script>
@@ -3369,8 +3376,8 @@
   <script src="templates-email.js?v=1795000000"></script>
   <script src="posvenda.js?v=1795950004"></script>
   <script src="catalogo-explorer.js?v=1794442137"></script>
-  <script src="financeiro-dashboard.js?v=1795920001"></script>
-  <script src="acomodacao-financeiro.js?v=1794662038"></script>
+  <script src="financeiro-dashboard.js?v=1795950008"></script>
+  <script src="acomodacao-financeiro.js?v=1795950008"></script>
   <script src="comprovantes-pagamento.js?v=1794442137"></script>
   <div class="modal-backdrop" id="mi-compose-backdrop"><div class="modal" style="max-width:640px;">
     <div class="modal-header"><h2>Novo assunto</h2><button type="button" class="btn-icon" id="mi-compose-close">&times;</button></div>

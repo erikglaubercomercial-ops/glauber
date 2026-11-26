@@ -6251,7 +6251,9 @@ function renderReceivables() {
   const status = document.getElementById("fin-rec-filter-status").value;
   const q = normalizeImportStr(document.getElementById("fin-rec-search").value || "");
   const sort = document.getElementById("fin-rec-sort").value || "entrada-desc";
+  finPerMount("receivables", receivables.flatMap(r => [r.dueDate, r.paidAt]));
   let list = groups.filter(g => {
+    if (!g.rows.some(r => finPerOk("receivables", r.dueDate) || (r.paidAt && finPerOk("receivables", r.paidAt)))) return false;
     if (status === "pendente" && g.pending <= 0.004) return false;
     if (status === "pago" && g.pending > 0.004) return false;
     if (status === "atrasado" && !g.overdueRows.length) return false;
@@ -6683,6 +6685,7 @@ document.getElementById("fin-rec-filter-clear").addEventListener("click", () => 
   document.getElementById("fin-rec-filter-status").value = "";
   document.getElementById("fin-rec-sort").value = "entrada-desc";
   document.getElementById("fin-rec-search").value = "";
+  finPerReset("receivables");
   renderReceivables();
 });
 
@@ -7096,7 +7099,9 @@ expenseCategoriesNewInput.addEventListener("keydown", e => {
 
 /* ---- Comissões ---- */
 function renderCommissions() {
-  const list = commissions.slice().sort((a, b) => b.createdAt - a.createdAt);
+  const comDate = c => { const d = deals.find(x => x.id === c.dealId); return (d && (d.closedAt || d.createdAt)) || c.createdAt; };
+  finPerMount("commissions", commissions.map(comDate));
+  const list = commissions.filter(c => finPerOk("commissions", comDate(c))).sort((a, b) => b.createdAt - a.createdAt);
   const tbody = document.getElementById("fin-commissions-tbody");
   tbody.innerHTML = "";
   const accList = accRowsForCommissions();
@@ -7170,7 +7175,7 @@ let accCommissionsRequested = false;
 function accRowsForCommissions() {
   if (typeof accSales === "undefined" || typeof accLoad !== "function") return [];
   if (!accLoaded && !accCommissionsRequested) { accCommissionsRequested = true; accLoad().then(() => renderCommissions()); }
-  return accLoaded ? accSales.filter(a => a.sold > 0) : [];
+  return accLoaded ? accSales.filter(a => a.sold > 0 && finPerOk("commissions", a.createdAt)) : [];
 }
 function accCommissionRowHtml(a, canSplit) {
   const e = enrollments.find(x => x.id === a.enrollmentId) || {};
@@ -7277,7 +7282,7 @@ function splitUpdateBar() {
 function renderSaleSplits() {
   const tbody = document.getElementById("fin-splits-tbody");
   if (!tbody) return;
-  const list = saleSplitsSorted();
+  const list = saleSplitsSorted().filter(sp => { const d = deals.find(x => x.id === sp.dealId); return finPerOk("commissions", d ? (d.closedAt || d.createdAt) : null); });
   document.getElementById("fin-splits-empty").style.display = list.length === 0 ? "block" : "none";
   const reserva = list.reduce((acc, sp) => acc + (sp.reservaAmount || 0), 0);
   const reservaEl = document.getElementById("fin-reserva-total");
@@ -7623,7 +7628,9 @@ async function saveSchoolCommissionRemote(c) {
 }
 function renderSchoolCommissions() {
   const status = document.getElementById("fin-schoolcomm-filter-status").value;
-  const list = schoolCommissions.filter(c => !status || c.status === status).sort((a, b) => b.createdAt - a.createdAt);
+  const scDate = c => c.expected || c.createdAt;
+  finPerMount("schoolcomm", schoolCommissions.map(scDate));
+  const list = schoolCommissions.filter(c => (!status || c.status === status) && finPerOk("schoolcomm", scDate(c))).sort((a, b) => b.createdAt - a.createdAt);
   const tbody = document.getElementById("fin-schoolcomm-tbody");
   tbody.innerHTML = "";
   document.getElementById("fin-schoolcomm-empty").style.display = list.length === 0 ? "block" : "none";
@@ -7646,6 +7653,7 @@ function renderSchoolCommissions() {
 document.getElementById("fin-schoolcomm-filter-status").addEventListener("change", renderSchoolCommissions);
 document.getElementById("fin-schoolcomm-filter-clear").addEventListener("click", () => {
   document.getElementById("fin-schoolcomm-filter-status").value = "";
+  finPerReset("schoolcomm");
   renderSchoolCommissions();
 });
 
@@ -7745,6 +7753,7 @@ scommBtnDelete.addEventListener("click", async () => {
 const transfersFilter = { q: "", school: "", from: "", to: "" };
 function transferMatchesFilter(x, e) {
   if (transfersFilter.school && e.school !== transfersFilter.school) return false;
+  if (!finPerOk("transfers", x.sentAt)) return false;
   if (transfersFilter.from && String(x.sentAt) < transfersFilter.from) return false;
   if (transfersFilter.to && String(x.sentAt) > transfersFilter.to) return false;
   const q = normalizeImportStr(transfersFilter.q);
@@ -7761,9 +7770,10 @@ function populateTransferSchoolOptions() {
 function renderSchoolTransfers() {
   const enrById = id => enrollments.find(e => e.id === id);
   populateTransferSchoolOptions();
+  finPerMount("transfers", schoolTransfers.map(x => x.sentAt));
   const all = schoolTransfers.slice().sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt)) || b.createdAt - a.createdAt);
   const sorted = all.filter(x => transferMatchesFilter(x, enrById(x.enrollmentId) || {}));
-  const filtering = Object.values(transfersFilter).some(Boolean);
+  const filtering = Object.values(transfersFilter).some(Boolean) || finPerActive("transfers");
 
   const toggle = document.getElementById("fin-transfers-filter-toggle");
   toggle.classList.toggle("active", filtering);
@@ -7818,6 +7828,7 @@ document.getElementById("fin-transfers-from").addEventListener("input", e => { t
 document.getElementById("fin-transfers-to").addEventListener("input", e => { transfersFilter.to = e.target.value; renderSchoolTransfers(); });
 document.getElementById("fin-transfers-clear").addEventListener("click", () => {
   Object.assign(transfersFilter, { q: "", school: "", from: "", to: "" });
+  finPerReset("transfers");
   ["fin-transfers-search", "fin-transfers-school", "fin-transfers-from", "fin-transfers-to"].forEach(id => { document.getElementById(id).value = ""; });
   renderSchoolTransfers();
 });
@@ -7960,7 +7971,8 @@ function renderAdSpendTotals(list) {
     <span>Total em real: <b>${brlFormat(brl)}</b>${missing ? ` <small>(${missing} sem câmbio)</small>` : ""}</span>` : "";
 }
 function renderAdSpend() {
-  const list = adSpend.slice().sort((a, b) => new Date(b.spendDate) - new Date(a.spendDate));
+  finPerMount("adspend", adSpend.map(a => a.spendDate));
+  const list = adSpend.filter(a => finPerOk("adspend", a.spendDate)).sort((a, b) => new Date(b.spendDate) - new Date(a.spendDate));
   const tbody = document.getElementById("fin-adspend-tbody");
   tbody.innerHTML = "";
   document.getElementById("fin-adspend-empty").style.display = list.length === 0 ? "block" : "none";
@@ -8087,6 +8099,7 @@ function findRootLeadId(leadId, guard) {
 }
 
 function renderMetrics() {
+  finPerMount("metrics", deals.map(d => d.closedAt).concat(adSpend.map(a => a.spendDate)));
   const fromVal = document.getElementById("metrics-filter-from").value;
   const toVal = document.getElementById("metrics-filter-to").value;
   const fromTs = fromVal ? new Date(`${fromVal}T00:00:00`).getTime() : -Infinity;
@@ -8132,13 +8145,26 @@ function renderMetrics() {
     <tr><td class="cell-muted">${escapeHtml(label)}</td><td class="cell-primary">${escapeHtml(value)}</td></tr>
   `).join("");
 }
-document.getElementById("metrics-filter-from").addEventListener("change", renderMetrics);
-document.getElementById("metrics-filter-to").addEventListener("change", renderMetrics);
+/* digitar as datas à mão desfaz a escolha de ano/mês; escolher ano/mês preenche as datas */
+document.getElementById("metrics-filter-from").addEventListener("change", () => { finPerReset("metrics"); renderMetrics(); });
+document.getElementById("metrics-filter-to").addEventListener("change", () => { finPerReset("metrics"); renderMetrics(); });
 document.getElementById("metrics-filter-clear").addEventListener("click", () => {
   document.getElementById("metrics-filter-from").value = "";
   document.getElementById("metrics-filter-to").value = "";
+  finPerReset("metrics");
   renderMetrics();
 });
+FIN_PER_RERENDER.metrics = () => {
+  const r = finPerRange("metrics");
+  document.getElementById("metrics-filter-from").value = r.from;
+  document.getElementById("metrics-filter-to").value = r.to;
+  renderMetrics();
+};
+FIN_PER_RERENDER.receivables = () => renderReceivables();
+FIN_PER_RERENDER.commissions = () => { renderCommissions(); renderSaleSplits(); };
+FIN_PER_RERENDER.schoolcomm = () => renderSchoolCommissions();
+FIN_PER_RERENDER.transfers = () => renderSchoolTransfers();
+FIN_PER_RERENDER.adspend = () => renderAdSpend();
 
 /* ============================================================
    MATRÍCULAS — documentos e dados do aluno, com link público

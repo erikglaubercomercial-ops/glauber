@@ -59,7 +59,7 @@ function accRender() {
   if (!root) return;
   const q = (document.getElementById("acc-search") || {}).value || "";
   const nq = q.trim().toLowerCase();
-  const sales = accSales.filter(s => !nq || accLabel(s).toLowerCase().includes(nq));
+  const sales = accSales.filter(s => (!nq || accLabel(s).toLowerCase().includes(nq)) && finPerOk("acc", s.createdAt));
   const calcs = new Map(accSales.map(s => [s.id, accCalc(s)]));
   const sum = (list, f) => round2(list.reduce((a, s) => a + f(s, calcs.get(s.id)), 0));
   const kSold = sum(sales, s => s.sold), kCost = sum(sales, s => s.cost), kProfit = sum(sales, (s, c) => c.profit);
@@ -81,6 +81,9 @@ function accRender() {
     const payBtn = s.status === "Pago"
       ? `<button type="button" class="btn btn-ghost btn-sm" data-acc-act="unpay" data-id="${s.id}">Desfazer</button>`
       : (c.released && !needCost ? `<button type="button" class="btn btn-primary btn-sm" data-acc-act="pay" data-id="${s.id}">Marcar paga</button>` : "");
+    const sendAllBtn = c.toSend > 0.004
+      ? `<button type="button" class="btn btn-primary btn-sm" data-acc-act="sendall" data-id="${s.id}" title="Registra o envio de ${currency(c.toSend)} (o que falta) com a data de hoje">Marcar enviado</button> `
+      : "";
     return `<tr data-id="${s.id}">
       <td class="cell-primary">${leadLink(e.leadId, e.name || "—")}</td>
       <td class="cell-muted">${escapeHtml(cons ? cons.name : "—")}</td>
@@ -91,11 +94,11 @@ function accRender() {
       <td class="cell-muted">${currency(c.sent)}</td>
       <td class="cell-primary">${currency(c.commission)} <span class="muted-note">(${s.pct}%)</span></td>
       <td class="cell-muted">${state}</td>
-      <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-acc-act="send" data-id="${s.id}">+ Envio</button> ${payBtn}</td>
+      <td class="cell-actions">${sendAllBtn}<button type="button" class="btn btn-ghost btn-sm" data-acc-act="send" data-id="${s.id}">+ Envio</button> ${payBtn}</td>
     </tr>`;
   }).join("");
 
-  const sends = accTransfers.filter(x => sales.some(s => s.id === x.accId)).map(x => {
+  const sends = accTransfers.filter(x => sales.some(s => s.id === x.accId) && finPerOk("acc", x.sentAt)).map(x => {
     const s = accSales.find(v => v.id === x.accId), e = accEnr(s.enrollmentId);
     return `<tr data-send="${x.id}">
       <td class="cell-muted">${x.sentAt ? formatDate(x.sentAt) : "—"}</td>
@@ -119,6 +122,7 @@ function accRender() {
           <button type="button" class="btn btn-primary btn-sm" id="acc-new">+ Nova venda de acomodação</button>
         </div>
       </div>
+      <div data-fin-per="acc"></div>
       <table class="data-table">
         <thead><tr><th>Cliente</th><th>Consultor</th><th>Acomodação</th><th>Vendido</th><th>Custo</th><th>Lucro</th><th>Enviado</th><th>Comissão consultor</th><th>Situação</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
@@ -132,6 +136,7 @@ function accRender() {
       ${accTransfers.length ? "" : '<div class="empty-hint">Nenhum envio à acomodação registrado ainda.</div>'}
     </div>`;
 
+  finPerMount("acc", accSales.map(v => v.createdAt).concat(accTransfers.map(v => v.sentAt)));
   const search = document.getElementById("acc-search");
   search.addEventListener("input", () => { accRender(); const s2 = document.getElementById("acc-search"); s2.focus(); s2.setSelectionRange(s2.value.length, s2.value.length); });
   document.getElementById("acc-new").addEventListener("click", () => accOpenSale(null));
@@ -147,6 +152,17 @@ async function accAction(act, id) {
   const s = accSales.find(x => x.id === id);
   if (!s) return;
   if (act === "send") { accOpenSend(null, id); return; }
+  if (act === "sendall") {
+    const falta = accCalc(s).toSend;
+    if (!(falta > 0.004)) return;
+    if (!confirm(`Marcar como enviado o valor da acomodação?\n\n${accLabel(s)}\nValor: ${currency(falta)}\nData: hoje`)) return;
+    const x = { id: crypto.randomUUID(), accId: s.id, amount: round2(falta), sentAt: localDayStr(Date.now()), notes: "Marcado como enviado", createdAt: Date.now() };
+    const { error } = await supabase.from("accommodation_transfers").insert({ id: x.id, accommodation_id: x.accId, amount: x.amount, sent_at: x.sentAt, notes: x.notes });
+    if (error) { console.error(error); alert("Não foi possível registrar o envio."); return; }
+    accTransfers.unshift(x);
+    accRender();
+    return;
+  }
   const wasStatus = s.status, wasPaid = s.paidAt;
   s.status = act === "pay" ? "Pago" : "Pendente";
   s.paidAt = act === "pay" ? new Date().toISOString() : null;
@@ -326,3 +342,5 @@ document.addEventListener("click", e => {
   const b = e.target.closest('#financeiro-subtabs [data-fin-subtab="acomodacao"]');
   if (b) accShow();
 });
+
+FIN_PER_RERENDER.acc = () => accRender();

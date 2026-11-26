@@ -28,13 +28,33 @@ const FD_MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set"
 const FD_BLUE = "#3167a1", FD_NAVY = "#1f4670", FD_ORANGE = "#e8751a", FD_LIGHT = "#6faed6";
 const FD_DONUT = ["#1f4670", "#3167a1", "#6faed6", "#e8751a", "#fb9d2d", "#8891a5", "#16a34a", "#9b6dd6"];
 
-const fdState = { period: "year" };
+const fdState = { period: "year", year: new Date().getFullYear() };
 const fdCharts = {};
+
+/* anos para o seletor: do primeiro lançamento até o ano atual */
+function fdYearOptions() {
+  const now = new Date().getFullYear();
+  let min = now;
+  const take = v => { const d = v == null || v === "" ? null : new Date(typeof v === "string" ? `${v.slice(0, 10)}T12:00:00` : v); if (d && !isNaN(d) && d.getFullYear() < min) min = d.getFullYear(); };
+  deals.forEach(d => take(d.closedAt)); expenses.forEach(x => take(x.dueDate || x.date)); receivables.forEach(r => take(r.dueDate));
+  if (min < now - 6) min = now - 6;
+  const list = [];
+  for (let y = min; y <= now + 1; y++) list.push(y);
+  if (!list.includes(fdState.year)) list.push(fdState.year);
+  return list.sort((a, b) => a - b);
+}
 
 /* ---- períodos ---- */
 function fdRange(key) {
   const now = new Date(), y = now.getFullYear(), m = now.getMonth();
   const tomorrow = new Date(y, m, now.getDate() + 1);
+  /* mês ou ano escolhido na barra "Ano + meses": "m:2026-11" ou "y:2026" */
+  const pm = /^m:(\d{4})-(\d{1,2})$/.exec(key || "");
+  if (pm) { const yy = Number(pm[1]), mm = Number(pm[2]) - 1;
+    return { start: new Date(yy, mm, 1), end: new Date(yy, mm + 1, 1), pStart: new Date(yy, mm - 1, 1), pEnd: new Date(yy, mm, 1), months: "year", year: yy }; }
+  const py = /^y:(\d{4})$/.exec(key || "");
+  if (py) { const yy = Number(py[1]);
+    return { start: new Date(yy, 0, 1), end: new Date(yy + 1, 0, 1), pStart: new Date(yy - 1, 0, 1), pEnd: new Date(yy, 0, 1), months: "year", year: yy }; }
   switch (key) {
     case "month": return { start: new Date(y, m, 1), end: new Date(y, m + 1, 1), pStart: new Date(y, m - 1, 1), pEnd: new Date(y, m, 1), months: "trailing" };
     case "lastmonth": return { start: new Date(y, m - 1, 1), end: new Date(y, m, 1), pStart: new Date(y, m - 2, 1), pEnd: new Date(y, m - 1, 1), months: "trailing" };
@@ -159,6 +179,13 @@ function renderFinDashboard() {
       </div>
       <div class="subtabs fd-periods" id="fd-periods">
         ${FD_PERIODS.map(p => `<button type="button" class="subtab${p.key === fdState.period ? " active" : ""}" data-fd-period="${p.key}">${p.label}</button>`).join("")}
+      </div>
+    </div>
+    <div class="fin-ov-periods fd-month-row">
+      <label class="filter-inline">Ano <select id="fd-year">${fdYearOptions().map(y => `<option value="${y}"${y === fdState.year ? " selected" : ""}>${y}</option>`).join("")}</select></label>
+      <div class="fin-ov-month-tabs">
+        <button type="button" class="fin-ov-tab${fdState.period === `y:${fdState.year}` ? " active" : ""}" data-fd-period="y:${fdState.year}">Ano todo</button>
+        ${FD_MONTHS.map((mn, i) => `<button type="button" class="fin-ov-tab${fdState.period === `m:${fdState.year}-${i + 1}` ? " active" : ""}" data-fd-period="m:${fdState.year}-${i + 1}">${mn}</button>`).join("")}
       </div>
     </div>
 
@@ -309,6 +336,16 @@ document.getElementById("fd-root").addEventListener("click", e => {
   const b = e.target.closest("[data-fd-period]");
   if (!b) return;
   fdState.period = b.dataset.fdPeriod;
+  const ym = /^[my]:(\d{4})/.exec(fdState.period);
+  if (ym) fdState.year = Number(ym[1]);
+  renderFinDashboard();
+});
+document.getElementById("fd-root").addEventListener("change", e => {
+  if (e.target.id !== "fd-year") return;
+  const y = Number(e.target.value);
+  const pm = /^m:\d{4}-(\d{1,2})$/.exec(fdState.period);
+  fdState.period = pm ? `m:${y}-${pm[1]}` : `y:${y}`;
+  fdState.year = y;
   renderFinDashboard();
 });
 
