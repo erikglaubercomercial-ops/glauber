@@ -1056,6 +1056,7 @@ function openFollowUpModal(dealId) {
   if (!deal) return;
   followUpDealId = dealId;
   document.getElementById("followup-field-date").value = deal.followUpAt || "";
+  document.getElementById("followup-btn-delete").style.display = deal.followUpAt ? "" : "none";
   followUpModalBackdrop.classList.add("open");
 }
 function closeFollowUpModal() { followUpModalBackdrop.classList.remove("open"); }
@@ -1063,6 +1064,16 @@ function closeFollowUpModal() { followUpModalBackdrop.classList.remove("open"); 
 document.getElementById("followup-modal-close").addEventListener("click", closeFollowUpModal);
 document.getElementById("followup-btn-cancel").addEventListener("click", closeFollowUpModal);
 followUpModalBackdrop.addEventListener("click", e => { if (e.target === followUpModalBackdrop) closeFollowUpModal(); });
+
+document.getElementById("followup-btn-delete").addEventListener("click", async () => {
+  const deal = deals.find(d => d.id === followUpDealId);
+  if (!deal) return;
+  if (!confirm("Excluir o follow-up marcado para este negócio?")) return;
+  deal.followUpAt = null;
+  renderBoard();
+  closeFollowUpModal();
+  await saveDeals([deal]);
+});
 
 followUpForm.addEventListener("submit", async e => {
   e.preventDefault();
