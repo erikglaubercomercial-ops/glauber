@@ -112,27 +112,23 @@ function pvRender() {
     document.getElementById("pv-board").innerHTML = etapas.map((e, i) => {
       const cards = visiveis.filter(a => a.etapa_id === e.id).sort((x, y) => String(x.name).localeCompare(String(y.name)));
       return `
-        <div class="column" style="--stage-color:${pvStageColor(i, etapas.length)}">
-          <div class="column-header">
-            <div class="pv-head-t">
-              <div class="pv-num">Etapa ${i + 1}</div>
-              <div class="pv-name">${escapeHtml(e.nome)}</div>
-            </div>
-            <div class="pv-head-r">
-              <span class="column-count">${cards.length}</span>
-              ${canEdit ? `<button type="button" class="btn btn-ghost btn-sm pv-edit-btn" data-pv-act="edit-step" data-id="${e.id}">Editar</button>` : ""}
-            </div>
+        <div class="column pv-list" style="--stage-color:${pvStageColor(i, etapas.length)}">
+          <div class="pv-list-head" title="Responsável: ${escapeHtml(e.responsavel)}">
+            <div class="pv-name">${escapeHtml(e.nome)}</div>
+            <span class="pv-list-count">${cards.length}</span>
+            ${canEdit ? `<button type="button" class="pv-list-menu" data-pv-act="edit-step" data-id="${e.id}" title="Editar etapa" aria-label="Editar etapa">&#8943;</button>` : ""}
           </div>
-          <div class="column-value">${escapeHtml(e.responsavel)}</div>
           <div class="column-cards" data-pv-etapa="${e.id}">
-            ${cards.map(a => pvCardHtml(a, e)).join("") || `<div class="empty-hint">${q ? "Nenhum aluno encontrado" : "Nenhum aluno nesta etapa"}</div>`}
+            ${cards.map(a => pvCardHtml(a, e)).join("") || (q ? `<div class="empty-hint">Nenhum aluno encontrado</div>` : "")}
           </div>
+          ${canEdit ? `<button type="button" class="pv-list-add" data-pv-act="add-card" data-id="${e.id}">+ Adicionar um cartão</button>` : ""}
         </div>`;
     }).join("");
   }
 
   pvRenderDetail();
   pvRenderEditPanel();
+  pvSyncModal();
 }
 
 /* checklist acumulado: itens da etapa atual e de todas as anteriores (as marcações ficam no card quando ele avança) */
@@ -149,32 +145,40 @@ function pvGrupoRotulo(g, grupos) {
 function pvCardHtml(a, e) {
   const cl = pvChecklist(a);
   const total = cl.total, feitos = cl.feitos;
-  const pct = total ? Math.round(feitos / total * 100) : 0;
   const alerts = pvAlerts(a);
   const sub = [a.school, a.turno].filter(Boolean).join(" · ");
-  const chegada = a.arrival_date ? `Chegada ${pvDateBR(a.arrival_date)}${a.arrival_time ? " · " + String(a.arrival_time).slice(0, 5) : ""}` : "Chegada a informar";
+  const chegada = a.arrival_date ? pvDateBR(a.arrival_date).slice(0, 5) : "";
+  const completo = total > 0 && feitos === total;
+  const ico = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><polyline points="8 12 11 15 16 9"/></svg>`;
+  const cal = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
   return `
     <div class="card pv-card${pvSel === a.enrollment_id ? " sel" : ""}" data-pv-card="${a.enrollment_id}" draggable="${pvCanEdit() ? "true" : "false"}">
-      <div class="card-name">${escapeHtml(a.name || "—")}</div>
-      <div class="card-meta">${escapeHtml(sub || "—")}</div>
-      <div class="card-contact-row"><span>${escapeHtml(chegada)}</span></div>
-      ${alerts.length ? `<div class="card-tags">${alerts.map(([k, txt]) => `<span class="badge ${k === "d" ? "badge-danger" : "badge-warn"}">${escapeHtml(txt)}</span>`).join("")}</div>` : ""}
-      <div class="pv-bar"><i style="width:${pct}%"></i></div>
-      ${total ? `<div class="pv-checks">${cl.grupos.map(g => pvGrupoRotulo(g, cl.grupos) + g.e.itens.map(it => {
-        const done = a.feitos.includes(it.id);
-        return `<div class="pv-check${done ? " done" : ""}"><input type="checkbox" data-pv-item="${it.id}" ${done ? "checked" : ""} ${pvCanEdit() ? "" : "disabled"}><span data-pv-rename="${it.id}"${pvCanEdit() ? ' title="Clique duas vezes para renomear"' : ""}>${escapeHtml(it.texto)}</span></div>`;
-      }).join("")).join("")}</div>` : ""}
-      <div class="card-footer"><span class="card-value">${feitos} de ${total} itens</span></div>
+      <span class="pv-label"></span>
+      <div class="pv-card-title">${escapeHtml(a.name || "—")}</div>
+      ${sub ? `<div class="pv-card-sub">${escapeHtml(sub)}</div>` : ""}
+      <div class="pv-badges">
+        ${total ? `<span class="pv-badge${completo ? " ok" : ""}" title="Itens concluídos">${ico}${feitos}/${total}</span>` : ""}
+        ${chegada ? `<span class="pv-badge" title="Chegada${a.arrival_time ? " " + escapeHtml(String(a.arrival_time).slice(0, 5)) : ""}">${cal}${chegada}</span>` : ""}
+        ${alerts.map(([k, txt]) => `<span class="pv-badge ${k === "d" ? "bad" : "warn"}">${escapeHtml(txt)}</span>`).join("")}
+      </div>
     </div>`;
 }
+
+/* detalhe do card e edição de etapa abrem como janela (como o cartão do Trello) */
+function pvSyncModal() {
+  const det = document.getElementById("pv-det"), ed = document.getElementById("pv-edit"), back = document.getElementById("pv-back");
+  const detOpen = !!pvSel && !!pvData && pvData.alunos.some(x => x.enrollment_id === pvSel);
+  det.hidden = !detOpen;
+  const edOpen = !!pvEdit;
+  back.hidden = !(detOpen || edOpen);
+  document.documentElement.classList.toggle("pv-modal-open", detOpen || edOpen);
+}
+function pvCloseAll() { pvSel = null; pvEdit = null; pvRender(); }
 
 function pvRenderDetail() {
   const box = document.getElementById("pv-det");
   const a = pvSel ? pvData.alunos.find(x => x.enrollment_id === pvSel) : null;
-  if (!a) {
-    box.innerHTML = `<p class="muted-note" style="margin:0">Clique em um aluno para ver os itens da etapa dele.</p>`;
-    return;
-  }
+  if (!a) { box.innerHTML = ""; return; }
   const idx = pvEtapaIndex(a.etapa_id);
   const e = pvData.etapas[idx];
   const canEdit = pvCanEdit();
@@ -182,6 +186,7 @@ function pvRenderDetail() {
   const outras = pvData.etapas.filter(x => x.id !== a.etapa_id);
   const cor = idx >= 0 ? pvStageColor(idx, pvData.etapas.length) : "var(--border)";
   box.innerHTML = `
+    <button type="button" class="pv-x" data-pv-act="close" aria-label="Fechar">&times;</button>
     <div class="pv-det-head">
       <div>
         <h3>${escapeHtml(a.name || "—")}</h3>
@@ -211,6 +216,7 @@ function pvRenderDetail() {
 /* ---- criar, editar e excluir etapas ---- */
 function pvOpenEdit(id) {
   pvEdit = { id: id || null };
+  pvSel = null; pvRenderDetail();
   const panel = document.getElementById("pv-edit");
   const e = id ? pvData.etapas.find(x => x.id === id) : null;
   const alunos = e ? pvData.alunos.filter(a => a.etapa_id === e.id).length : 0;
@@ -230,16 +236,17 @@ function pvOpenEdit(id) {
       <button type="button" class="btn btn-ghost btn-sm" data-pv-act="cancel-edit">Cancelar</button>
       <button type="button" class="btn btn-primary btn-sm" data-pv-act="save-step">Salvar</button>
     </div>`;
-  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  pvSyncModal();
 }
 
 /* ---- novo card: coloca no quadro uma matrícula que ainda não está nele ---- */
-async function pvOpenAdd() {
+async function pvOpenAdd(etapaId) {
   if (!pvData || !pvData.etapas.length) { alert("Cadastre uma etapa antes de criar cards."); return; }
   const { data, error } = await supabase.rpc("pv_alunos_disponiveis");
   if (error) { console.error(error); alert(pvErrorText(error)); return; }
   const lista = data || [];
   pvEdit = { add: true };
+  pvSel = null; pvRenderDetail();
   const panel = document.getElementById("pv-edit");
   panel.hidden = false;
   const opt = a => {
@@ -252,13 +259,13 @@ async function pvOpenAdd() {
     ${lista.length ? `
     <div class="pv-form">
       <label>Aluno (matrícula)<select id="pv-add-aluno">${lista.map(opt).join("")}</select></label>
-      <label>Etapa<select id="pv-add-etapa">${pvData.etapas.map((e, i) => `<option value="${e.id}">Etapa ${i + 1}: ${escapeHtml(e.nome)}</option>`).join("")}</select></label>
+      <label>Etapa<select id="pv-add-etapa">${pvData.etapas.map((e, i) => `<option value="${e.id}"${e.id === etapaId ? " selected" : ""}>Etapa ${i + 1}: ${escapeHtml(e.nome)}</option>`).join("")}</select></label>
     </div>` : `<p class="muted-note">Todas as matrículas já têm card no quadro. Para um aluno novo, crie primeiro a matrícula no menu Matrículas.</p>`}
     <div class="pv-acts">
       <button type="button" class="btn btn-ghost btn-sm" data-pv-act="cancel-edit">Cancelar</button>
       ${lista.length ? `<button type="button" class="btn btn-primary btn-sm" data-pv-act="add-card-save">Criar card</button>` : ""}
     </div>`;
-  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  pvSyncModal();
 }
 
 async function pvSaveAdd() {
@@ -283,6 +290,7 @@ function pvRenderEditPanel() {
 function pvCloseEdit() {
   pvEdit = null;
   pvRenderEditPanel();
+  pvSyncModal();
 }
 
 function pvItensFromText(texto, existentes) {
@@ -435,6 +443,10 @@ function pvBind() {
   document.getElementById("pv-add-card").addEventListener("click", () => { if (pvCanEdit()) pvOpenAdd(); });
   document.getElementById("pv-search-input").addEventListener("input", e => { pvQuery = e.target.value.trim(); pvRender(); });
 
+  document.getElementById("pv-back").addEventListener("click", pvCloseAll);
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && (pvSel || pvEdit) && !e.target.closest(".pv-rename-in")) pvCloseAll();
+  });
   root.addEventListener("click", e => {
     if (e.target.closest(".pv-check")) return;  /* marcar item no card não seleciona o aluno */
     const card = e.target.closest("[data-pv-card]");
@@ -446,6 +458,8 @@ function pvBind() {
     else if (act === "save-step") pvSaveEdit();
     else if (act === "add-card-save") pvSaveAdd();
     else if (act === "cancel-edit") pvCloseEdit();
+    else if (act === "close") pvCloseAll();
+    else if (act === "add-card") pvOpenAdd(b.dataset.id);
     else if (act === "del-step") pvDeleteStep(b.dataset.id, Number(b.dataset.alunos) || 0);
     else if (act === "move") pvMoveAluno();
   });

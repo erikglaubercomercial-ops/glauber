@@ -3755,3 +3755,37 @@ html.ficha-aberta, html.ficha-aberta body { overflow: hidden; }
   .fx-hero .prod-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fx-acts .btn { flex: 1 1 auto; }
 }
+
+/* ===== PÓS-VENDA no formato de quadro estilo Trello (só formatação; escopo #view-posvenda) ===== */
+#view-posvenda .board { gap: 12px; align-items: flex-start; padding: 4px 2px 14px; }
+#view-posvenda .pv-list { background: color-mix(in srgb, var(--text) 6%, var(--content-bg)); border: 0; border-top: 0; border-radius: 14px; box-shadow: none; flex: 0 0 272px; min-width: 272px; max-width: 272px; max-height: calc(100vh - 300px); min-height: 0; padding: 4px 0 8px; }
+#view-posvenda .pv-list-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 6px 14px; }
+#view-posvenda .pv-list-head .pv-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+#view-posvenda .pv-list-count { font-size: 12.5px; color: var(--text-muted); }
+#view-posvenda .pv-list-menu { border: 0; background: transparent; color: var(--text-muted); font-size: 18px; line-height: 1; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; }
+#view-posvenda .pv-list-menu:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+#view-posvenda .pv-list .column-cards { padding: 2px 8px; gap: 8px; min-height: 8px; }
+#view-posvenda .pv-card { background: var(--surface); border: 0; border-radius: 10px; padding: 8px 10px 9px; box-shadow: 0 1px 2px rgba(9, 30, 66, .25); cursor: pointer; }
+#view-posvenda .pv-card:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--stage-color) 70%, transparent), 0 1px 2px rgba(9, 30, 66, .25); }
+#view-posvenda .pv-card.sel { box-shadow: 0 0 0 2px var(--stage-color); }
+#view-posvenda .pv-label { display: block; width: 40px; height: 8px; border-radius: 4px; background: var(--stage-color); margin-bottom: 6px; }
+#view-posvenda .pv-card-title { font-size: 14px; line-height: 1.35; color: var(--text); overflow-wrap: anywhere; }
+#view-posvenda .pv-card-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+#view-posvenda .pv-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+#view-posvenda .pv-badges:empty { display: none; }
+#view-posvenda .pv-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); padding: 1px 4px; border-radius: 4px; }
+#view-posvenda .pv-badge.ok { background: var(--good); color: #fff; }
+#view-posvenda .pv-badge.warn { background: var(--warn-bg); color: var(--text); font-weight: 600; }
+#view-posvenda .pv-badge.bad { background: var(--danger); color: #fff; font-weight: 600; }
+#view-posvenda .pv-list-add { margin: 6px 8px 0; padding: 8px 10px; text-align: left; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted); font: inherit; font-size: 13.5px; cursor: pointer; }
+#view-posvenda .pv-list-add:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+#view-posvenda .column-cards.drag-over { background: color-mix(in srgb, var(--stage-color) 14%, transparent); border-radius: 10px; }
+
+/* detalhe do card e edição de etapa como janela */
+.pv-back[hidden], #view-posvenda .pv-det[hidden] { display: none; }
+.pv-back { position: fixed; inset: 0; background: rgba(9, 30, 66, .6); z-index: 900; }
+#view-posvenda .pv-det, #view-posvenda .pv-edit:not([hidden]) { position: fixed; z-index: 901; top: 5vh; left: 50%; transform: translateX(-50%); width: min(640px, calc(100vw - 24px)); max-height: 90vh; overflow-y: auto; margin: 0; padding: 20px 22px 22px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, .35); }
+.pv-x { position: absolute; top: 10px; right: 12px; border: 0; background: transparent; font-size: 26px; line-height: 1; width: 34px; height: 34px; border-radius: 8px; color: var(--text-muted); cursor: pointer; }
+.pv-x:hover { background: var(--content-bg); color: var(--text); }
+#view-posvenda .pv-det-head { padding-right: 36px; }
+html.pv-modal-open { overflow: hidden; }
