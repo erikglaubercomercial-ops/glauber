@@ -57,13 +57,24 @@ function initSidebarToggle() {
   const sidebar = document.getElementById("sidebar");
   const toggle = document.getElementById("sidebar-toggle");
   const collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  /* menu recolhido mostra só os ícones: o nome de cada item aparece ao passar o mouse */
+  const dicas = isCollapsed => {
+    sidebar.querySelectorAll(".nav-item, .sidebar-signout").forEach(el => {
+      if (isCollapsed) {
+        const t = (el.querySelector("span:last-child") || el).textContent.trim();
+        if (t) { el.dataset.dica = "1"; el.title = t; }
+      } else if (el.dataset.dica) { el.removeAttribute("title"); delete el.dataset.dica; }
+    });
+  };
   sidebar.classList.toggle("collapsed", collapsed);
   toggle.title = collapsed ? "Expandir menu" : "Recolher menu";
+  dicas(collapsed);
 
   toggle.addEventListener("click", () => {
     const isCollapsed = sidebar.classList.toggle("collapsed");
     toggle.title = isCollapsed ? "Expandir menu" : "Recolher menu";
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, isCollapsed ? "1" : "0");
+    dicas(isCollapsed);
   });
 
   /* celular: sidebar vira gaveta aberta pelo botão hambúrguer (o CSS
