@@ -52,7 +52,7 @@ function avEnsureModal() {
       <label><span>Título</span><input type="text" id="av-title" maxlength="120" required placeholder="Ex.: Como funciona a chegada em Dublin"></label>
       <label><span>Link do vídeo no YouTube</span><input type="text" id="av-url" required placeholder="https://www.youtube.com/watch?v=…"></label>
       <div id="av-preview" class="av-preview" hidden></div>
-      <p class="muted-note">No YouTube, deixe o vídeo como <b>Não listado</b>. Assim só abre quem tem o link, e o aluno o vê dentro da Área do Aluno. Vídeo <b>Privado</b> não toca aqui. Quem copiar o link de um vídeo não listado consegue assisti-lo fora do sistema.</p>
+      <p class="muted-note">No YouTube, deixe o vídeo como <b>Não listado</b>. Assim só abre quem tem o link, e o aluno o vê dentro do Portal do Aluno. Vídeo <b>Privado</b> não toca aqui. Quem copiar o link de um vídeo não listado consegue assisti-lo fora do sistema.</p>
       <label><span>Descrição (opcional)</span><textarea id="av-desc" rows="2" maxlength="400" placeholder="Uma frase explicando o vídeo"></textarea></label>
       <div class="av-material">
         <label><span>Material de apoio para baixar (opcional)</span><input type="file" id="av-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp,.txt"></label>
@@ -131,7 +131,7 @@ function avEnsureModal() {
     if (await save(true)) { close(); avToast("Vídeo duplicado"); }
   });
   $("av-delete").addEventListener("click", async () => {
-    if (!av.editing || !confirm("Excluir este vídeo? Ele some da Área do Aluno.")) return;
+    if (!av.editing || !confirm("Excluir este vídeo? Ele some do Portal do Aluno.")) return;
     const gone = av.list.find(v => v.id === av.editing);
     const { error } = await supabase.from("aluno_videos").delete().eq("id", av.editing);
     if (error) { alert("Não foi possível excluir."); return; }
