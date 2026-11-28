@@ -56,7 +56,9 @@ const SIDEBAR_COLLAPSED_KEY = "crm-vendas-sidebar-collapsed";
 function initSidebarToggle() {
   const sidebar = document.getElementById("sidebar");
   const toggle = document.getElementById("sidebar-toggle");
-  const collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  const salvo = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+  /* sem escolha salva: em janela estreita (notebook pequeno) o menu já abre recolhido */
+  const collapsed = salvo === null ? window.innerWidth < 1100 : salvo === "1";
   /* menu recolhido mostra só os ícones: o nome de cada item aparece ao passar o mouse */
   const dicas = isCollapsed => {
     sidebar.querySelectorAll(".nav-item, .sidebar-signout").forEach(el => {
@@ -2080,9 +2082,8 @@ function renderLeads() {
             <button type="button" class="cell-copy-btn" data-copy="${escapeHtml(lead.phone)}" title="${t("lead.copyPhone")}">${CELL_COPY_ICON_SVG}</button>
           </div>` : "—"}
       </td>
-      <td class="cell-muted">${lead.comoConheceu ? escapeHtml(lead.comoConheceu) : "—"}</td>
       <td class="cell-muted">${originBadges(lead)}</td>
-      <td class="cell-muted">${escapeHtml(new Date(lead.createdAt).toLocaleString("pt-BR"))}</td>
+      <td class="cell-muted cell-date">${escapeHtml(new Date(lead.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }))}</td>
       <td class="cell-muted">${consultant ? escapeHtml(consultant.name) : (lead.active === false ? "—" : noConsultorMark())}</td>
       <td class="cell-actions"><button type="button" class="btn-icon row-menu-trigger" data-id="${lead.id}">⋮</button></td>
     `;
