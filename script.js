@@ -3800,7 +3800,10 @@ async function loadQuotes() {
 }
 async function saveQuoteRow(q) {
   const { error } = await supabase.from("quotes").upsert(quoteRowToDb(q));
-  if (error) console.error("Erro ao salvar cotação:", error);
+  if (error) {
+    console.error("Erro ao salvar cotação:", error);
+    if (error.code === "42501" && /cotação|cotacao/i.test(error.message || "")) alert(error.message);
+  }
   return !error;
 }
 async function deleteQuoteRemote(id) {
@@ -4396,6 +4399,34 @@ document.getElementById("cmp-open-client").addEventListener("click", () => {
 });
 document.getElementById("btn-compare-schools").addEventListener("click", () => { switchView("escolas"); showEscolasSubtab("comparativo"); });
 
+/* regras de edição (valem também no banco): cotação aceita pelo cliente não se edita; só o consultor que criou ou o ADM edita */
+function quoteMotivoBloqueio(q) {
+  if (!q) return "";
+  if (q.aprovadaEm) return "accepted";
+  const ehAdm = !!session && session.role === "ADM";
+  if (!ehAdm && q.consultorId !== (session && session.id)) return "owner";
+  return "";
+}
+function quoteAplicaBloqueio(q) {
+  const motivo = quoteMotivoBloqueio(q);
+  const sub = document.getElementById("subview-cotacao-builder");
+  const msg = document.getElementById("q-lock-msg");
+  sub.classList.toggle("quote-locked", !!motivo);
+  msg.hidden = !motivo;
+  if (motivo) msg.textContent = t(motivo === "accepted" ? "quotes.lockedAccepted" : "quotes.lockedOwner");
+  sub.querySelectorAll(".quote-form-body input, .quote-form-body select, .quote-form-body textarea, .quote-form-body button").forEach(el => {
+    if (motivo) { if (!el.disabled) { el.dataset.lockedByRule = "1"; el.disabled = true; } }
+    else if (el.dataset.lockedByRule) { el.disabled = false; delete el.dataset.lockedByRule; }
+  });
+  ["q-btn-salvar", "q-btn-limpar", "q-btn-excluir"].forEach(bid => {
+    const b = document.getElementById(bid);
+    if (b) b.dataset.hideLocked = motivo ? "1" : "";
+  });
+  document.getElementById("q-btn-salvar").style.display = motivo ? "none" : "";
+  document.getElementById("q-btn-limpar").style.display = motivo ? "none" : "";
+  if (motivo) document.getElementById("q-btn-excluir").style.display = "none";
+}
+
 function openQuoteBuilder(id) {
   document.getElementById("subview-cotacao-lista").classList.remove("active");
   document.getElementById("subview-cotacao-builder").classList.add("active");
@@ -4449,7 +4480,8 @@ function openQuoteBuilder(id) {
   if (!id) initQuoteBuilderDefaults();
   quoteMontaCatalogo();
   renderQuoteContractsPanel(id ? quotes.find(x => x.id === id) : null);
-  document.getElementById("q-nome").focus();
+  quoteAplicaBloqueio(id ? quotes.find(x => x.id === id) : null);
+  if (!quoteMotivoBloqueio(id ? quotes.find(x => x.id === id) : null)) document.getElementById("q-nome").focus();
 }
 
 document.getElementById("btn-new-quote").addEventListener("click", () => openQuoteBuilder(null));
@@ -5320,6 +5352,8 @@ async function buildAndSaveQuoteRecord() {
   const id = document.getElementById("q-id").value || uid();
   document.getElementById("q-id").value = id;
   const existing = quotes.find(q => q.id === id);
+  /* cotação bloqueada (aceita ou de outro consultor): não grava nada, só devolve o que já existe */
+  if (existing && quoteMotivoBloqueio(existing)) return existing;
   const consultantUser = users.find(u => u.email && u.email.toLowerCase() === consultorEmail.toLowerCase());
   let consultorId = null;
   if (consultantUser) consultorId = consultantUser.id;

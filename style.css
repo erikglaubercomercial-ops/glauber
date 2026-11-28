@@ -3868,3 +3868,8 @@ html.pv-modal-open { overflow: hidden; }
   #view-leads .data-table-list th:nth-child(4), #view-leads .data-table-list td:nth-child(4),
   #view-leads .data-table-list th:nth-child(6), #view-leads .data-table-list td:nth-child(6) { display: none; }
 }
+
+/* cotação bloqueada para edição (aceita pelo cliente ou de outro consultor) */
+.quote-lock-msg { margin: 0 0 12px; font-weight: 600; }
+.quote-lock-msg[hidden] { display: none; }
+#subview-cotacao-builder.quote-locked .quote-form-body { opacity: .78; pointer-events: none; }
